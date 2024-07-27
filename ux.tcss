@@ -1,0 +1,30 @@
+DataTable {
+    height: 1fr;
+    color: green;
+    scrollbar-color: darkgreen;
+    scrollbar-color-active: green;
+    scrollbar-color-hover: limegreen;
+}
+
+
+
+.datatable--even-row {
+    background: black;
+}
+
+.datatable--odd-row {
+    background: black;
+}
+
+.datatable--cursor {
+    background: green;
+}
+
+.datatable--hover {
+    background: darkgreen;
+    color: white;
+}
+
+.datatable--header {
+    background: darkgreen;
+}
