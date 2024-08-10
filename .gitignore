@@ -5,7 +5,7 @@ __pycache__/
 
 # my specific stuff
 *.bin
-*conf.py
+#*conf.py
 runtime/
 catalog/
 

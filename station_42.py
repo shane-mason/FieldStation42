@@ -151,8 +151,10 @@ class Station42:
 
 if __name__ == "__main__":
     import nbc_conf
-    station = Station42(nbc_conf.nbc_conf)
-    schedule = station.make_weekly_schedule()
+    import abc_conf
+
+    nbc_station = Station42(nbc_conf.nbc_conf)
+    nbc_schedule = station.make_weekly_schedule()
 
 
 
