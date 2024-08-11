@@ -28,7 +28,12 @@ class Station42:
     def write_day_to_playlist(self, schedule, day_name):
         for t_slot in range(25):
             if t_slot in schedule:
-                clips = schedule[t_slot].make_plan()
+                try:
+                    clips = schedule[t_slot].make_plan()
+                except:
+                    self._l.error("Error writing playlist - likely an error in the catalog or configuration")
+                    self._l.error(f"Check schedule for day: {day_name} at {t_slot}")
+                    raise Exception("Error writing schedule")
                 if clips:
                     as_json = json.dumps(clips, indent=4)
                     out_path = f"{self.config['runtime_dir']}/{day_name}_{t_slot}.json"
@@ -150,11 +155,12 @@ class Station42:
 
 
 if __name__ == "__main__":
-    import nbc_conf
-    import abc_conf
+    from confs import nbc_conf
+    from confs import abc_conf
 
-    nbc_station = Station42(nbc_conf.nbc_conf)
-    nbc_schedule = station.make_weekly_schedule()
+    for c in [nbc_conf, abc_conf]:
+        station = Station42(c.station_conf)
+        schedule = station.make_weekly_schedule()
 
 
 

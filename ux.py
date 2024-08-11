@@ -124,7 +124,7 @@ class StationViewer(App):
 
 
 
-import nbc_conf
+from confs import nbc_conf
 station_config = nbc_conf.nbc_conf
 
 full_schedule = None

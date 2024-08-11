@@ -1,13 +1,13 @@
-nbc_conf = {
+station_conf = {
     'network_name' : "NBC",
-    'catalog_path' : "nbc_catalog.bin",
-    'content_dir' : "shows",
+    'catalog_path' : "catalog/nbc_catalog.bin",
+    'content_dir' : "catalog/nbc_catalog",
     'runtime_dir' : "runtime/nbc",
     'schedule_path': "runtime/nbc_schedule.bin",
     #must be inside or linked inside content_dir
     'commercial_dir' : "commercial",
     'bump_dir' : "bump",
-    'clip_shows' : ["real_people"],
+    'clip_shows' : ["real_people", "snl"],
     'off_air_image': "runtime/nbc_offair.png",
     'monday': {
         7: {'tags': 'morning'},
@@ -137,8 +137,8 @@ nbc_conf = {
         21: {'tags' : 'sitcom'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
-        1: {'tags' : 'late-late'},
+        24: {'tags' : 'snl'},
+        1: {'tags' : 'snl'},
         2: {'tags' : 'classic'}
     },
     'sunday': {

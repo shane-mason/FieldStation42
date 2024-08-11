@@ -108,7 +108,7 @@ class FieldPlayer:
             return False
 
 if __name__ == "__main__":
-    player = FieldPlayer("runtime/nbc")
+    player = FieldPlayer("runtime/abc")
     while True:
         now = datetime.datetime.now()
         #how far are we from the next hour?
