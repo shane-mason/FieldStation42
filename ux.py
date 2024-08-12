@@ -124,20 +124,19 @@ class StationViewer(App):
 
 
 
-from confs import nbc_conf
-station_config = nbc_conf.nbc_conf
+from confs import abc_conf
+station_config = abc_conf.station_conf
 
 full_schedule = None
 selected_day = None
 day_index = None
 #field_player = FieldPlayer(station_config['runtime_dir'])
 
-#open the schedule
+#open the schedule - were using pickle for expediency
 with open(station_config['schedule_path'], "rb") as f:
     full_schedule  = pickle.load(f)
 
 print(full_schedule['gen_time'])
-
 
 app = StationViewer()
 if __name__ == "__main__":

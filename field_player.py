@@ -1,29 +1,54 @@
 from python_mpv_jsonipc import MPV
+from enum import Enum
 import time
 import datetime
 import json
 from timings import *
 
-# You can also observe and wait for properties.
-#@mpv.property_observer("eof-reached")
-#def handle_eof(name, value):
-#    print("time_remaining")
-#    print(name)
-#    print(value)
+CHANNEL_SOCKET = "runtime/channel.socket"
 
-#mpv = MPV(start_mpv=False, ipc_socket="/tmp/mpvsocket")
+class ReceptionStatus:
 
-#mpv.play("test1.mp4")
-#mpv.wait_for_property("duration")
-#print("Duration changed")
-#mpv.seek(1234)
-#time.sleep(10)
-#mpv.play("test0.mp4")
-#time.sleep(10)
-#mpv.play("test1.mp4")
-#mpv.wait_for_property("duration")
-#mpv.seek("300")
+    def __init__(self, chaos=0, thresh=0.01):
+        self.chaos = chaos
+        self.thresh = thresh
 
+    def is_perfect(self):
+        return self.chaos == 0.0
+
+    def is_degraded(self):
+        return self.chaos > threshhold
+
+    def is_fully_degraded(self):
+        return self.chaos == 1.0
+
+
+    def degrade(self, amount=.02):
+        self.chaos += amount
+        if self.chaos > 1.0:
+            self.chaos = 1.0
+
+    def improve(self, amount=.02):
+        self.chaos-=amount
+        if self.chaos < self.thresh:
+            self.chaos = 0.0
+
+
+    def filter(self):
+        if self.chaos > self.thresh:
+            #between 0 and 100
+            noise = self.chaos * 100
+            #between 0 and .5
+            v_scroll = self.chaos * .5
+            return f"lavfi=[noise=alls={noise}:allf=t+u, scroll=h=0:v={v_scroll}]"
+        else:
+            return ""
+
+class PlayStatus(Enum):
+    FAILED = 1
+    EXITED = 2
+    SUCCESS = 3
+    CHANNEL_CHANGE =4
 
 class FieldPlayer:
 
@@ -35,14 +60,33 @@ class FieldPlayer:
         #self.playlist = self.read_json(runtime_filepath)
         self.index = 0
 
+    def update_filters(self):
+        self.mpv.vf = reception.filter()
+
+    def update_reception(self):
+        if not reception.is_perfect():
+            reception.improve()
+            #did that get us below threshhold?
+            if reception.is_perfect():
+                self.mpv.vf = ""
+            else:
+                self.mpv.vf = reception.filter()
+
+    def play_file(self, file_path):
+        self.mpv.play(file_path)
+        self.mpv.wait_for_property("duration")
+        return
+
     def play_image(self, duration):
         pass
 
-    def play_slot(self, the_day, the_hour, offset=0):
+    def play_slot(self, the_day, the_hour, offset=0, runtime_path=None):
+        if runtime_path:
+            self.runtime_path = runtime_path
         fpath = f"{self.runtime_path}/{the_day}_{the_hour}.json";
         print("Playing: " + fpath)
         self.playlist = self.read_json(fpath)
-        self.start_playing(offset)
+        return self.start_playing(offset)
 
     def read_json(self, file_path):
         playlist = None
@@ -50,7 +94,6 @@ class FieldPlayer:
             as_str = f.read()
             playlist = json.loads(as_str)
         return playlist
-
 
     def start_playing(self, block_offset=0):
         offset_in_index = 0
@@ -60,7 +103,7 @@ class FieldPlayer:
             print(f"index,offset = {index},{offset}")
             self.index = index
             offset_in_index = offset
-        self._play_from_index(offset_in_index)
+        return self._play_from_index(offset_in_index)
 
     def _find_index_at_offset(self, offset):
         abs_start = 0
@@ -74,14 +117,16 @@ class FieldPlayer:
                 return(index, d2)
             index += 1
 
+    #returns true if play is interrupted
     def _play_from_index(self, offet_in_index=0):
+
         if self.index < len(self.playlist):
             #iterate over the slice from index to end
             for entry in self.playlist[self.index:]:
                 print("Playing: ", entry)
                 self.mpv.play(entry["path"])
                 self.mpv.wait_for_property("duration")
-                sleep_dur = entry['duration']
+                wait_dur = entry['duration']
                 seek_dur = 0
 
                 #do any initial seek
@@ -90,7 +135,7 @@ class FieldPlayer:
 
                 if offet_in_index:
                     seek_dur += offet_in_index
-                    sleep_dur -= offet_in_index
+                    wait_dur -= offet_in_index
                     #only on first index we process, so toggle it off
                     offet_in_index = 0
 
@@ -98,17 +143,48 @@ class FieldPlayer:
                     self.mpv.seek(seek_dur)
                     print(f"seeking for: {seek_dur}")
 
-                if sleep_dur:
-                    print(f"sleeping for: {sleep_dur}")
-                    time.sleep(sleep_dur-.1)
+                if wait_dur:
+                    print(f"monitoring for: {wait_dur}")
+
+
+                    #this is our main event loop
+                    keep_waiting = True
+                    stop_time = datetime.datetime.now() + datetime.timedelta(seconds=wait_dur)
+                    while keep_waiting:
+
+                        self.update_reception()
+                        now = datetime.datetime.now()
+
+                        if now >= stop_time:
+                            keep_waiting = False
+                        else:
+                            #debounce time
+                            time.sleep(.05)
+                            r_sock = open(CHANNEL_SOCKET, "r")
+                            contents = r_sock.read()
+                            r_sock.close()
+                            if len(contents):
+                                print("Contents updated - resetting socket file")
+                                with open(CHANNEL_SOCKET, 'w'):
+                                    pass
+
+                                return PlayStatus.CHANNEL_CHANGE
 
             print("Done playing block")
-            return True
+            return PlayStatus.SUCCESS
         else:
-            return False
+            return PlayStatus.FAILED
+
+reception = ReceptionStatus()
+
 
 if __name__ == "__main__":
-    player = FieldPlayer("runtime/abc")
+    stations = ["runtime/nbc", "runtime/abc"]
+    channel = 0
+    player = FieldPlayer(stations[channel])
+    reception.degrade(1)
+    player.update_filters()
+
     while True:
         now = datetime.datetime.now()
         #how far are we from the next hour?
@@ -123,4 +199,29 @@ if __name__ == "__main__":
         hour = now.hour
         skip = now.minute * MIN_1 + now.second
 
-        player.play_slot(week_day, hour, skip)
+        outcome = player.play_slot(week_day, hour, skip, runtime_path=stations[channel])
+
+        if outcome == PlayStatus.CHANNEL_CHANGE:
+            channel+=1
+            if channel>=len(stations):
+                channel = 0
+
+            #add noise to current channel
+            while not reception.is_fully_degraded():
+                reception.degrade()
+                player.update_filters()
+                time.sleep(.05)
+
+            #reception.improve(1)
+            player.play_file("runtime/static.mp4")
+            while not reception.is_perfect():
+                reception.improve(.1)
+                player.update_filters()
+                time.sleep(.1)
+            time.sleep(1)
+            while not reception.is_fully_degraded():
+                reception.degrade(.1)
+                player.update_filters()
+                time.sleep(.1)
+
+
