@@ -132,6 +132,8 @@ class ShowBlock:
             self._l.debug(f"Stacking {reel}")
             clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
+        return clips
+
     def make_full_plan(self):
 
         if self.back:

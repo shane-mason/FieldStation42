@@ -58,7 +58,7 @@ class Station42:
             if front.duration > HOUR:
                 self._l.debug("Slot continues...")
                 slot_continues = front.duration - HOUR
-                return None
+                raise NotImplementedError("Slot continuation is not supported - video must be under one hour")
 
             if remaining_time > H_HOUR:
                 self._l.debug("Less than half hour filled - getting back half")
@@ -69,10 +69,12 @@ class Station42:
                     self._l.debug(back_half)
                 else:
                     self._l.error("Error getting candidate for back slot")
+                    raise Exception(f"Error making schedule for tag: {tag}")
             else:
                 self._l.debug("More than half filled - skipping back half")
         else:
             self._l.error("Error getting candidate for slot.")
+            raise Exception(f"Error making schedule for tag: {tag}")
 
         while remaining_time > 15:
             #just add commercials and bumps

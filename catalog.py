@@ -60,6 +60,7 @@ class ShowCatalog:
                     show_clip_list.append(show_clip)
                 except:
                     self._l.error("Error processing video...")
+                    raise Exception(f"Error processing video {f}")
 
             self.tag_index[tag] = show_clip_list
 
