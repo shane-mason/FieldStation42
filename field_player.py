@@ -179,7 +179,7 @@ reception = ReceptionStatus()
 
 
 if __name__ == "__main__":
-    stations = ["runtime/nbc", "runtime/abc"]
+    stations = ["runtime/nbc", "runtime/abc", "runtime/pbs"]
     channel = 0
     player = FieldPlayer(stations[channel])
     reception.degrade(1)

@@ -156,11 +156,9 @@ class Station42:
 
 
 if __name__ == "__main__":
-    from confs import nbc_conf
-    from confs import abc_conf
-    from confs import pbs_conf
-    for c in [nbc_conf, abc_conf, pbs_conf]:
-        station = Station42(c.station_conf)
+    from confs.fieldStation42_conf import main_conf
+    for c in main_conf["stations"]:
+        station = Station42(c)
         schedule = station.make_weekly_schedule()
 
 
