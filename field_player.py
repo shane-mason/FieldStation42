@@ -5,7 +5,7 @@ import datetime
 import json
 from timings import *
 
-CHANNEL_SOCKET = "runtime/channel.socket"
+channel_socket = "runtime/channel.socket"
 
 class ReceptionStatus:
 
@@ -160,12 +160,12 @@ class FieldPlayer:
                         else:
                             #debounce time
                             time.sleep(.05)
-                            r_sock = open(CHANNEL_SOCKET, "r")
+                            r_sock = open(channel_socket, "r")
                             contents = r_sock.read()
                             r_sock.close()
                             if len(contents):
                                 print("Contents updated - resetting socket file")
-                                with open(CHANNEL_SOCKET, 'w'):
+                                with open(channel_socket, 'w'):
                                     pass
 
                                 return PlayStatus.CHANNEL_CHANGE
@@ -178,10 +178,25 @@ class FieldPlayer:
 reception = ReceptionStatus()
 
 
-if __name__ == "__main__":
-    stations = ["runtime/nbc", "runtime/abc", "runtime/pbs"]
+def main_loop():
+
+    #get the channels and runtimes
+    from confs.fieldStation42_conf import main_conf
+    station_runtimes = []
+    for c in main_conf["stations"]:
+        #go through each station config and get its runtime
+        station_runtimes.append(c['runtime_dir'])
+
+    global channel_socket
+    channel_socket = main_conf['channel_socket']
+
+    #go ahead and clear the channel socket (or create if it doesn't exist)
+    with open(channel_socket, 'w'):
+        pass
+
+    station_runtimes = ["runtime/nbc", "runtime/abc", "runtime/pbs"]
     channel = 0
-    player = FieldPlayer(stations[channel])
+    player = FieldPlayer(station_runtimes[channel])
     reception.degrade(1)
     player.update_filters()
 
@@ -199,11 +214,11 @@ if __name__ == "__main__":
         hour = now.hour
         skip = now.minute * MIN_1 + now.second
 
-        outcome = player.play_slot(week_day, hour, skip, runtime_path=stations[channel])
+        outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
 
         if outcome == PlayStatus.CHANNEL_CHANGE:
             channel+=1
-            if channel>=len(stations):
+            if channel>=len(station_runtimes):
                 channel = 0
 
             #add noise to current channel
@@ -225,3 +240,5 @@ if __name__ == "__main__":
                 time.sleep(.1)
 
 
+if __name__ == "__main__":
+    main_loop()
