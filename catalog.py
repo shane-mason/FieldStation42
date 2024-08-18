@@ -97,7 +97,9 @@ class ShowCatalog:
                 lowest_matches = [candidate]
             elif candidate.count == min_count:
                 lowest_matches.append(candidate)
+
         return random.choice(lowest_matches)
+
 
     def find_candidate(self, tag, seconds):
         if tag in self.tag_index and len(self.tag_index[tag]):
@@ -107,8 +109,18 @@ class ShowCatalog:
                 if candidate.duration < seconds:
                     matches.append(candidate)
             random.shuffle(matches)
+            if not len(matches):
+                print("Couldnt find it")
+                print(tag)
+                print(seconds)
+                raise(Exception())
             return self._lowest_count(matches)
 
 
     def find_filler(self, seconds):
-        return self.find_candidate(random.choice(['bump', 'commercial', 'commercial']), seconds)
+        bump_tag = self.config['bump_dir']
+        com_tag = self.config['commercial_dir']
+
+        if not len(self.tag_index[bump_tag]) and not len(self.tag_index[com_tag]):
+            raise Exception("Can't find filler - add commercials and bumps...")
+        return self.find_candidate(random.choice([bump_tag, com_tag, com_tag]), seconds)
