@@ -110,9 +110,7 @@ class ShowCatalog:
                     matches.append(candidate)
             random.shuffle(matches)
             if not len(matches):
-                print("Couldnt find it")
-                print(tag)
-                print(seconds)
+                err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
                 raise(Exception())
             return self._lowest_count(matches)
 
