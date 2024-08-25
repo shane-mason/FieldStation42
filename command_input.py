@@ -42,7 +42,7 @@ while True:
             os.system*("killall mpv")
             sys.exit(-1)
 
-        if command.startswith("halt")
+        if command.startswith("halt"):
             os.system("pkill -9 -f field_player.py")
             os.system*("killall mpv")
             os.system("shutdown /r /t 1")
