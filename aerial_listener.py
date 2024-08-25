@@ -65,44 +65,54 @@ CYAN = (0, 255, 255)
 BLUE = (0, 0, 255)
 PURPLE = (180, 0, 255)
 
-pixels.fill(YELLOW)
-pixels.show()
+
+def show_waiting():
+    oled.fill(0)
+    oled.text('Waiting...', 0, 10, 1)
+    oled.show()
+
+def show_command(cmd):
+    oled.fill(0)
+    oled.text(f"CMD: {cmd}" , 0, 0, 1)
+    oled.show()
+
+def show_ambient():
+    pixels.fill(YELLOW)
+    pixels.show()
+
+show_waiting()
+show_ambient()
 
 while True:
-
-oled.fill(0)
-oled.text('Waiting...', 10, 0, 1)
-oled.show()
 
     #led.value = not led.value
     if not chan_btn.value:
         uart.write(b"change\n")
         print("Pressed")
         oled.fill(0)
-        oled.text('Turning', 0, 0, 1)
+        oled.text('Command: change', 0, 0, 1)
         oled.show()
         rainbow_cycle(.015)
         rainbow_cycle(.015)
-        pixels.fill(YELLOW)
-        pixels.show()
-        oled.fill(0)
-        oled.text('Waiting...', 0, 0, 1)
-        oled.show()
+
+        show_waiting()
+        show_ambient()
 
     if not stop_btn.value:
-        oled.fill(0)
-        oled.text('Shut down', 0, 0, 1)
-        oled.show()
+        uart.write(b"shutdown\n")
+        show_command("shutdown")
         pixels.fill(CYAN)
         pixels.show()
         time.sleep(5)
+        show_waiting()
+        show_ambient()
 
     if not reboot_btn.value:
-        oled.fill(0)
-        oled.text('Reboot', 0, 0, 1)
-        oled.show()
+        uart.write(b"reboot\n")
+        show_command("reboot")
         pixels.fill(RED)
         pixels.show()
         time.sleep(5)
-
+        show_waiting()
+        show_ambient()
 
