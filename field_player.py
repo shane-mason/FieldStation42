@@ -55,7 +55,7 @@ class FieldPlayer:
     def __init__(self, runtime_path, mpv=None):
         if not mpv:
             #command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window
-            self.mpv = MPV(start_mpv=True, ipc_socket="/tmp/mpvsocket", input_default_bindings=False, fs=False)
+            self.mpv = MPV(start_mpv=True, ipc_socket="/tmp/mpvsocket", input_default_bindings=False, fs=True, idle=True, force_window=True)
         self.runtime_path = runtime_path
         #self.playlist = self.read_json(runtime_filepath)
         self.index = 0
