@@ -39,7 +39,7 @@ while True:
                 fp.write(str(timestamp))
         if command.startswith("exit"):
             os.system("pkill -9 -f field_player.py")
-            os.system*("killall mpv")
+            os.system("killall mpv")
             sys.exit(-1)
 
         if command.startswith("halt"):
