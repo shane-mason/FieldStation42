@@ -124,8 +124,8 @@ class StationViewer(App):
 
 
 
-from confs import abc_conf
-station_config = abc_conf.station_conf
+from confs import cbs_conf
+station_config = cbs_conf.station_conf
 
 full_schedule = None
 selected_day = None
