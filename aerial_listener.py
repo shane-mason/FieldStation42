@@ -1,3 +1,5 @@
+#this runs on the pico component - not the pi
+
 import board
 import busio
 import digitalio
@@ -23,14 +25,14 @@ chan_btn = digitalio.DigitalInOut(board.GP14)
 chan_btn.direction = digitalio.Direction.INPUT
 chan_btn.pull = digitalio.Pull.UP
 
-stop_btn = digitalio.DigitalInOut(board.GP2)
-stop_btn.direction = digitalio.Direction.INPUT
-stop_btn.pull = digitalio.Pull.UP
+exit_btn = digitalio.DigitalInOut(board.GP2)
+exit_btn.direction = digitalio.Direction.INPUT
+exit_btn.pull = digitalio.Pull.UP
 
 
-reboot_btn = digitalio.DigitalInOut(board.GP27)
-reboot_btn.direction = digitalio.Direction.INPUT
-reboot_btn.pull = digitalio.Pull.UP
+halt_btn = digitalio.DigitalInOut(board.GP27)
+halt_btn.direction = digitalio.Direction.INPUT
+halt_btn.pull = digitalio.Pull.UP
 
 
 
@@ -98,18 +100,18 @@ while True:
         show_waiting()
         show_ambient()
 
-    if not stop_btn.value:
-        uart.write(b"shutdown\n")
-        show_command("shutdown")
+    if not exit_btn.value:
+        uart.write(b"exit\n")
+        show_command("exit")
         pixels.fill(CYAN)
         pixels.show()
         time.sleep(5)
         show_waiting()
         show_ambient()
 
-    if not reboot_btn.value:
-        uart.write(b"reboot\n")
-        show_command("reboot")
+    if not halt_btn.value:
+        uart.write(b"halt\n")
+        show_command("halt")
         pixels.fill(RED)
         pixels.show()
         time.sleep(5)
