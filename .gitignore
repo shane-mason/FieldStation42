@@ -12,6 +12,9 @@ catalog/
 # C extensions
 *.so
 
+#kate
+*.kate-swap
+
 # Distribution / packaging
 .Python
 build/
