@@ -45,5 +45,5 @@ while True:
         if command.startswith("halt"):
             os.system("pkill -9 -f field_player.py")
             os.system("killall mpv")
-            os.system("shutdown /r /t 1")
+            os.system("sudo halt")
             sys.exit(-1)
