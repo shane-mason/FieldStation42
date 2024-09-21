@@ -1,18 +1,29 @@
 station_conf = {
+    # basic human readable name for the channel
     'network_name' : "NBC",
+    # path to the catalog binary file to be stored
     'catalog_path' : "catalog/nbc_catalog.bin",
+    # root directory for content for this station
     'content_dir' : "catalog/nbc_catalog",
+    # runtime dir for this station - where schedules etc will be stored
     'runtime_dir' : "runtime/nbc",
+    # path to output the weekly schedule
     'schedule_path': "runtime/nbc_schedule.bin",
-    #must be inside or linked inside content_dir
+    # must be inside or linked inside content_dir
     'commercial_dir' : "commercial",
+    # must be inside or linked inside content_dir
     'bump_dir' : "bump",
+    # list of directories (tags) intended to be stitched clips vs full content in a single file
     'clip_shows' : ["real_people", "snl"],
     'off_air_image': "runtime/nbc_offair.png",
     'monday': {
+        #will play random content from the content/morning path
         7: {'tags': 'morning'},
+        #will play random content from the content/morning path
         8: {'tags': 'morning'},
+        #will play random content from the content/cartoon path
         9: {'tags': 'cartoon'},
+        #will play random content from the content/gameshow path
         10: {'tags' : 'gameshow'},
         11: {'tags' : 'gameshow'},
         12: {'tags' : 'daytime'},
