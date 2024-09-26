@@ -25,7 +25,7 @@ class ShowCatalog:
     def __init__(self, config):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
-        self.tag_index = {}
+        self.clip_index = {}
         self.tags = []
         self.load_catalog()
 
@@ -37,7 +37,8 @@ class ShowCatalog:
         for day in DAYS:
             slots = self.config[day]
             for k in slots:
-                tags[slots[k]['tags']] = True
+                if 'tags' in slots[k]:
+                    tags[slots[k]['tags']] = True
 
         self.tags = list(tags.keys())
 
@@ -62,11 +63,19 @@ class ShowCatalog:
                     self._l.error("Error processing video...")
                     raise Exception(f"Error processing video {f}")
 
-            self.tag_index[tag] = show_clip_list
+            self.clip_index[tag] = show_clip_list
 
+
+        # add sign-off and off-air videos to the clip index
+        if 'sign_off_video' in self.config:
+            video_clip = VideoFileClip(self.config["sign_off_video"])
+            self.clip_index['sign_off'] = ShowClip(self.config["sign_off_video"], video_clip.duration, 'sign_off')
+        if "off_air_video" in self.config:
+            video_clip = VideoFileClip(self.config["off_air_video"])
+            self.clip_index['off_air'] = ShowClip(self.config["off_air_video"], video_clip.duration, 'off_air')
 
         with open(self.config['catalog_path'], 'wb') as f:
-            pickle.dump(self.tag_index, f)
+            pickle.dump(self.clip_index, f)
 
     def load_catalog(self):
         #takes a while, so check to see if it exists - build if not
@@ -77,13 +86,13 @@ class ShowCatalog:
             self.build_catalog()
         else:
             with open(c_path, "rb") as f:
-                self.tag_index = pickle.load(f)
+                self.clip_index = pickle.load(f)
             self._l.info("Catalog written to file: " + c_path)
 
     def print_catalog(self):
-        for tag in self.tag_index:
+        for tag in self.clip_index:
             print("----------- " + tag + " -----------")
-            for item in self.tag_index[tag]:
+            for item in self.clip_index[tag]:
                 print( item )
 
 
@@ -102,8 +111,8 @@ class ShowCatalog:
 
 
     def find_candidate(self, tag, seconds):
-        if tag in self.tag_index and len(self.tag_index[tag]):
-            candidates = self.tag_index[tag]
+        if tag in self.clip_index and len(self.clip_index[tag]):
+            candidates = self.clip_index[tag]
             matches = []
             for candidate in candidates:
                 if candidate.duration < seconds:
@@ -119,6 +128,6 @@ class ShowCatalog:
         bump_tag = self.config['bump_dir']
         com_tag = self.config['commercial_dir']
 
-        if not len(self.tag_index[bump_tag]) and not len(self.tag_index[com_tag]):
+        if not len(self.clip_index[bump_tag]) and not len(self.clip_index[com_tag]):
             raise Exception("Can't find filler - add commercials and bumps...")
         return self.find_candidate(random.choice([bump_tag, com_tag, com_tag]), seconds)

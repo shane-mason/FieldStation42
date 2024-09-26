@@ -40,8 +40,6 @@ class Station42:
                         f.write(as_json)
 
 
-
-
     def make_hour_schedule(self, tag):
         remaining_time = HOUR
         reels = []
@@ -123,7 +121,7 @@ class Station42:
 
         for day_name in DAYS:
             self._l.debug(f"Making schedule for {day_name}")
-            schedule[day_name] = self.make_schedule(day_name)
+            schedule[day_name] = self.make_daily_schedule(day_name)
             self.write_day_to_playlist(schedule[day_name], day_name)
 
 
@@ -133,13 +131,12 @@ class Station42:
         self._l.debug(f"Wrote output to {self.config['schedule_path']}")
 
 
-    def make_schedule(self, day_str):
+    def make_daily_schedule(self, day_str):
         schedule = {}
-        slot_continues = 0
         day = self.config[day_str]
         for slot in day:
             self._l.debug("Making Slot: " + str(slot) )
-            if not slot_continues:
+            if 'tags' in day[slot]:
                 tag = day[slot]['tags']
                 if tag in self.config['clip_shows']:
                     self._l.debug("*********************Making clip show***************************")
@@ -147,11 +144,7 @@ class Station42:
                 else:
                     schedule[slot] = self.make_hour_schedule(tag)
 
-            else:
-                #this is a continuation
-                pass
 
-#                #print(t_slot, " - OFFAIR")
         return schedule
 
 
