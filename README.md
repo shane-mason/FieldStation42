@@ -50,6 +50,10 @@ station_conf = {
     'bump_dir' : "bump",
     # list of directories (tags) intended to be stitched clips vs full content in a single file
     'clip_shows' : ["some_show", "some_clip_show"],
+    #used at sign-off time (played once)
+    'sign_off_video': "catalog/anthem_signoff.mp4",
+    #used when the channel is offair
+    'off_air_video': "catalog/off_air_pattern.mp4",
 ...
 ```
 
@@ -80,9 +84,10 @@ Schedules are configured in the `'monday'` through ``sunday'` elements of statio
         21: {'tags' : 'some_clip_show'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
-        0: {'tags' : 'late-late'},
-        1: {'tags' : 'classic'}
+        0: {'tags' : 'late'},
+        1: {'tags' : 'late-late'},
+        2: {'tags' : 'classic'}
+        3: {'event' : 'signoff'}
     },
 ```
 In generalized terms, we use a scheme where the hours number is used as the key and the value points to a 'tag' or path of the form: `content/tag`
@@ -91,6 +96,12 @@ In generalized terms, we use a scheme where the hours number is used as the key 
 Station catalogs are a binary representation of the video files stored in the stations content directories. When weekly schedules are being created, if a stations does not have a catalog.bin file, one will be created by recursively searching the stations configured `content_dir` for mp4 files. Each video file is inspected for length and other metadata and stored by indexed tags (directory names) in the station's configured `catalog_path`.
 
 *NOTE:* If you update your content, you will need to delete the .bin file noted in the station's configured `catalog_path`
+
+### About Sign Off events
+A signoff event is specified by assigning a time slot to `{'event' : 'signoff'}` and will cause the video file specified by `sign_off_video` to be played once at the top of the hour. If `off_air_video` is specified, then the remainder of the hour will be filled by looping `off_air_video`.
+
+### About Off Air time
+If a time slot is not specified, it will be considered as off-air for schedule creation. If `off_air_video` is specified, then the slot will be filled by looping `off_air_video`.
 
 ## Building Weekly Schedules
 Station schedules span Monday-Sunday and are stored in the station's configured `runtime_dir`

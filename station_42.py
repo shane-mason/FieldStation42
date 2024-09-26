@@ -54,9 +54,11 @@ class Station42:
             front.count+=1
             remaining_time-=candidate.duration
             if front.duration > HOUR:
+                self.l.debug(front)
                 self._l.debug("Slot continues...")
+
                 slot_continues = front.duration - HOUR
-                raise NotImplementedError("Slot continuation is not supported - video must be under one hour")
+                raise NotImplementedError("Slot continuation is not supported - video must be under one hour:" )
 
             if remaining_time > H_HOUR:
                 self._l.debug("Less than half hour filled - getting back half")
@@ -111,6 +113,33 @@ class Station42:
 
         return ClipBlock(tag, clips, HOUR-remaining_time)
 
+    def make_signoff_hour(self):
+        remaining_time = HOUR
+        so = self.catalog.get_signoff()
+        clips = [so]
+        remaining_time -= so.duration
+
+        if 'off_air_video' in self.config:
+            oa = self.catalog.get_offair()
+            #fill the rest with offair
+            while remaining_time > oa.duration:
+                clips.append(oa)
+                remaining_time -= oa.duration
+
+        return ClipBlock('signoff', clips, HOUR-remaining_time)
+
+    def make_offair_hour(self):
+        remaining_time = HOUR
+        clips=[]
+        if 'off_air_video' in self.config:
+            oa = self.catalog.get_offair()
+            #fill the rest with offair
+            while remaining_time > oa.duration:
+                clips.append(oa)
+                remaining_time -= oa.duration
+
+        return ClipBlock('signoff', clips, HOUR-remaining_time)
+
     def make_weekly_schedule(self):
         schedule = {}
         schedule['gen_time'] = datetime.datetime.now()
@@ -134,15 +163,24 @@ class Station42:
     def make_daily_schedule(self, day_str):
         schedule = {}
         day = self.config[day_str]
-        for slot in day:
+        # go through each possible hour in a day
+        for slot in range(24):
             self._l.debug("Making Slot: " + str(slot) )
-            if 'tags' in day[slot]:
-                tag = day[slot]['tags']
-                if tag in self.config['clip_shows']:
-                    self._l.debug("*********************Making clip show***************************")
-                    schedule[slot] = self.make_clip_hour(tag)
-                else:
-                    schedule[slot] = self.make_hour_schedule(tag)
+            if slot in day:
+                if 'tags' in day[slot]:
+                    tag = day[slot]['tags']
+                    if tag in self.config['clip_shows']:
+                        self._l.debug("*********************Making clip show***************************")
+                        schedule[slot] = self.make_clip_hour(tag)
+                    else:
+                        schedule[slot] = self.make_hour_schedule(tag)
+                if 'event' in day[slot]:
+                    if day[slot]['event'] == "signoff" and 'sign_off_video' in self.config:
+                        schedule[slot] = self.make_signoff_hour()
+            else:
+                #then we are off off_air
+                if 'off_air_video' in self.config:
+                    schedule[slot] = self.make_offair_hour()
 
 
         return schedule

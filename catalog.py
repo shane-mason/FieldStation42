@@ -95,7 +95,15 @@ class ShowCatalog:
             for item in self.clip_index[tag]:
                 print( item )
 
+    def get_signoff(self):
+        if 'sign_off' in self.clip_index:
+            return self.clip_index['sign_off']
+        return None
 
+    def get_offair(self):
+        if 'off_air' in self.clip_index:
+            return self.clip_index['off_air']
+        return None
 
     def _lowest_count(self, candidates):
         min_count = sys.maxsize

@@ -9,6 +9,10 @@ station_conf = {
     'bump_dir' : "bump",
     'clip_shows' : ["60minutes", "sh_rock"],
     'off_air_image': "runtime/nbc_offair.png",
+    #used at sign-off time (played once)
+    'sign_off_video': "catalog/anthem_signoff.mp4",
+    #used when the channel is offair
+    'off_air_video': "catalog/off_air_pattern.mp4",
     'monday': {
         7: {'tags': 'morning'},
         8: {'tags': 'classic'},
@@ -27,9 +31,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
         0: {'tags' : 'late'},
-        1: {'tags' : 'classic'}
+        1: {'tags' : 'classic'},
+        2: {'event' : 'signoff'}
     },
     'tuesday': {
         7: {'tags': 'morning'},
@@ -49,9 +53,9 @@ station_conf = {
         21: {'tags' : 'sitcom'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
         0: {'tags' : 'late'},
-        1: {'tags' : 'classic'}
+        1: {'tags' : 'classic'},
+        2: {'event' : 'signoff'}
     },
     'wednesday': {
         7: {'tags': 'morning'},
@@ -71,9 +75,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
         0: {'tags' : 'late'},
-        1: {'tags' : 'classic'}
+        1: {'tags' : 'classic'},
+        2: {'event' : 'signoff'}
     },
     'thursday': {
         7: {'tags': 'morning'},
@@ -93,9 +97,9 @@ station_conf = {
         21: {'tags' : 'sitcom'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
         0: {'tags' : 'late'},
-        1: {'tags' : 'classic'}
+        1: {'tags' : 'classic'},
+        2: {'event' : 'signoff'}
     },
     'friday': {
         7: {'tags': 'morning'},
@@ -115,9 +119,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'late'},
         0: {'tags' : 'late'},
-        1: {'tags' : 'classic'}
+        1: {'tags' : 'classic'},
+        2: {'event' : 'signoff'}
     },
     'saturday': {
         7: {'tags': 'cartoon'},
@@ -137,9 +141,9 @@ station_conf = {
         21: {'tags' : 'sitcom'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'news'},
-        24: {'tags' : 'syndication'},
-        1: {'tags' : 'western'},
-        2: {'tags' : 'late'}
+        0: {'tags' : 'late'},
+        1: {'tags' : 'classic'},
+        2: {'event' : 'signoff'}
     },
     'sunday': {
         7: {'tags': 'classic'},
@@ -159,8 +163,8 @@ station_conf = {
         21: {'tags' : 'sitcom'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'classic'},
+        0: {'tags' : 'late'},
         1: {'tags' : 'classic'},
-        2: {'tags' : 'classic'}
+        2: {'event' : 'signoff'}
     }
 }

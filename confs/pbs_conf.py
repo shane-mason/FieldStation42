@@ -27,9 +27,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     },
     'tuesday': {
         7: {'tags': 'kids'},
@@ -49,9 +49,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     },
     'wednesday': {
         7: {'tags': 'kids'},
@@ -71,9 +71,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     },
     'thursday': {
         7: {'tags': 'kids'},
@@ -93,9 +93,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     },
     'friday': {
         7: {'tags': 'kids'},
@@ -115,9 +115,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     },
     'saturday': {
         7: {'tags': 'kids'},
@@ -137,9 +137,9 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     },
     'sunday': {
         7: {'tags': 'kids'},
@@ -159,8 +159,8 @@ station_conf = {
         21: {'tags' : 'prime'},
         22: {'tags' : 'prime'},
         23: {'tags' : 'prime'},
-        24: {'tags' : 'general'},
         0: {'tags' : 'general'},
-        1: {'tags' : 'general'}
+        1: {'tags' : 'general'},
+        2: {'event' : 'signoff'}
     }
 }
