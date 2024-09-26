@@ -194,7 +194,7 @@ def main_loop():
     with open(channel_socket, 'w'):
         pass
 
-    station_runtimes = ["runtime/nbc", "runtime/abc", "runtime/pbs", "runtime/cbs"]
+
     channel = 0
     player = FieldPlayer(station_runtimes[channel])
     reception.degrade(1)
