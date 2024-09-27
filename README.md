@@ -1,15 +1,24 @@
 # FieldStation42
 Broadcast TV simulator intended to provide an authentic experience of watching OTA television.
 
-## FieldPlayer Setup
-This is the base player component. While these instructions are for a Raspberry Pi, any linux installation should work fine and it even works with windows subsystem for linux.
+## Quickstart
 
-Base hardware: Raspberry Pi Zero
-* Install base Raspian OS
+* Ensure Python 3 and MPV are installed on your subsystem
+* Clone the repository - this will become you main working directory.
+* Install python dependencies
+* Configure your stations
+* Generate a weekly schedule
+* Watch TV
+
+## Install Dependencies
+This is the base player component. Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
+
 * Ensure MPV is installed and operational
+* Ensure Python 3 is installed and up-to-date
+    * Its recommended that you use a virtual env, but not required.
 
 ### Python Dependencies
-Its recommended to use virtual env and install the following modules:
+The following modules are required for the system to work:
 
 #### moviepy
 This module is used to determine the duration of a video files when building catalogs - it is not used during scheduling or live play.
@@ -20,6 +29,10 @@ This module is used to determine the duration of a video files when building cat
 This module is used to start and control the mpv player during playback over named pipes.
 
 `pip3 install python-mpv-jsonipc`
+
+## Clone Repository
+
+Use the standard github command to clone the repository into a local directory.
 
 ## Configuring Stations
 For simplicity, configurations are stored as python files in the 'confs' module.
@@ -92,6 +105,9 @@ Schedules are configured in the `'monday'` through ``sunday'` elements of statio
 ```
 In generalized terms, we use a scheme where the hours number is used as the key and the value points to a 'tag' or path of the form: `content/tag`
 
+### About station runtime directories
+This is where each stations schedule will be stored and read from. You will need to create these directories if they do not exist.
+
 ### About Station Catalogs
 Station catalogs are a binary representation of the video files stored in the stations content directories. When weekly schedules are being created, if a stations does not have a catalog.bin file, one will be created by recursively searching the stations configured `content_dir` for mp4 files. Each video file is inspected for length and other metadata and stored by indexed tags (directory names) in the station's configured `catalog_path`.
 
@@ -156,11 +172,14 @@ To start the player, run:
 
 It will automatically start playing the scheduled content for the first station configured in `main_config` in `confs/fieldStation42_conf.py`
 
+Note: This will fail if you have not already generated a weekly schedule using `station_42.py`
+
 ### Changing the station
-To change the channel, just open the file specified by `channel_socket` in `confs/fieldStation42_conf.py` and save any text there, the field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`
+To change the channel, just open the file specified by `channel_socket` in `confs/fieldStation42_conf.py` in any text editor and save any text there, the field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`
 
 ## Raspberry Pico Setup
 
-Install Circuit Python per their instructions and install dependencies for Neopixels.
+This is only required if you are building the channel change detector component (not required).
 
-Add the contents of `aerial_listener.py` to `code.py` on the device so that it starts at boot.
+* Install Circuit Python per their instructions and install dependencies for Neopixels.
+* Add the contents of `aerial_listener.py` to `code.py` on the device so that it starts at boot.
