@@ -12,7 +12,7 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
     * Use `station_42.py`
 * Watch TV
     * Use `field_player.py`
-* Configure start-on-boot
+* Configure start-on-boot (optional and not recommended unless you are making a dedicated device.)
     * Use `hot_start.sh`
 
 ## Install Dependencies
