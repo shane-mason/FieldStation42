@@ -1,6 +1,8 @@
 # FieldStation42
 Broadcast TV simulator intended to provide an authentic experience of watching OTA television.
 
+The how to is in the 
+
 ## Quickstart
 
 * Ensure Python 3 and MPV are installed on your subsystem
