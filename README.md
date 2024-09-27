@@ -7,8 +7,13 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * Clone the repository - this will become you main working directory.
 * Install python dependencies
 * Configure your stations
+    * In the confs directory
 * Generate a weekly schedule
+    * Use `station_42.py`
 * Watch TV
+    * Use `field_player.py`
+* Configure start-on-boot
+    * Use `hot_start.sh`
 
 ## Install Dependencies
 This is the base player component. Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
@@ -176,6 +181,9 @@ Note: This will fail if you have not already generated a weekly schedule using `
 
 ### Changing the station
 To change the channel, just open the file specified by `channel_socket` in `confs/fieldStation42_conf.py` in any text editor and save any text there, the field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`
+
+## Using hotstart.sh
+This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
 ## Raspberry Pico Setup
 
