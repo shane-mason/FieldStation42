@@ -203,4 +203,4 @@ This is only required if you are building the channel change detector component 
 
 The fritzing diagram shows how to connect the components together to enable channel changes.
 
-![Fritzing diagram for the system](docs/retro-tv-setup_bb.jpg?raw=true "Fritzing Diagram")
+![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
