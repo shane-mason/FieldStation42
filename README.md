@@ -17,11 +17,10 @@ Just add content and let the nostalgia flow :)
 
 ## Quickstart
 
-This system is b
-
 * Ensure Python 3 and MPV are installed on your subsystem
 * Clone the repository - this will become you main working directory.
 * Install python dependencies
+* Add your own content (videos)
 * Configure your stations
     * In the confs directory
 * Generate a weekly schedule
@@ -36,23 +35,23 @@ Note: If you are using an apt based system, you can use the included `Install-de
 # How It Works
 FieldStation42 has multiple components that work together to recreate that old-school TV nostalgia.
 
-`station_42.py`
->This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
+### station_42.py
+This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
 
 
-`ux.py`
->This script is used to view schedules for networks - it can act as a guide of sorts.
+### ux.py
+This script is used to view schedules for networks - it can act as a guide of sorts.
 
-`field_player.py`
->This is the main TV interface. On startup, it will read the weekly schedule and open the correct video file and skip to the correct position. It will re-perform this step each time the channel is changed for the new.
+### field_player.py
+This is the main TV interface. On startup, it will read the weekly schedule and open the correct video file and skip to the correct position. It will re-perform this step each time the channel is changed for the new.
 
-`command_input.py`
->This is an optional component, use this to connect an external device (Raspberry Pico) to invoke a channel change. The following command will cause a channel change:
+### command_input.py
+This is an optional component, use this to connect an external device (Raspberry Pico) to invoke a channel change. The following command will cause a channel change:
 
 `echo anything > runtime/channel.socket`
 
-`aerial_listener.py`
->This is another optional component that is used with CircuitPython on a Raspberry Pico (or similar)
+### aerial_listener.py
+This is another optional component that is used with CircuitPython on a Raspberry Pico (or similar)
 
 
 ## How Content is Structured
