@@ -15,6 +15,8 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * Configure start-on-boot (optional and not recommended unless you are making a dedicated device.)
     * Use `hot_start.sh`
 
+Note: If you are using an apt based system, you can use the included `Install-dep.sh` to automatically install dependencies (Python, MPV etc) - see the file for more details
+
 ## Install Dependencies
 This is the base player component. Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
 
