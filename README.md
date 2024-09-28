@@ -1,7 +1,7 @@
 # FieldStation42
 Broadcast TV simulator intended to provide an authentic experience of watching OTA television.
 
-The how to is in the 
+The how to is in the Install.md
 
 ## Quickstart
 
