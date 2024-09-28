@@ -1,8 +1,6 @@
 # FieldStation42
 Broadcast TV simulator intended to provide an authentic experience of watching OTA television.
 
-The how to is in the Install.md
-
 ## Quickstart
 
 * Ensure Python 3 and MPV are installed on your subsystem
@@ -138,7 +136,7 @@ This process will load each stations catalog and uses the schedule configuration
 The following shows an example start for an hourly scheduling block. The base video here is `some_cartoon_V1-003.mp4` and it will play for 440 seconds before 3 commercials will come on. Then, `some_cartoon_V1-003.mp4` will be started where it left off and play for 440 seconds, before another commercial break will start.
 
 ```
-[
+    [
     {
         "path": "catalog/mystation_catalog/cartoon/some_cartoon_V1-0003.mp4",
         "start": 0,
