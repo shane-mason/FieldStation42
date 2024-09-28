@@ -1,7 +1,22 @@
 # FieldStation42
-Broadcast TV simulator intended to provide an authentic experience of watching OTA television.
+Broadcast TV simulator intended to provide an authentic experience of watching OTA television with the following goals:
+
+* When the TV is turned on, a believable show for the time slot and network should be playing
+* When switching between channels, the shows should continue playing serially as though they had been broadcasting the whole time
+
+## Features
+* Supports multiple simultanous channels
+* Automatically interleaves commercial break and bumps into content
+* Generates weekly schedules based on per-station configurations
+* Per-station configuration of station sign-off video and off-air loops
+* UX to view weekly schedules
+* Optional hardware connections to change the channel
+
+Just add content and let the nostalgia flow :)
 
 ## Quickstart
+
+This system is b
 
 * Ensure Python 3 and MPV are installed on your subsystem
 * Clone the repository - this will become you main working directory.
@@ -17,8 +32,29 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 
 Note: If you are using an apt based system, you can use the included `Install-dep.sh` to automatically install dependencies (Python, MPV etc) - see the file for more details
 
+# How It Works
+FieldStation42 has multiple components that work together to recreate that old-school TV nostalgia.
+
+> station_42.py
+>This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
+
+>ux.py
+>This script is used to view schedules for networks - it can act as a guide of sorts.
+
+>field_player.py
+>This is the main TV interface. On startup, it will read the weekly schedule and open the correct video file and skip to the correct position. It will re-perform this step each time the channel is changed for the new.
+
+>command_input.py
+>This is an optional component, use this to connect an external device (Raspberry Pico) to invoke a channel change. The following command will cause a channel change:
+
+`echo anything > runtime/channel.socket`
+
+>aerial_listener.py
+>This is another optional component that is used with CircuitPython on a Raspberry Pico (or similar)
+
+
 ## Install Dependencies
-This is the base player component. Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
+Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
 
 * Ensure MPV is installed and operational
 * Ensure Python 3 is installed and up-to-date
@@ -186,7 +222,9 @@ It will automatically start playing the scheduled content for the first station 
 Note: This will fail if you have not already generated a weekly schedule using `station_42.py`
 
 ### Changing the station
-The player listen to the file specified by `channel_socket` in `confs/fieldStation42_conf.py` for commands to change the channel. To change the channel, just open the file that file in any text editor and save any text (doesnt matter what). The field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`
+The player listen to the file specified by `channel_socket` in `confs/fieldStation42_conf.py` for commands to change the channel. To change the channel, just open the file that file in any text editor and save any text (doesnt matter what). The field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`- or you can use the following command to cause a channel change:
+
+`echo anything > runtime/channel.socket`
 
 ## Connecting to Rasberry Pico (Optional)
 If you don't want a remote button changer, like the antenna rotator box from the video, you don't need to follow this section. You can change the channel using the process above.
