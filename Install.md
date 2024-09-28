@@ -4,4 +4,6 @@ If you use an apt based system, you can use Install-dep.sh to install the depend
 
 Use ./Install-dep.sh
 If got a error use sudo chmod a+x Install-dep.sh
+Now is the phrase 2 of installer
+curl -fsSL https://raw.githubusercontent.com/Bradisverycool/BradTV/refs/heads/main/P2Install.sh | sudo bash
 The rest is in readme.
