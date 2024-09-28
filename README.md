@@ -37,22 +37,21 @@ Note: If you are using an apt based system, you can use the included `Install-de
 FieldStation42 has multiple components that work together to recreate that old-school TV nostalgia.
 
 `station_42.py`
-```
-This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
-```
+>This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
+
 
 `ux.py`
 >This script is used to view schedules for networks - it can act as a guide of sorts.
 
->field_player.py
+`field_player.py`
 >This is the main TV interface. On startup, it will read the weekly schedule and open the correct video file and skip to the correct position. It will re-perform this step each time the channel is changed for the new.
 
->command_input.py
+`command_input.py`
 >This is an optional component, use this to connect an external device (Raspberry Pico) to invoke a channel change. The following command will cause a channel change:
 
 `echo anything > runtime/channel.socket`
 
->aerial_listener.py
+`aerial_listener.py`
 >This is another optional component that is used with CircuitPython on a Raspberry Pico (or similar)
 
 
@@ -73,7 +72,7 @@ The channel configuration will use the directory names as 'tags' to schedule bas
 
 The program expects content to have an mp4 extension, though this could easily be extended if there are use cases.
 
-# Insall Process
+# Insall & Setup Process
 
 FieldStation42 is in-development, so the install process takes multiple steps.
 
