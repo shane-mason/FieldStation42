@@ -11,3 +11,6 @@ echo "Installing mpv"
 sudo apt install mpv
 echo "Installing python packages"
 pip3 install moviepy
+pip3 install python-mpv-jsonipc
+echo "There is one last thing then you have to read the readme for more."
+pip3 install virtualenv
