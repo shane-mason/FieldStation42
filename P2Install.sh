@@ -31,41 +31,74 @@ cd ..
 echo "Creating cbs catalog."
 sudo mkdir cbs_catalog
 cd cbs_catalog
+echo "Creating bumps folder."
 sudo mkdir bumps
+echo "Creating cartoon folder."
 sudo mkdir cartoon
+echo "Creating commercial folder."
 sudo mkdir commercials
+echo "Creating daytime folder."
 sudo mkdir daytime
+echo "Creating late folder."
 sudo mkdir late
+echo "Creating late-late folder."
+sudo mkdir late-late
+echo "Creating morning folder."
 sudo mkdir morning
+echo "Creating primetime folder."
 sudo mkdir primetime
+echo "Creating sports folder."
 sudo mkdir sports
-sudo mkdir bumps
+echo "Creating bump folder."
+sudo mkdir bump
 cd ..
 echo "Creating nbc catalog."
 sudo mkdir nbc_catalog
 cd nbc_catalog
+echo "Creating bumps folder."
 sudo mkdir bumps
+echo "Creating cartoon folder."
 sudo mkdir cartoon
+echo "Creating commercial folder."
 sudo mkdir commercials
+echo "Creating daytime folder."
 sudo mkdir daytime
+echo "Creating late folder."
 sudo mkdir late
+echo "Creating late-late folder."
+sudo mkdir late-late
+echo "Creating morning folder."
 sudo mkdir morning
+echo "Creating primetime folder."
 sudo mkdir primetime
+echo "Creating sports folder."
 sudo mkdir sports
-sudo mkdir bumps
+echo "Creating bump folder."
+sudo mkdir bump
 cd ..
 echo "Creating pbs catalog."
 sudo mkdir pbs_catalog
 cd pbs_catalog
+echo "Creating bumps folder."
 sudo mkdir bumps
+echo "Creating cartoon folder."
 sudo mkdir cartoon
+echo "Creating commercial folder."
 sudo mkdir commercials
+echo "Creating daytime folder."
 sudo mkdir daytime
+echo "Creating late folder."
 sudo mkdir late
+echo "Creating late-late folder."
+sudo mkdir late-late
+echo "Creating morning folder."
 sudo mkdir morning
+echo "Creating primetime folder."
 sudo mkdir primetime
+echo "Creating sports folder."
 sudo mkdir sports
-sudo mkdir bumps
+echo "Creating bump folder."
+sudo mkdir bump
 cd ..
 echo "Add your videos in the folders in the Catalog folders directory. The catalog folders have The station name then _catalog for example pbs_catalog"
 echo "Continuing install."
