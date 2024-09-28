@@ -22,12 +22,15 @@ class ShowClip:
 
 class ShowCatalog:
 
-    def __init__(self, config):
+    def __init__(self, config, rebuild_catalog=False):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
         self.clip_index = {}
         self.tags = []
-        self.load_catalog()
+        if rebuild_catalog:
+            self.build_catalog()
+        else:
+            self.load_catalog()
 
 
     def build_catalog(self):

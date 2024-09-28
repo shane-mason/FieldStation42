@@ -10,16 +10,17 @@ import os
 import glob
 import random
 import datetime
+import argparse
 from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS
 
 #started 4:41
 
 class Station42:
 
-    def __init__(self, config):
+    def __init__(self, config, rebuild_catalog=False):
         self.config = config
         self._l = logging.getLogger(self.config['network_name'])
-        self.catalog = ShowCatalog(self.config)
+        self.catalog = ShowCatalog(self.config, rebuild_catalog=rebuild_catalog)
         #self.catalog.print_catalog()
         #self.make_schedule(self.config['tuesday'])
 
@@ -187,9 +188,14 @@ class Station42:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Schedule Generation')
+    parser.add_argument('--rebuild_catalog', action='store_true', help='Overwrite catalog if it exists')
+    args = parser.parse_args()
+    print(args.rebuild_catalog)
     from confs.fieldStation42_conf import main_conf
     for c in main_conf["stations"]:
-        station = Station42(c)
+
+        station = Station42(c, args.rebuild_catalog)
         schedule = station.make_weekly_schedule()
 
 

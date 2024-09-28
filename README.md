@@ -116,7 +116,7 @@ This is where each stations schedule will be stored and read from. You will need
 ### About Station Catalogs
 Station catalogs are a binary representation of the video files stored in the stations content directories. When weekly schedules are being created, if a stations does not have a catalog.bin file, one will be created by recursively searching the stations configured `content_dir` for mp4 files. Each video file is inspected for length and other metadata and stored by indexed tags (directory names) in the station's configured `catalog_path`.
 
-*NOTE:* If you update your content, you will need to delete the .bin file noted in the station's configured `catalog_path`
+*NOTE:* If you update your content, you will need to rebuild the catalog using `station_42.py` with th `--rebuild_catalog` option specified.
 
 ### About Sign Off events
 A signoff event is specified by assigning a time slot to `{'event' : 'signoff'}` and will cause the video file specified by `sign_off_video` to be played once at the top of the hour. If `off_air_video` is specified, then the remainder of the hour will be filled by looping `off_air_video`.
@@ -169,6 +169,10 @@ The following shows an example start for an hourly scheduling block. The base vi
     },
 ...
 ```
+
+*NOTE:* The catalog is not rebuilt from the content directory each time you run `station_42.py` since it can take a long time on large collections. If you update your content, you will need to rebuild the catalog using `station_42.py` with th `--rebuild_catalog` option specified. This will cause the program to ignore the catalog file on disk and construct a new catalog.
+
+```python3 station_42.py --rebuild_catalog```
 
 ## Starting the player
 To start the player, run:
