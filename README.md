@@ -186,7 +186,10 @@ It will automatically start playing the scheduled content for the first station 
 Note: This will fail if you have not already generated a weekly schedule using `station_42.py`
 
 ### Changing the station
-To change the channel, just open the file specified by `channel_socket` in `confs/fieldStation42_conf.py` in any text editor and save any text there, the field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`
+The player listen to the file specified by `channel_socket` in `confs/fieldStation42_conf.py` for commands to change the channel. To change the channel, just open the file that file in any text editor and save any text (doesnt matter what). The field_player monitors this file and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py`
+
+## Connecting to Rasberry Pico (Optional)
+If you don't want a remote button changer, like the antenna rotator box from the video, you don't need to follow this section. You can change the channel using the process above.
 
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
@@ -197,3 +200,7 @@ This is only required if you are building the channel change detector component 
 
 * Install Circuit Python per their instructions and install dependencies for Neopixels.
 * Add the contents of `aerial_listener.py` to `code.py` on the device so that it starts at boot.
+
+The fritzing diagram shows how to connect the components together to enable channel changes.
+
+![Fritzing diagram for the system](docs/retro-tv-setup_bb.jpg?raw=true "Fritzing Diagram")
