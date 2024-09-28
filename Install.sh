@@ -9,4 +9,5 @@ echo "Installing python"
 sudo apt install python
 echo "Installing mpv"
 sudo apt install mpv
-end
+echo "Installing python packages"
+pip3 install moviepy
