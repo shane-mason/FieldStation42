@@ -8,6 +8,7 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * Supports multiple simultanous channels
 * Automatically interleaves commercial break and bumps into content
 * Generates weekly schedules based on per-station configurations
+* Randomly selects shows that have not been played recently to keep a fresh lineup
 * Per-station configuration of station sign-off video and off-air loops
 * UX to view weekly schedules
 * Optional hardware connections to change the channel
@@ -35,10 +36,12 @@ Note: If you are using an apt based system, you can use the included `Install-de
 # How It Works
 FieldStation42 has multiple components that work together to recreate that old-school TV nostalgia.
 
-> station_42.py
->This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
+`station_42.py`
+```
+This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
+```
 
->ux.py
+`ux.py`
 >This script is used to view schedules for networks - it can act as a guide of sorts.
 
 >field_player.py
@@ -52,6 +55,27 @@ FieldStation42 has multiple components that work together to recreate that old-s
 >aerial_listener.py
 >This is another optional component that is used with CircuitPython on a Raspberry Pico (or similar)
 
+
+## How Content is Structured
+FieldStation42 uses a directory structure to tag content per station. Each station has a content directory specified in its configuration. FieldStation42 will scan the content directory and build a catalog based on movie files found in the directories. For example, a content directory may have the following sub-folders:
+
+* MyStationContent
+    * bumps
+    * cartoon
+    * commercials
+    * daytime
+    * late
+    * morning
+    * primetime
+    * sports
+
+The channel configuration will use the directory names as 'tags' to schedule based on the channel configuration - see below for details.
+
+The program expects content to have an mp4 extension, though this could easily be extended if there are use cases.
+
+# Insall Process
+
+FieldStation42 is in-development, so the install process takes multiple steps.
 
 ## Install Dependencies
 Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
