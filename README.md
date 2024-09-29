@@ -4,7 +4,7 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * When the TV is turned on, a believable show for the time slot and network should be playing
 * When switching between channels, the shows should continue playing serially as though they had been broadcasting the whole time
 
-![An older TV with an antenna rotator box in the backgroun](docs/retro-pico.png?raw=true)
+![An older TV with an antenna rotator box in the backgroun](docs/retro-tv.png?raw=true)
 
 ## Features
 * Supports multiple simultanous channels
