@@ -4,6 +4,8 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * When the TV is turned on, a believable show for the time slot and network should be playing
 * When switching between channels, the shows should continue playing serially as though they had been broadcasting the whole time
 
+![An older TV with an antenna rotator box in the backgroun](docs/retro-pico.png?raw=true)
+
 ## Features
 * Supports multiple simultanous channels
 * Automatically interleaves commercial break and bumps into content
@@ -12,6 +14,14 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * Per-station configuration of station sign-off video and off-air loops
 * UX to view weekly schedules
 * Optional hardware connections to change the channel
+
+### Note on current limitations and roadmap
+The following features are not yet supported, but are on the near-term roadmap.
+
+* Videos longer than one hour in length - 'movie' length blocks are not supported to keep scheduling simple
+    * Being able to have feature length content is critical to authentic programming, so this is a P0 roadmap item
+* Configuring the station transition - right now it has the one behaviour, but this
+    * Being able to have faster transitions is critical to emulate cable era content, so this is a P1 roadmap item
 
 Just add content and let the nostalgia flow :)
 
@@ -69,7 +79,11 @@ FieldStation42 uses a directory structure to tag content per station. Each stati
 
 The channel configuration will use the directory names as 'tags' to schedule based on the channel configuration - see below for details.
 
+
+### About content format and duration
 The program expects content to have an mp4 extension, though this could easily be extended if there are use cases.
+
+Currently, only show blocks of 1 hour are supported. These can be built from 2 shows that are less than 30 minutes each or from 1 show that's under and hour.
 
 # Insall & Setup Process
 
@@ -254,6 +268,8 @@ If you don't want a remote button changer, like the antenna rotator box from the
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
+![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
+
 ## Raspberry Pico Setup
 
 This is only required if you are building the channel change detector component (not required).
@@ -263,4 +279,4 @@ This is only required if you are building the channel change detector component 
 
 The fritzing diagram shows how to connect the components together to enable channel changes.
 
-![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
+
