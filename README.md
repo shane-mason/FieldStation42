@@ -88,7 +88,7 @@ The program expects content to have an mp4 extension, though this could easily b
 
 Currently, only show blocks of 1 hour are supported. These can be built from 2 shows that are less than 30 minutes each or from 1 show that's under and hour.
 
-# Insall & Setup Process
+# Install & Setup Process
 
 FieldStation42 is in-development, so the install process takes multiple steps.
 
