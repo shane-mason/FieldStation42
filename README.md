@@ -18,6 +18,8 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 ### Note on current limitations and roadmap
 The following features are not yet supported, but are on the near-term roadmap.
 
+* Currently, station configurations are python modules and require several steps to create
+    * Stations should be generally implemented as JSON files
 * Videos longer than one hour in length - 'movie' length blocks are not supported to keep scheduling simple
     * Being able to have feature length content is critical to authentic programming, so this is a P0 roadmap item
 * Configuring the station transition - right now it has the one behaviour, but this
@@ -33,6 +35,7 @@ Just add content and let the nostalgia flow :)
 * Add your own content (videos)
 * Configure your stations
     * In the confs directory
+    * NOTE: Currently py modules are used - this is being changed now to use JSON files to define channels.
 * Generate a weekly schedule
     * Use `station_42.py`
 * Watch TV
