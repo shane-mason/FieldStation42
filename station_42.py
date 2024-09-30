@@ -26,7 +26,8 @@ class Station42:
 
 
     def write_day_to_playlist(self, schedule, day_name):
-        for t_slot in range(25):
+        for h in range(25):
+            t_slot = str(h)
             if t_slot in schedule:
                 try:
                     clips = schedule[t_slot].make_plan()
@@ -165,7 +166,8 @@ class Station42:
         schedule = {}
         day = self.config[day_str]
         # go through each possible hour in a day
-        for slot in range(24):
+        for h in range(24):
+            slot = str(h)
             self._l.debug("Making Slot: " + str(slot) )
             if slot in day:
                 if 'tags' in day[slot]:

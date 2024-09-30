@@ -196,6 +196,8 @@ def main_loop():
 
 
     channel = 0
+    if not len(station_runtimes):
+        print("Could not find any station runtimes - do you have your channels configured?")
     player = FieldPlayer(station_runtimes[channel])
     reception.degrade(1)
     player.update_filters()

@@ -18,8 +18,6 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 ### Note on current limitations and roadmap
 The following features are not yet supported, but are on the near-term roadmap.
 
-* Currently, station configurations are python modules and require several steps to create
-    * Stations should be generally implemented as JSON files
 * Videos longer than one hour in length - 'movie' length blocks are not supported to keep scheduling simple
     * Being able to have feature length content is critical to authentic programming, so this is a P0 roadmap item
 * Configuring the station transition - right now it has the one behaviour, but this
@@ -34,8 +32,7 @@ Just add content and let the nostalgia flow :)
 * Install python dependencies
 * Add your own content (videos)
 * Configure your stations
-    * In the confs directory
-    * NOTE: Currently py modules are used - this is being changed now to use JSON files to define channels.
+    * Copy an example json file from `confs/examples` into `confs/`
 * Generate a weekly schedule
     * Use `station_42.py`
 * Watch TV
@@ -88,7 +85,7 @@ The program expects content to have an mp4 extension, though this could easily b
 
 Currently, only show blocks of 1 hour are supported. These can be built from 2 shows that are less than 30 minutes each or from 1 show that's under and hour.
 
-# Install & Setup Process
+# Insall & Setup Process
 
 FieldStation42 is in-development, so the install process takes multiple steps.
 
@@ -126,9 +123,9 @@ stations : array of stations configuration - should be a matching .py file
 channel_socket : path to file to use to signal channel changes - save any text to this file and the field_player will change to the next channel.
 
 ### Per Channel Configurations
-Each channel is a separate python file, as named in `confs/fieldStation42_conf.py`. Example configurations are provided - as in this example for channel named ''
+Each channel is a separate json file. Example configurations are provided in the `confs/examples` directory. Just copy the example json into the `confs/` directory.
 ```
-station_conf = {
+{station_conf : {
     # basic human readable name for the channel
     'network_name' : "MyChannel",
     # path to the catalog binary file to be stored
@@ -152,37 +149,39 @@ station_conf = {
 ...
 ```
 
+Note: Previous versions used python modules instead of json files. This still works, but may stop working in future versions.
+
 #### Schedule Configuration
 Schedules are configured in the `'monday'` through ``sunday'` elements of station_conf and have the following structure:
 
 ```
     'monday': {
         # will play random content from the content/morning path
-        7: {'tags': 'morning'},
+        '7': {'tags': 'morning'},
         # will play random content from the content/morning path
-        8: {'tags': 'morning'},
+        '8': {'tags': 'morning'},
         # will play random content from the content/cartoon path
-        9: {'tags': 'cartoon'},
+        '9': {'tags': 'cartoon'},
         # will play random content from the content/gameshow path
-        10: {'tags' : 'gameshow'},
-        11: {'tags' : 'gameshow'},
-        12: {'tags' : 'daytime'},
-        13: {'tags' : 'daytime'},
-        14: {'tags' : 'daytime'},
-        15: {'tags' : 'classic'},
-        16: {'tags' : 'syndication'},
-        17: {'tags' : 'syndication'},
-        18: {'tags' : 'news'},
-        19: {'tags' : 'gameshow'},
-        20: {'tags' : 'sitcom'},
+        '10': {'tags' : 'gameshow'},
+        '11': {'tags' : 'gameshow'},
+        '12': {'tags' : 'daytime'},
+        '13': {'tags' : 'daytime'},
+        '14': {'tags' : 'daytime'},
+        '15': {'tags' : 'classic'},
+        '16': {'tags' : 'syndication'},
+        '17': {'tags' : 'syndication'},
+        '18': {'tags' : 'news'},
+        '19': {'tags' : 'gameshow'},
+        '20': {'tags' : 'sitcom'},
         # since this is a clip show, will stitch random clips from content/some_clip_show
-        21: {'tags' : 'some_clip_show'},
-        22: {'tags' : 'prime'},
-        23: {'tags' : 'news'},
-        0: {'tags' : 'late'},
-        1: {'tags' : 'late-late'},
-        2: {'tags' : 'classic'}
-        3: {'event' : 'signoff'}
+        '21': {'tags' : 'some_clip_show'},
+        '22': {'tags' : 'prime'},
+        '23': {'tags' : 'news'},
+        '0': {'tags' : 'late'},
+        '1': {'tags' : 'late-late'},
+        '2': {'tags' : 'classic'}
+        '3': {'event' : 'signoff'}
     },
 ```
 In generalized terms, we use a scheme where the hours number is used as the key and the value points to a 'tag' or path of the form: `content/tag`
