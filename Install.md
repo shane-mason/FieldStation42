@@ -5,6 +5,6 @@ If you use an apt based system, you can use Install-dep.sh to install the depend
 Use ./Install-dep.sh
 If got a error use sudo chmod a+x Install-dep.sh
 Now is auto p2 install.
-type this command here down in the terminal. must be at the home folder.
-curl -fsSL https://raw.githubusercontent.com/Bradisverycool/BradTV/refs/heads/main/P2Install.sh | sudo bash
+Download the p2 script in the master and launch it must be in the home folder
+./P2Install.sh
 The rest is in readme.
