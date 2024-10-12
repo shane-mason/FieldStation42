@@ -5,7 +5,7 @@ from moviepy.editor import VideoFileClip, concatenate_videoclips
 REELS_PER_BREAK = 6
 
 class ReelCutter:
-    def cut_reels_into_base(base_clip, reels, base_offset, duration):
+    def cut_reels_into_base(base_clip, reels, base_offset):
         def _entry(path, start, dur):
             return {'path':path, 'start':start, 'duration':dur}
 
@@ -53,8 +53,8 @@ class MovieBlocks:
         middle_point = self.movie.duration/2
         a_reels = self.reels[:len(self.reels)//2]
         b_reels = self.reels[len(self.reels)//2:]
-        a_plan = ReelCutter.cut_reels_into_base(self.movie, a_reels, 0, HOUR )
-        b_plan = ReelCutter.cut_reels_into_base(self.movie, b_reels, middle_point, HOUR )
+        a_plan = ReelCutter.cut_reels_into_base(self.movie, a_reels, 0 )
+        b_plan = ReelCutter.cut_reels_into_base(self.movie, b_reels, middle_point )
         return (a_plan, b_plan)
 
 
@@ -71,7 +71,7 @@ class ClipBlock:
     def make_plan(self):
         _plan = []
         for clip in self.clips:
-            entry = ShowBlock._entry(clip.path, 0, clip.duration)
+            entry = {'path':clip.path, 'start':0, 'duration':clip.duration}
             _plan.append(entry)
         return _plan
 
@@ -81,17 +81,35 @@ class ClipBlock:
             dur += clip.duration
         return dur
 
-
-# this works well for one hour blocks made up of a single one hour show or 2 half hour shows.
-# it is not very extendable and needs to be updated. I believe the vast majority of the repetitive
-# code in this class can be replaced with the new make_segment_block above.
 class ShowBlock:
     def __init__(self, front=None, back=None, reels=None):
         self.front = front
         self.back = back
         self.reels = reels
         self._l = logging.getLogger(f"SHOW:")
-        self.cut_timings = []
+
+    def make_plan(self):
+        if not self.back:
+            #then its just a one-hour plan
+            return ReelCutter.cut_reels_into_base(self.front, self.reels, 0 )
+        else:
+            front_reels = self.reels[:len(self.reels)//2]
+            back_reels = self.reels[len(self.reels)//2:]
+            front_half = ReelCutter.cut_reels_into_base(self.front, front_reels, 0 )
+            back_half = ReelCutter.cut_reels_into_base(self.back, back_reels, 0 )
+            full_hour = front_half + back_half
+            return full_hour
+
+# this works well for one hour blocks made up of a single one hour show or 2 half hour shows.
+# it is not very extendable and needs to be updated. I believe the vast majority of the repetitive
+# code in this class can be replaced with the new make_segment_block above.
+class ShowBlockX:
+    def __init__(self, front=None, back=None, reels=None):
+        self.front = front
+        self.back = back
+        self.reels = reels
+        self._l = logging.getLogger(f"SHOW:")
+
 
     def __str__(self):
         as_str =  f"ShowBlock: {self.duration()}s"
