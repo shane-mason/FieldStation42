@@ -6,6 +6,10 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 
 ![An older TV with an antenna rotator box in the backgroun](docs/retro-tv.png?raw=true)
 
+## NOTE ON RECENT UPDATES:
+
+If you have been using FieldStation42, you will note that there has been large changes to how the project is stuctured as of 10.11.2024. This is to make it more maintainable. If it causes any breaking changes in your setup, file a ticket and we'll help you work through it. This was a one-time effort that we needed to do make this more easily maintained going forward.
+
 ## Features
 * Supports multiple simultanous channels
 * Automatically interleaves commercial break and bumps into content
@@ -34,13 +38,13 @@ Just add content and let the nostalgia flow :)
 * Configure your stations
     * Copy an example json file from `confs/examples` into `confs/`
 * Generate a weekly schedule
-    * Use `station_42.py`
+    * Use `python3 station_42.py`
+        * Use `--rebuild_catalog` option if content has changed
 * Watch TV
     * Use `field_player.py`
 * Configure start-on-boot (optional and not recommended unless you are making a dedicated device.)
-    * Use `hot_start.sh`
+    * Use `fs42/hot_start.sh`
 
-Note: If you are using an apt based system, you can use the included `Install-dep.sh` to automatically install dependencies (Python, MPV etc) - see the file for more details
 
 # How It Works
 FieldStation42 has multiple components that work together to recreate that old-school TV nostalgia.
