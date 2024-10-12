@@ -161,6 +161,8 @@ Each channel is a separate json file. Example configurations are provided in the
 
 Note: Previous versions used python modules instead of json files. This still works, but may stop working in future versions.
 
+Note on tags listed in `two_hour` slots - these videos can be any length under 2 hours. The shorter they are, the more commercials and bumps that will be added to pad.
+
 #### Schedule Configuration
 Schedules are configured in the `'monday'` through ``sunday'` elements of station_conf and have the following structure:
 
@@ -179,8 +181,9 @@ Schedules are configured in the `'monday'` through ``sunday'` elements of statio
         '13': {'tags' : 'daytime'},
         '14': {'tags' : 'daytime'},
         '15': {'tags' : 'classic'},
-        '16': {'tags' : 'syndication'},
-        '17': {'tags' : 'syndication'},
+        # since movie was listed as a two_hour tag, the next hour can be ignored
+        '16': {'tags' : 'movie'},
+        '17': {"continued": true},
         '18': {'tags' : 'news'},
         '19': {'tags' : 'gameshow'},
         '20': {'tags' : 'sitcom'},
