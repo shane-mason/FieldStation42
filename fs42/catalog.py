@@ -4,7 +4,7 @@ import logging
 import pickle
 import sys
 import random
-from timings import *
+from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
 class ShowClip:

@@ -1,6 +1,6 @@
-from timings import *
 import logging
 from moviepy.editor import VideoFileClip, concatenate_videoclips
+from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 
 REELS_PER_BREAK = 6
 

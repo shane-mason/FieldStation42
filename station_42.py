@@ -1,9 +1,9 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.DEBUG)
 
-from catalog import ShowCatalog
-from show_block import ShowBlock, ClipBlock, MovieBlocks
-
+from fs42.catalog import ShowCatalog
+from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
+from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 import pickle
 import json
 import os
@@ -11,7 +11,6 @@ import glob
 import random
 import datetime
 import argparse
-from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 
 #started 4:41
 
