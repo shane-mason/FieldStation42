@@ -125,14 +125,14 @@ class ShowBlock:
 
         if reel_duration < MIN_2:
             #then just put them at the end
-            self._l.debug("**************Is an end plan")
+            #self._l.debug("**************Is an end plan")
             return self.make_end_plan()
         elif reel_duration < MIN_5:
             #then center and end cap
-            self._l.debug("**************Is a center plan")
+            #self._l.debug("**************Is a center plan")
             return self.make_center_plan()
         else:
-            self._l.debug("**************Is a full plan")
+            #self._l.debug("**************Is a full plan")
             #then we have enough to intermingle at intervals
             return self.make_full_plan()
 
@@ -148,18 +148,18 @@ class ShowBlock:
         if self.back:
             #are there enough reels to add a center bridge?
             if(len(self.reels) > 4):
-                self._l.debug("Making center bridge")
+                #self._l.debug("Making center bridge")
                 #then use 3 of them for the center
                 for i in range(3):
                     #pop them so they aren't used in end cap
                     reel = self.reels.pop()
-                    self._l.debug(f"Stacking: {reel}")
+                    #self._l.debug(f"Stacking: {reel}")
                     clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
-            self._l.debug(f"Laying down back block in full: {self.back}")
+            #self._l.debug(f"Laying down back block in full: {self.back}")
             clips.append(ShowBlock._entry(self.back.path, 0, self.back.duration))
         for r in self.reels:
-            self._l.debug(f"Stacking: {r}")
+            #self._l.debug(f"Stacking: {r}")
             clips.append(ShowBlock._entry(r.path, 0, r.duration))
 
         return clips
@@ -171,27 +171,27 @@ class ShowBlock:
         front_reels = self.reels[:half]
         back_reels = self.reels[half:]
         if not self.back:
-            self._l.debug(f"Laying down first half of episode: {self.front}")
+            #self._l.debug(f"Laying down first half of episode: {self.front}")
             center_point = self.front.duration - MIN_1
-            self._l.debug(f"Cutting break at {center_point}")
+            #self._l.debug(f"Cutting break at {center_point}")
             clips.append(ShowBlock._entry(self.front.path, 0, center_point))
             for reel in front_reels:
-                self._l.debug(f"Stacking {reel}")
+                #self._l.debug(f"Stacking {reel}")
                 clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
-            self._l.debug(f"Laying down second half of episode: {self.back}")
+            #self._l.debug(f"Laying down second half of episode: {self.back}")
             #go back to center point and then play for that long to get to end
             clips.append(ShowBlock._entry(self.front.path, center_point, center_point))
         else:
-            self._l.debug(f"Laying down front episode: {self.front}")
+            #self._l.debug(f"Laying down front episode: {self.front}")
             clips.append(ShowBlock._entry(self.front.path, 0, self.front.duration))
-            self._l.debug(f"Cutting break between episodes")
+            #self._l.debug(f"Cutting break between episodes")
             for reel in front_reels:
-                self._l.debug(f"Stacking {reel}")
+                #self._l.debug(f"Stacking {reel}")
                 clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
-            self._l.debug(f"Laying down second episode: {self.back}")
+            #self._l.debug(f"Laying down second episode: {self.back}")
             clips.append(ShowBlock._entry(self.back.path, 0, self.back.duration))
         for reel in back_reels:
-            self._l.debug(f"Stacking {reel}")
+            #self._l.debug(f"Stacking {reel}")
             clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
         return clips
@@ -216,19 +216,19 @@ class ShowBlock:
         clip_point = 0
         for i in range(1,break_count):
             clip_point = interval*i
-            self._l.debug(f"Clipping show from {last_clip} to {clip_point}")
+            #self._l.debug(f"Clipping show from {last_clip} to {clip_point}")
             clips.append(ShowBlock._entry(self.front.path, last_clip, interval))
             last_clip = clip_point
             for j in range(reels_per):
                 reel = self.reels.pop()
-                self._l.debug(f"Stacking: {reel}")
+                #self._l.debug(f"Stacking: {reel}")
                 clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
-        self._l.debug(f"Clipping show from {last_clip} to the end")
+        #self._l.debug(f"Clipping show from {last_clip} to the end")
         clips.append(ShowBlock._entry(self.front.path, last_clip, self.front.duration - last_clip))
-        self._l.debug("Making end cap")
+        #self._l.debug("Making end cap")
         for reel in self.reels:
-            self._l.debug(f"Stacking: {reel}")
+            #self._l.debug(f"Stacking: {reel}")
             clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
         return clips
@@ -245,21 +245,21 @@ class ShowBlock:
 
         for i in range(1,break_count):
             clip_point = interval*i
-            self._l.debug(f"Clipping front episode from {last_clip} to {clip_point}")
+            #self._l.debug(f"Clipping front episode from {last_clip} to {clip_point}")
             clips.append(ShowBlock._entry(self.front.path, last_clip, interval))
             last_clip = clip_point
             for j in range(reels_per):
                 reel = self.reels.pop()
-                self._l.debug(f"Stacking: {reel}")
+                #self._l.debug(f"Stacking: {reel}")
                 clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
-        self._l.debug(f"Clipping front episode from {last_clip} to end")
+        #self._l.debug(f"Clipping front episode from {last_clip} to end")
         clips.append(ShowBlock._entry(self.front.path, last_clip, self.front.duration - last_clip))
 
-        self._l.debug("Adding middle bridge")
+        #self._l.debug("Adding middle bridge")
         for j in range(reels_per):
             reel = self.reels.pop()
-            self._l.debug(f"Stacking: {reel}")
+            #self._l.debug(f"Stacking: {reel}")
             clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
         interval = self.front.duration/break_count
@@ -267,19 +267,19 @@ class ShowBlock:
         clip_point = 0
         for i in range(1,break_count):
             clip_point = interval*i
-            self._l.debug(f"Clipping back episode from {last_clip} to {clip_point}")
+            #self._l.debug(f"Clipping back episode from {last_clip} to {clip_point}")
             clips.append(ShowBlock._entry(self.back.path, last_clip, interval))
             last_clip = clip_point
             for j in range(reels_per):
                 reel = self.reels.pop()
-                self._l.debug(f"Stacking: {reel}")
+                #self._l.debug(f"Stacking: {reel}")
                 clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
-        self._l.debug(f"Clipping back episode from {last_clip} to end")
+        #self._l.debug(f"Clipping back episode from {last_clip} to end")
         clips.append(ShowBlock._entry(self.back.path, last_clip, self.back.duration-last_clip))
-        self._l.debug("Making end cap")
+        #self._l.debug("Making end cap")
         for reel in self.reels:
-            self._l.debug(f"Stacking: {reel}")
+            #self._l.debug(f"Stacking: {reel}")
             clips.append(ShowBlock._entry(reel.path, 0, reel.duration))
 
         return clips

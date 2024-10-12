@@ -33,6 +33,21 @@ class ShowCatalog:
             self.load_catalog()
 
 
+    def _process_media(self, file_list, tag):
+        show_clip_list = []
+        #get the duration and path for each clip and add to the tag
+        for fname in file_list:
+            # get video file length in seconds
+            try:
+                video_clip = VideoFileClip(fname)
+                self._l.info("Adding clip: " + fname )
+                show_clip = ShowClip(fname, video_clip.duration, tag)
+                show_clip_list.append(show_clip)
+            except:
+                self._l.error("Error processing video...")
+                raise Exception(f"Error processing video {fname}")
+        return show_clip_list
+
     def build_catalog(self):
         print("Building catalog...")
         #get the list of all tags
@@ -51,23 +66,16 @@ class ShowCatalog:
 
         #now populate each tag
         for tag in self.tags:
-            self._l.info("Evaluating tag: " + tag)
-            file_list = glob.glob(self.config['content_dir'] + "/" + tag + "/*.mp4")
-            show_clip_list = []
-            #get the duration and path for each clip and add to the tag
-            for fname in file_list:
-                # get video file length in seconds
-                try:
-                    video_clip = VideoFileClip(fname)
-                    self._l.info("Adding clip: " + fname )
-                    show_clip = ShowClip(fname, video_clip.duration, tag)
-                    show_clip_list.append(show_clip)
-                except:
-                    self._l.error("Error processing video...")
-                    raise Exception(f"Error processing video {f}")
-
-            self.clip_index[tag] = show_clip_list
-
+            self._l.info("Checking for media with tag: " + tag)
+            tag_dir = f"{self.config['content_dir']}/{tag}"
+            file_list = glob.glob(f"{tag_dir}/*.mp4")
+            self.clip_index[tag] = self._process_media(file_list, tag)
+            #now check for sub directories one layer deep
+            subs = [ f.path for f in os.scandir(tag_dir) if f.is_dir() ]
+            for sub in subs:
+                self._l.info("Found sub-directory " + sub)
+                file_list = glob.glob(f"{sub}/*.mp4")
+                self.clip_index[tag] = self._process_media(file_list, tag)
 
         # add sign-off and off-air videos to the clip index
         if 'sign_off_video' in self.config:
