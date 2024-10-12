@@ -11,7 +11,7 @@ import glob
 import random
 import datetime
 import argparse
-from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
+from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 
 #started 4:41
 
@@ -30,15 +30,17 @@ class Station42:
             f.write(as_json)
 
     def write_day_to_playlist(self, schedule, day_name):
-        for h in range(25):
+        for h in OPERATING_HOURS:
             t_slot = str(h)
             if t_slot in schedule:
                 try:
                     if isinstance(schedule[t_slot], MovieBlocks):
-                        back_hour = str(h+1)
+                        back_hour = h+1
+                        if back_hour >= 24:
+                            back_hour = 0
                         (plan_a, plan_b) = schedule[t_slot].make_plans()
                         self._write_json(plan_a, day_name, t_slot)
-                        self._write_json(plan_b, day_name, back_hour)
+                        self._write_json(plan_b, day_name, str(back_hour))
                     else:
                         clips = schedule[t_slot].make_plan()
                         self._write_json(clips, day_name, t_slot)
@@ -199,7 +201,7 @@ class Station42:
         day = self.config[day_str]
         skip_next = False
         # go through each possible hour in a day
-        for h in range(24):
+        for h in OPERATING_HOURS:
             if not skip_next:
                 slot = str(h)
                 self._l.debug("Making Slot: " + str(slot) )

@@ -7,7 +7,7 @@ main_conf = {
     # this is the old approach using python module - this method is no longer supported and may be removed in the future
     #'stations' : [nbc_conf.station_conf, abc_conf.station_conf, pbs_conf.station_conf, cbs_conf.station_conf],
 
-    'channel_socket' : "runtime/channel.socket"
+    'channel_socket' : "runtime/channel.socket",
 }
 
 def load_json_stations():
