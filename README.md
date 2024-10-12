@@ -65,7 +65,7 @@ This is another optional component that is used with CircuitPython on a Raspberr
 
 
 ## How Content is Structured
-FieldStation42 uses a directory structure to tag content per station. Each station has a content directory specified in its configuration. FieldStation42 will scan the content directory and build a catalog based on movie files found in the directories. For example, a content directory may have the following sub-folders:
+FieldStation42 uses a directory (folder) structure to tag content per station. Each station has a content directory (folder) specified in its configuration. FieldStation42 will scan the content directory and build a catalog based on movie files found in the directories. For example, a content directory may have the following sub-folders:
 
 * MyStationContent
     * bumps
@@ -79,6 +79,8 @@ FieldStation42 uses a directory structure to tag content per station. Each stati
 
 The channel configuration will use the directory names as 'tags' to schedule based on the channel configuration - see below for details.
 
+### Sub-Directories (Sub-Folders) in content directories
+When content directories contain sub-folders, they will be scanned for mp4 media and added to the tags content. Movie files in these directories will be treated like content from the main directory. This feature is useful for mixing in seasonal or holiday content as well as for combining content from multiple sources.
 
 ### About content format and duration
 The program expects content to have an mp4 extension, though this could easily be extended if there are use cases.
