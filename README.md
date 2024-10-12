@@ -90,7 +90,7 @@ When content directories contain sub-folders, they will be scanned for mp4 media
 ### About content format and duration
 The program expects content to have an mp4 extension, though this could easily be extended if there are use cases.
 
-Currently, only show blocks of 1 hour are supported. These can be built from 2 shows that are less than 30 minutes each or from 1 show that's under and hour.
+FieldStation42 uses one-hour show blocks by default - which can be made up of two shows that are under 30 minutes each or multiple clips stitched together. Feature length blocks of up to 2 hours are supported in folders listed in the 'two_hour' configuration for each station.
 
 # Insall & Setup Process
 
@@ -101,7 +101,8 @@ Any linux installation should work fine (including Rasberry Pi) and it even work
 
 * Ensure MPV is installed and operational
 * Ensure Python 3 is installed and up-to-date
-    * Its recommended that you use a virtual env, but not required.
+    * Its recommended that you use a virtual env, but not required unless you are using a managed python install (like in recent Raspberry Pi releases)
+
 
 ### Python Dependencies
 The following modules are required for the system to work:
@@ -150,7 +151,7 @@ Each channel is a separate json file. Example configurations are provided in the
     # list of directories (tags) intended to be stitched clips vs full content in a single file
     'clip_shows' : ["some_show", "some_clip_show"],
     # list of directories that contain content between one and two hours
-    "two_hour" : ["movie"],
+    "two_hour" : ["movie", "documentary"],
     #used at sign-off time (played once)
     'sign_off_video': "catalog/anthem_signoff.mp4",
     #used when the channel is offair
