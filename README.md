@@ -10,6 +10,7 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * Supports multiple simultanous channels
 * Automatically interleaves commercial break and bumps into content
 * Generates weekly schedules based on per-station configurations
+* Feature length content - supports movie length show blocks
 * Randomly selects shows that have not been played recently to keep a fresh lineup
 * Per-station configuration of station sign-off video and off-air loops
 * UX to view weekly schedules
@@ -18,10 +19,9 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 ### Note on current limitations and roadmap
 The following features are not yet supported, but are on the near-term roadmap.
 
-* Videos longer than one hour in length - 'movie' length blocks are not supported to keep scheduling simple
-    * Being able to have feature length content is critical to authentic programming, so this is a P0 roadmap item
 * Configuring the station transition - right now it has the one behaviour, but this
     * Being able to have faster transitions is critical to emulate cable era content, so this is a P1 roadmap item
+* Per time-slot commercial content
 
 Just add content and let the nostalgia flow :)
 
@@ -142,6 +142,8 @@ Each channel is a separate json file. Example configurations are provided in the
     'bump_dir' : "bump",
     # list of directories (tags) intended to be stitched clips vs full content in a single file
     'clip_shows' : ["some_show", "some_clip_show"],
+    # list of directories that contain content between one and two hours
+    "two_hour" : ["movie"],
     #used at sign-off time (played once)
     'sign_off_video': "catalog/anthem_signoff.mp4",
     #used when the channel is offair
