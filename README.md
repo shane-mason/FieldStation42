@@ -10,6 +10,7 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 
 If you have been using FieldStation42, you will note that there has been large changes to how the project is stuctured as of 10.11.2024. This is to make it more maintainable. If it causes any breaking changes in your setup, file a ticket and we'll help you work through it. This was a one-time effort that we needed to do make this more easily maintained going forward.
 
+
 ## Features
 * Supports multiple simultanous channels
 * Automatically interleaves commercial break and bumps into content
