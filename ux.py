@@ -1,15 +1,18 @@
 from textual.app import App, Screen, ComposeResult
 from textual.widgets import DataTable, Static
 from textual import events
-import pickle
-from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
-from fs42.show_block import ShowBlock, ClipBlock
+from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
+from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
 from field_player import FieldPlayer
+
+import pickle
+import random
+import string
 
 #from station_42 import Station42
 class ScheduleViewer(Screen):
 
-    CSS_PATH = "ux.tcss"
+    CSS_PATH = "fs42/ux.tcss"
     BINDINGS = [("escape", "app.pop_screen", "Pop screen")]
     def compose(self) -> ComposeResult:
         yield DataTable()
@@ -22,6 +25,13 @@ class ScheduleViewer(Screen):
     def on_screen_resume(self)->None:
         self.fill_table()
 
+    def _show_id(self, title):
+        show_title = title
+        episode_id = ''.join(random.sample(string.ascii_lowercase+string.digits, 3))
+        if "_V1" in title:
+            (show_title, episode_id) = title.split("_V1")
+        return(show_title, episode_id)
+
     def fill_table(self):
         table = self.query_one(DataTable)
         table.clear()
@@ -29,36 +39,48 @@ class ScheduleViewer(Screen):
 
         for hour in OPERATING_HOURS:
 
+            hs = str(hour)
+            if hs in selected_day:
+                slot = selected_day[hs]
+                time_str = f"{hour:02}"
+                if hour > 12:
+                    h = hour - 12
+                    time_str = f"{h:02}"
 
-            slot = selected_day[hour]
-            time_str = f"{hour:02}"
-            if hour > 12:
-                h = hour - 12
-                time_str = f"{h:02}"
 
+                if isinstance(slot, ShowBlock):
+                    title = slot.front.title
+                    (show_name, episode_id) = self._show_id(slot.front.title)
+                    dur = f"{int(slot.front.duration/60):02}:{int(slot.front.duration%60):02}"
+                    table.add_row(time_str, "00", show_name, f"V1{episode_id}", slot.front.tag, dur)
 
-            if isinstance(slot, ShowBlock):
-                title = slot.front.title
-                (show_name, episode_id) = slot.front.title.split("_V1")
-                dur = f"{int(slot.front.duration/60):02}:{int(slot.front.duration%60):02}"
-                table.add_row(time_str, "00", show_name, f"V1{episode_id}", slot.front.tag, dur)
+                    if slot.back:
+                        title = slot.back.title
+                        (show_name, episode_id) = slot.back.title.split("_V1")
+                        dur = f"{int(slot.back.duration/60):02}:{int(slot.back.duration%60):02}"
 
-                if slot.back:
-                    title = slot.back.title
-                    (show_name, episode_id) = slot.back.title.split("_V1")
-                    dur = f"{int(slot.back.duration/60):02}:{int(slot.back.duration%60):02}"
-                    table.add_row(time_str, "30", show_name, f"V1{episode_id}", slot.back.tag, dur)
+                        table.add_row(time_str, "30", show_name, f"V1{episode_id}", slot.back.tag, dur)
+                    else:
+                        table.add_row(time_str, "30", "~", f"~", "~", "~")
+                elif isinstance(slot, ClipBlock):
+                    title = slot.name
+                    show_name = title
+                    episode_id = slot.tag
+                    dur = f"{int(slot.duration/60):02}:{int(slot.duration%60):02}"
+                    table.add_row(time_str, "00", show_name, f"V1{episode_id}", slot.tag, dur)
+                    table.add_row(time_str, "30", "~", f"~", "~", "~")
+                elif isinstance(slot, MovieBlocks):
+                    title = slot.movie.title
+                    (show_name, episode_id) = self._show_id(title)
+                    dur = f"Feature"
+                    table.add_row(time_str, "00", show_name, f"V1{episode_id}", slot.tag, dur)
+                    table.add_row(time_str, "30", "~", f"~", "~", "~")
                 else:
-                    table.add_row(time_str, "30", "continued", f"~", "~", "~")
-            elif isinstance(slot, ClipBlock):
-                title = slot.name
-                show_name = title
-                episode_id = slot.tag
-                dur = f"{int(slot.duration/60):02}:{int(slot.duration%60):02}"
-                table.add_row(time_str, "00", show_name, f"V1{episode_id}", slot.tag, dur)
-                table.add_row(time_str, "30", "continued", f"~", "~", "~")
+                    print("Unknown show type...")
             else:
-                print("Unknown show type...")
+                next_hour = str(hour)
+                table.add_row(next_hour, "00", "~", f"~", "~", "~")
+                table.add_row(next_hour, "30", "~", f"~", "~", "~")
 
         #table.fixed_rows = 2
         #table.fixed_columns = 1
@@ -124,8 +146,15 @@ class StationViewer(App):
 
 
 
-from confs import cbs_conf
-station_config = cbs_conf.station_conf
+from confs.fieldStation42_conf import main_conf
+#station_config = cbs_conf.station_conf
+
+#from confs.fieldStation42_conf import main_conf
+#    for c in main_conf["stations"]:
+
+
+
+station_config = main_conf["stations"][0]
 
 full_schedule = None
 selected_day = None

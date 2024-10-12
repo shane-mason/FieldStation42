@@ -44,9 +44,10 @@ class ReelCutter:
         return entries
 
 class MovieBlocks:
-    def __init__(self, movie, reels):
+    def __init__(self, movie, reels, tag):
         self.movie = movie
         self.reels = reels
+        self.tag = tag
 
     def make_plans(self):
         #how long will each segment be?

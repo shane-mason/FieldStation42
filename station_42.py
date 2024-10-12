@@ -118,7 +118,7 @@ class Station42:
             else:
                 self.l.debug("Error getting filler content - do you have enough commercials and bumps of different lengths?")
                 raise Exception(f"Error getting filler content")
-        return MovieBlocks(candidate, reels)
+        return MovieBlocks(candidate, reels, tag)
 
     def make_clip_hour(self, tag):
         remaining_time = HOUR
