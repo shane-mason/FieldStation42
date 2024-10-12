@@ -199,6 +199,9 @@ def main_loop():
     channel = 0
     if not len(station_runtimes):
         print("Could not find any station runtimes - do you have your channels configured?")
+        print("Check to make sure you have valid json configurations in the confs dir")
+        print("The confs/examples folder contains working examples that you can build off of - just move one into confs/")
+        return
     player = FieldPlayer(station_runtimes[channel])
     reception.degrade(1)
     player.update_filters()
