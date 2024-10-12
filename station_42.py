@@ -2,7 +2,7 @@ import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.DEBUG)
 
 from catalog import ShowCatalog
-from show_block import ShowBlock, ClipBlock
+from show_block import ShowBlock, ClipBlock, MovieBlocks
 
 import pickle
 import json
@@ -11,7 +11,7 @@ import glob
 import random
 import datetime
 import argparse
-from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS
+from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 
 #started 4:41
 
@@ -21,25 +21,33 @@ class Station42:
         self.config = config
         self._l = logging.getLogger(self.config['network_name'])
         self.catalog = ShowCatalog(self.config, rebuild_catalog=rebuild_catalog)
-        #self.catalog.print_catalog()
-        #self.make_schedule(self.config['tuesday'])
 
+
+    def _write_json(self, clips, day_name, time_slot):
+        as_json = json.dumps(clips, indent=4)
+        out_path = f"{self.config['runtime_dir']}/{day_name}_{time_slot}.json"
+        with open(out_path, "w") as f:
+            f.write(as_json)
 
     def write_day_to_playlist(self, schedule, day_name):
         for h in range(25):
             t_slot = str(h)
             if t_slot in schedule:
                 try:
-                    clips = schedule[t_slot].make_plan()
+                    if isinstance(schedule[t_slot], MovieBlocks):
+                        back_hour = str(h+1)
+                        (plan_a, plan_b) = schedule[t_slot].make_plans()
+                        self._write_json(plan_a, day_name, t_slot)
+                        self._write_json(plan_b, day_name, back_hour)
+                    else:
+                        clips = schedule[t_slot].make_plan()
+                        self._write_json(clips, day_name, t_slot)
                 except:
                     self._l.error("Error writing playlist - likely an error in the catalog or configuration")
                     self._l.error(f"Check schedule for day: {day_name} at {t_slot}")
                     raise Exception("Error writing schedule")
-                if clips:
-                    as_json = json.dumps(clips, indent=4)
-                    out_path = f"{self.config['runtime_dir']}/{day_name}_{t_slot}.json"
-                    with open(out_path, "w") as f:
-                        f.write(as_json)
+
+
 
 
     def make_hour_schedule(self, tag):
@@ -56,11 +64,11 @@ class Station42:
             front.count+=1
             remaining_time-=candidate.duration
             if front.duration > HOUR:
-                self.l.debug(front)
+                self._l.debug(front)
                 self._l.debug("Slot continues...")
-
                 slot_continues = front.duration - HOUR
-                raise NotImplementedError("Slot continuation is not supported - video must be under one hour:" )
+                raise NotImplementedError("Video must be under one hour or in a directory marked for longer, like 'two_hour' " )
+
 
             if remaining_time > H_HOUR:
                 self._l.debug("Less than half hour filled - getting back half")
@@ -84,9 +92,32 @@ class Station42:
             if fill:
                 remaining_time-=fill.duration
                 reels.append(fill)
-
+            else:
+                self.l.debug("Error getting filler content - do you have enough commercials and bumps of different lengths?")
+                raise Exception(f"Error making schedule for tag: {tag}")
         return ShowBlock(front, back_half, reels)
 
+    def make_double_schedule(self, tag):
+        remaining_time = HOUR2
+        candidate = self.catalog.find_candidate(tag, HOUR*24)
+        reels = []
+        self._l.debug(f"Making double schedule - candidate: {candidate}")
+        if candidate:
+            remaining_time-=candidate.duration
+        else:
+            self._l.error("Error getting candidate for double slot")
+            raise Exception(f"Error making schedule for tag: {tag}")
+
+        while remaining_time > 15:
+            #just add commercials and bumps
+            fill = self.catalog.find_filler(remaining_time)
+            if fill:
+                remaining_time-=fill.duration
+                reels.append(fill)
+            else:
+                self.l.debug("Error getting filler content - do you have enough commercials and bumps of different lengths?")
+                raise Exception(f"Error getting filler content")
+        return MovieBlocks(candidate, reels)
 
     def make_clip_hour(self, tag):
         remaining_time = HOUR
@@ -162,28 +193,39 @@ class Station42:
         self._l.debug(f"Wrote output to {self.config['schedule_path']}")
 
 
+
     def make_daily_schedule(self, day_str):
         schedule = {}
         day = self.config[day_str]
+        skip_next = False
         # go through each possible hour in a day
         for h in range(24):
-            slot = str(h)
-            self._l.debug("Making Slot: " + str(slot) )
-            if slot in day:
-                if 'tags' in day[slot]:
-                    tag = day[slot]['tags']
-                    if tag in self.config['clip_shows']:
-                        self._l.debug("*********************Making clip show***************************")
-                        schedule[slot] = self.make_clip_hour(tag)
-                    else:
-                        schedule[slot] = self.make_hour_schedule(tag)
-                if 'event' in day[slot]:
-                    if day[slot]['event'] == "signoff" and 'sign_off_video' in self.config:
-                        schedule[slot] = self.make_signoff_hour()
+            if not skip_next:
+                slot = str(h)
+                self._l.debug("Making Slot: " + str(slot) )
+                if slot in day:
+                    if 'tags' in day[slot]:
+                        tag = day[slot]['tags']
+                        self._l.debug(f"Slot tag: {tag}")
+                        if tag in self.config['clip_shows']:
+                            # then this is a clip show
+                            schedule[slot] = self.make_clip_hour(tag)
+                        elif tag in self.config['two_hour']:
+                            schedule[slot] = self.make_double_schedule(tag)
+                            skip_next = True
+                        else:
+                            # then this is a single hour show
+                            schedule[slot] = self.make_hour_schedule(tag)
+
+                    if 'event' in day[slot]:
+                        if day[slot]['event'] == "signoff" and 'sign_off_video' in self.config:
+                            schedule[slot] = self.make_signoff_hour()
+                else:
+                    #then we are off off_air
+                    if 'off_air_video' in self.config:
+                        schedule[slot] = self.make_offair_hour()
             else:
-                #then we are off off_air
-                if 'off_air_video' in self.config:
-                    schedule[slot] = self.make_offair_hour()
+                skip_next = False
 
 
         return schedule

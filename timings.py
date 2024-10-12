@@ -1,4 +1,5 @@
 DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+HOUR2 = 7200
 HOUR = 3600
 H_HOUR = 1800
 Q_HOUR = 900

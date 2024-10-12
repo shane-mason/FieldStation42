@@ -2,6 +2,64 @@ from timings import *
 import logging
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
+REELS_PER_BREAK = 6
+
+class ReelCutter:
+    def cut_reels_into_base(base_clip, reels, base_offset, duration):
+        def _entry(path, start, dur):
+            return {'path':path, 'start':start, 'duration':dur}
+
+        entries = []
+        if len(reels) < 6:
+            # just put them at the end
+            entries.append(_entry(base_clip.path, base_offset, base_clip.duration))
+        elif len(reels) < 12:
+            # end and center - how long are the segments?
+            segment_duration = base_clip.duration/2
+            # do the first hald
+            entries.append(_entry(base_clip.path, base_offset, segment_duration))
+            # lay down half the reels
+            for i in range(len(reels)//2):
+                reel = reels.pop(0)
+                entries.append(_entry(reel.path, 0, reel.duration))
+            #second segment needs base offset + the first segments duration offset to start
+            entries.append(_entry(base_clip.path, base_offset+segment_duration, segment_duration))
+        else:
+            break_count = len(reels)//REELS_PER_BREAK
+            segment_duration = base_clip.duration/break_count
+            offset = base_offset
+            for i in range(break_count):
+                entries.append(_entry(base_clip.path, offset, segment_duration))
+
+                for i in range(REELS_PER_BREAK):
+                    reel = reels.pop(0)
+                    entries.append(_entry(reel.path, 0, reel.duration))
+
+                offset += segment_duration
+
+        #add any remaining reels to the end
+        for reel in reels:
+            entries.append(_entry(reel.path, 0, reel.duration))
+
+        return entries
+
+class MovieBlocks:
+    def __init__(self, movie, reels):
+        self.movie = movie
+        self.reels = reels
+
+    def make_plans(self):
+        #how long will each segment be?
+        middle_point = self.movie.duration/2
+        a_reels = self.reels[:len(self.reels)//2]
+        b_reels = self.reels[len(self.reels)//2:]
+        a_plan = ReelCutter.cut_reels_into_base(self.movie, a_reels, 0, HOUR )
+        b_plan = ReelCutter.cut_reels_into_base(self.movie, b_reels, middle_point, HOUR )
+        return (a_plan, b_plan)
+
+
+
+
 class ClipBlock:
     def __init__(self, name, clips, duration=HOUR):
         self.name = name
@@ -23,6 +81,10 @@ class ClipBlock:
             dur += clip.duration
         return dur
 
+
+# this works well for one hour blocks made up of a single one hour show or 2 half hour shows.
+# it is not very extendable and needs to be updated. I believe the vast majority of the repetitive
+# code in this class can be replaced with the new make_segment_block above.
 class ShowBlock:
     def __init__(self, front=None, back=None, reels=None):
         self.front = front

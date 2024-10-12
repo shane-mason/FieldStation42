@@ -7,6 +7,7 @@
     "commercial_dir" : "commercial",
     "bump_dir" : "bump",
     "clip_shows" : ["some_clip_show", "another_clip_show"],
+    "two_hour" : ["movies"],
     "channel_number": 1,
     "sign_off_video": "catalog/anthem_signoff.mp4",
     "off_air_video": "catalog/off_air_pattern.mp4",
