@@ -1,4 +1,4 @@
-{}"station_conf" : {
+{"station_conf" : {
     "network_name" : "PBS",
     "catalog_path" : "catalog/pbs_catalog.bin",
     "content_dir" : "catalog/pbs_catalog",
@@ -165,4 +165,4 @@
         "1": {"tags" : "general"},
         "2": {"event" : "signoff"}
     }
-}}
+}
