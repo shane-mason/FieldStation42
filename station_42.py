@@ -211,7 +211,7 @@ class Station42:
                         if tag in self.config['clip_shows']:
                             # then this is a clip show
                             schedule[slot] = self.make_clip_hour(tag)
-                        elif tag in self.config['two_hour']:
+                        elif 'two_hour' in self.config and tag in self.config['two_hour']:
                             schedule[slot] = self.make_double_schedule(tag)
                             skip_next = True
                         else:
