@@ -1,6 +1,4 @@
 import json
-from confs import nbc_conf, abc_conf, pbs_conf, cbs_conf
-
 
 
 main_conf = {
@@ -29,3 +27,4 @@ def load_json_stations():
 
 if 'stations' not in main_conf:
     load_json_stations()
+
