@@ -5,17 +5,17 @@ from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 REELS_PER_BREAK = 6
 
 class ReelCutter:
-    def cut_reels_into_base(base_clip, reels, base_offset):
+    def cut_reels_into_base(base_clip, reels, base_offset, base_duration):
         def _entry(path, start, dur):
             return {'path':path, 'start':start, 'duration':dur}
 
         entries = []
         if len(reels) < 6:
             # just put them at the end
-            entries.append(_entry(base_clip.path, base_offset, base_clip.duration))
+            entries.append(_entry(base_clip.path, base_offset, base_duration))
         elif len(reels) < 12:
             # end and center - how long are the segments?
-            segment_duration = base_clip.duration/2
+            segment_duration = base_duration/2
             # do the first hald
             entries.append(_entry(base_clip.path, base_offset, segment_duration))
             # lay down half the reels
@@ -26,7 +26,7 @@ class ReelCutter:
             entries.append(_entry(base_clip.path, base_offset+segment_duration, segment_duration))
         else:
             break_count = len(reels)//REELS_PER_BREAK
-            segment_duration = base_clip.duration/break_count
+            segment_duration = base_duration/break_count
             offset = base_offset
             for i in range(break_count):
                 entries.append(_entry(base_clip.path, offset, segment_duration))
@@ -51,11 +51,11 @@ class MovieBlocks:
 
     def make_plans(self):
         #how long will each segment be?
-        middle_point = self.movie.duration/2
+        segment_duration = self.movie.duration/2
         a_reels = self.reels[:len(self.reels)//2]
         b_reels = self.reels[len(self.reels)//2:]
-        a_plan = ReelCutter.cut_reels_into_base(self.movie, a_reels, 0 )
-        b_plan = ReelCutter.cut_reels_into_base(self.movie, b_reels, middle_point )
+        a_plan = ReelCutter.cut_reels_into_base(self.movie, a_reels, 0, segment_duration )
+        b_plan = ReelCutter.cut_reels_into_base(self.movie, b_reels, segment_duration, segment_duration )
         return (a_plan, b_plan)
 
 class ClipBlock:
@@ -89,13 +89,13 @@ class ShowBlock:
     def make_plan(self):
         if not self.back:
             #then its just a one-hour plan
-            return ReelCutter.cut_reels_into_base(self.front, self.reels, 0 )
+            return ReelCutter.cut_reels_into_base(self.front, self.reels, 0, self.front.duration)
         else:
             #then its 2 half hour slots
             front_reels = self.reels[:len(self.reels)//2]
             back_reels = self.reels[len(self.reels)//2:]
-            front_half = ReelCutter.cut_reels_into_base(self.front, front_reels, 0 )
-            back_half = ReelCutter.cut_reels_into_base(self.back, back_reels, 0 )
+            front_half = ReelCutter.cut_reels_into_base(self.front, front_reels, 0, self.front.duration )
+            back_half = ReelCutter.cut_reels_into_base(self.back, back_reels, 0, self.back.duration )
             full_hour = front_half + back_half
             return full_hour
 
