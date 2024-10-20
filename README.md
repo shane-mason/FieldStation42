@@ -19,10 +19,9 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 ## Alpha software - installation is not simple
 This is a brand new project and in active development - installation requires some background in the following:
 
-* Installing python packages on linux
+* Basic linux command line usage
 * Reading and editing JSON configuration files
 * Movie file conversion and organizing in folders
-
 
 ### Note on current limitations and roadmap
 The following features are not yet supported, but are on the near-term roadmap.
@@ -31,23 +30,22 @@ The following features are not yet supported, but are on the near-term roadmap.
     * Being able to have faster transitions is critical to emulate cable era content, so this is a P1 roadmap item
 * Per time-slot commercial content
 
-Just add content and let the nostalgia flow :)
 
 ## Quickstart
 
 * Ensure Python 3 and MPV are installed on your subsystem
 * Clone the repository - this will become you main working directory.
-* Install python dependencies
+* Run the install script
 * Add your own content (videos)
 * Configure your stations
     * Copy an example json file from `confs/examples` into `confs/`
 * Generate a weekly schedule
-    * Use `python3 station_42.py`
+    * Run `python3 station_42.py` on the command line
         * Use `--rebuild_catalog` option if content has changed
 * Watch TV
-    * Use `field_player.py`
+    * Run `field_player.py` on the command line
 * Configure start-on-boot (optional and not recommended unless you are making a dedicated device.)
-    * Use `fs42/hot_start.sh`
+    * Run `fs42/hot_start.sh` on the command line
 
 
 # How It Works
@@ -55,7 +53,6 @@ FieldStation42 has multiple components that work together to recreate that old-s
 
 ### station_42.py
 This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
-
 
 ### ux.py
 This script is used to view schedules for networks - it can act as a guide of sorts.
@@ -103,38 +100,29 @@ FieldStation42 is in-development, so the install process takes multiple steps.
 Any linux installation should work fine (including Rasberry Pi) and it even works with windows subsystem for linux.
 
 * Ensure MPV is installed and operational
+    * `sudo apt-get install mpv`
 * Ensure Python 3 is installed and up-to-date
-    * Its recommended that you use a virtual env, but not required unless you are using a managed python install (like in recent Raspberry Pi releases)
-
-
-### Python Dependencies
-The following modules are required for the system to work:
-
-#### moviepy
-This module is used to determine the duration of a video files when building catalogs - it is not used during scheduling or live play.
-
-`pip3 install moviepy`
-
-#### Python MPV JSONIPC
-This module is used to start and control the mpv player during playback over named pipes.
-
-`pip3 install python-mpv-jsonipc`
+    * `sudo apt-get install python3`
 
 ## Clone Repository
-
 Use the standard github command to clone the repository into a local directory.
+
+
+## Run install.sh
+Change to the newly cloned repo folder and run:
+
+`./install.sh`
+
+This will install python dependencies and create runtime and catalog folders.
 
 ## Configuring Stations
 For simplicity, configurations are stored as python files in the 'confs' module.
 
 ### fieldStation42_conf.py
-The main configuration is `confs/fieldStation42_conf.py` and contains the following fields:
-
-stations : array of stations configuration - should be a matching .py file
-channel_socket : path to file to use to signal channel changes - save any text to this file and the field_player will change to the next channel.
+The main configuration is `confs/fieldStation42_conf.py` - its main job is to load json configuration files in the same directory. You should not need to edit this file unless you have a specific reason to. It will search for json files in the confs folder and will load those as stations. There are examples in `confs/examples` that can be copied into this `confs/` folder as the starting point for a channel configuration.
 
 ### Per Channel Configurations
-Each channel is a separate json file. Example configurations are provided in the `confs/examples` directory. Just copy the example json into the `confs/` directory.
+Each channel is a separate json file. Example configurations are provided in the `confs/examples` directory. Just copy the example json up into the `confs/` directory.
 ```
 {station_conf : {
     # basic human readable name for the channel
