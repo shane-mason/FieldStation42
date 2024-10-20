@@ -23,6 +23,21 @@ class Station42:
 
 
     def _write_json(self, clips, day_name, time_slot):
+
+        #first, ensure the runtime_dir exists
+        if not os.path.isdir(self.config['runtime_dir']):
+            #then lets try and make it
+            try:
+                os.mkdir(self.config['runtime_dir'])
+                print(f"Directory '{self.config['runtime_dir']}' created successfully.")
+            except FileExistsError:
+                print(f"Directory '{self.config['runtime_dir']}' already exists - we should be fine")
+            except PermissionError:
+                print(f"Permission denied: Unable to create '{self.config['runtime_dir']}'.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                raise (f"Runtime folder not found and failed to create - something is wrong with your configuration.")
+
         as_json = json.dumps(clips, indent=4)
         out_path = f"{self.config['runtime_dir']}/{day_name}_{time_slot}.json"
         with open(out_path, "w") as f:
@@ -242,6 +257,8 @@ if __name__ == "__main__":
 
         station = Station42(c, args.rebuild_catalog)
         schedule = station.make_weekly_schedule()
+
+    print("Schedules generated - exiting FieldStation42.")
 
 
 
