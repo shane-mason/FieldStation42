@@ -8,6 +8,7 @@ __pycache__/
 #*conf.py
 runtime/
 catalog/
+env/
 
 # C extensions
 *.so

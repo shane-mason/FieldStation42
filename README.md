@@ -6,11 +6,6 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 
 ![An older TV with an antenna rotator box in the backgroun](docs/retro-tv.png?raw=true)
 
-## NOTE ON RECENT UPDATES:
-
-If you have been using FieldStation42, you will note that there has been large changes to how the project is stuctured as of 10.11.2024. This is to make it more maintainable. If it causes any breaking changes in your setup, file a ticket and we'll help you work through it. This was a one-time effort that we needed to do make this more easily maintained going forward.
-
-
 ## Features
 * Supports multiple simultanous channels
 * Automatically interleaves commercial break and bumps into content
@@ -20,6 +15,14 @@ If you have been using FieldStation42, you will note that there has been large c
 * Per-station configuration of station sign-off video and off-air loops
 * UX to view weekly schedules
 * Optional hardware connections to change the channel
+
+## Alpha software - installation is not simple
+This is a brand new project and in active development - installation requires some background in the following:
+
+* Installing python packages on linux
+* Reading and editing JSON configuration files
+* Movie file conversion and organizing in folders
+
 
 ### Note on current limitations and roadmap
 The following features are not yet supported, but are on the near-term roadmap.
