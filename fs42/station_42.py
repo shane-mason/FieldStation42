@@ -15,9 +15,6 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
-#import ultraimport
-#main_conf = ultraimport('__dir__/../confs/fieldStation42_conf.py', 'main_conf')
-
 #started 4:41
 
 class Station42:
