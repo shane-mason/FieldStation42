@@ -1,9 +1,6 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.DEBUG)
 
-from catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
-from show_block import ShowBlock, ClipBlock, MovieBlocks
-from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 import pickle
 import json
 import os
@@ -12,8 +9,12 @@ import random
 import datetime
 import argparse
 import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
+from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
+from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
+from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 
 #started 4:41
 

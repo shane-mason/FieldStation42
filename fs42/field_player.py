@@ -4,6 +4,7 @@ import time
 import datetime
 import json
 import sys
+import os
 
 from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 
@@ -183,8 +184,9 @@ reception = ReceptionStatus()
 def main_loop():
 
     #get the channels and runtimes
-    from pathlib import Path
-    sys.path.append(str(Path(__file__).parent.parent))
+    current = os.path.dirname(os.path.realpath(__file__))
+    parent = os.path.dirname(current)
+    sys.path.append(parent)
     from confs.fieldStation42_conf import main_conf
     station_runtimes = []
     for c in main_conf["stations"]:
