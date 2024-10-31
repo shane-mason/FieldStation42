@@ -1,7 +1,7 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.DEBUG)
 
-from fs42.catalog import ShowCatalog
+from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
 from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 import pickle
@@ -64,6 +64,27 @@ class Station42:
                     raise Exception("Error writing schedule")
 
 
+    def flexi_break(self, fill_time):
+        reels = []
+        remaining_time = fill_time
+
+        keep_going = True
+
+        while keep_going:
+            try:
+                fill = self.catalog.find_filler(remaining_time)
+                remaining_time-=fill.duration
+                reels.append(fill)
+            except NoFillerContentFound as e:
+                self._l.error("No commercials or bumps found - please add content to commercial and bump folders or check your configuration")
+                raise e
+            except MatchingContentNotFound:
+                if(remaining_time > 30):
+                    self._l.warning(f"Couldn't find commercials or bumps less than {remaining_time} seconds - FieldStation42 requires fill content to simulate accurate schedules.")
+                keep_going = False
+
+        return reels
+
 
 
     def make_hour_schedule(self, tag):
@@ -102,15 +123,7 @@ class Station42:
             self._l.error("Error getting candidate for slot.")
             raise Exception(f"Error making schedule for tag: {tag}")
 
-        while remaining_time > 15:
-            #just add commercials and bumps
-            fill = self.catalog.find_filler(remaining_time)
-            if fill:
-                remaining_time-=fill.duration
-                reels.append(fill)
-            else:
-                self.l.debug("Error getting filler content - do you have enough commercials and bumps of different lengths?")
-                raise Exception(f"Error making schedule for tag: {tag}")
+        reels = self.flexi_break(remaining_time)
         return ShowBlock(front, back_half, reels)
 
     def make_double_schedule(self, tag):
@@ -124,15 +137,7 @@ class Station42:
             self._l.error("Error getting candidate for double slot")
             raise Exception(f"Error making schedule for tag: {tag}")
 
-        while remaining_time > 15:
-            #just add commercials and bumps
-            fill = self.catalog.find_filler(remaining_time)
-            if fill:
-                remaining_time-=fill.duration
-                reels.append(fill)
-            else:
-                self.l.debug("Error getting filler content - do you have enough commercials and bumps of different lengths?")
-                raise Exception(f"Error getting filler content")
+        reels = self.flexi_break(remaining_time)
         return MovieBlocks(candidate, reels, tag)
 
     def make_clip_hour(self, tag):
@@ -153,12 +158,7 @@ class Station42:
             else:
                 more_candidates = False
 
-        while remaining_time > 15:
-            #just add commercials and bumps
-            fill = self.catalog.find_filler(remaining_time)
-            if fill:
-                remaining_time-=fill.duration
-                clips.append(fill)
+        reels = self.flexi_break(remaining_time)
 
         return ClipBlock(tag, clips, HOUR-remaining_time)
 

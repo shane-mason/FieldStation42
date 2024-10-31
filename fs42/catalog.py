@@ -20,6 +20,12 @@ class ShowClip:
         return f"{self.title} - {self.tag} -{self.duration}"
 
 
+class MatchingContentNotFound(Exception):
+    pass
+
+class NoFillerContentFound(Exception):
+    pass
+
 class ShowCatalog:
 
     def __init__(self, config, rebuild_catalog=False):
@@ -139,7 +145,7 @@ class ShowCatalog:
             random.shuffle(matches)
             if not len(matches):
                 err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
-                raise(Exception(err))
+                raise(MatchingContentNotFound(err))
             return self._lowest_count(matches)
 
 
@@ -148,5 +154,5 @@ class ShowCatalog:
         com_tag = self.config['commercial_dir']
 
         if not len(self.clip_index[bump_tag]) and not len(self.clip_index[com_tag]):
-            raise Exception("Can't find filler - add commercials and bumps...")
+            raise NoFillerContentFound("Can't find filler - add commercials and bumps...")
         return self.find_candidate(random.choice([bump_tag, com_tag, com_tag]), seconds)
