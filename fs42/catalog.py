@@ -33,6 +33,7 @@ class ShowCatalog:
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
         self.clip_index = {}
         self.tags = []
+        self.supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv"]
         if rebuild_catalog:
             self.build_catalog()
         else:
@@ -75,12 +76,15 @@ class ShowCatalog:
             self._l.info("Checking for media with tag: " + tag)
             tag_dir = f"{self.config['content_dir']}/{tag}"
             file_list = glob.glob(f"{tag_dir}/*.mp4")
+            #file_list = [glob.glob(f"{tag_dir}/*.{e}") for e in self.supported_formats]
             self.clip_index[tag] = self._process_media(file_list, tag)
             #now check for sub directories one layer deep
             subs = [ f.path for f in os.scandir(tag_dir) if f.is_dir() ]
             for sub in subs:
                 self._l.info("Found sub-directory " + sub)
                 file_list = glob.glob(f"{sub}/*.mp4")
+                #file_list = [glob.glob(f"{sub}/*.{e}") for e in self.supported_formats]
+                print("Found files in subdirector")
                 self.clip_index[tag] = self._process_media(file_list, tag)
 
         # add sign-off and off-air videos to the clip index
