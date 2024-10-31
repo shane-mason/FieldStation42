@@ -1,8 +1,8 @@
 from textual.app import App, Screen, ComposeResult
 from textual.widgets import DataTable, Static
 from textual import events
-from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
-from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
+from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
+from show_block import ShowBlock, ClipBlock, MovieBlocks
 from field_player import FieldPlayer
 
 import pickle

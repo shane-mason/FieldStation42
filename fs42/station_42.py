@@ -1,9 +1,9 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.DEBUG)
 
-from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
-from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
-from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
+from catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
+from show_block import ShowBlock, ClipBlock, MovieBlocks
+from timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 import pickle
 import json
 import os
@@ -11,6 +11,12 @@ import glob
 import random
 import datetime
 import argparse
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
+#import ultraimport
+#main_conf = ultraimport('__dir__/../confs/fieldStation42_conf.py', 'main_conf')
 
 #started 4:41
 
@@ -259,10 +265,3 @@ if __name__ == "__main__":
         schedule = station.make_weekly_schedule()
 
     print("Schedules generated - exiting FieldStation42.")
-
-
-
-
-
-
-
