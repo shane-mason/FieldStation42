@@ -1,6 +1,7 @@
 #/usr/bin/bash
 
-cd ~/FieldStation42
+
+cd $(dirname $0)
 . env/bin/activate
 
 python3 field_player.py 1>/dev/null 2>/dev/null & disown
