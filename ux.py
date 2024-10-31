@@ -3,7 +3,7 @@ from textual.widgets import DataTable, Static
 from textual import events
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
-from fs42.field_player import FieldPlayer
+from field_player import FieldPlayer
 
 import pickle
 import random
