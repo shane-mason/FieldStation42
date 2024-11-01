@@ -58,7 +58,7 @@ class ShowCatalog:
     def build_catalog(self):
         print("Building catalog...")
         #get the list of all tags
-        tags = []
+        tags = {}
         for day in DAYS:
             slots = self.config[day]
             for k in slots:
