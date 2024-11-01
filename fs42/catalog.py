@@ -73,6 +73,7 @@ class ShowCatalog:
 
         #now populate each tag
         for tag in self.tags:
+            self.clip_index[tag] = []
             self._l.info("Checking for media with tag: " + tag)
             tag_dir = f"{self.config['content_dir']}/{tag}"
             file_list = glob.glob(f"{tag_dir}/*.mp4")
@@ -85,7 +86,7 @@ class ShowCatalog:
                 file_list = glob.glob(f"{sub}/*.mp4")
                 #file_list = [glob.glob(f"{sub}/*.{e}") for e in self.supported_formats]
                 print("Found files in subdirector")
-                self.clip_index[tag] = self._process_media(file_list, tag)
+                self.clip_index[tag] += self._process_media(file_list, tag)
 
         # add sign-off and off-air videos to the clip index
         if 'sign_off_video' in self.config:
