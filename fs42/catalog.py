@@ -58,7 +58,7 @@ class ShowCatalog:
     def build_catalog(self):
         print("Building catalog...")
         #get the list of all tags
-        tags = {}
+        tags = []
         for day in DAYS:
             slots = self.config[day]
             for k in slots:
@@ -85,7 +85,6 @@ class ShowCatalog:
                 self._l.info("Found sub-directory " + sub)
                 file_list = glob.glob(f"{sub}/*.mp4")
                 #file_list = [glob.glob(f"{sub}/*.{e}") for e in self.supported_formats]
-                print("Found files in subdirector")
                 self.clip_index[tag] += self._process_media(file_list, tag)
 
         # add sign-off and off-air videos to the clip index
