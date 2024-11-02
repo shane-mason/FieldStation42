@@ -55,8 +55,16 @@ class ShowCatalog:
                 raise Exception(f"Error processing video {fname}")
         return show_clip_list
 
+
+    def _find_media(self, path):
+        file_list = []
+        for ext in self.supported_formats:
+            print(f"{path}/*{ext}")
+            file_list += glob.glob(f"{path}/*{ext}")
+        return file_list
+
     def build_catalog(self):
-        print("Building catalog...")
+        self._l.info("Starting Catalog Build")
         #get the list of all tags
         tags = {}
         for day in DAYS:
@@ -76,15 +84,14 @@ class ShowCatalog:
             self.clip_index[tag] = []
             self._l.info("Checking for media with tag: " + tag)
             tag_dir = f"{self.config['content_dir']}/{tag}"
-            file_list = glob.glob(f"{tag_dir}/*.mp4")
-            #file_list = [glob.glob(f"{tag_dir}/*.{e}") for e in self.supported_formats]
+            file_list = self._find_media(tag_dir)
             self.clip_index[tag] = self._process_media(file_list, tag)
+
             #now check for sub directories one layer deep
             subs = [ f.path for f in os.scandir(tag_dir) if f.is_dir() ]
             for sub in subs:
                 self._l.info("Found sub-directory " + sub)
-                file_list = glob.glob(f"{sub}/*.mp4")
-                #file_list = [glob.glob(f"{sub}/*.{e}") for e in self.supported_formats]
+                file_list = self._find_media(tag_dir)
                 self.clip_index[tag] += self._process_media(file_list, tag)
 
         # add sign-off and off-air videos to the clip index
