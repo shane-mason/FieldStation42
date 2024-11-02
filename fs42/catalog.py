@@ -59,8 +59,9 @@ class ShowCatalog:
     def _find_media(self, path):
         file_list = []
         for ext in self.supported_formats:
-            file_list += glob.glob(f"{path}/*{ext}")
+            file_list += glob.glob(f"{path}/*.{ext}")
         return file_list
+
 
     def build_catalog(self):
         self._l.info("Starting Catalog Build")
@@ -90,7 +91,7 @@ class ShowCatalog:
             subs = [ f.path for f in os.scandir(tag_dir) if f.is_dir() ]
             for sub in subs:
                 self._l.info("Found sub-directory " + sub)
-                file_list = self._find_media(tag_dir)
+                file_list = self._find_media(sub)
                 self.clip_index[tag] += self._process_media(file_list, tag)
 
         # add sign-off and off-air videos to the clip index
