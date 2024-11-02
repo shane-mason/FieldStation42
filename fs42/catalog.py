@@ -51,7 +51,7 @@ class ShowCatalog:
                 show_clip = ShowClip(fname, video_clip.duration, tag)
                 show_clip_list.append(show_clip)
             except:
-                self._l.error("Error processing video...")
+                self._l.error("Unknown error encountered processing video: {fname}")
                 raise Exception(f"Error processing video {fname}")
         return show_clip_list
 
@@ -59,7 +59,6 @@ class ShowCatalog:
     def _find_media(self, path):
         file_list = []
         for ext in self.supported_formats:
-            print(f"{path}/*{ext}")
             file_list += glob.glob(f"{path}/*{ext}")
         return file_list
 
