@@ -84,7 +84,6 @@ class ShowBlock:
         self.front = front
         self.back = back
         self.reels = reels
-        self._l = logging.getLogger(f"SHOW:")
 
     def make_plan(self):
         if not self.back:
