@@ -63,6 +63,9 @@ class ShowCatalog:
         return file_list
 
 
+    def _process_subdir(self, path):
+        pass
+
     def build_catalog(self):
         self._l.info("Starting Catalog Build")
         #get the list of all tags

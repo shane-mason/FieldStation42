@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime
 from fs42.timings import MONTHS
-from fs42.schedule_hint import MonthHint, QuarterHint
+from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
 
 class TestMonthHint(unittest.TestCase):
 
@@ -54,5 +54,33 @@ class TestQuarterHint(unittest.TestCase):
         self.assertTrue(QuarterHint.test_pattern("q1"))
         self.assertTrue(QuarterHint.test_pattern("q3"))
 
-if __name__ == '__main__':
-    unittest.main()
+
+class TestRangeHint(unittest.TestCase):
+
+    def test_range(self):
+        hint = RangeHint("December 1 - December 25")
+        #self.assertTrue(hint.hint(datetime.fromisoformat('2024-12-15')))
+        #self.assertFalse(hint.hint(datetime.fromisoformat('2024-01-15')))
+
+
+    def test_range_cross_year(self):
+        hint = RangeHint("December 1 - January 31")
+        self.assertTrue(hint.hint(datetime.fromisoformat('2024-12-15')))
+        self.assertTrue(hint.hint(datetime.fromisoformat('2025-01-10')))
+        self.assertTrue(hint.hint(datetime.fromisoformat('2024-01-10')))
+        self.assertTrue(hint.hint(datetime.fromisoformat('1985-01-10')))
+        self.assertFalse(hint.hint(datetime.fromisoformat('2025-04-15')))
+        self.assertFalse(hint.hint(datetime.fromisoformat('2040-04-15')))
+        self.assertFalse(hint.hint(datetime.fromisoformat('1976-04-15')))
+
+    def test_test_pattern(self):
+        self.assertTrue(RangeHint.test_pattern("December 1 - December 25"))
+        self.assertTrue(RangeHint.test_pattern("November  11 - December  15"))
+        self.assertTrue(RangeHint.test_pattern(" June    1 - JULY 25    "))
+        self.assertTrue(RangeHint.test_pattern("april 13 -  august 16"))
+        self.assertTrue(RangeHint.test_pattern("march 3   april 07"))
+        self.assertFalse(RangeHint.test_pattern("October 42 - December 13"))
+        self.assertFalse(RangeHint.test_pattern("December 32 - December 13"))
+        self.assertFalse(RangeHint.test_pattern("ExtraStuff December 1 - December 25"))
+        self.assertFalse(RangeHint.test_pattern("December 1 - December 25 and this stuff"))
+
