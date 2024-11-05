@@ -9,6 +9,9 @@ __pycache__/
 runtime/
 catalog/
 env/
+*.kdev4*
+*.kate-swp
+*confs/fs42.json
 
 # C extensions
 *.so
