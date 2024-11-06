@@ -105,17 +105,12 @@ class RangeHint:
         if self.start_date > self.end_date:
 
             #Crosses year boundary: something like Nov 15 - Jan 15
-            print("Start:", test_start.replace(year=when.year))
-            print("When:", when)
             if( test_start.replace(year=when.year) <= when):
                 #scenario 1: we are past the start date, like Nov 20
-                print("Past start")
                 test_start = test_start.replace(year=when.year)
                 test_end = test_end.replace(year=when.year+1)
             else:
                 #scenario 2: we are before the start date - like Jan 15
-                print("Not Past start")
-
                 test_start = test_start.replace(year=when.year-1)
                 test_end = test_end.replace(year=when.year)
         else:
