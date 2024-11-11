@@ -29,13 +29,14 @@ class NoFillerContentFound(Exception):
     pass
 
 class ShowCatalog:
-
+    _logger = logging.getLogger("MEDIA")
     supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv"]
 
 
-    def __init__(self, config, rebuild_catalog=False, load=True):
+    def __init__(self, config, rebuild_catalog=False, load=True, debug=False):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
+
         self.clip_index = {}
         self.tags = []
         if rebuild_catalog:
@@ -45,22 +46,32 @@ class ShowCatalog:
 
     @staticmethod
     def _process_media(file_list, tag, hints=[]):
+        ShowCatalog._logger.debug(f"_process_media starting processing for tag={tag} on {len(file_list)} files")
         show_clip_list = []
         #get the duration and path for each clip and add to the tag
         for fname in file_list:
+            ShowCatalog._logger.debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
             video_clip = VideoFileClip(fname)
             show_clip = ShowClip(fname, video_clip.duration, tag, hints)
             show_clip_list.append(show_clip)
+            ShowCatalog._logger.debug(f"--_process_media is done with {fname}: {show_clip}")
+
+        ShowCatalog._logger.debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
 
         return show_clip_list
 
 
     @staticmethod
     def _find_media(path):
+        ShowCatalog._logger.debug(f"_find_media scanning for media in {path}")
         file_list = []
         for ext in ShowCatalog.supported_formats:
-            file_list += glob.glob(f"{path}/*.{ext}")
+            this_format = glob.glob(f"{path}/*.{ext}")
+            file_list += this_format
+            ShowCatalog._logger.debug(f"--Found {len(this_format)} files with {ext} extension - {len(file_list)} total found in {path} so far")
+
+        ShowCatalog._logger.debug(f"_find_media done scanning {path} {len(file_list)}")
         return file_list
 
     @staticmethod
@@ -87,7 +98,7 @@ class ShowCatalog:
         return clips
 
     def build_catalog(self):
-        self._l.info("Starting Catalog Build")
+        self._l.info(f"Starting catalog build for {self.config['network_name']}")
         #get the list of all tags
         tags = {}
         for day in DAYS:
@@ -105,22 +116,29 @@ class ShowCatalog:
         #now populate each tag
         for tag in self.tags:
             self.clip_index[tag] = []
-            self._l.info("Checking for media with in content folder: " + tag)
+            self._l.info(f"Checking for media with tag={tag} in content folder")
             tag_dir = f"{self.config['content_dir']}/{tag}"
             file_list = ShowCatalog._find_media(tag_dir)
+
             self.clip_index[tag] = ShowCatalog._process_media(file_list, tag)
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")
+            self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
             subdir_clips = ShowCatalog._process_subs(tag_dir, tag)
-            self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolder")
+            self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
+            self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
             self.clip_index[tag] += subdir_clips
 
         # add sign-off and off-air videos to the clip index
         if 'sign_off_video' in self.config:
+            self._l.debug(f"Adding sign-off video")
             video_clip = VideoFileClip(self.config["sign_off_video"])
             self.clip_index['sign_off'] = ShowClip(self.config["sign_off_video"], video_clip.duration, 'sign_off')
+            self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
         if "off_air_video" in self.config:
+            self._l.debug(f"Adding off air video")
             video_clip = VideoFileClip(self.config["off_air_video"])
             self.clip_index['off_air'] = ShowClip(self.config["off_air_video"], video_clip.duration, 'off_air')
+            self._l.debug(f"Added off air video {self.config['off_air_video']}")
 
         self._l.info(f"Catalog build complete. Added {len(self.clip_index)} clips to catalog.")
         with open(self.config['catalog_path'], 'wb') as f:

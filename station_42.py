@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
 from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
@@ -195,7 +195,7 @@ class Station42:
             day_offset = day_number - real_day
             delta = datetime.timedelta(days=day_offset)
             when = now + delta
-            self._l.info(f"Making schedule for {day_name} {when.date()}")
+            self._l.debug(f"Making schedule for {day_name} {when.date()}")
 
             schedule[day_name] = self.make_daily_schedule(day_name, when)
             self.write_day_to_playlist(schedule[day_name], day_name)
@@ -246,12 +246,27 @@ class Station42:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Schedule Generation')
-    parser.add_argument('--rebuild_catalog', action='store_true', help='Overwrite catalog if it exists')
+    parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Overwrite catalog if it exists')
+    parser.add_argument('-l', '--logfile', help='Set logging to use output file - will append each run')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
     args = parser.parse_args()
     from confs.fieldStation42_conf import main_conf
+    if( args.verbose ):
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    if (args.logfile):
+        print("will be logging ", args.logfile)
+        formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:%(message)s')
+        fh = logging.FileHandler(args.logfile)
+        fh.setFormatter(formatter)
+
+        logging.getLogger().addHandler(fh)
+
     for c in main_conf["stations"]:
+        logging.getLogger().info(f"Loading catalog for {c['network_name']}")
         station = Station42(c, args.rebuild_catalog)
+        logging.getLogger().info(f"Making schedule for {c['network_name']}")
         schedule = station.make_weekly_schedule()
 
     print("Schedules generated - exiting FieldStation42.")
