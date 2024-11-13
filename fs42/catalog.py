@@ -112,6 +112,7 @@ class ShowCatalog:
         #add commercial and bumps to the tags
         self.tags.append(self.config["commercial_dir"])
         self.tags.append(self.config["bump_dir"])
+        total_count = 0
 
         #now populate each tag
         for tag in self.tags:
@@ -127,6 +128,7 @@ class ShowCatalog:
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
             self.clip_index[tag] += subdir_clips
+            total_count += len(self.clip_index[tag])
 
         # add sign-off and off-air videos to the clip index
         if 'sign_off_video' in self.config:
@@ -134,13 +136,16 @@ class ShowCatalog:
             video_clip = VideoFileClip(self.config["sign_off_video"])
             self.clip_index['sign_off'] = ShowClip(self.config["sign_off_video"], video_clip.duration, 'sign_off')
             self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
+            total_count+=1
+
         if "off_air_video" in self.config:
             self._l.debug(f"Adding off air video")
             video_clip = VideoFileClip(self.config["off_air_video"])
             self.clip_index['off_air'] = ShowClip(self.config["off_air_video"], video_clip.duration, 'off_air')
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
+            total_count+=1
 
-        self._l.info(f"Catalog build complete. Added {len(self.clip_index)} clips to catalog.")
+        self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
         with open(self.config['catalog_path'], 'wb') as f:
             pickle.dump(self.clip_index, f)
 
