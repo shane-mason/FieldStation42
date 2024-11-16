@@ -8,6 +8,19 @@ from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 class ShowClip:
     def __init__(self, path, duration, tag, hints=[]):
         self.path = path
@@ -167,6 +180,22 @@ class ShowCatalog:
             if tag not in ['sign_off', 'off_air']:
                 for item in self.clip_index[tag]:
                     print( item )
+
+    def check_catalog(self):
+        too_short = []
+        for tag in self.clip_index:
+            if tag not in ['sign_off', 'off_air']:
+                for item in self.clip_index[tag]:
+                    if item.duration < 1:
+                        too_short.append(item)
+
+        if len(too_short):
+            print(f"{bcolors.FAIL}Found {len(too_short)} videos under 1 second in length:{bcolors.ENDC}")
+            for v in too_short:
+                print(f"{bcolors.WARNING}{v}{bcolors.ENDC}")
+        else:
+            print(f"{bcolors.OKGREEN}All checks passed{bcolors.ENDC}")
+
 
     def get_signoff(self):
         if 'sign_off' in self.clip_index:

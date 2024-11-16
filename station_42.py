@@ -41,6 +41,9 @@ class Station42:
         with open(out_path, "w") as f:
             f.write(as_json)
 
+    def check_catalog(self):
+        self.catalog.check_catalog()
+
     def write_day_to_playlist(self, schedule, day_name):
         for h in OPERATING_HOURS:
             t_slot = str(h)
@@ -82,7 +85,6 @@ class Station42:
                 keep_going = False
 
         return reels
-
 
 
     def make_hour_schedule(self, tag, when):
@@ -246,8 +248,9 @@ class Station42:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Schedule Generation')
-    parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Overwrite catalog if it exists')
+    parser.add_argument('-c', '--check_catalogs', action='store_true', help='Check catalogs, print report and exit.')
     parser.add_argument('-l', '--logfile', help='Set logging to use output file - will append each run')
+    parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Overwrite catalog if it exists')
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
     args = parser.parse_args()
@@ -263,11 +266,18 @@ if __name__ == "__main__":
 
         logging.getLogger().addHandler(fh)
 
+
     for c in main_conf["stations"]:
         logging.getLogger().info(f"Loading catalog for {c['network_name']}")
         station = Station42(c, args.rebuild_catalog)
-        logging.getLogger().info(f"Making schedule for {c['network_name']}")
-        schedule = station.make_weekly_schedule()
+
+        if args.check_catalogs:
+            #then just run a check and exit
+            logging.getLogger().info(f"Checking catalog for {c['network_name']}")
+            station.check_catalog()
+        else:
+            logging.getLogger().info(f"Making schedule for {c['network_name']}")
+            schedule = station.make_weekly_schedule()
 
     print("Schedules generated - exiting FieldStation42.")
 
