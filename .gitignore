@@ -11,7 +11,7 @@ catalog/
 env/
 *.kdev4*
 *.kate-swp
-*confs/fs42.json
+*confs/*.json
 
 # C extensions
 *.so
