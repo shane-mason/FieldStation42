@@ -225,7 +225,8 @@ class ShowCatalog:
             candidates = self.clip_index[tag]
             matches = []
             for candidate in candidates:
-                if candidate.duration < seconds:
+                # restrict content to fit and be valid (zero duration is likely not valid)
+                if candidate.duration < seconds and candidate.duration >= 1:
                     unmet_hint = False
                     for hint in candidate.hints:
                         if hint.hint(when) == False:
