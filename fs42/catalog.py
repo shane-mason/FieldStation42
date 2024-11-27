@@ -197,6 +197,8 @@ class ShowCatalog:
             print(f"{bcolors.OKGREEN}All checks passed{bcolors.ENDC}")
 
 
+
+
     def get_signoff(self):
         if 'sign_off' in self.clip_index:
             return self.clip_index['sign_off']
@@ -220,21 +222,20 @@ class ShowCatalog:
         return random.choice(lowest_matches)
 
 
+    def _test_candidate_hints(hint_list, when):
+        for hint in hint_list:
+            if hint.hint(when) == False:
+                return False
+        return True
+
     def find_candidate(self, tag, seconds, when):
         if tag in self.clip_index and len(self.clip_index[tag]):
             candidates = self.clip_index[tag]
             matches = []
             for candidate in candidates:
                 # restrict content to fit and be valid (zero duration is likely not valid)
-                if candidate.duration < seconds and candidate.duration >= 1:
-                    unmet_hint = False
-                    for hint in candidate.hints:
-                        if hint.hint(when) == False:
-                            unmet_hint = True
-                            break;
-
-                    if not unmet_hint:
-                        matches.append(candidate)
+                if candidate.duration < seconds and candidate.duration >= 1 and ShowCatalog._test_candidate_hints(candidate.hints, when):
+                    matches.append(candidate)
             random.shuffle(matches)
             if not len(matches):
                 err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"

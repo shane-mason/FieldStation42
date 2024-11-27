@@ -46,6 +46,7 @@ class ReelCutter:
 class MovieBlocks:
     def __init__(self, movie, reels, tag):
         self.movie = movie
+        self.title = self.movie.title
         self.reels = reels
         self.tag = tag
 
@@ -61,6 +62,7 @@ class MovieBlocks:
 class ClipBlock:
     def __init__(self, name, clips, duration=HOUR):
         self.name = name
+        self.title = name
         self.duration = duration
         self.tag = f"CL.{self.name}"
         self.clips = clips
