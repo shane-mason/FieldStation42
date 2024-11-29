@@ -6,8 +6,11 @@ import sys
 import random
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
-from moviepy.editor import VideoFileClip, concatenate_videoclips
 
+try:
+    from moviepy import VideoFileClip
+except ImportError:
+    from moviepy.editor import VideoFileClip
 
 class bcolors:
     HEADER = '\033[95m'
