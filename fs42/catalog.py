@@ -8,8 +8,10 @@ from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
 
 try:
+    #try to import from version > 2.0
     from moviepy import VideoFileClip
 except ImportError:
+    #fall back to import from version 1.0
     from moviepy.editor import VideoFileClip
 
 class bcolors:
