@@ -2,7 +2,7 @@ import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
-from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
+from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 import pickle
 import json
@@ -56,7 +56,7 @@ class Station42:
                         (plan_a, plan_b) = schedule[t_slot].make_plans()
                         self._write_json(plan_a, day_name, t_slot)
                         self._write_json(plan_b, day_name, str(back_hour))
-                    else:
+                    elif not isinstance(schedule[t_slot], ContinueBlock):
                         clips = schedule[t_slot].make_plan()
                         self._write_json(clips, day_name, t_slot)
                 except:
@@ -117,7 +117,10 @@ class Station42:
             self._l.error("Error getting candidate for slot.")
             raise Exception(f"Error making schedule for tag: {tag}")
 
+
         reels = self.flexi_break(remaining_time, when)
+
+
         return ShowBlock(front, back_half, reels)
 
     def make_double_schedule(self, tag, when):
@@ -213,12 +216,13 @@ class Station42:
     def make_daily_schedule(self, day_str, when):
         schedule = {}
         day = self.config[day_str]
-        skip_next = False
+        continue_next = None
         # go through each possible hour in a day
         for h in OPERATING_HOURS:
             when = when.replace(hour=h)
-            if not skip_next:
-                slot = str(h)
+            slot = str(h)
+            if not continue_next:
+
                 if slot in day:
                     if 'tags' in day[slot]:
                         tag = day[slot]['tags']
@@ -227,7 +231,7 @@ class Station42:
                             schedule[slot] = self.make_clip_hour(tag, when)
                         elif 'two_hour' in self.config and tag in self.config['two_hour']:
                             schedule[slot] = self.make_double_schedule(tag, when)
-                            skip_next = True
+                            continue_next = schedule[slot].title
                         else:
                             # then this is a single hour show
                             schedule[slot] = self.make_hour_schedule(tag, when)
@@ -240,7 +244,9 @@ class Station42:
                     if 'off_air_video' in self.config:
                         schedule[slot] = self.make_offair_hour()
             else:
-                skip_next = False
+
+                schedule[slot] = ContinueBlock(continue_next)
+                continue_next = None
 
 
         return schedule
