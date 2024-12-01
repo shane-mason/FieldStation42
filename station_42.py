@@ -41,8 +41,6 @@ class Station42:
         with open(out_path, "w") as f:
             f.write(as_json)
 
-    def check_catalog(self):
-        self.catalog.check_catalog()
 
     def write_day_to_playlist(self, schedule, day_name):
         for h in OPERATING_HOURS:
@@ -250,6 +248,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Schedule Generation')
     parser.add_argument('-c', '--check_catalogs', action='store_true', help='Check catalogs, print report and exit.')
     parser.add_argument('-l', '--logfile', help='Set logging to use output file - will append each run')
+    parser.add_argument('-p', '--printcat', help='Print the catalog for the specified network name and exit')
     parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Overwrite catalog if it exists')
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
@@ -266,21 +265,29 @@ if __name__ == "__main__":
 
         logging.getLogger().addHandler(fh)
 
+    found_print_target = False
 
     for c in main_conf["stations"]:
-        logging.getLogger().info(f"Loading catalog for {c['network_name']}")
-        station = Station42(c, args.rebuild_catalog)
-
-        if args.check_catalogs:
-            #then just run a check and exit
-            logging.getLogger().info(f"Checking catalog for {c['network_name']}")
-            station.check_catalog()
+        if args.printcat:
+            if c['network_name'] == args.printcat:
+                logging.getLogger().info(f"Printing catalog for {c['network_name']}")
+                station = Station42(c, args.rebuild_catalog)
+                station.catalog.print_catalog()
+                found_print_target = True
         else:
-            logging.getLogger().info(f"Making schedule for {c['network_name']}")
-            schedule = station.make_weekly_schedule()
+            logging.getLogger().info(f"Loading catalog for {c['network_name']}")
+            station = Station42(c, args.rebuild_catalog)
 
-    print("Schedules generated - exiting FieldStation42.")
+            if args.check_catalogs:
+                #then just run a check and exit
+                logging.getLogger().info(f"Checking catalog for {c['network_name']}")
+                station.catalog.check_catalog()
+            else:
+                logging.getLogger().info(f"Making schedule for {c['network_name']}")
+                schedule = station.make_weekly_schedule()
 
+    if args.printcat and not found_print_target:
+        logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")
 
 
 

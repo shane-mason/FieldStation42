@@ -180,8 +180,8 @@ class ShowCatalog:
             self._l.info("Catalog written to file: " + c_path)
 
     def print_catalog(self):
+        print("TITLE                | TAG        | Duration    | Hints ")
         for tag in self.clip_index:
-            #print("--------------------- " + tag + " ---------------------")
             if tag not in ['sign_off', 'off_air']:
                 for item in self.clip_index[tag]:
                     print( item )
