@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+<style>
+body {
+  overflow: hidden; /* Hide scrollbars */
+  background-color: #00162B;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.grid-container {
+  display: grid;
+  background-color: #001876;
+  grid-template-columns: 16% 28% 28% 28%;
+  align-content: start;
+}
+
+.grid-item {
+  background-color: #001876
+  text-align: center;
+  padding: 10px;
+}
+
+
+
+.time-slot {
+  border-style: outset;
+  border-color: #E6F3FF #00101F #00101F #E6F3FF;
+  border-width: 3px;
+  background-color: #00386C;
+  text-align: left;
+  padding: 10px;
+  color: yellow;
+}
+
+.channel {
+  border-style: outset;
+  border-color: #E6F3FF #00101F #00101F #E6F3FF;
+  border-width: 3px;
+  background-color:  #00162B;
+  text-align: center;
+  padding: 10px;
+  grid-column: 1 / span 1;
+  color: yellow;
+}
+
+.one-slot {
+  border-style: outset;
+  border-color: #E6F3FF #00101F #00101F #E6F3FF;
+  border-width: 3px;
+  background-color: #00162B;
+  text-align: left;
+  padding: 10px;
+}
+
+.two-slot {
+  border-style: outset;
+  border-color: #E6F3FF #00101F #00101F #E6F3FF;
+  border-width: 3px;
+  background-color: #00162B;
+  text-align: left;
+  padding: 10px;
+  grid-column: span 2;
+}
+
+.three-slot {
+  border-style: outset;
+  border-color: #E6F3FF #00101F #00101F #E6F3FF;
+  border-width: 3px;
+  background-color: #00162B;
+  text-align: left;
+  padding: 10px;
+  grid-column: span 3
+}
+
+div.timing-band {
+  position: absolute;
+  top: 0px;
+  left: 1px;
+  width: 100%;
+  z-index: 100;
+}
+
+div.lineup {
+  position: absolute;
+  top: 45px;
+  left: 1px;
+  width: 100%;
+}
+
+div.fstitle{
+  margin-top: 30px;
+  color: white;
+  font-size: 90px;
+  text-align: right;
+}
+
+div.fssubtitle{
+  color: yellow;
+  font-size: 60px;
+  text-align: right;
+}
+
+div.fstext{
+  color: white;
+  font-size: 30px;
+  text-align: center;
+  padding: 20px;
+}
+
+div.fspromo{
+  display: block;
+}
+
+.arrow{
+  height: 24px;
+  width: auto;
+  padding: 0px;
+  margin: 0px;
+}
+
+#wholepage{
+  opacity: 0;
+}
+
+#time-grid{
+  opacity: 1;
+}
+
+#lineup-grid{
+  opacity: 1;
+}
+</style>
+
+<script>
+
+var top_space = 45;
+var cleared_timing = false;
+function move_increment(){
+  let domElement = document.getElementById('mainstuff');
+  domElement.style.top = top_space + "px";
+  top_space-=1;
+
+  let sz = domElement.getBoundingClientRect();
+  if(sz.height+top_space<240 && !cleared_timing){
+    fade(document.getElementById('time-grid'), false);
+    fade(document.getElementById('lineup-grid'), false);
+    cleared_timing = true;
+
+  }
+
+  if(sz.height+top_space<210){
+    clearInterval(move_interval);
+    setTimeout(function(){fade(document.getElementById('wholepage'), true);},10000);
+  }
+}
+
+
+
+function check_time() {
+  const today = new Date();
+  let h = today.getHours();
+  let m = today.getMinutes();
+  let s = today.getSeconds();
+  m = format_time(m);
+  s = format_time(s);
+  document.getElementById('current_time').innerHTML =  h + ":" + m; // + ":" + s;
+}
+
+function fade(element, reload) {
+console.log("Fade");
+console.log(element);
+    var op = 1;  // initial opacity
+    var timer0 = setInterval(function () {
+        if (op <= 0.1){
+            clearInterval(timer0);
+            //element.style.display = 'none';
+            op = 0;
+            if(reload){
+              location.reload();
+            }
+        }
+        element.style.opacity = op;
+        //element.style.filter = 'alpha(opacity=' + op * 100 + ")";
+        op -= op * 0.1;
+    }, 50);
+}
+
+function unfade(element) {
+    var op = 0.1;  // initial opacity
+    element.style.display = 'block';
+    var timer1 = setInterval(function () {
+        if (op >= 1){
+            clearInterval(timer1);
+            move_interval = setInterval(move_increment, 100);
+        }
+        element.style.opacity = op;
+        //element.style.filter = 'alpha(opacity=' + op * 100 + ")";
+        op += op * 0.1;
+    }, 10);
+}
+
+function format_time(i) {
+  if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
+  return i;
+}
+
+function start_unfade(){
+  unfade(document.getElementById('wholepage'))
+}
+
+var move_interval = null;
+var time_interval = setInterval(check_time, 1000);
+
+
+</script>
+
+</head>
+<body onload="start_unfade()">
+<div id="wholepage">
+<div class="timing-band" id="time-grid">
+  <div class="grid-container">
+    <div class="time-slot" id="current_time"></div>
+    {% for time_col in view['timings'] %}
+      <div class="time-slot">{{ time_col }}</div>
+    {% endfor %}
+  </div>
+</div>
+<div class="lineup" id="mainstuff">
+
+  <div class="grid-container" id="lineup-grid">
+    {% for row in view['rows'] %}
+      <div class="channel">{{view['meta'][loop.index0]['network_name']}}<br />{{view['meta'][loop.index0]['channel_number']}}</div>
+
+      {% for block in row %}
+        {% if block.width == 1 %}
+            <div class="one-slot">
+              {% if block.started_earlier %}<img src="left.png" class="arrow" />{% endif %}
+              {{ block.title|truncate(18, True)|upper }}
+              {% if block.ends_later %}<img src="right.png" class="arrow" style="float: right;" />{% endif %}
+            </div>
+        {% elif block.width == 2 %}
+            <div class="two-slot">
+              {% if block.started_earlier %}<img src="left.png" class="arrow" />{% endif %}
+              {{ block.title|truncate(32, True)|upper }}
+              {% if block.ends_later %}<img src="right.png" class="arrow" style="float: right;" />{% endif %}
+            </div>
+        {% elif block.width > 2 %}
+            <div class="three-slot">
+              {% if block.started_earlier %}<img src="left.png" class="arrow" />{% endif %}
+              {{ block.title|truncate(40, True)|upper }}
+              {% if block.ends_later %}<img src="right.png" class="arrow" style="float: right;" />{% endif %}
+            </div>
+        {% endif %}
+
+      {% endfor %}
+
+    {% endfor %}
+
+  </div>
+  <div id="fspromo">
+    <div class="fstitle">FieldStation42</div>
+    <div class="fssubtitle">GuideView for You!</div>
+    <div class="fstext">You're watching FieldStation42 on Cable Mode: bringing cable experience from the 80s, 90s and 2000s.</div>
+  </div>
+</div>
+
+
+</div>
+</body>
+</html>
+
+

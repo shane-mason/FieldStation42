@@ -273,17 +273,19 @@ if __name__ == "__main__":
         logging.getLogger().addHandler(fh)
 
 
-    for c in main_conf["stations"]:
-        logging.getLogger().info(f"Loading catalog for {c['network_name']}")
-        station = Station42(c, args.rebuild_catalog)
-
-        if args.check_catalogs:
-            #then just run a check and exit
-            logging.getLogger().info(f"Checking catalog for {c['network_name']}")
-            station.check_catalog()
+    for station_conf in main_conf["stations"]:
+        if 'network_type' in station_conf and station_conf['network_type'] == "guide":
+            logging.getLogger().info(f"Loaded guide channel")
         else:
-            logging.getLogger().info(f"Making schedule for {c['network_name']}")
-            schedule = station.make_weekly_schedule()
+            logging.getLogger().info(f"Loading catalog for {station_conf['network_name']}")
+            station = Station42(station_conf, args.rebuild_catalog)
+            if args.check_catalogs:
+                #then just run a check and exit
+                logging.getLogger().info(f"Checking catalog for {station_conf['network_name']}")
+                station.check_catalog()
+            else:
+                logging.getLogger().info(f"Making schedule for {station_conf['network_name']}")
+                schedule = station.make_weekly_schedule()
 
     print("Schedules generated - exiting FieldStation42.")
 

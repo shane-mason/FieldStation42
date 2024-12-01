@@ -8,6 +8,18 @@ from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 
 channel_socket = "runtime/channel.socket"
 
+def check_channel_socket():
+    r_sock = open(channel_socket, "r")
+    contents = r_sock.read()
+    r_sock.close()
+    if len(contents):
+        print("Contents updated - resetting socket file")
+        with open(channel_socket, 'w'):
+            pass
+
+        return PlayStatus.CHANNEL_CHANGE
+    return False
+
 class ReceptionStatus:
 
     def __init__(self, chaos=0, thresh=0.01):
@@ -161,15 +173,9 @@ class FieldPlayer:
                         else:
                             #debounce time
                             time.sleep(.05)
-                            r_sock = open(channel_socket, "r")
-                            contents = r_sock.read()
-                            r_sock.close()
-                            if len(contents):
-                                print("Contents updated - resetting socket file")
-                                with open(channel_socket, 'w'):
-                                    pass
-
-                                return PlayStatus.CHANNEL_CHANGE
+                            response = check_channel_socket()
+                            if response == PlayStatus.CHANNEL_CHANGE:
+                                return response
 
             print("Done playing block")
             return PlayStatus.SUCCESS
@@ -208,20 +214,20 @@ def main_loop():
 
     while True:
         print(f"Playing station: {station_runtimes[channel]}" )
-        now = datetime.datetime.now()
-        #how far are we from the next hour?
-        if now.minute == 59:
-            #then just play some filler until next hour +1 second
-            to_fill = (MIN_1-now.second)+1
-            print(f"Filling time between blocks: {to_fill}")
-            time.sleep(to_fill)
+        outcome = PlayStatus.SUCCESS
+
+        # is this the guide channel?
+        if "network_type" in main_conf["stations"][channel] and main_conf["stations"][channel]["network_type"] == "guide":
+            print("Guide channel!")
+            outcome = player.show_guide(main_conf["stations"][channel])
+        else:
             now = datetime.datetime.now()
+            week_day = DAYS[now.weekday()]
+            hour = now.hour
+            skip = now.minute * MIN_1 + now.second
 
-        week_day = DAYS[now.weekday()]
-        hour = now.hour
-        skip = now.minute * MIN_1 + now.second
+            outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
 
-        outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
 
         if outcome == PlayStatus.CHANNEL_CHANGE:
             channel+=1
