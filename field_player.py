@@ -1,10 +1,13 @@
-from python_mpv_jsonipc import MPV
 from enum import Enum
 import time
 import datetime
 import json
+import multiprocessing
+
+from python_mpv_jsonipc import MPV
 
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
+from fs42.guide_channel import guide_channel_runner, GuideCommands
 
 channel_socket = "runtime/channel.socket"
 
@@ -92,6 +95,24 @@ class FieldPlayer:
 
     def play_image(self, duration):
         pass
+
+    def show_guide(self, guide_config):
+        #create the pipe to communicate with the guide channel
+        queue = multiprocessing.Queue()
+        guide_process = multiprocessing.Process(target=guide_channel_runner, args=(queue,))
+        guide_process.start()
+
+        keep_going = True
+        while keep_going:
+            time.sleep(.05)
+            response = check_channel_socket()
+            if response == PlayStatus.CHANNEL_CHANGE:
+                print("Sending guide hide command")
+                queue.put(GuideCommands.hide_window)
+                guide_process.join()
+                return response
+
+        return PlayStatus.SUCCESS
 
     def play_slot(self, the_day, the_hour, offset=0, runtime_path=None):
         if runtime_path:
@@ -186,6 +207,8 @@ reception = ReceptionStatus()
 
 
 def main_loop():
+
+
 
     #get the channels and runtimes
     from confs.fieldStation42_conf import main_conf

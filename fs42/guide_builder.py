@@ -165,10 +165,13 @@ class GuideBuilder:
 
     def load_schedules(self, station_configs):
         for station_config in station_configs:
-            with open(station_config['schedule_path'], "rb") as f:
-                full_schedule  = pickle.load(f)
-                #print(full_schedule)
-                self.station_schedules.append({"conf": station_config, "schedule": full_schedule})
+            if 'network_type' in station_config and station_config['network_type'] == "guide":
+                pass
+            else:
+                with open(station_config['schedule_path'], "rb") as f:
+                    full_schedule  = pickle.load(f)
+                    #print(full_schedule)
+                    self.station_schedules.append({"conf": station_config, "schedule": full_schedule})
 
 
 if __name__ == "__main__":
