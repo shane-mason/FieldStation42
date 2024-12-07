@@ -1,29 +1,12 @@
+from python_mpv_jsonipc import MPV
 from enum import Enum
 import time
 import datetime
 import json
-import multiprocessing
-import signal
-import sys
-
-from python_mpv_jsonipc import MPV
 
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
-from fs42.guide_channel import guide_channel_runner, GuideCommands
 
 channel_socket = "runtime/channel.socket"
-
-def check_channel_socket():
-    r_sock = open(channel_socket, "r")
-    contents = r_sock.read()
-    r_sock.close()
-    if len(contents):
-        print("Contents updated - resetting socket file")
-        with open(channel_socket, 'w'):
-            pass
-
-        return PlayStatus.CHANNEL_CHANGE
-    return False
 
 class ReceptionStatus:
 
@@ -78,10 +61,6 @@ class FieldPlayer:
         #self.playlist = self.read_json(runtime_filepath)
         self.index = 0
 
-    def shutdown(self):
-
-        self.mpv.terminate()
-
     def update_filters(self):
         self.mpv.vf = reception.filter()
 
@@ -101,26 +80,6 @@ class FieldPlayer:
 
     def play_image(self, duration):
         pass
-
-    def show_guide(self, guide_config):
-        #create the pipe to communicate with the guide channel
-        queue = multiprocessing.Queue()
-        guide_process = multiprocessing.Process(target=guide_channel_runner, args=(queue, guide_config,))
-        guide_process.start()
-
-        self.mpv.stop()
-
-        keep_going = True
-        while keep_going:
-            time.sleep(.05)
-            response = check_channel_socket()
-            if response == PlayStatus.CHANNEL_CHANGE:
-                print("Sending guide hide command")
-                queue.put(GuideCommands.hide_window)
-                guide_process.join()
-                return response
-
-        return PlayStatus.SUCCESS
 
     def play_slot(self, the_day, the_hour, offset=0, runtime_path=None):
         if runtime_path:
@@ -202,9 +161,15 @@ class FieldPlayer:
                         else:
                             #debounce time
                             time.sleep(.05)
-                            response = check_channel_socket()
-                            if response == PlayStatus.CHANNEL_CHANGE:
-                                return response
+                            r_sock = open(channel_socket, "r")
+                            contents = r_sock.read()
+                            r_sock.close()
+                            if len(contents):
+                                print("Contents updated - resetting socket file")
+                                with open(channel_socket, 'w'):
+                                    pass
+
+                                return PlayStatus.CHANNEL_CHANGE
 
             print("Done playing block")
             return PlayStatus.SUCCESS
@@ -237,37 +202,26 @@ def main_loop():
         print("Check to make sure you have valid json configurations in the confs dir")
         print("The confs/examples folder contains working examples that you can build off of - just move one into confs/")
         return
-
     player = FieldPlayer(station_runtimes[channel])
     reception.degrade(1)
     player.update_filters()
 
-
-    def sigint_handler(sig, frame):
-        print("Recieved sig-int signal, attempting to exit gracefully...")
-        player.shutdown()
-        print("Shutting down now.")
-        exit(0)
-
-    signal.signal(signal.SIGINT, sigint_handler)
-
-
     while True:
         print(f"Playing station: {station_runtimes[channel]}" )
-        outcome = PlayStatus.SUCCESS
-
-        # is this the guide channel?
-        if "network_type" in main_conf["stations"][channel] and main_conf["stations"][channel]["network_type"] == "guide":
-            print("Guide channel!")
-            outcome = player.show_guide(main_conf["stations"][channel])
-        else:
+        now = datetime.datetime.now()
+        #how far are we from the next hour?
+        if now.minute == 59:
+            #then just play some filler until next hour +1 second
+            to_fill = (MIN_1-now.second)+1
+            print(f"Filling time between blocks: {to_fill}")
+            time.sleep(to_fill)
             now = datetime.datetime.now()
-            week_day = DAYS[now.weekday()]
-            hour = now.hour
-            skip = now.minute * MIN_1 + now.second
 
-            outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
+        week_day = DAYS[now.weekday()]
+        hour = now.hour
+        skip = now.minute * MIN_1 + now.second
 
+        outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
 
         if outcome == PlayStatus.CHANNEL_CHANGE:
             channel+=1
@@ -291,8 +245,6 @@ def main_loop():
                 reception.degrade(.1)
                 player.update_filters()
                 time.sleep(.1)
-
-
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * When the TV is turned on, a believable show for the time slot and network should be playing
 * When switching between channels, the shows should continue playing serially as though they had been broadcasting the whole time
 
-![An older TV with an antenna rotator box in the background](docs/retro-tv.png?raw=true)
+![An older TV with an antenna rotator box in the backgroun](docs/retro-tv.png?raw=true)
 
 ## Features
 * Supports multiple simultanous channels
@@ -12,16 +12,9 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * Generates weekly schedules based on per-station configurations
 * Feature length content - supports movie length show blocks
 * Randomly selects shows that have not been played recently to keep a fresh lineup
-* Set dates ranges for shows (like seasonal sports or holiday shows)
 * Per-station configuration of station sign-off video and off-air loops
 * UX to view weekly schedules
 * Optional hardware connections to change the channel
-
-## Experimental Features - Cable Mode
-* Preview/guide channel with embedded video and configurable messages
-    * This is a brand new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
-
-![A screenshot of a guide channel simulation](docs/guide.png?raw=true)
 
 ## Alpha software - installation is not simple
 This is a brand new project and in active development - installation requires some background in the following:
@@ -32,7 +25,7 @@ This is a brand new project and in active development - installation requires so
 
 ## Installation & Setup
 
-    For a complete, step-by-step guide to setting up and administering FieldStation42 software, check out the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
+For a complete, step-by-step guide to setting up and administering FieldStation42 software, check out the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
 
 ### Quickstart Setup
 

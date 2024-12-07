@@ -2,7 +2,7 @@ import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFound
-from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
+from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 import pickle
 import json
@@ -54,7 +54,7 @@ class Station42:
                         (plan_a, plan_b) = schedule[t_slot].make_plans()
                         self._write_json(plan_a, day_name, t_slot)
                         self._write_json(plan_b, day_name, str(back_hour))
-                    elif not isinstance(schedule[t_slot], ContinueBlock):
+                    else:
                         clips = schedule[t_slot].make_plan()
                         self._write_json(clips, day_name, t_slot)
                 except:
@@ -115,10 +115,7 @@ class Station42:
             self._l.error("Error getting candidate for slot.")
             raise Exception(f"Error making schedule for tag: {tag}")
 
-
         reels = self.flexi_break(remaining_time, when)
-
-
         return ShowBlock(front, back_half, reels)
 
     def make_double_schedule(self, tag, when):
@@ -214,13 +211,12 @@ class Station42:
     def make_daily_schedule(self, day_str, when):
         schedule = {}
         day = self.config[day_str]
-        continue_next = None
+        skip_next = False
         # go through each possible hour in a day
         for h in OPERATING_HOURS:
             when = when.replace(hour=h)
-            slot = str(h)
-            if not continue_next:
-
+            if not skip_next:
+                slot = str(h)
                 if slot in day:
                     if 'tags' in day[slot]:
                         tag = day[slot]['tags']
@@ -229,7 +225,7 @@ class Station42:
                             schedule[slot] = self.make_clip_hour(tag, when)
                         elif 'two_hour' in self.config and tag in self.config['two_hour']:
                             schedule[slot] = self.make_double_schedule(tag, when)
-                            continue_next = schedule[slot].title
+                            skip_next = True
                         else:
                             # then this is a single hour show
                             schedule[slot] = self.make_hour_schedule(tag, when)
@@ -242,9 +238,7 @@ class Station42:
                     if 'off_air_video' in self.config:
                         schedule[slot] = self.make_offair_hour()
             else:
-
-                schedule[slot] = ContinueBlock(continue_next)
-                continue_next = None
+                skip_next = False
 
 
         return schedule
@@ -273,27 +267,24 @@ if __name__ == "__main__":
 
     found_print_target = False
 
-    for station_conf in main_conf["stations"]:
-        if 'network_type' in station_conf and station_conf['network_type'] == "guide":
-            logging.getLogger().info(f"Loaded guide channel")
-        elif args.printcat:
-            if station_conf['network_name'] == args.printcat:
-                logging.getLogger().info(f"Printing catalog for {station_conf['network_name']}")
-                station = Station42(station_conf, args.rebuild_catalog)
+    for c in main_conf["stations"]:
+        if args.printcat:
+            if c['network_name'] == args.printcat:
+                logging.getLogger().info(f"Printing catalog for {c['network_name']}")
+                station = Station42(c, args.rebuild_catalog)
                 station.catalog.print_catalog()
                 found_print_target = True
         else:
-            logging.getLogger().info(f"Loading catalog for {station_conf['network_name']}")
-            station = Station42(station_conf, args.rebuild_catalog)
+            logging.getLogger().info(f"Loading catalog for {c['network_name']}")
+            station = Station42(c, args.rebuild_catalog)
+
             if args.check_catalogs:
                 #then just run a check and exit
-                logging.getLogger().info(f"Checking catalog for {station_conf['network_name']}")
-                station.check_catalog()
+                logging.getLogger().info(f"Checking catalog for {c['network_name']}")
+                station.catalog.check_catalog()
             else:
-                logging.getLogger().info(f"Making schedule for {station_conf['network_name']}")
+                logging.getLogger().info(f"Making schedule for {c['network_name']}")
                 schedule = station.make_weekly_schedule()
-
-
 
     if args.printcat and not found_print_target:
         logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")

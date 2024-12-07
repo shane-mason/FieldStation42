@@ -35,8 +35,6 @@ env/bin/pip3 install moviepy
 
 env/bin/pip3 install python-mpv-jsonipc
 
-env/bin/pip3 install PySide6
-
 echo Creating folders
 
 if [ -d runtime ]; then
