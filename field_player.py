@@ -3,6 +3,8 @@ import time
 import datetime
 import json
 import multiprocessing
+import signal
+import sys
 
 from python_mpv_jsonipc import MPV
 
@@ -76,6 +78,10 @@ class FieldPlayer:
         #self.playlist = self.read_json(runtime_filepath)
         self.index = 0
 
+    def shutdown(self):
+
+        self.mpv.terminate()
+
     def update_filters(self):
         self.mpv.vf = reception.filter()
 
@@ -99,8 +105,10 @@ class FieldPlayer:
     def show_guide(self, guide_config):
         #create the pipe to communicate with the guide channel
         queue = multiprocessing.Queue()
-        guide_process = multiprocessing.Process(target=guide_channel_runner, args=(queue,))
+        guide_process = multiprocessing.Process(target=guide_channel_runner, args=(queue, guide_config,))
         guide_process.start()
+
+        self.mpv.stop()
 
         keep_going = True
         while keep_going:
@@ -208,8 +216,6 @@ reception = ReceptionStatus()
 
 def main_loop():
 
-
-
     #get the channels and runtimes
     from confs.fieldStation42_conf import main_conf
     station_runtimes = []
@@ -231,9 +237,20 @@ def main_loop():
         print("Check to make sure you have valid json configurations in the confs dir")
         print("The confs/examples folder contains working examples that you can build off of - just move one into confs/")
         return
+
     player = FieldPlayer(station_runtimes[channel])
     reception.degrade(1)
     player.update_filters()
+
+
+    def sigint_handler(sig, frame):
+        print("Recieved sig-int signal, attempting to exit gracefully...")
+        player.shutdown()
+        print("Shutting down now.")
+        exit(0)
+
+    signal.signal(signal.SIGINT, sigint_handler)
+
 
     while True:
         print(f"Playing station: {station_runtimes[channel]}" )
@@ -274,6 +291,8 @@ def main_loop():
                 reception.degrade(.1)
                 player.update_filters()
                 time.sleep(.1)
+
+
 
 
 if __name__ == "__main__":

@@ -151,7 +151,7 @@ class GuideBuilder:
 
         return view
 
-    def render(self, render_template="90s_template.html", output="90s.html"):
+    def render(self, render_template="90s.html", output="90s.html"):
         view = self.build_view()
         env = Environment(
             loader=FileSystemLoader(self.template_dir),

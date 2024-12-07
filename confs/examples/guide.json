@@ -1,0 +1,19 @@
+{"station_conf" : {
+    "network_name" : "Guide",
+    "network_type" : "guide",
+    "channel_number": 3,
+    "runtime_dir" : "runtime/guide",
+    "content_dir" : "catalog/indie42_catalog/commercial/December",
+    "messages" : [
+        "<b>FieldStation42</b><br>Now with Cable Mode.",
+        "<b>Cheers!</b><br>From all of us to you.",
+        "<b>Cable Mode</b><br>from FieldStation42"
+    ],
+    "center_messages" : true,
+    "template" : "90s.html",
+    "full_screen" : false,
+    "window_height": 480,
+    "window_width": 720,
+    "window_x": 0,
+    "window_y": 0
+}}
