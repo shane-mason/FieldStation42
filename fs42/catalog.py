@@ -6,13 +6,13 @@ import sys
 import random
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
+
 try:
     #try to import from version > 2.0
     from moviepy import VideoFileClip
 except ImportError:
     #fall back to import from version 1.0
     from moviepy.editor import VideoFileClip
-
 
 class bcolors:
     HEADER = '\033[95m'
@@ -180,8 +180,8 @@ class ShowCatalog:
             self._l.info("Catalog written to file: " + c_path)
 
     def print_catalog(self):
+        print("TITLE                | TAG        | Duration    | Hints ")
         for tag in self.clip_index:
-            #print("--------------------- " + tag + " ---------------------")
             if tag not in ['sign_off', 'off_air']:
                 for item in self.clip_index[tag]:
                     print( item )
