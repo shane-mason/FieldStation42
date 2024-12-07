@@ -42,10 +42,6 @@ class ReelCutter:
 
         return entries
 
-class ContinueBlock:
-    def __init__(self, title):
-        self.title = title
-
 class MovieBlocks:
     def __init__(self, movie, reels, tag):
         self.movie = movie

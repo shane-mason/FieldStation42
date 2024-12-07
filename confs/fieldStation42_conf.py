@@ -1,5 +1,5 @@
 import json
-import os
+
 
 main_conf = {
     # this is the old approach using python module - this method is no longer supported and may be removed in the future
@@ -14,13 +14,9 @@ def load_json_stations():
     cfiles = glob.glob("confs/*.json")
     stations = []
     for fname in cfiles:
-        print(os.path.basename(fname))
         with open(fname) as f:
             try:
                 d = json.load(f)
-                #if os.path.basename(fname) == "guide.json":
-                #    main_conf['guide'] = d['guide_conf']
-                #else:
                 stations.append(d['station_conf'])
             except Exception as e:
                 print(f"Error loading station configuration: {fname}")
