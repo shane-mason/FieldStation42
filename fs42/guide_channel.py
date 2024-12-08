@@ -9,11 +9,13 @@ import glob
 import random
 from enum import Enum
 
-from PySide6.QtCore import QStandardPaths, Qt, Slot, QTimer, QThread, QDeadlineTimer
-from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel)
-from PySide6.QtMultimedia import (QAudioOutput, QMediaFormat,QMediaPlayer)
-from PySide6.QtMultimediaWidgets import QVideoWidget
-from PySide6.QtWebEngineWidgets import QWebEngineView
+#pip3 install PyQt6
+#pip3 install PyQt6-WebEngine
+from PyQt6.QtCore import QStandardPaths, Qt, pyqtSlot, QTimer, QThread, QDeadlineTimer, QUrl
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel)
+from PyQt6.QtMultimedia import (QAudioOutput, QMediaFormat,QMediaPlayer)
+from PyQt6.QtMultimediaWidgets import QVideoWidget
+from PyQt6.QtWebEngineWidgets import QWebEngineView
 
 from confs.fieldStation42_conf import main_conf
 from fs42.guide_builder import GuideBuilder
@@ -98,7 +100,7 @@ class GuideWindow(QMainWindow):
     def get_rendered_url(self):
         rel = f"fs42/guide_render/static/{self.guide_config['template']}"
         absolute = Path(rel).resolve()
-        return f"file:{absolute}"
+        return QUrl(f"file:{absolute}")
 
     def get_random_message(self):
         if "messages" not in self.guide_config or not len(self.guide_config["messages"]):
@@ -122,7 +124,7 @@ class GuideWindow(QMainWindow):
         random.shuffle(urls)
         self._playlist = urls
         self._playlist_index = 0
-        self._player.setSource(self._playlist[self._playlist_index])
+        self._player.setSource(QUrl(self._playlist[self._playlist_index]))
         self._player.play()
 
     def _play_next(self):
@@ -130,7 +132,7 @@ class GuideWindow(QMainWindow):
         if self._playlist_index >= len(self._playlist):
             self._playlist_index = 0
 
-        self._player.setSource(self._playlist[self._playlist_index])
+        self._player.setSource(QUrl(self._playlist[self._playlist_index]))
         self._player.play()
         self.lbl.setText(self.get_random_message())
 
@@ -138,7 +140,6 @@ class GuideWindow(QMainWindow):
         if not playing:
             self._play_next()
 
-    @Slot("QMediaPlayer::Error", str)
     def _player_error(self, error, error_string):
         print(error_string, file=sys.stderr)
         self.show_status_message(error_string)
@@ -177,6 +178,7 @@ def guide_channel_runner(queue, guide_config):
     print("Exiting guide")
 
 
-
+#if __name__ == "__main__":
+#    guide_channel_runner(None, None)
 
 

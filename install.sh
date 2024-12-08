@@ -35,7 +35,10 @@ env/bin/pip3 install moviepy
 
 env/bin/pip3 install python-mpv-jsonipc
 
-env/bin/pip3 install PySide6
+# env/bin/pip3 install PySide6
+
+# sudo apt-get install libwebp-dev
+# sudo apt-get install qt6-base-dev
 
 echo Creating folders
 
