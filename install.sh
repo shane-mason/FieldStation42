@@ -35,6 +35,8 @@ env/bin/pip3 install moviepy
 
 env/bin/pip3 install python-mpv-jsonipc
 
+# pip3 install tkVideoPlayer
+
 # env/bin/pip3 install PySide6
 
 # sudo apt-get install libwebp-dev
