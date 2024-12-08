@@ -150,11 +150,12 @@ class GuideWindow(QMainWindow):
             self._player.stop()
 
     def _check_commands(self):
-        if self.command_q.qsize() > 0:
-            msg = self.command_q.get_nowait()
-            if msg == GuideCommands.hide_window:
-                print("Got hide window command")
-                guide_channel_app.quit()
+        if self.command_q:
+            if self.command_q.qsize() > 0:
+                msg = self.command_q.get_nowait()
+                if msg == GuideCommands.hide_window:
+                    print("Got hide window command")
+                    guide_channel_app.quit()
 
     def _render_schedule(self):
         gb = GuideBuilder()
