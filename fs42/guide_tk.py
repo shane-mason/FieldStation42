@@ -1,13 +1,14 @@
+from tkinter import *
+from tkvideo import TkVideo
+from moviepy import VideoFileClip
 
-import tkinter as tk
-from tkVideoPlayer import TkinterVideo
+root = Tk()
+my_label = Label(root)
+my_label.pack()
 
-root = tk.Tk()
+clip = VideoFileClip('catalog/indie42_catalog/commercial/December/xmascomms-A_V1-0001.mp4')
 
-videoplayer = TkinterVideo(master=root, scaled=True)
-videoplayer.load(r"runtime/static.mp4")
-videoplayer.pack(expand=True, fill="both")
-
-videoplayer.play() # play the video
+player = TkVideo(clip, my_label, loop = 1, size = (720,480))
+player.play()
 
 root.mainloop()

@@ -11,11 +11,11 @@ from enum import Enum
 
 #pip3 install PyQt6
 #pip3 install PyQt6-WebEngine
-from PyQt6.QtCore import QStandardPaths, Qt, pyqtSlot, QTimer, QThread, QDeadlineTimer, QUrl
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel)
-from PyQt6.QtMultimedia import (QAudioOutput, QMediaFormat,QMediaPlayer)
-from PyQt6.QtMultimediaWidgets import QVideoWidget
-from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtCore import QStandardPaths, Qt, pyqtSlot, QTimer, QThread, QDeadlineTimer, QUrl
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel)
+from PyQt5.QtMultimedia import (QAudioOutput,QMediaPlayer, QMediaContent)
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 from confs.fieldStation42_conf import main_conf
 from fs42.guide_builder import GuideBuilder
@@ -49,10 +49,10 @@ class GuideWindow(QMainWindow):
         self._playlist_index = -1
         self._audio_output = QAudioOutput()
         self._player = QMediaPlayer()
-        self._player.setAudioOutput(self._audio_output)
+        #self._player.setAudioOutput(self._audio_output)
 
-        self._player.errorOccurred.connect(self._player_error)
-        self._player.playingChanged.connect(self._playing_changed)
+        #self._player.errorOccurred.connect(self._player_error)
+        #self._player.playingChanged.connect(self._playing_changed)
 
 
         self._video_widget = QVideoWidget()
@@ -124,7 +124,7 @@ class GuideWindow(QMainWindow):
         random.shuffle(urls)
         self._playlist = urls
         self._playlist_index = 0
-        self._player.setSource(QUrl(self._playlist[self._playlist_index]))
+        self._player.setMedia(QMediaContent(QUrl(self._playlist[self._playlist_index])))
         self._player.play()
 
     def _play_next(self):
@@ -132,7 +132,7 @@ class GuideWindow(QMainWindow):
         if self._playlist_index >= len(self._playlist):
             self._playlist_index = 0
 
-        self._player.setSource(QUrl(self._playlist[self._playlist_index]))
+        self._player.setMedia(QMediaContent(QUrl(self._playlist[self._playlist_index])))
         self._player.play()
         self.lbl.setText(self.get_random_message())
 
@@ -146,7 +146,7 @@ class GuideWindow(QMainWindow):
 
 
     def _ensure_stopped(self):
-        if self._player.isPlaying():
+        if self._player.state() == QMediaPlayer.StoppedState:
             self._player.stop()
 
     def _check_commands(self):
