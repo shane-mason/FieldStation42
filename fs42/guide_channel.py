@@ -146,7 +146,7 @@ class GuideWindow(QMainWindow):
 
 
     def _ensure_stopped(self):
-        if self._player.playbackState() != QMediaPlayer.StoppedState:
+        if self._player.isPlaying():
             self._player.stop()
 
     def _check_commands(self):
@@ -178,7 +178,9 @@ def guide_channel_runner(queue, guide_config):
     print("Exiting guide")
 
 
-#if __name__ == "__main__":
-#    guide_channel_runner(None, None)
+if __name__ == "__main__":
+    for c in main_conf["stations"]:
+        if "network_type" in c and c["network_type"] == "guide":
+            guide_channel_runner(None, c )
 
 
