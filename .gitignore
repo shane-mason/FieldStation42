@@ -12,7 +12,7 @@ env/
 *.kdev4*
 *.kate-swp
 *confs/*.json
-fs42/static/*.html
+fs42/guide_render/static/*.html
 
 # C extensions
 *.so
