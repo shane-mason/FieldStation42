@@ -45,7 +45,7 @@ env/bin/pip3 install python-mpv-jsonipc
 #sudo ln -s /lib/aarch64-linux-gnu/libwebp.so /lib/aarch64-linux-gnu/libwebp.so.6
 #sudo ln -s /lib/aarch64-linux-gnu/libtiff.so.6 /lib/aarch64-linux-gnu/libtiff.so.5
 
-#sudo apt-get install python2-pyqt6.qtmultimedia
+#sudo apt-get install python3-pyqt6.qtmultimedia
 
 echo Creating folders
 

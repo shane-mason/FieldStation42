@@ -9,13 +9,11 @@ import glob
 import random
 from enum import Enum
 
-#pip3 install PyQt6
-#pip3 install PyQt6-WebEngine
-from PyQt5.QtCore import QStandardPaths, Qt, pyqtSlot, QTimer, QThread, QDeadlineTimer, QUrl
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel)
-from PyQt5.QtMultimedia import (QAudioOutput,QMediaPlayer, QMediaContent)
-from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtCore import QStandardPaths, Qt, Slot, QTimer, QThread, QDeadlineTimer
+from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget, QHBoxLayout, QLabel)
+from PySide6.QtMultimedia import (QAudioOutput, QMediaFormat,QMediaPlayer)
+from PySide6.QtMultimediaWidgets import QVideoWidget
+from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from confs.fieldStation42_conf import main_conf
 from fs42.guide_builder import GuideBuilder
@@ -49,10 +47,10 @@ class GuideWindow(QMainWindow):
         self._playlist_index = -1
         self._audio_output = QAudioOutput()
         self._player = QMediaPlayer()
-        #self._player.setAudioOutput(self._audio_output)
+        self._player.setAudioOutput(self._audio_output)
 
-        #self._player.errorOccurred.connect(self._player_error)
-        #self._player.playingChanged.connect(self._playing_changed)
+        self._player.errorOccurred.connect(self._player_error)
+        self._player.playingChanged.connect(self._playing_changed)
 
 
         self._video_widget = QVideoWidget()
@@ -100,7 +98,7 @@ class GuideWindow(QMainWindow):
     def get_rendered_url(self):
         rel = f"fs42/guide_render/static/{self.guide_config['template']}"
         absolute = Path(rel).resolve()
-        return QUrl(f"file:{absolute}")
+        return f"file:{absolute}"
 
     def get_random_message(self):
         if "messages" not in self.guide_config or not len(self.guide_config["messages"]):
@@ -124,7 +122,7 @@ class GuideWindow(QMainWindow):
         random.shuffle(urls)
         self._playlist = urls
         self._playlist_index = 0
-        self._player.setMedia(QMediaContent(QUrl(self._playlist[self._playlist_index])))
+        self._player.setSource(self._playlist[self._playlist_index])
         self._player.play()
 
     def _play_next(self):
@@ -132,7 +130,7 @@ class GuideWindow(QMainWindow):
         if self._playlist_index >= len(self._playlist):
             self._playlist_index = 0
 
-        self._player.setMedia(QMediaContent(QUrl(self._playlist[self._playlist_index])))
+        self._player.setSource(self._playlist[self._playlist_index])
         self._player.play()
         self.lbl.setText(self.get_random_message())
 
@@ -140,22 +138,22 @@ class GuideWindow(QMainWindow):
         if not playing:
             self._play_next()
 
+    @Slot("QMediaPlayer::Error", str)
     def _player_error(self, error, error_string):
         print(error_string, file=sys.stderr)
         self.show_status_message(error_string)
 
 
     def _ensure_stopped(self):
-        if self._player.state() == QMediaPlayer.StoppedState:
+        if self._player.playbackState() != QMediaPlayer.StoppedState:
             self._player.stop()
 
     def _check_commands(self):
-        if self.command_q:
-            if self.command_q.qsize() > 0:
-                msg = self.command_q.get_nowait()
-                if msg == GuideCommands.hide_window:
-                    print("Got hide window command")
-                    guide_channel_app.quit()
+        if self.command_q.qsize() > 0:
+            msg = self.command_q.get_nowait()
+            if msg == GuideCommands.hide_window:
+                print("Got hide window command")
+                guide_channel_app.quit()
 
     def _render_schedule(self):
         gb = GuideBuilder()
@@ -179,9 +177,6 @@ def guide_channel_runner(queue, guide_config):
     print("Exiting guide")
 
 
-if __name__ == "__main__":
-    for c in main_conf["stations"]:
-        if "network_type" in c and c["network_type"] == "guide":
-            guide_channel_runner(None, c )
+
 
 
