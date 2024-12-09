@@ -98,12 +98,21 @@ class FieldPlayer:
 
     def start_playing(self, block_offset=0):
         offset_in_index = 0
-        if block_offset:
+        if block_offset > 0 and block_offset < HOUR:
             print("Getting block offset")
-            (index, offset) = self._find_index_at_offset(block_offset)
+            try:
+                (index, offset) = self._find_index_at_offset(block_offset)
+            except TypeError as e:
+                print("Error getting offset")
+                return PlayStatus.EXITED
+
             print(f"index,offset = {index},{offset}")
             self.index = index
             offset_in_index = offset
+        elif block_offset > 0 and block_offset > HOUR:
+            print("Block index > an hour - ourside of block.")
+            return PlayStatus.EXITED
+
         return self._play_from_index(offset_in_index)
 
     def _find_index_at_offset(self, offset):
@@ -245,6 +254,10 @@ def main_loop():
                 reception.degrade(.1)
                 player.update_filters()
                 time.sleep(.1)
+        elif outcome == PlayStatus.EXITED:
+            print("Player returned exited - trying again")
+            time.sleep(1)
+
 
 
 if __name__ == "__main__":
