@@ -9,7 +9,8 @@ import sys
 from python_mpv_jsonipc import MPV
 
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
-from fs42.guide_channel import guide_channel_runner, GuideCommands
+#from fs42.guide_channel import guide_channel_runner, GuideCommands
+from fs42.guide_tk import guide_channel_runner, GuideCommands
 
 channel_socket = "runtime/channel.socket"
 
@@ -105,7 +106,7 @@ class FieldPlayer:
     def show_guide(self, guide_config):
         #create the pipe to communicate with the guide channel
         queue = multiprocessing.Queue()
-        guide_process = multiprocessing.Process(target=guide_channel_runner, args=(queue, guide_config,))
+        guide_process = multiprocessing.Process(target=guide_channel_runner, args=( guide_config, queue,))
         guide_process.start()
 
         self.mpv.stop()
