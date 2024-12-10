@@ -14,7 +14,7 @@ def load_json_stations():
     cfiles = glob.glob("confs/*.json")
     stations = []
     for fname in cfiles:
-        print(os.path.basename(fname))
+        print(f"Loading configuration for: {fname}")
         with open(fname) as f:
             try:
                 d = json.load(f)
