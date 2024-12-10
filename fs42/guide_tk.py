@@ -10,6 +10,7 @@ from confs.fieldStation42_conf import main_conf
 class GuideWindowConf:
 
     def __init__(self, w=720, h=480):
+        self.fullscreen = False
         self.width = w
         self.height= h
 
@@ -234,8 +235,16 @@ class GuideApp(tk.Tk):
     def __init__(self, conf, queue=None):
         super().__init__()
 
+        self.conf = conf
         self.title('FieldStation42 Guide')
-        self.geometry(f"{conf.width}x{conf.height}")
+
+        if self.conf.fullscreen:
+            self.attributes('-fullscreen', True)
+        else:
+            self.geometry(f"{self.conf.width}x{self.conf.height}")
+
+
+
         #self.resizable(False, False)
         self.after(1000, self.tick)
         self.queue = queue
