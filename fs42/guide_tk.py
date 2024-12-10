@@ -93,7 +93,6 @@ class AdFrame(tk.Frame):
         self.message_index = 0
         self.rotate_message()
         #self.after(self.conf._message_rotation_rate, self.rotate_message)
-        print("Top frame initialized")
 
     def rotate_message(self):
         self.lbl_messages.config(text=self.conf.messages[self.message_index])
@@ -114,13 +113,11 @@ class ScheduleFrame(tk.Frame):
         self.populate_frame()
         self.place(x=0, y=conf.half_h, height=conf.half_h, width=conf.width)
 
-        print("Bottom frame initialized")
 
     def populate_frame(self):
         gb = GuideBuilder()
         gb.load_schedules(main_conf['stations'])
         view = gb.build_view()
-        print(view)
 
         lbl_current_time = tk.Label(self,
                             text="Network",
@@ -136,7 +133,7 @@ class ScheduleFrame(tk.Frame):
 
 
         for timing in view['timings']:
-            print(timing)
+
             lbl_time_slot = tk.Label(self,
                                     text=timing,
                                     bg=self.conf.bottom_bg,
@@ -166,7 +163,6 @@ class ScheduleFrame(tk.Frame):
             x_offset = 0
             row = view['rows'][r]
             meta = view['meta'][r]
-            print(meta, row)
 
             channel_label = tk.Label(self.scroll_frame,
                             text=f"{meta['network_name']}\n{meta['channel_number']}",
@@ -241,18 +237,17 @@ class GuideApp(tk.Tk):
         self.title('FieldStation42 Guide')
         self.geometry(f"{conf.width}x{conf.height}")
         #self.resizable(False, False)
-        self.after(1111, self.tick)
+        self.after(1000, self.tick)
         self.queue = queue
 
     def tick(self):
         if self.queue and self.queue.qsize() > 0:
             msg = self.queue.get_nowait()
             if msg == GuideCommands.hide_window:
-                print("Got hide window command")
+                print("Guide window is shutting down now.")
                 self.destroy()
 
-        #print("In the main tick")
-        self.after(1111, self.tick)
+        self.after(250, self.tick)
 
 
 def guide_channel_runner(user_conf, queue):

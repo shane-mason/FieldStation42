@@ -4,7 +4,7 @@ sys.path.append(os.getcwd())
 from confs.fieldStation42_conf import main_conf
 from fs42.timings import OPERATING_HOURS, DAYS
 from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
-from jinja2 import Environment, select_autoescape, FileSystemLoader
+
 import json
 import pickle
 import datetime
@@ -121,7 +121,7 @@ class GuideBuilder:
             network_name = station['conf']['network_name']
             channel_number = station['conf']['channel_number']
             view['meta'].append({"network_name": network_name, "channel_number": channel_number})
-            print(view['meta'])
+
 
         timings = []
         hour_one = hour
@@ -151,17 +151,6 @@ class GuideBuilder:
 
         return view
 
-    def render(self, render_template="90s.html", output="90s.html"):
-        view = self.build_view()
-        env = Environment(
-            loader=FileSystemLoader(self.template_dir),
-            autoescape=select_autoescape( enabled_extensions=('html', 'xml'), default_for_string=True,)
-        )
-
-        template = env.get_template(render_template)
-        rendered = template.render(view=view)
-        with open(f"{self.static_dir}/{output}", "w") as fp:
-            fp.write(rendered)
 
     def load_schedules(self, station_configs):
         for station_config in station_configs:
@@ -170,7 +159,6 @@ class GuideBuilder:
             else:
                 with open(station_config['schedule_path'], "rb") as f:
                     full_schedule  = pickle.load(f)
-                    #print(full_schedule)
                     self.station_schedules.append({"conf": station_config, "schedule": full_schedule})
 
 
