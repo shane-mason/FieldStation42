@@ -1,0 +1,7 @@
+{"station_conf" : {
+    "network_name" : "Guide",
+    "network_type" : "guide",
+    "channel_number": 3,
+    "runtime_dir" : "runtime/guide",
+    "content_dir" : "catalog/indie42_catalog/commercial/December"
+}}
