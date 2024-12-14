@@ -98,7 +98,7 @@ class AdFrame(tk.Frame):
     def rotate_message(self):
         self.lbl_messages.config(text=self.conf.messages[self.message_index])
         self.message_index+=1
-        if self.message_index > len(self.conf.messages):
+        if self.message_index >= len(self.conf.messages):
             self.message_index = 0
 
         self.after(self.conf._message_rotation_rate, self.rotate_message)
