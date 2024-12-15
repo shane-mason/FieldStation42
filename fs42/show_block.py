@@ -3,11 +3,12 @@ from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 
 REELS_PER_BREAK = 6
 
-class ReelCutter:
-    def cut_reels_into_base(base_clip, reels, base_offset, base_duration):
-        def _entry(path, start, dur):
-            return {'path':path, 'start':start, 'duration':dur}
+def _entry(path, start, dur):
+    return {'path':path, 'start':start, 'duration':dur}
 
+class ReelCutter:
+    
+    def cut_reels_into_base(base_clip, reels, base_offset, base_duration):
         entries = []
         if len(reels) < 6:
             # just put them at the end
@@ -41,6 +42,26 @@ class ReelCutter:
             entries.append(_entry(reel.path, 0, reel.duration))
 
         return entries
+    
+class LoopBlock:
+    def __init__(self,title, clips, spill=0):
+        self.title = title
+        self.clips = clips
+        self.spill = spill
+    
+    def make_plan(self):
+        entries = []
+        cnt = 0
+        for clip in self.clips:
+            if cnt==0:
+                entry = _entry(clip.path, self.spill, clip.duration-self.spill)
+            else:
+                entry = _entry(clip.path, 0, clip.duration)
+            entries.append(entry)
+            cnt+=1
+        return entries
+
+
 
 class ContinueBlock:
     def __init__(self, title):
@@ -66,7 +87,7 @@ class ClipBlock:
     def __init__(self, name, clips, duration=HOUR):
         self.name = name
         self.title = name
-        self.duration = duration
+        self._duration = duration
         self.tag = f"CL.{self.name}"
         self.clips = clips
 
@@ -78,9 +99,10 @@ class ClipBlock:
             _plan.append(entry)
         return _plan
 
+    @property
     def duration(self):
         dur = 0
-        for clip in clips:
+        for clip in self.clips:
             dur += clip.duration
         return dur
 

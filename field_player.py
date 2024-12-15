@@ -16,7 +16,6 @@ from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 
 
-
 def check_channel_socket():
     channel_socket = main_conf['channel_socket']
     r_sock = open(channel_socket, "r")
@@ -39,7 +38,7 @@ class ReceptionStatus:
         return self.chaos == 0.0
 
     def is_degraded(self):
-        return self.chaos > threshhold
+        return self.chaos >  self.thresh
 
     def is_fully_degraded(self):
         return self.chaos == 1.0
@@ -146,18 +145,20 @@ class FieldPlayer:
         return playlist
 
     def start_playing(self, block_offset=0):
-        self._l.info("Starting to play offset in block {block_offset}")
+        self._l.info(f"Starting to play offset in block {block_offset}")
         offset_in_index = 0
         if block_offset:
             try:
                 (index, offset) = self._find_index_at_offset(block_offset)
-            except TypeError:
+            except TypeError as e:
                 self._l.critical("Error getting index and offset - exiting playback")
                 return PlayStatus.EXITED
 
-            self._l.info(f"Calculated offsets index,offset = {index},{offset}")
+            self._l.info(f"Calculated offsets index|offset = {index}|{offset}")
             self.index = index
             offset_in_index = offset
+        else:
+            self.index = 0
         return self._play_from_index(offset_in_index)
 
     def _find_index_at_offset(self, offset):
@@ -228,6 +229,8 @@ reception = ReceptionStatus()
 
 
 def main_loop():
+    degrade_amount = 0.02
+    improve_amount = .1
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
 
@@ -280,6 +283,7 @@ def main_loop():
             week_day = DAYS[now.weekday()]
             hour = now.hour
             skip = now.minute * MIN_1 + now.second
+            #skip = 60 * 59
             logger.info(f"Starting station {station_runtimes[channel]} at: {week_day} {hour} skipping={skip} ")
             outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
 
@@ -292,21 +296,21 @@ def main_loop():
 
             #add noise to current channel
             while not reception.is_fully_degraded():
-                reception.degrade()
+                reception.degrade(degrade_amount)
                 player.update_filters()
                 time.sleep(.05)
 
             #reception.improve(1)
             player.play_file("runtime/static.mp4")
             while not reception.is_perfect():
-                reception.improve(.1)
+                reception.improve(improve_amount)
                 player.update_filters()
-                time.sleep(.1)
+                time.sleep(.05)
             time.sleep(1)
             while not reception.is_fully_degraded():
-                reception.degrade(.1)
+                reception.degrade(degrade_amount)
                 player.update_filters()
-                time.sleep(.1)
+                time.sleep(.05)
         elif outcome == PlayStatus.EXITED:
             logger.critical("Player exited - resting for 1 second and trying again")
             time.sleep(1)

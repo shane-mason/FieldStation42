@@ -18,9 +18,9 @@ def load_json_stations():
         with open(fname) as f:
             try:
                 d = json.load(f)
-                #if os.path.basename(fname) == "guide.json":
-                #    main_conf['guide'] = d['guide_conf']
-                #else:
+                if "network_type" not in d['station_conf']:
+                    print(f"Setting network type to standard for {d['station_conf']['network_name']}")
+                    d['station_conf']["network_type"] = "standard"
                 stations.append(d['station_conf'])
             except Exception as e:
                 print(f"Error loading station configuration: {fname}")

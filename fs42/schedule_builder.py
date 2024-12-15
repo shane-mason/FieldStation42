@@ -1,7 +1,7 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
-from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
+from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock, LoopBlock
 from fs42.catalog import MatchingContentNotFound, NoFillerContentFound
 
 class ScheduleBuilder():
@@ -9,7 +9,8 @@ class ScheduleBuilder():
     def __init__(self, catalog, config):
         self.catalog = catalog
         self.config = config
-
+        self._l = logging.getLogger(self.config['network_name'])
+        
     def flexi_break(self, fill_time, when):
         reels = []
         remaining_time = fill_time
@@ -30,10 +31,49 @@ class ScheduleBuilder():
                 keep_going = False
 
         return reels
+    
+    def make_loop_day(self, tag, when):
+        self._l.info(f"Making loop day: {when}")
+        content = self.catalog.get_all_by_tag(tag)
+        content_index = 0
+        schedule = {}
+        previous_spill = 0
+        for h in OPERATING_HOURS:
+            entries = []
+            when = when.replace(hour=h)
+            slot = str(h)
+            remaining_time = HOUR + previous_spill
+            spill_time = 0
+            
+            #while there is still stime in the hour
+            while remaining_time:
+                entry = content[content_index]
+
+                duration = entry.duration
+                if duration > remaining_time:
+                    #then some time spills into the next hour
+                    spill_time = duration - remaining_time
+                    remaining_time = 0
+                    #leave content index as is, so it is the next one
+                else:
+                    remaining_time -= duration
+                    
+                    content_index+=1
+                    if content_index >= len(content):
+                        content_index = 0
+                
+                entries.append(entry)    
+            
+            
+            block = LoopBlock("Informational", entries, previous_spill)
+            previous_spill = spill_time
+
+            schedule[slot] = block
+        return schedule
 
     def make_hour_schedule(self, tag, when):
         remaining_time = HOUR
-        reels = []
+        reels = [] 
         front = None
         back_half = None
 
@@ -46,7 +86,6 @@ class ScheduleBuilder():
             if front.duration > HOUR:
                 slot_continues = front.duration - HOUR
                 raise NotImplementedError("Video must be under one hour or in a directory marked for longer, like 'two_hour' " )
-
 
             if remaining_time > H_HOUR:
                 #then ask for another half hour
@@ -65,8 +104,6 @@ class ScheduleBuilder():
         reels = self.flexi_break(remaining_time, when)
         return ShowBlock(front, back_half, reels)
 
-
-
     def make_double_schedule(self, tag, when):
         remaining_time = HOUR2
         candidate = self.catalog.find_candidate(tag, HOUR*2, when)
@@ -79,8 +116,6 @@ class ScheduleBuilder():
 
         reels = self.flexi_break(remaining_time, when)
         return MovieBlocks(candidate, reels, tag)
-
-
 
     def make_clip_hour(self, tag, when):
         remaining_time = HOUR

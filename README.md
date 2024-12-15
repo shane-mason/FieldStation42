@@ -20,6 +20,8 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 ## Experimental Features - Cable Mode
 * Preview/guide channel with embedded video and configurable messages
     * This is a brand new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
+* Loop channels, useful for community bulletin style channels or information loops.
+    * Play videos in order from specified channels.
 
 ![A screenshot of a guide channel simulation](docs/guide.png?raw=true)
 
@@ -78,6 +80,9 @@ If you don't want a remote button changer, like the antenna rotator box from the
 
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
+
+## Connecting to a TV
+The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HTMI->Composit or HDMI->RF adapter. These units are available online or at an electronic retailer.
 
 ![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
 

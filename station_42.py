@@ -87,18 +87,26 @@ class Station42:
             delta = datetime.timedelta(days=day_offset)
             when = now + delta
             self._l.debug(f"Making schedule for {day_name} {when.date()}")
-
-            schedule[day_name] = self.make_daily_schedule(day_name, when)
+            match self.config["network_type"]:
+                case "standard":
+                    schedule[day_name] = self._standard_daily_schedule(day_name, when)
+                case "loop":
+                    schedule[day_name] = self._loop_daily_schedule(day_name, when)
+                case "guide":
+                    raise NotImplementedError("Guide schedules are not yet supported")
+                
             self.write_day_to_playlist(schedule[day_name], day_name)
             day_number += 1
 
         with open(self.config['schedule_path'], 'wb') as f:
             pickle.dump(schedule,f)
 
-        self._l.info(f"Wrote output to {self.config['schedule_path']}")
+        self._l.info(f"Wrote schedule output to {self.config['schedule_path']}")
 
+    def _loop_daily_schedule(self, day_str, when):
+        return self.builder.make_loop_day("content", when)
 
-    def make_daily_schedule(self, day_str, when):
+    def _standard_daily_schedule(self, day_str, when):
         schedule = {}
         day = self.config[day_str]
         continue_next = None

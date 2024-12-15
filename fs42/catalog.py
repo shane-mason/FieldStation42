@@ -117,6 +117,25 @@ class ShowCatalog:
 
     def build_catalog(self):
         self._l.info(f"Starting catalog build for {self.config['network_name']}")
+
+        match self.config["network_type"]:
+            case "standard":
+                return self._build_standard()
+            case "loop":
+                return self._build_single()
+            case "guide":
+                raise NotImplementedError("Guide catalog not supported yet.")
+    
+    def _build_single(self, tag="content"):
+        #for station types with all files in a single directory
+        self._l.info(f"Checking for media in {self.config['content_dir']} for single directory")
+        file_list = ShowCatalog._find_media(self.config['content_dir'])
+        self.clip_index[tag] = ShowCatalog._process_media(file_list, tag)
+        self._l.info(f"Building complete - processed {len(self.config['content_dir'])} files")
+        self._write_catalog()
+
+    def _build_standard(self):
+        self._l.info(f"Standard network")
         #get the list of all tags
         tags = {}
         for day in DAYS:
@@ -162,8 +181,10 @@ class ShowCatalog:
             self.clip_index['off_air'] = ShowClip(self.config["off_air_video"], video_clip.duration, 'off_air')
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count+=1
-
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
+        self._write_catalog()
+
+    def _write_catalog(self):
         with open(self.config['catalog_path'], 'wb') as f:
             pickle.dump(self.clip_index, f)
 
@@ -172,12 +193,12 @@ class ShowCatalog:
         c_path = self.config['catalog_path']
         self._l.info("Loading catalog from file: " + c_path )
         if not os.path.isfile(c_path):
-            self._l.warn("Catalog not found - starting new build")
+            self._l.warning("Catalog not found - starting new build")
             self.build_catalog()
         else:
             with open(c_path, "rb") as f:
                 self.clip_index = pickle.load(f)
-            self._l.info("Catalog written to file: " + c_path)
+            self._l.info("Catalog read read from file " + c_path)
 
     def print_catalog(self):
         print("TITLE                | TAG        | Duration    | Hints ")
@@ -200,8 +221,6 @@ class ShowCatalog:
                 print(f"{bcolors.WARNING}{v}{bcolors.ENDC}")
         else:
             print(f"{bcolors.OKGREEN}All checks passed{bcolors.ENDC}")
-
-
 
 
     def get_signoff(self):
@@ -233,6 +252,12 @@ class ShowCatalog:
                 return False
         return True
 
+    def get_all_by_tag(self, tag):
+        if tag in self.clip_index and len(self.clip_index[tag]):
+            return self.clip_index[tag]
+        else:
+            return None
+        
     def find_candidate(self, tag, seconds, when):
         if tag in self.clip_index and len(self.clip_index[tag]):
             candidates = self.clip_index[tag]
@@ -246,7 +271,6 @@ class ShowCatalog:
                 err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
                 raise(MatchingContentNotFound(err))
             return self._lowest_count(matches)
-
 
     def find_filler(self, seconds, when):
         bump_tag = self.config['bump_dir']
