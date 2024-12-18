@@ -10,7 +10,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', lev
 
 from python_mpv_jsonipc import MPV
 
-from confs.fieldStation42_conf import main_conf
+from confs.fieldStation42_conf import main_conf, index_by_channel
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 #from fs42.guide_channel import guide_channel_runner, GuideCommands
 from fs42.guide_tk import guide_channel_runner, GuideCommands
@@ -24,9 +24,8 @@ def check_channel_socket():
     if len(contents):
         with open(channel_socket, 'w'):
             pass
-
-        return PlayStatus.CHANNEL_CHANGE
-    return False
+        return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
+    return None
 
 class ReceptionStatus:
 
@@ -71,6 +70,11 @@ class PlayStatus(Enum):
     SUCCESS = 3
     CHANNEL_CHANGE =4
 
+class PlayerOutcome:
+    def __init__(self, status=PlayStatus.SUCCESS, payload=None):
+        self.status = status
+        self.payload = payload
+
 class FieldPlayer:
 
     def __init__(self, runtime_path, mpv=None):
@@ -84,7 +88,6 @@ class FieldPlayer:
         self.index = 0
 
     def shutdown(self):
-
         self.mpv.terminate()
 
     def update_filters(self):
@@ -119,13 +122,13 @@ class FieldPlayer:
         while keep_going:
             time.sleep(.05)
             response = check_channel_socket()
-            if response == PlayStatus.CHANNEL_CHANGE:
+            if response:
                 self._l.info("Sending the guide channel shutdown command")
                 queue.put(GuideCommands.hide_window)
                 guide_process.join()
                 return response
 
-        return PlayStatus.SUCCESS
+        return PlayerOutcome(PlayStatus.SUCCESS)
 
     def play_slot(self, the_day, the_hour, offset=0, runtime_path=None):
 
@@ -152,7 +155,7 @@ class FieldPlayer:
                 (index, offset) = self._find_index_at_offset(block_offset)
             except TypeError as e:
                 self._l.critical("Error getting index and offset - exiting playback")
-                return PlayStatus.EXITED
+                return PlayerOutcome(PlayStatus.EXITED, e)
 
             self._l.info(f"Calculated offsets index|offset = {index}|{offset}")
             self.index = index
@@ -217,13 +220,17 @@ class FieldPlayer:
                             #debounce time
                             time.sleep(.05)
                             response = check_channel_socket()
-                            if response == PlayStatus.CHANNEL_CHANGE:
+                            if response:
                                 return response
 
             self._l.info("Done playing block")
-            return PlayStatus.SUCCESS
+            return PlayerOutcome(PlayStatus.SUCCESS)
         else:
-            return PlayStatus.FAILED
+            return PlayerOutcome(PlayStatus.FAILED, "Failure getting index...")
+
+
+
+
 
 reception = ReceptionStatus()
 
@@ -234,28 +241,19 @@ def main_loop():
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
 
-    #get the channels and runtimes
-    station_runtimes = []
-    for c in main_conf["stations"]:
-        #go through each station config and get its runtime
-        station_runtimes.append(c['runtime_dir'])
-
-
-
     channel_socket = main_conf['channel_socket']
     #go ahead and clear the channel socket (or create if it doesn't exist)
     with open(channel_socket, 'w'):
         pass
 
-
-    channel = 0
-    if not len(station_runtimes):
+    channel_index = 0
+    if not len(main_conf["stations"]):
         logger.error("Could not find any station runtimes - do you have your channels configured?")
         logger.error("Check to make sure you have valid json configurations in the confs dir")
         logger.error("The confs/examples folder contains working examples that you can build off of - just move one into confs/")
         return
 
-    player = FieldPlayer(station_runtimes[channel])
+    player = FieldPlayer(main_conf["stations"][channel_index])
     reception.degrade(1)
     player.update_filters()
 
@@ -269,30 +267,54 @@ def main_loop():
 
     signal.signal(signal.SIGINT, sigint_handler)
 
-
+    channel_conf = main_conf['stations'][channel_index]
     while True:
-        logger.info(f"Playing station: {station_runtimes[channel]}" )
-        outcome = PlayStatus.SUCCESS
+        logger.info(f"Playing station: {channel_conf['network_name']}" )
+        outcome = None
 
         # is this the guide channel?
-        if "network_type" in main_conf["stations"][channel] and main_conf["stations"][channel]["network_type"] == "guide":
+        if  channel_conf["network_type"] == "guide":
             logger.info("Starting the guide channel")
-            outcome = player.show_guide(main_conf["stations"][channel])
+            outcome = player.show_guide(channel_conf)
         else:
             now = datetime.datetime.now()
             week_day = DAYS[now.weekday()]
             hour = now.hour
             skip = now.minute * MIN_1 + now.second
             #skip = 60 * 59
-            logger.info(f"Starting station {station_runtimes[channel]} at: {week_day} {hour} skipping={skip} ")
-            outcome = player.play_slot(week_day, hour, skip, runtime_path=station_runtimes[channel])
+            logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
+            outcome = player.play_slot(week_day, hour, skip, runtime_path=channel_conf["runtime_dir"])
 
 
-        if outcome == PlayStatus.CHANNEL_CHANGE:
-            logger.info("Starting channel change")
-            channel+=1
-            if channel>=len(station_runtimes):
-                channel = 0
+        if outcome.status == PlayStatus.CHANNEL_CHANGE:
+            tune_up = True
+            #get the json payload
+            if outcome.payload:
+                try:
+                    as_obj = json.loads(outcome.payload)
+                    if "command" in as_obj and as_obj["command"] == "direct":
+                        if "channel" in as_obj:
+                            logger.info(f"Got direct tune command for channel {as_obj['channel']}")
+                            new_index = index_by_channel(as_obj['channel'])
+                            if not new_index:
+                                logger.error(f"Got direct tune command but could not find station with channel {as_obj['channel']}")
+                            else:
+                                channel_index = new_index
+                                tune_up = False
+                        else:
+                            logger.critical("Got direct tune command, but no channel specified")
+                except Exception as e:
+                    logger.exception(e)
+                    logger.warning("Got payload on channel change, but JSON convert failed")
+
+
+            if tune_up:
+                logger.info("Starting channel change")
+                channel_index+=1
+                if channel_index>=len(main_conf["stations"]):
+                    channel_index = 0
+                
+            channel_conf = main_conf["stations"][channel_index]
 
             #add noise to current channel
             while not reception.is_fully_degraded():
@@ -311,7 +333,8 @@ def main_loop():
                 reception.degrade(degrade_amount)
                 player.update_filters()
                 time.sleep(.05)
-        elif outcome == PlayStatus.EXITED:
+
+        elif outcome.status == PlayStatus.EXITED:
             logger.critical("Player exited - resting for 1 second and trying again")
             time.sleep(1)
 

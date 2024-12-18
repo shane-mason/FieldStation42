@@ -8,6 +8,16 @@ main_conf = {
     'channel_socket' : "runtime/channel.socket"
 }
 
+
+def index_by_channel(channel):
+    index = 0
+    print("Looking for channel: ", channel)
+    for station in main_conf["stations"]:
+        if station["channel_number"] == channel:
+            return index
+        index+=1
+    return None
+
 def load_json_stations():
     import glob
     global main_conf
