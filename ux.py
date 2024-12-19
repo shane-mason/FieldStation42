@@ -147,10 +147,6 @@ class StationViewer(App):
 
 
 from confs.fieldStation42_conf import main_conf
-#station_config = cbs_conf.station_conf
-
-#from confs.fieldStation42_conf import main_conf
-#    for c in main_conf["stations"]:
 
 
 
