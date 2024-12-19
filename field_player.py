@@ -74,14 +74,15 @@ def main_loop(transition_fn):
                 try:
                     as_obj = json.loads(outcome.payload)
                     if "command" in as_obj and as_obj["command"] == "direct":
+                        tune_up = False
                         if "channel" in as_obj:
-                            logger.info(f"Got direct tune command for channel {as_obj['channel']}")
+                            logger.debug(f"Got direct tune command for channel {as_obj['channel']}")
                             new_index = manager.index_from_channel(as_obj['channel'])
-                            if not new_index:
-                                logger.error(f"Got direct tune command but could not find station with channel {as_obj['channel']}")
+                            if new_index is None:
+                                logger.warning(f"Got direct tune command but could not find station with channel {as_obj['channel']}")
                             else:
                                 channel_index = new_index
-                                tune_up = False
+
                         else:
                             logger.critical("Got direct tune command, but no channel specified")
                 except Exception as e:
