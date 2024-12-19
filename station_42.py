@@ -5,6 +5,7 @@ from fs42.catalog import ShowCatalog, MatchingContentNotFound, NoFillerContentFo
 from fs42.schedule_builder import ScheduleBuilder
 from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
+from fs42.station_manager import StationManager
 import pickle
 import json
 import os
@@ -154,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
     args = parser.parse_args()
-    from confs.fieldStation42_conf import main_conf
+
     if( args.verbose ):
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -168,7 +169,7 @@ if __name__ == "__main__":
 
     found_print_target = False
 
-    for station_conf in main_conf["stations"]:
+    for station_conf in StationManager().stations:
         if 'network_type' in station_conf and station_conf['network_type'] == "guide":
             logging.getLogger().info(f"Loaded guide channel")
         elif args.printcat:

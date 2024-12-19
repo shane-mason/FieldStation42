@@ -1,5 +1,5 @@
 class ReceptionStatus(object):
-    we_are_all_one = {}
+    __we_are_all_one = {}
     chaos = 0
     thresh = 0.01
     degrade_amount = 0.15
@@ -7,7 +7,7 @@ class ReceptionStatus(object):
 
     def __new__(cls, *args, **kwargs):
         obj = super(ReceptionStatus, cls).__new__(cls, *args, **kwargs)
-        obj.__dict__ = cls.we_are_all_one
+        obj.__dict__ = cls.__we_are_all_one
         return obj
 
     def __init__(self):

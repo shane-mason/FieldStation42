@@ -5,7 +5,7 @@ sys.path.append(os.getcwd())
 import tkinter as tk #import Tkinter
 
 from fs42.guide_builder import GuideBuilder
-from confs.fieldStation42_conf import main_conf
+from fs42.station_manager import StationManager
 
 class GuideWindowConf:
 
@@ -117,7 +117,7 @@ class ScheduleFrame(tk.Frame):
 
     def populate_frame(self):
         gb = GuideBuilder()
-        gb.load_schedules(main_conf['stations'])
+        gb.load_schedules(StationManager().stations)
         view = gb.build_view()
 
         lbl_current_time = tk.Label(self,

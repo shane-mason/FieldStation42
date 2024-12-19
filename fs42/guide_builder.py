@@ -1,10 +1,10 @@
 import sys
 import os
 sys.path.append(os.getcwd())
-from confs.fieldStation42_conf import main_conf
+
 from fs42.timings import OPERATING_HOURS, DAYS
 from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
-
+from fs42.station_manager import StationManager
 import json
 import pickle
 import datetime
@@ -164,6 +164,6 @@ class GuideBuilder:
 
 if __name__ == "__main__":
     gb = GuideBuilder()
-    gb.load_schedules(main_conf['stations'])
+    gb.load_schedules(StationManager().stations)
     gb.render()
 

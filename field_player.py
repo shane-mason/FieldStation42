@@ -6,17 +6,18 @@ import signal
 import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
-
-from confs.fieldStation42_conf import main_conf, index_by_channel
+from confs.fieldStation42_conf import main_conf
+from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.station_player import StationPlayer, PlayStatus
 from fs42.reception import ReceptionStatus
 
 #from fs42.guide_channel import guide_channel_runner, GuideCommands
 
+debounce_fragment = 0.05
 
 def main_loop(transition_fn):
-
+    manager = StationManager()
     reception = ReceptionStatus()
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
@@ -27,13 +28,13 @@ def main_loop(transition_fn):
         pass
 
     channel_index = 0
-    if not len(main_conf["stations"]):
+    if not len(manager.stations):
         logger.error("Could not find any station runtimes - do you have your channels configured?")
         logger.error("Check to make sure you have valid json configurations in the confs dir")
         logger.error("The confs/examples folder contains working examples that you can build off of - just move one into confs/")
         return
 
-    player = StationPlayer(main_conf["stations"][channel_index])
+    player = StationPlayer(manager.stations[channel_index])
     reception.degrade()
     player.update_filters()
 
@@ -47,7 +48,7 @@ def main_loop(transition_fn):
 
     signal.signal(signal.SIGINT, sigint_handler)
 
-    channel_conf = main_conf['stations'][channel_index]
+    channel_conf = manager.stations[channel_index]
     while True:
         logger.info(f"Playing station: {channel_conf['network_name']}" )
         outcome = None
@@ -75,7 +76,7 @@ def main_loop(transition_fn):
                     if "command" in as_obj and as_obj["command"] == "direct":
                         if "channel" in as_obj:
                             logger.info(f"Got direct tune command for channel {as_obj['channel']}")
-                            new_index = index_by_channel(as_obj['channel'])
+                            new_index = manager.index_from_channel(as_obj['channel'])
                             if not new_index:
                                 logger.error(f"Got direct tune command but could not find station with channel {as_obj['channel']}")
                             else:
@@ -91,10 +92,10 @@ def main_loop(transition_fn):
             if tune_up:
                 logger.info("Starting channel change")
                 channel_index+=1
-                if channel_index>=len(main_conf["stations"]):
+                if channel_index>=len(manager.stations):
                     channel_index = 0
                 
-            channel_conf = main_conf["stations"][channel_index]
+            channel_conf = manager.stations[channel_index]
             
             #long_change_effect(player, reception)
             transition_fn(player, reception)
@@ -110,26 +111,26 @@ def short_change_effect(player, reception ):
     while not reception.is_fully_degraded():
         reception.degrade()
         player.update_filters()
-        time.sleep(.05)
+        time.sleep(debounce_fragment)
     
 def long_change_effect(player, reception):
     #add noise to current channel
     while not reception.is_fully_degraded():
         reception.degrade()
         player.update_filters()
-        time.sleep(.05)
+        time.sleep(debounce_fragment)
 
     #reception.improve(1)
     player.play_file("runtime/static.mp4")
     while not reception.is_perfect():
         reception.improve()
         player.update_filters()
-        time.sleep(.05)
+        time.sleep(debounce_fragment)
     #time.sleep(1)
     while not reception.is_fully_degraded():
         reception.degrade()
         player.update_filters()
-        time.sleep(.05)
+        time.sleep(debounce_fragment)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FieldStation42 Player')
