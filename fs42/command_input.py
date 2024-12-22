@@ -1,6 +1,4 @@
 import time
-import board
-import digitalio
 import datetime
 import serial
 import os
