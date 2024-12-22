@@ -150,9 +150,13 @@ class ScheduleBuilder():
             #fill the rest with offair
             while remaining_time > oa.duration:
                 clips.append(oa)
-                remaining_time -= oa.duration
+                remaining_time -= oa.duration                
+        
+            #go over the hour so it can be snipped to duration
+            if remaining_time > 0:
+                clips.append(oa)
 
-        return ClipBlock('signoff', clips, HOUR-remaining_time)
+        return ClipBlock('signoff', clips, duration=HOUR, snip_to_duration=True)
 
     def make_offair_hour(self):
         remaining_time = HOUR
@@ -164,4 +168,8 @@ class ScheduleBuilder():
                 clips.append(oa)
                 remaining_time -= oa.duration
 
-        return ClipBlock('signoff', clips, HOUR-remaining_time)
+            #go over the hour so it can be snipped to duration
+            if remaining_time > 0:
+                clips.append(oa)
+
+        return ClipBlock('offair', clips, duration=HOUR, snip_to_duration=True)

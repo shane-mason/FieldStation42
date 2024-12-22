@@ -84,27 +84,39 @@ class MovieBlocks:
         return (a_plan, b_plan)
 
 class ClipBlock:
-    def __init__(self, name, clips, duration=HOUR):
+    def __init__(self, name, clips, duration=HOUR, snip_to_duration=False):
         self.name = name
         self.title = name
         self._duration = duration
         self.tag = f"CL.{self.name}"
         self.clips = clips
+        self.snip_to_duration = snip_to_duration
 
 
     def make_plan(self):
         _plan = []
+        cur_dur = 0
         for clip in self.clips:
-            entry = {'path':clip.path, 'start':0, 'duration':clip.duration}
+            cur_dur+=clip.duration
+            if self.snip_to_duration and cur_dur > self._duration:
+                #then this takes us over the duration so we should clip it to end at target
+                clip_dur = clip.duration - (cur_dur - self._duration)
+                entry = {'path':clip.path, 'start':0, 'duration':clip_dur}            
+            else:
+                entry = {'path':clip.path, 'start':0, 'duration':clip.duration}
+            
             _plan.append(entry)
         return _plan
 
     @property
     def duration(self):
-        dur = 0
-        for clip in self.clips:
-            dur += clip.duration
-        return dur
+        if self.snip_to_duration:
+            return self._duration
+        else:
+            dur = 0
+            for clip in self.clips:
+                dur += clip.duration
+            return dur
 
 class ShowBlock:
     def __init__(self, front=None, back=None, reels=None):

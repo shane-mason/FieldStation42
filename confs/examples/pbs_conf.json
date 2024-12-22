@@ -1,15 +1,18 @@
 {"station_conf" : {
     "network_name" : "PBS",
+    "channel_number": 6,
+
     "catalog_path" : "catalog/pbs_catalog.bin",
     "content_dir" : "catalog/pbs_catalog",
-    "runtime_dir" : "runtime/pbs",
-    "schedule_path": "runtime/pbs_schedule.bin",
     "commercial_dir" : "commercials",
     "bump_dir" : "bumps",
     "clip_shows" : [],
-    "channel_number": 6,
-    "sign_off_video": "catalog/anthem_signoff.mp4",
-    "off_air_video": "catalog/off_air_pattern.mp4",
+
+    "runtime_dir" : "runtime/pbs",
+    "schedule_path": "runtime/pbs_schedule.bin",
+    "sign_off_video": "runtime/anthem_signoff.mp4",
+    "off_air_video": "runtime/off_air_pattern.mp4",
+    "standby_image": "runtime/standby.png",
 
     "monday": {
         "7": {"tags": "kids"},

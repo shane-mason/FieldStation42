@@ -8,8 +8,8 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', lev
 
 from confs.fieldStation42_conf import main_conf
 from fs42.station_manager import StationManager
-from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
-from fs42.station_player import StationPlayer, PlayStatus
+from fs42.timings import MIN_1, DAYS
+from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket
 from fs42.reception import ReceptionStatus
 
 #from fs42.guide_channel import guide_channel_runner, GuideCommands
@@ -43,22 +43,29 @@ def main_loop(transition_fn):
 
         logger.critical("Recieved sig-int signal, attempting to exit gracefully...")
         player.shutdown()
-        logger.critical("Shutdown is complete - exiting application")
+        logger.info("Shutdown completed as expected - exiting application")
         exit(0)
 
     signal.signal(signal.SIGINT, sigint_handler)
 
     channel_conf = manager.stations[channel_index]
+    recheck_channel = False
+
+    # this is actually the main loop
+    outcome = None
+    skip_play = False
+    stuck_timer = 0
+
     while True:
         logger.info(f"Playing station: {channel_conf['network_name']}" )
-        outcome = None
-
-        # is this the guide channel?
-        if  channel_conf["network_type"] == "guide":
+         
+       
+        if  channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
-            outcome = player.show_guide(channel_conf)
-        else:
+            outcome = player.show_guide(channel_conf)   
+        elif not skip_play:
             now = datetime.datetime.now()
+            
             week_day = DAYS[now.weekday()]
             hour = now.hour
             skip = now.minute * MIN_1 + now.second
@@ -66,8 +73,13 @@ def main_loop(transition_fn):
             logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
             outcome = player.play_slot(week_day, hour, skip, runtime_path=channel_conf["runtime_dir"])
 
+        logger.debug(f"Got outcome:{outcome.status}")
+
+        # reset skip
+        skip_play = False
 
         if outcome.status == PlayStatus.CHANNEL_CHANGE:
+            stuck_timer = 0
             tune_up = True
             #get the json payload
             if outcome.payload:
@@ -101,22 +113,48 @@ def main_loop(transition_fn):
             #long_change_effect(player, reception)
             transition_fn(player, reception)
 
-        elif outcome.status == PlayStatus.EXITED:
-            logger.critical("Player exited - resting for 1 second and trying again")
+        elif outcome.status == PlayStatus.FAILED:
+            
+            stuck_timer+=1
+            
+            if stuck_timer > 2 and "standby_image" in channel_conf:
+                player.play_file(channel_conf["standby_image"])
+                
+                
+            
             time.sleep(1)
+            logger.critical("Player failed to start - resting for 1 second and trying again")
+            
+            # check for channel change so it doesn't stay stuck on a broken channel
+            new_outcome = check_channel_socket()
+            if new_outcome is not None:
+                outcome = new_outcome
+                # set skip play so outcome isn't overwritten 
+                # and the channel change can be processed next loop
+                skip_play = True
+        elif outcome.status == PlayStatus.SUCCESS:
+            stuck_timer = 0
+        else:
+            stuck_timer = 0
 
+        
 def none_change_effect(player, reception):
     pass
 
 def short_change_effect(player, reception ):
-    while not reception.is_fully_degraded():
-        reception.degrade()
+    prev = reception.improve_amount
+    reception.improve_amount = 0
+
+    while not reception.is_degraded():
+        reception.degrade(.3)
         player.update_filters()
         time.sleep(debounce_fragment)
     
+    reception.improve_amount = prev
+
 def long_change_effect(player, reception):
     #add noise to current channel
-    while not reception.is_fully_degraded():
+    while not reception.is_degraded():
         reception.degrade()
         player.update_filters()
         time.sleep(debounce_fragment)
@@ -128,7 +166,7 @@ def long_change_effect(player, reception):
         player.update_filters()
         time.sleep(debounce_fragment)
     #time.sleep(1)
-    while not reception.is_fully_degraded():
+    while not reception.is_degraded():
         reception.degrade()
         player.update_filters()
         time.sleep(debounce_fragment)
@@ -152,11 +190,10 @@ if __name__ == "__main__":
         logging.getLogger().addHandler(fh)
 
     trans_fn = short_change_effect
+
     if args.transition:
         if args.transition == "long":
             trans_fn = long_change_effect
-            ReceptionStatus().degrade_amount = 0.04
-            ReceptionStatus().improve_amount = 0.1
         elif args.transition == "none":
             trans_fn = none_change_effect
         #else keep short change as default

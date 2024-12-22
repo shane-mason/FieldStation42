@@ -1,5 +1,6 @@
 {"station_conf" : {
     "network_name" : "ABC",
+    "channel_number": 8,
     "catalog_path" : "catalog/abc_catalog.bin",
     "content_dir" : "catalog/abc_catalog",
     "runtime_dir" : "runtime/abc",
@@ -8,10 +9,9 @@
     "bump_dir" : "bump",
     "clip_shows" : ["am_band_stand", "sh_rock"],
     "off_air_image": "runtime/nbc_offair.png",
-    "channel_number": 8,
-    "sign_off_video": "catalog/anthem_signoff.mp4",
-    "off_air_video": "catalog/off_air_pattern.mp4",
-
+    "sign_off_video": "runtime/anthem_signoff.mp4",
+    "off_air_video": "runtime/off_air_pattern.mp4",
+    "standby_image": "runtime/standby.png",
     "monday": {
         "7": {"tags": "morning"},
         "8": {"tags": "morning"},

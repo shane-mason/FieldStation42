@@ -2,9 +2,10 @@ class ReceptionStatus(object):
     __we_are_all_one = {}
     chaos = 0
     thresh = 0.01
-    degrade_amount = 0.15
-    improve_amount = 0.2
+    degrade_amount = 0.1
+    improve_amount = 0.1
 
+    # NOTE: This is the borg singleton pattern - __we_are_all_one
     def __new__(cls, *args, **kwargs):
         obj = super(ReceptionStatus, cls).__new__(cls, *args, **kwargs)
         obj.__dict__ = cls.__we_are_all_one
@@ -24,13 +25,21 @@ class ReceptionStatus(object):
         return self.chaos == 1.0
 
 
-    def degrade(self):
-        self.chaos += self.degrade_amount
+    def degrade(self, override=0):
+        if override == 0:
+            self.chaos += self.degrade_amount
+        else:
+            self.chaos += override
+
         if self.chaos > 1.0:
             self.chaos = 1.0
 
-    def improve(self):
-        self.chaos-=self.improve_amount
+    def improve(self, override=0):
+        if override == 0:
+            self.chaos-=self.improve_amount
+        else:
+            self.chaos-=override
+
         if self.chaos < self.thresh:
             self.chaos = 0.0
 

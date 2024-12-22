@@ -47,6 +47,9 @@ class StationPlayer:
         self.index = 0
         self.reception = ReceptionStatus()
 
+    def show_text(self, text, duration=4):
+        self.mpv.command("show-text", text, duration)
+
     def shutdown(self):
         self.mpv.terminate()
 
@@ -115,7 +118,7 @@ class StationPlayer:
                 (index, offset) = self._find_index_at_offset(block_offset)
             except TypeError as e:
                 self._l.critical("Error getting index and offset - exiting playback")
-                return PlayerOutcome(PlayStatus.EXITED, e)
+                return PlayerOutcome(PlayStatus.FAILED, e)
 
             self._l.info(f"Calculated offsets index|offset = {index}|{offset}")
             self.index = index
@@ -143,8 +146,11 @@ class StationPlayer:
             #iterate over the slice from index to end
             for entry in self.playlist[self.index:]:
                 self._l.info(f"Playing entry {entry}")
+                
                 self.mpv.play(entry["path"])
                 self.mpv.wait_for_property("duration")
+                
+
                 wait_dur = entry['duration']
                 seek_dur = 0
 
@@ -155,7 +161,7 @@ class StationPlayer:
                 if offet_in_index:
                     seek_dur += offet_in_index
                     wait_dur -= offet_in_index
-                    #only on first index we process, so toggle it off
+                    #we process only on first index, so toggle it off
                     offet_in_index = 0
 
                 if seek_dur:
@@ -164,8 +170,7 @@ class StationPlayer:
 
                 if wait_dur:
                     self._l.info(f"Monitoring for: {wait_dur}")
-
-
+                    #self.show_text(f"Playing entry {entry}", 4)
                     #this is our main event loop
                     keep_waiting = True
                     stop_time = datetime.datetime.now() + datetime.timedelta(seconds=wait_dur)

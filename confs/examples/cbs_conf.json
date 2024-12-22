@@ -1,16 +1,20 @@
 {"station_conf" : {
     "network_name" : "CBS",
+    "channel_number": 5,
+    
     "catalog_path" : "catalog/cbs_catalog.bin",
     "content_dir" : "catalog/cbs_catalog",
-    "runtime_dir" : "runtime/cbs",
-    "schedule_path": "runtime/cbs_schedule.bin",
     "commercial_dir" : "commercial",
     "bump_dir" : "bump",
     "clip_shows" : ["60minutes", "sh_rock"],
-    "off_air_image": "runtime/nbc_offair.png",
-    "channel_number": 5,
-    "sign_off_video": "catalog/anthem_signoff.mp4",
-    "off_air_video": "catalog/off_air_pattern.mp4",
+
+    "runtime_dir" : "runtime/cbs",
+    "schedule_path": "runtime/cbs_schedule.bin",
+    "sign_off_video": "runtime/anthem_signoff.mp4",
+    "off_air_video": "runtime/off_air_pattern.mp4",
+    "off_air_image": "runtime/offair.png",
+    "standby_image": "runtime/standby.png",
+    
     "monday": {
         "7": {"tags": "morning"},
         "8": {"tags": "classic"},

@@ -46,6 +46,7 @@ fi
 
 echo Setting up runtime directory
 cp docs/static.mp4 runtime
+cp docs/standby.png runtime
 touch runtime/channel.socket
 
 if [ -d catalog ]; then
