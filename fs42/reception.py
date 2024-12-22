@@ -14,7 +14,6 @@ class ReceptionStatus(object):
     def __init__(self):
         pass
 
-
     def is_perfect(self):
         return self.chaos == 0.0
 

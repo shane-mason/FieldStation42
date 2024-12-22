@@ -73,7 +73,7 @@ def main_loop(transition_fn):
             logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
             outcome = player.play_slot(week_day, hour, skip, runtime_path=channel_conf["runtime_dir"])
 
-        logger.debug(f"Got outcome:{outcome.status}")
+        logger.debug(f"Got player outcome:{outcome.status}")
 
         # reset skip
         skip_play = False
@@ -119,7 +119,6 @@ def main_loop(transition_fn):
             
             if stuck_timer > 2 and "standby_image" in channel_conf:
                 player.play_file(channel_conf["standby_image"])
-                
                 
             
             time.sleep(1)
