@@ -81,6 +81,10 @@ If you don't want a remote button changer, like the antenna rotator box from the
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
+Note: if you are using a pico to along with command_input.py from FS42, you will need to install the serial module in your virtual env to communicate with the pico (see below)
+
+`pip3 install serial`
+
 ## Connecting to a TV
 The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HTMI->Composit or HDMI->RF adapter. These units are available online or at an electronic retailer.
 

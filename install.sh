@@ -35,6 +35,8 @@ env/bin/pip3 install moviepy
 
 env/bin/pip3 install python-mpv-jsonipc
 
+env/bin/pip3 install serial
+
 echo Creating folders
 
 if [ -d runtime ]; then
