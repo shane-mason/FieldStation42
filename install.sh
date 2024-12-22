@@ -35,7 +35,7 @@ env/bin/pip3 install moviepy
 
 env/bin/pip3 install python-mpv-jsonipc
 
-env/bin/pip3 install serial
+env/bin/pip3 install pyserial
 
 echo Creating folders
 
