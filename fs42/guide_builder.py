@@ -154,7 +154,7 @@ class GuideBuilder:
 
     def load_schedules(self, station_configs):
         for station_config in station_configs:
-            if 'network_type' in station_config and station_config['network_type'] == "guide":
+            if station_config['network_type'] != "standard":
                 pass
             else:
                 with open(station_config['schedule_path'], "rb") as f:
