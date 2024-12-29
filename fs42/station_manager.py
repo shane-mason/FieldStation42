@@ -14,6 +14,18 @@ class StationManager(object):
         if not len(self.stations):
             self.load_json_stations()
 
+    def station_by_name(self, name):
+        for station in self.stations:
+            if station["network_name"] == name:
+                return station
+        return None
+    
+    def station_by_channel(self, channel):
+        for station in self.stations:
+            if station["channel_number"] == channel:
+                return station
+        return None
+
     def index_from_channel(self, channel):
         index = 0
         for station in self.stations:

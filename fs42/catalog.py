@@ -10,9 +10,9 @@ from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
 try:
     #try to import from version > 2.0
     from moviepy import VideoFileClip
-except ImportError:
+except ImportError: 
     #fall back to import from version 1.0
-    from moviepy.editor import VideoFileClip
+    from moviepy.editor import VideoFileClip # type: ignore
 
 class bcolors:
     HEADER = '\033[95m'
@@ -25,8 +25,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-
-class ShowClip:
+class CatalogEntry:
     def __init__(self, path, duration, tag, hints=[]):
         self.path = path
         #get the show name from the path
@@ -39,7 +38,22 @@ class ShowClip:
     def __str__(self):
         return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {self.hints}"
 
+class ReelBlock:
+    def __init__(self, start_bump=None, comms=None, end_bump=None ):
+        self.start_bump = start_bump
+        self.comms = []
+        self.end_bump = end_bump
 
+    def duration(self):
+        dur = 0
+        if self.start_bump is not None:
+            dur += self.start_bump.duration
+        for comm in self.comms:
+            dur+= comm.duration
+        if self.end_bump is not None:
+            dur += self.end_bump.duration
+
+        
 class MatchingContentNotFound(Exception):
     pass
 
@@ -71,7 +85,7 @@ class ShowCatalog:
             ShowCatalog._logger.debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
             video_clip = VideoFileClip(fname)
-            show_clip = ShowClip(fname, video_clip.duration, tag, hints)
+            show_clip = CatalogEntry(fname, video_clip.duration, tag, hints)
             show_clip_list.append(show_clip)
             ShowCatalog._logger.debug(f"--_process_media is done with {fname}: {show_clip}")
 
@@ -171,16 +185,23 @@ class ShowCatalog:
         if 'sign_off_video' in self.config:
             self._l.debug(f"Adding sign-off video")
             video_clip = VideoFileClip(self.config["sign_off_video"])
-            self.clip_index['sign_off'] = ShowClip(self.config["sign_off_video"], video_clip.duration, 'sign_off')
+            self.clip_index['sign_off'] = CatalogEntry(self.config["sign_off_video"], video_clip.duration, 'sign_off')
             self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
             total_count+=1
 
         if "off_air_video" in self.config:
             self._l.debug(f"Adding off air video")
             video_clip = VideoFileClip(self.config["off_air_video"])
-            self.clip_index['off_air'] = ShowClip(self.config["off_air_video"], video_clip.duration, 'off_air')
+            self.clip_index['off_air'] = CatalogEntry(self.config["off_air_video"], video_clip.duration, 'off_air')
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count+=1
+
+        if "off_air_image" in self.config:
+            self._l.debug(f"Adding offair image")
+            self.clip_index['off_air_image'] = CatalogEntry(self.config['off_air_image'], MIN_5, 'off_air')
+            self._l.debug(f"Added off air image {self.config['off_air_image']}")
+            total_count+=1
+
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
         self._write_catalog()
 
@@ -231,6 +252,8 @@ class ShowCatalog:
     def get_offair(self):
         if 'off_air' in self.clip_index:
             return self.clip_index['off_air']
+        if 'off_air_image' in self.clip_index['off_air_image']:
+            return self.clip_index['off_air_image']
         return None
 
     def _lowest_count(self, candidates):
@@ -279,3 +302,65 @@ class ShowCatalog:
         if not len(self.clip_index[bump_tag]) and not len(self.clip_index[com_tag]):
             raise NoFillerContentFound("Can't find filler - add commercials and bumps...")
         return self.find_candidate(random.choice([bump_tag, com_tag, com_tag]), seconds, when)
+
+    def find_bump(self, seconds, when):
+        bump_tag = self.config['bump_dir']
+
+        if not len(self.clip_index[bump_tag]):
+            raise NoFillerContentFound("Can't find filler - add bumps...")
+        return self.find_candidate(bump_tag, seconds, when)
+
+    def find_commercial(self, seconds, when):
+        com_tag = self.config['commercial_dir']
+
+        if not len(self.clip_index[com_tag]):
+            raise NoFillerContentFound("Can't find filler - add commercials...")
+        return self.find_candidate(com_tag, seconds, when)                
+
+    #makes blocks of reels in bump-commercial-commercial-bump format
+    def make_reel_block(self, when,  bumpers=True, max_bumper_duration=60, max_commercial_duration=90, target_duration=120):
+        reels = []
+        remaining = target_duration
+        start_candidate = None
+        end_candidate = None
+        if bumpers:
+            start_candidate = self.find_bump(max_bumper_duration, when)
+            end_candidate = self.find_bump(max_bumper_duration, when)
+            remaining -= start_candidate.duration
+            remaining -= end_candidate.duration
+            reels.append(start_candidate)
+        
+        #aim for lower and should average close over time
+        while remaining > (target_duration *.1):
+            candidate = self.find_commercial(max_commercial_duration, when)
+            remaining -= candidate.duration
+            reels.append(candidate)
+        if end_candidate is not None:
+            reels.append(end_candidate)
+
+        return ReelBlock(start_candidate, end_candidate, reels)
+
+    def make_reel_fill(self, when, length, bumpers=True):
+        remaining = length
+        blocks = []
+        while remaining:
+            block = self.make_reel_block(when, bumpers)
+            
+            if (remaining - block.duration()) > 0:
+                blocks.append(block)
+            else:
+                #discard that block and fill using the tightest technique possible
+                keep_going = True
+                additional_reels = []
+                while remaining and keep_going:
+                    candidate = self.find_commercial(when, remaining)
+                    if candidate:
+                        additional_reels.append(candidate)
+                if len(additional_reels):
+                    blocks.append(ReelBlock(None, additional_reels, None))
+        
+            
+
+                    
+                
+
