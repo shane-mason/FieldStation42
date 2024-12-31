@@ -39,11 +39,15 @@ class CatalogEntry:
         return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {self.hints}"
 
 class ReelBlock:
-    def __init__(self, start_bump=None, comms=None, end_bump=None ):
+    def __init__(self, start_bump=None, comms=[], end_bump=None ):
         self.start_bump = start_bump
-        self.comms = []
+        self.comms = comms
         self.end_bump = end_bump
 
+    def __str__(self):
+        return f"ReelBlock: {self.duration} {len(self.comms)}"
+
+    @property
     def duration(self):
         dur = 0
         if self.start_bump is not None:
@@ -52,6 +56,7 @@ class ReelBlock:
             dur+= comm.duration
         if self.end_bump is not None:
             dur += self.end_bump.duration
+        return dur
 
         
 class MatchingContentNotFound(Exception):
@@ -102,7 +107,7 @@ class ShowCatalog:
             this_format = glob.glob(f"{path}/*.{ext}")
             file_list += this_format
             ShowCatalog._logger.debug(f"--Found {len(this_format)} files with {ext} extension - {len(file_list)} total found in {path} so far")
-
+ 
         ShowCatalog._logger.debug(f"_find_media done scanning {path} {len(file_list)}")
         return file_list
 
@@ -328,17 +333,15 @@ class ShowCatalog:
             end_candidate = self.find_bump(max_bumper_duration, when)
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
-            reels.append(start_candidate)
+            
         
         #aim for lower and should average close over time
         while remaining > (target_duration *.1):
             candidate = self.find_commercial(max_commercial_duration, when)
             remaining -= candidate.duration
             reels.append(candidate)
-        if end_candidate is not None:
-            reels.append(end_candidate)
-
-        return ReelBlock(start_candidate, end_candidate, reels)
+        
+        return ReelBlock(start_candidate, reels, end_candidate)
 
     def make_reel_fill(self, when, length, bumpers=True):
         remaining = length
@@ -346,18 +349,30 @@ class ShowCatalog:
         while remaining:
             block = self.make_reel_block(when, bumpers)
             
-            if (remaining - block.duration()) > 0:
+            if (remaining - block.duration) > 0:
+                remaining -= block.duration
                 blocks.append(block)
             else:
                 #discard that block and fill using the tightest technique possible
                 keep_going = True
                 additional_reels = []
                 while remaining and keep_going:
-                    candidate = self.find_commercial(when, remaining)
-                    if candidate:
+                    candidate = None
+                    try:
+                        candidate = self.find_commercial(remaining, when)
+                    except:
+                        pass
+
+                    if candidate is not None:
                         additional_reels.append(candidate)
+                        remaining-=candidate.duration
+                    else:
+                        keep_going = False
+                        remaining = 0
+
                 if len(additional_reels):
                     blocks.append(ReelBlock(None, additional_reels, None))
+        return blocks
         
             
 

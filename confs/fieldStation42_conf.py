@@ -1,5 +1,4 @@
 import json
-import os
 
 main_conf = {
     # this is the old approach using python module - this method is no longer supported and may be removed in the future
@@ -29,8 +28,13 @@ def load_json_stations():
             try:
                 d = json.load(f)
                 if "network_type" not in d['station_conf']:
-                    print(f"Setting network type to standard for {d['station_conf']['network_name']}")
+                    print(f"Auto setting network type to standard for {d['station_conf']['network_name']}")
                     d['station_conf']["network_type"] = "standard"
+                
+                if "schedule_increment" not in d['station_conf']:
+                    print(f"Auto setting increment buffer to 30 minutes for {d['station_conf']['network_name']}")
+                    d['station_conf']["schedule_increment"] = 30
+                    
                 stations.append(d['station_conf'])
             except Exception as e:
                 print(f"Error loading station configuration: {fname}")

@@ -6,7 +6,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', lev
 
 import datetime
 import calendar
-import copy
+import math
 
 from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
@@ -35,14 +35,15 @@ class LiquidBlock():
 
     def make_plan(self, catalog:ShowCatalog):
         diff = self.playback_duration() - self.content_duration()
-        if diff < 0:
-            raise(ValueError("Schedule logic error: duration is greater than content"))
-        if diff > 0: 
+        reel_blocks = None
+        if diff < -2:
+            err = f"Schedule logic error: duration requested {self.playback_duration()} is less than content {self.content_duration()}"
+            err += f" for show named: {self.content.title}"
+            raise(ValueError(err))
+        if diff > 2: 
             reel_blocks = catalog.make_reel_fill(self.start_time, diff)
-            print(reel_blocks)
-
-
-
+        
+        return reel_blocks
 
 class LiquidClipBlock(LiquidBlock):
 
@@ -58,6 +59,10 @@ class LiquidClipBlock(LiquidBlock):
             dur += clip.duration
         return dur
 
+class LiquidOffAirBlock(LiquidBlock):
+
+    def __init__(self, content, start_time, end_time):
+        super().__init__(content, start_time, end_time)
     
 class LiquidSchedule():
 
@@ -66,12 +71,13 @@ class LiquidSchedule():
         self.conf = TagHintReader.smooth_tags(conf)
         self.catalog = ShowCatalog(conf)
         self._blocks = self._load_blocks()
-        
-    def _calc_duration(self, content_runtime):
-        if self.conf['network_type'] == "flow":
-            return content_runtime
-        
-        #  
+
+
+    def _calc_target_duration(self, duration):
+        multiple = self.conf['schedule_increment'] * 60
+        if multiple == 0:
+            return duration
+        return multiple * math.ceil(duration / multiple)
 
     def _load_blocks(self):
         return []
@@ -104,20 +110,27 @@ class LiquidSchedule():
                 #make offair
                 pass 
 
-    def add_fluid(self, end_target):
-        current_mark = self._end_time()
+    def add_fluid(self, start_time, end_target):
+        #current_mark = self._end_time()
+        current_mark = start_time
         if current_mark is None:
             current_mark = datetime.datetime.now()
 
         while current_mark < end_target:
             print(f"Current mark: {current_mark} {current_mark.weekday()} {current_mark.hour}")
             tag = TagHintReader.get_tag(self.conf, current_mark.weekday(), current_mark.hour)
+
             if tag is not None:
                 candidate = self.catalog.find_candidate(tag, timings.HOUR*23, current_mark)
                 if candidate is None:
                     #this should only happen on an error (have a tag, but no candidate)
-                    self._l.error(f"Could not find content for tag {tag} - please add content, chech your configuration and retry")
+                    self._l.error(f"Could not find content for tag {tag} - please add content, check your configuration and retry")
                     sys.exit(-1)
+                else:
+                    self._l.info(f"Candidate = {candidate.title}")
+                    target_duration = self._calc_target_duration(candidate.duration)
+                    next_mark = current_mark + datetime.timedelta(seconds=target_duration)
+                    self._blocks.append(LiquidBlock(candidate, current_mark, next_mark))
             else:
                 #then we are offair - get offair video
                 candidate = self.catalog.get_offair()
@@ -127,14 +140,25 @@ class LiquidSchedule():
                     self._l.error(f"Configure 'off_air_video' or 'off_air_image' for {self.conf['network_name']}")
                     sys.exit(-1)
                 
+                next_mark = current_mark + datetime.timedelta(seconds=candidate.duration)
+                self._blocks.append(LiquidOffAirBlock(candidate, current_mark, next_mark))
 
-            next_mark = current_mark + datetime.timedelta(seconds=candidate.duration)
-            self._blocks.append(LiquidBlock(candidate, current_mark, next_mark))
             current_mark = next_mark
-
+            
+    def make_plans(self):
+        for block in self._blocks:
+            print(f"Block content: {block.content.title} {block.content.duration}")
+            plan = block.make_plan(self.catalog)
+            duration = 0
+            for reelblock in plan:
+                duration += reelblock.duration
+            print(f"Realblock duration: {duration}")
 
 
 #print(calendar.monthrange(2024, 12))
 conf = StationManager().station_by_name("indie42")
 liq = LiquidSchedule(conf)
-liq.add_fluid(datetime.datetime.now() + datetime.timedelta(days=1))
+start = datetime.datetime.now().replace(hour=timings.OPERATING_HOURS[1], minute=0, second=0, microsecond=0)
+liq.add_fluid(start, start + datetime.timedelta(hours=3))
+liq.make_plans()
+
