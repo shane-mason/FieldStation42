@@ -145,8 +145,8 @@ class Station42:
 
         return schedule
 
+def main():
 
-if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Schedule Generation')
     parser.add_argument('-c', '--check_catalogs', action='store_true', help='Check catalogs, print report and exit.')
     parser.add_argument('-l', '--logfile', help='Set logging to use output file - will append each run')
@@ -194,7 +194,8 @@ if __name__ == "__main__":
     if args.printcat and not found_print_target:
         logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")
 
-
+if __name__ == "__main__":
+    main()
 
 
 

@@ -6,6 +6,7 @@ import sys
 import random
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
+from fs42.liquid_blocks import ReelBlock
 
 try:
     #try to import from version > 2.0
@@ -37,27 +38,6 @@ class CatalogEntry:
 
     def __str__(self):
         return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {self.hints}"
-
-class ReelBlock:
-    def __init__(self, start_bump=None, comms=[], end_bump=None ):
-        self.start_bump = start_bump
-        self.comms = comms
-        self.end_bump = end_bump
-
-    def __str__(self):
-        return f"ReelBlock: {self.duration} {len(self.comms)}"
-
-    @property
-    def duration(self):
-        dur = 0
-        if self.start_bump is not None:
-            dur += self.start_bump.duration
-        for comm in self.comms:
-            dur+= comm.duration
-        if self.end_bump is not None:
-            dur += self.end_bump.duration
-        return dur
-
         
 class MatchingContentNotFound(Exception):
     pass
@@ -323,7 +303,7 @@ class ShowCatalog:
         return self.find_candidate(com_tag, seconds, when)                
 
     #makes blocks of reels in bump-commercial-commercial-bump format
-    def make_reel_block(self, when,  bumpers=True, max_bumper_duration=60, max_commercial_duration=90, target_duration=120):
+    def make_reel_block(self, when,  bumpers=True, max_bumper_duration=120, max_commercial_duration=120, target_duration=120):
         reels = []
         remaining = target_duration
         start_candidate = None

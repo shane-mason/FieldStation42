@@ -40,6 +40,19 @@ class TagHintReader():
         return smoothed
 
 
+    @staticmethod
+    def complete_state(conf):
+        onair_state = None
+        completed = copy.deepcopy
+        for day_index in timings.DAYS:
+            for slot_index in timings.OPERATING_HOURS:
+                #did we transition? if so, mark it
+                if slot_index in conf[day_index]:
+                    #then onair
+                    pass
+                else:
+                    #then offair
+                    pass
 
 #all temporal hints should implement this interface
 class TemporalHint:
