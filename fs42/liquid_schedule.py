@@ -85,6 +85,7 @@ class LiquidSchedule():
                     sys.exit(-1)
                 
                 #make it for one hour.
+                #TODO: handle when it starts at half hour - just go to next hour (not always one hour)
                 next_mark = current_mark + datetime.timedelta(hours=1)
                 new_blocks.append(LiquidOffAirBlock(candidate, current_mark, next_mark))
 
@@ -144,6 +145,9 @@ class LiquidSchedule():
 #print(calendar.monthrange(2024, 12))
 #conf = StationManager().station_by_name("indie42")
 #liq = LiquidSchedule(conf)
+#liq.add_week()
+#liq.print_schedule()
+
 #start = datetime.datetime.now().replace(hour=timings.OPERATING_HOURS[0], minute=0, second=0, microsecond=0)
 #datetime.datetime.now()
 #liq._fluid(start, start + datetime.timedelta(hours=10000))
