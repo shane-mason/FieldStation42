@@ -2,16 +2,9 @@ import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 from fs42.catalog import ShowCatalog
-from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
-import pickle
-import json
-import os
-import glob
-import random
-import datetime
 import argparse
 
 class Station42:
@@ -51,6 +44,17 @@ def main():
 
         logging.getLogger().addHandler(fh)
 
+    if args.schedule_summary:
+        logging.getLogger().info(f"Printing shedule summary.")
+        print(LiquidManager().get_summary())
+        return
+    
+    if args.delete_schedules:
+        logging.getLogger().info(f"Deleting all schedules")
+        LiquidManager().reset_all_schedules()
+        logging.getLogger().info(f"All schedules deleted")
+        return
+
     found_print_target = False
 
     for station_conf in StationManager().stations:
@@ -62,12 +66,6 @@ def main():
                 logging.getLogger().info(f"Printing catalog for {station_conf['network_name']}")
                 Station42(station_conf, args.rebuild_catalog).print_catalog()
                 found_print_target = True
-        elif args.schedule_summary:
-            logging.getLogger().info(f"Printing shedule summary.")
-            print(LiquidManager().get_summary())
-        elif args.delete_schedules:
-            logging.getLogger().info(f"Deleting all schedules")
-            LiquidManager().reset_all_schedules()
         else:
             logging.getLogger().info(f"Loading catalog for {station_conf['network_name']}")
             station = Station42(station_conf, args.rebuild_catalog)

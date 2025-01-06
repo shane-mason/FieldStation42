@@ -2,8 +2,7 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from fs42.timings import OPERATING_HOURS, DAYS
-from fs42.show_block import ShowBlock, ClipBlock, MovieBlocks, ContinueBlock
+from fs42.timings import DAYS
 from fs42.station_manager import StationManager
 import json
 import pickle

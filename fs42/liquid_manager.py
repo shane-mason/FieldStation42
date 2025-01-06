@@ -48,7 +48,8 @@ class LiquidManager(object):
 
     def reset_all_schedules(self):
         for station in self.stations:
-            os.unlink(station["schedule_path"])
+            if os.path.exists(station["schedule_path"]):
+                os.unlink(station["schedule_path"])
         self._load_schedules()
 
     def get_extents(self, network_name):
@@ -72,7 +73,7 @@ class LiquidManager(object):
     def get_programming_block(self, network_name, when):
         (start, end) = self.get_extents(network_name)
 
-        #hanle no schedule
+        #handle no schedule
         if start is None or end is None:
             raise ScheduleNotFound(f"Schedule doesn't exist for {network_name}")
         #handle not in bounds

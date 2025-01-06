@@ -354,7 +354,25 @@ class ShowCatalog:
                     blocks.append(ReelBlock(None, additional_reels, None))
         return blocks
         
+    def gather_clip_content(self, tag, duration, when):
+        current_duration = 0
+        keep_going = True
+        clips = []
+        while keep_going:
+            try:
+                candidate = self.find_candidate(tag, duration - current_duration, when)
+                current_duration+=candidate.duration
+                clips.append(candidate)
+            except MatchingContentNotFound as e:
+                if len(clips) == 0:
+                    #then there isn't any valid content at all.
+                    raise e
+                keep_going = False
+        return clips
+
             
+
+
 
                     
                 

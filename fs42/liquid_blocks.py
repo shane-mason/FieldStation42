@@ -36,14 +36,15 @@ class ReelCutter:
             # then don't cut the base at all
             for clip in clips:
                 entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
-            if len(reel_blocks == 1):
+            if len(reel_blocks) == 1:
                 #and put the reel at the end if there is one
                 entries += reel_blocks[0].make_plan()
         else:
             
             clips_per_segment = len(clips)/break_count
 
-            for i in range(clips):
+            for i in range(len(clips)):
+                clip = clips[i]
                 entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
                 if (i % clips_per_segment) == 0:
                     reel = reel_blocks.pop(0)
