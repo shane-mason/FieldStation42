@@ -59,14 +59,13 @@ class ReelCutter:
 class BlockPlanEntry:
     def __init__(self, file_path, skip=0, duration=-1):
         self.path = file_path
-        self.start = skip
+        self.skip = skip
         self.duration = duration
 
     def __str__(self):
-        return f"{self.path} >> {self.start} >> {self.duration}"
+        return f"{self.path} >> {self.skip} >> {self.duration}"
         
     
-
 class LiquidBlock():
 
     def __init__(self, content, start_time, end_time):
@@ -103,7 +102,6 @@ class LiquidBlock():
         if diff > 2: 
             self.reel_blocks = catalog.make_reel_fill(self.start_time, diff)
 
-
         self.plan = ReelCutter.cut_reels_into_base(self.content, self.reel_blocks, 0, self.content_duration())
         
 
@@ -122,8 +120,7 @@ class LiquidClipBlock(LiquidBlock):
             dur += clip.duration
         return dur
     
-    def make_plan(self, catalog):
-        
+    def make_plan(self, catalog):   
         self.plan = []
         #first, collect any reels (commercials and bumps) we might need to buffer to the requested duration
         diff = self.playback_duration() - self.content_duration()

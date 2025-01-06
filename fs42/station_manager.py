@@ -13,6 +13,7 @@ class StationManager(object):
     def __init__(self):
         if not len(self.stations):
             self.load_json_stations()
+            self.server_conf = {"channel_socket": "runtime/channel.socket"}
 
     def station_by_name(self, name):
         for station in self.stations:

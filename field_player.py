@@ -6,7 +6,6 @@ import signal
 import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
-from confs.fieldStation42_conf import main_conf
 from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket
@@ -22,7 +21,8 @@ def main_loop(transition_fn):
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
 
-    channel_socket = main_conf['channel_socket']
+    channel_socket = StationManager().server_conf['channel_socket']
+
     #go ahead and clear the channel socket (or create if it doesn't exist)
     with open(channel_socket, 'w'):
         pass
@@ -71,7 +71,7 @@ def main_loop(transition_fn):
             skip = now.minute * MIN_1 + now.second
             #skip = 60 * 59
             logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
-            outcome = player.play_slot(week_day, hour, skip, runtime_path=channel_conf["runtime_dir"])
+            outcome = player.play_slot(channel_conf['network_name'],datetime.datetime.now())
 
         logger.debug(f"Got player outcome:{outcome.status}")
 

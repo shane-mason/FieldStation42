@@ -4,6 +4,8 @@ logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.I
 from fs42.catalog import ShowCatalog
 from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2, OPERATING_HOURS
 from fs42.station_manager import StationManager
+from fs42.liquid_manager import LiquidManager
+from fs42.liquid_schedule import LiquidSchedule
 import pickle
 import json
 import os
@@ -22,8 +24,6 @@ class Station42:
         self.print_catalog = self.catalog.print_catalog
         self.check_catalog = self.catalog.check_catalog
 
-
-
 def main():
 
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Liquid-Schedule Generation')
@@ -34,7 +34,9 @@ def main():
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )
     parser.add_argument('-d', '--add_day', action='store_true', help='Add one day to all schedules' )
-    parser.add_argument('-x', '--delete_schedules', help='Delete schedules (not catalogs)' )
+    parser.add_argument('-s', '--schedule', action='store_true', help='Initialize and align schedules across all stations.' )
+    parser.add_argument('-t', '--schedule_summary', action='store_true', help='Summarize schedules across all stations' )
+    parser.add_argument('-x', '--delete_schedules', action='store_true', help='Delete all schedules (but not catalogs)' )
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
     args = parser.parse_args()
@@ -49,7 +51,6 @@ def main():
 
         logging.getLogger().addHandler(fh)
 
-
     found_print_target = False
 
     for station_conf in StationManager().stations:
@@ -61,8 +62,12 @@ def main():
                 logging.getLogger().info(f"Printing catalog for {station_conf['network_name']}")
                 Station42(station_conf, args.rebuild_catalog).print_catalog()
                 found_print_target = True
+        elif args.schedule_summary:
+            logging.getLogger().info(f"Printing shedule summary.")
+            print(LiquidManager().get_summary())
         elif args.delete_schedules:
-            pass
+            logging.getLogger().info(f"Deleting all schedules")
+            LiquidManager().reset_all_schedules()
         else:
             logging.getLogger().info(f"Loading catalog for {station_conf['network_name']}")
             station = Station42(station_conf, args.rebuild_catalog)
@@ -73,8 +78,15 @@ def main():
             else:
                 logging.getLogger().info(f"Making schedule for {station_conf['network_name']}")
                 #schedule = station.make_weekly_schedule()
-
-
+                liquid = LiquidSchedule(station_conf)
+                if args.add_day:
+                    liquid.add_days(1)
+                elif args.add_week:
+                    liquid.add_week()
+                elif args.add_month:
+                    liquid.add_month()
+                else:
+                    logging.getLogger().error("Nothing to do - use -h --help to see options")
 
     if args.printcat and not found_print_target:
         logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")
