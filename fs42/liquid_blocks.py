@@ -1,85 +1,25 @@
-
 import datetime
 
-class ReelCutter:
-    @staticmethod
-    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration):
-        entries = []
-        break_count = 0
+from fs42.reel_cutter import ReelCutter
+from fs42.block_plan import BlockPlanEntry
 
-        if reel_blocks:
-            break_count = len(reel_blocks)
-        
-        if break_count <= 1:
-            # then don't cut the base at all
-            entries.append(BlockPlanEntry(base_clip.path, base_offset, base_duration))
-            if reel_blocks and len(reel_blocks) == 1:
-                #and put the reel at the end if there is one
-                entries += reel_blocks[0].make_plan()
-        else:
-            
-            segment_duration = base_clip.duration / break_count
-            offset = base_offset
-
-            for i in range(break_count):
-                entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
-                entries += reel_blocks[i].make_plan()
-                offset += segment_duration
-
-        return entries
-    
-    @staticmethod
-    def cut_reels_into_clips(clips, reel_blocks, base_offset, base_duration):
-        entries = []
-        break_count = len(reel_blocks)
-        if break_count <= 1:
-            # then don't cut the base at all
-            for clip in clips:
-                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
-            if len(reel_blocks) == 1:
-                #and put the reel at the end if there is one
-                entries += reel_blocks[0].make_plan()
-        else:
-            
-            clips_per_segment = len(clips)/break_count
-
-            for i in range(len(clips)):
-                clip = clips[i]
-                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
-                if (i % clips_per_segment) == 0:
-                    reel = reel_blocks.pop(0)
-                    entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
-            
-            while len(reel_blocks):
-                reel = reel_blocks.pop(0)
-                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))                
-
-        return entries
-
-
-class BlockPlanEntry:
-    def __init__(self, file_path, skip=0, duration=-1):
-        self.path = file_path
-        self.skip = skip
-        self.duration = duration
-
-    def __str__(self):
-        return f"{self.path} >> {self.skip} >> {self.duration}"
-        
-    
 class LiquidBlock():
 
-    def __init__(self, content, start_time, end_time):
+    def __init__(self, content, start_time, end_time, title=None):
         self.content = content
         #the requested starting time
         self.start_time = start_time
         #the expected/requested end time
         self.end_time = end_time
+        if title is None and type(content) is not list:
+            self.title = content.title
+        else:
+            self.title = title
         self.reel_blocks = None
         self.plan = None
 
     def __str__(self):
-        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.content.title}"
+        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
 
     def content_duration(self):
         return self.content.duration
@@ -109,12 +49,15 @@ class LiquidBlock():
     
 class LiquidClipBlock(LiquidBlock):
 
-    def __init__(self, content, start_time, end_time):
+    def __init__(self, content, start_time, end_time, title=None):
         if type(content) is list:
-            super().__init__(content, start_time, end_time)
+            super().__init__(content, start_time, end_time, title)
         else:
             raise(TypeError(f"LiquidClipBlock required content of type list. Got {type(content)} instead"))
-        
+
+    def __str__(self):
+        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.content.title}"
+
     def content_duration(self):
         dur = 0
         for clip in self.content:
@@ -138,8 +81,8 @@ class LiquidClipBlock(LiquidBlock):
 
 class LiquidOffAirBlock(LiquidBlock):
 
-    def __init__(self, content, start_time, end_time):
-        super().__init__(content, start_time, end_time)
+    def __init__(self, content, start_time, end_time, title=None):
+        super().__init__(content, start_time, end_time, title)
 
     def make_plan(self, catalog):
         self.plan = []
@@ -154,6 +97,32 @@ class LiquidOffAirBlock(LiquidBlock):
                 duration -= delta.total_seconds()
 
             self.plan.append(BlockPlanEntry(self.content.path, 0, duration))
+
+class LiquidLoopBlock(LiquidBlock):
+    
+    def __init__(self, content, start_time, end_time, title=None):
+        super().__init__(content, start_time, end_time, title)
+
+    def make_plan(self, catalog):
+        entries = []
+        keep_going = True
+        current_mark:datetime.datetime = self.start_time
+        next_mark:datetime.datetime = None
+        current_index = 0
+        while keep_going:
+            clip = self.content[current_index]
+            next_mark = current_mark + datetime.timedelta(seconds=clip.duration)
+            if next_mark < self.end_time:
+                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
+                current_index += 1
+                if current_index >= len(self.content):
+                    current_index = 0
+            else:
+                keep_going = False
+            current_mark = next_mark
+        self.plan = entries
+        
+            
 
 class ReelBlock:
     def __init__(self, start_bump=None, comms=[], end_bump=None ):

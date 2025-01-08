@@ -4,6 +4,8 @@ sys.path.append(os.getcwd())
 
 from fs42.timings import DAYS
 from fs42.station_manager import StationManager
+from fs42.liquid_manager import LiquidManager
+from fs42.liquid_blocks import LiquidBlock
 import json
 import pickle
 import datetime
@@ -20,51 +22,53 @@ def normalize_video_title(title):
 
 class PreviewBlock:
 
-    def __init__(self, title, width=1, continuation=False):
+    def __init__(self, title, width=1):
         self.title = title
-        self.continuation = continuation
         self.width = width
         self.started_earlier = False
         self.ends_later = False
-        self.is_back_half = False
 
     def __repr__(self):
-        return f"{self.title}:{self.width}|{self.continuation}"
+        return f"{self.title}: width={self.width} started={self.started_earlier} later={self.ends_later}"
 
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__)
 
 class ScheduleQuery:
-
-    def query_slot(schedule, day, hour):
+    @staticmethod
+    def query_slot(network_name, when):
+        start_marker = when
+        current_marker = start_marker
+        next_marker = start_marker
+        end_target = start_marker + datetime.timedelta(hours=1, minutes=30)
         blocks = []
-        for i in [0,1]:
-            slot_key = hour + i
-            if slot_key >= 24:
-                slot_key = 0
-            show = schedule[day][str(slot_key)]
-            if isinstance(show, ShowBlock):
-                title = normalize_video_title(show.front.title)
-                if show.back:
-                    blocks.append(PreviewBlock(title))
-                    back_title = normalize_video_title(show.back.title)
-                    back = PreviewBlock(back_title)
-                    back.is_back_half = True
-                    blocks.append(back)
-                else:
-                    #then it gets the whole hour
-                    blocks.append(PreviewBlock(title, 2))
+        keep_going = True
 
-            elif isinstance(show, ClipBlock):
-                title = normalize_video_title(show.title)
-                blocks.append(PreviewBlock(title,2))
-            elif isinstance(show, MovieBlocks):
-                title = normalize_video_title(show.title)
-                blocks.append(PreviewBlock(title, 4))
-                break;
-            elif isinstance(show, ContinueBlock):
-                title = normalize_video_title(show.title)
-                blocks.append(PreviewBlock(title, 2, True))
+        while keep_going:
+            programming_block:LiquidBlock = LiquidManager().get_programming_block(network_name, current_marker)
+
+            total_duration = programming_block.playback_duration()
+            remaining_duration = datetime.timedelta(seconds=total_duration)
+            started_earlier = False
+            ends_later = False
+            if programming_block.start_time < start_marker:
+                remaining_duration = programming_block.end_time - start_marker
+                started_earlier = True
+
+            next_marker = current_marker +  remaining_duration + datetime.timedelta(seconds=1)
+
+            if next_marker > end_target:
+                ends_later = True
+
+            _block = PreviewBlock(normalize_video_title(programming_block.title))
+            _block.started_earlier = started_earlier
+            _block.ends_later = ends_later
+            _block.width = remaining_duration.total_seconds()
+            blocks.append(_block)
+            if next_marker > end_target:
+                keep_going = False  
+            
+            current_marker = next_marker
 
         return blocks
 
@@ -72,7 +76,6 @@ class ScheduleQuery:
 class GuideBuilder:
     def __init__(self, num_blocks=3, template_dir="fs42/guide_render/templates/", static_dir="fs42/guide_render/static/"):
         # ordered array of {"conf": station_config, "schedule": schedule}
-        self.station_schedules = []
         self.num_blocks = num_blocks
         self.template_dir = template_dir
         self.static_dir = static_dir
@@ -84,41 +87,24 @@ class GuideBuilder:
         now = datetime.datetime.now()
         week_day = DAYS[now.weekday()]
         hour = now.hour
-        past_half = now.minute>30
+
+
+        if now.minute>30:
+            past_half = True
+            start_time = now.replace(minute=30, second=0, microsecond=0)
+        else:
+            past_half = False
+            start_time = now.replace(minute=30, second=0, microsecond=0)
 
         #stations are a row
-        for station in self.station_schedules:
+        for station in StationManager().stations:
+            if station['network_type'] == "guide":
+                continue
+            entries = ScheduleQuery.query_slot(station['network_name'], start_time)
 
-            entries = ScheduleQuery.query_slot(station['schedule'], week_day, hour)
-
-            #is already past the half hour, remove one block from front
-            if past_half:
-
-                entries[0].width -= 1
-                #only back halfs would not have started started_earlier
-
-                if entries[0].width > 0:
-                    entries[0].started_earlier
-
-
-            #now trim the entries to only contain 3 blocks
-            count = 0
-            filtered = []
-            for entry in entries:
-                if count + entry.width <= self.num_blocks:
-                    count += entry.width
-                    filtered.append(entry)
-                elif count < self.num_blocks:
-                    entry.ends_later = True
-                    entry.width = self.num_blocks-count
-                    filtered.append(entry)
-                    count = self.num_blocks
-                if count >= self.num_blocks:
-                    break
-
-            view['rows'].append(filtered)
-            network_name = station['conf']['network_name']
-            channel_number = station['conf']['channel_number']
+            view['rows'].append(entries)
+            network_name = station['network_name']
+            channel_number = station['channel_number']
             view['meta'].append({"network_name": network_name, "channel_number": channel_number})
 
 
@@ -151,18 +137,9 @@ class GuideBuilder:
         return view
 
 
-    def load_schedules(self, station_configs):
-        for station_config in station_configs:
-            if station_config['network_type'] != "standard":
-                pass
-            else:
-                with open(station_config['schedule_path'], "rb") as f:
-                    full_schedule  = pickle.load(f)
-                    self.station_schedules.append({"conf": station_config, "schedule": full_schedule})
-
 
 if __name__ == "__main__":
     gb = GuideBuilder()
-    gb.load_schedules(StationManager().stations)
-    gb.render()
+    gb.build_view()
+
 

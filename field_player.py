@@ -13,7 +13,7 @@ from fs42.reception import ReceptionStatus
 
 #from fs42.guide_channel import guide_channel_runner, GuideCommands
 
-debounce_fragment = 0.05
+debounce_fragment = 0.1
 
 def main_loop(transition_fn):
     manager = StationManager()
@@ -117,7 +117,7 @@ def main_loop(transition_fn):
             
             stuck_timer+=1
             
-            if stuck_timer > 2 and "standby_image" in channel_conf:
+            if stuck_timer > 5 and "standby_image" in channel_conf:
                 player.play_file(channel_conf["standby_image"])
                 
             
@@ -145,7 +145,7 @@ def short_change_effect(player, reception ):
     reception.improve_amount = 0
 
     while not reception.is_degraded():
-        reception.degrade(.3)
+        reception.degrade(.2)
         player.update_filters()
         time.sleep(debounce_fragment)
     

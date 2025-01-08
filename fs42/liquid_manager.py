@@ -37,19 +37,21 @@ class LiquidManager(object):
     def _load_schedules(self):
         self.schedules = {}
         for station in self.stations:
-            #self.schedules[station['station_id']] 
-            _id = station['network_name']
-            _path = station['schedule_path']
-            if os.path.isfile(_path):
-                with open(_path, "rb") as f:
-                    self.schedules[_id] = pickle.load(f)
-            else:
-                self.schedules[_id] = []
+            if station['network_type'] != 'guide':
+                _id = station['network_name']
+                _path = station['schedule_path']
+                if os.path.isfile(_path):
+                    with open(_path, "rb") as f:
+                        self.schedules[_id] = pickle.load(f)
+                else:
+                    self.schedules[_id] = []
 
+    
     def reset_all_schedules(self):
         for station in self.stations:
-            if os.path.exists(station["schedule_path"]):
-                os.unlink(station["schedule_path"])
+            if station['network_type'] != "guide":
+                if os.path.exists(station["schedule_path"]):
+                    os.unlink(station["schedule_path"])
         self._load_schedules()
 
     def get_extents(self, network_name):
@@ -83,9 +85,11 @@ class LiquidManager(object):
         else:
             #go through each block until we find the correct position (when > block start and < block end)
             for _block in self.schedules[network_name]:
-                if when > _block.start_time and when < _block.end_time:
+                
+                if when >= _block.start_time and when <= _block.end_time:
                     #this is it, no need to keep going
                     return _block
+        
                 
     def get_play_point(self, network_name, when):
         #get the block and get plan
@@ -107,7 +111,19 @@ class LiquidManager(object):
             current_mark = next_mark
             found_index+=1
 
-                
+    def print_schedule(self, network_name, when):
+        when_day = when.timetuple().tm_yday
+        for _block in self.schedules[network_name]:
+            _block_day = _block.start_time.timetuple().tm_yday
+            if when_day == _block_day:
+                print(_block)
+                current_mark = _block.start_time
+                next_mark = current_mark
+                #for _entry in _block.plan:
+                #    next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
+                #    print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
+                #    current_mark = next_mark
+
   
 
 

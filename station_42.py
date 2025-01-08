@@ -1,5 +1,6 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+import datetime
 
 from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
@@ -29,6 +30,7 @@ def main():
     parser.add_argument('-d', '--add_day', action='store_true', help='Add one day to all schedules' )
     parser.add_argument('-s', '--schedule', action='store_true', help='Initialize and align schedules across all stations.' )
     parser.add_argument('-t', '--schedule_summary', action='store_true', help='Summarize schedules across all stations' )
+    parser.add_argument('-u', '--print_schedule', help='Print network schedule for current day (for debugging)' )
     parser.add_argument('-x', '--delete_schedules', action='store_true', help='Delete all schedules (but not catalogs)' )
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
@@ -53,6 +55,10 @@ def main():
         logging.getLogger().info(f"Deleting all schedules")
         LiquidManager().reset_all_schedules()
         logging.getLogger().info(f"All schedules deleted")
+        return
+
+    if args.print_schedule:
+        LiquidManager().print_schedule(args.print_schedule, datetime.datetime.now())
         return
 
     found_print_target = False

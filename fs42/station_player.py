@@ -97,7 +97,8 @@ class StationPlayer:
     def play_slot(self , network_name, when):
         liquid = LiquidManager()
         play_point = liquid.get_play_point(network_name, when)
-        print(play_point)
+        if play_point == None:
+            return PlayerOutcome(PlayStatus.FAILED)
         return self._play_from_point(play_point)
 
     #returns true if play is interrupted
@@ -110,21 +111,21 @@ class StationPlayer:
             #iterate over the slice from index to end
             for entry in play_point.plan[play_point.index:]:
                 self._l.info(f"Playing entry {entry}")
-                
+                self._l.info(f"Initial Skip: {initial_skip}")
                 self.mpv.play(entry.path)
                 self.mpv.wait_for_property("duration")
                 
                 total_skip = entry.skip + initial_skip
                 self.mpv.seek(total_skip)
                 self._l.info(f"Seeking for: {total_skip}")
-                initial_skip = 0
+                
 
                 if entry.duration:
-                    self._l.info(f"Monitoring for: {entry.duration}")
+                    self._l.info(f"Monitoring for: {entry.duration-initial_skip}")
             
                     #this is our main event loop
                     keep_waiting = True
-                    stop_time = datetime.datetime.now() + datetime.timedelta(seconds=entry.duration)
+                    stop_time = datetime.datetime.now() + datetime.timedelta(seconds=entry.duration-initial_skip)
                     while keep_waiting:
 
                         self.update_reception()
@@ -138,6 +139,10 @@ class StationPlayer:
                             response = check_channel_socket()
                             if response:
                                 return response
+                else:
+                    raise(PlayerOutcome(PlayStatus.FAILED))
+                
+                initial_skip = 0
 
             self._l.info("Done playing block")
             return PlayerOutcome(PlayStatus.SUCCESS)

@@ -2,8 +2,8 @@ class ReceptionStatus(object):
     __we_are_all_one = {}
     chaos = 0
     thresh = 0.01
-    degrade_amount = 0.1
-    improve_amount = 0.1
+    degrade_amount = 0.05
+    improve_amount = 0.05
 
     # NOTE: This is the borg singleton pattern - __we_are_all_one
     def __new__(cls, *args, **kwargs):
