@@ -10,7 +10,7 @@
 
     "runtime_dir" : "runtime/nbc",
     "schedule_path": "runtime/nbc_schedule.bin",
-    "sign_off_video": "runtime/anthem_signoff.mp4",
+    "sign_off_video": "runtime/signoff.mp4",
     "off_air_video": "runtime/off_air_pattern.mp4",
     "standby_image": "runtime/standby.png",
 
