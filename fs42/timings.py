@@ -20,8 +20,8 @@ def next_week(when):
     print(weekday)
     #go one day past the EOW (weekday is 0-6)
     eow = when + datetime.timedelta( days=(7-weekday))
-    return datetime.datetime(eow.year, eow.month, eow.day)
+    return datetime.datetime(eow.year, eow.month, eow.day, hour=OPERATING_HOURS[0])
 
 def next_month(when):
     eom = (when.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
-    return datetime.datetime(eom.year, eom.month, eom.day)
+    return datetime.datetime(eom.year, eom.month, eom.day, hour=OPERATING_HOURS[0])

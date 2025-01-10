@@ -338,6 +338,7 @@ class ShowCatalog:
                 additional_reels = []
                 while remaining and keep_going:
                     candidate = None
+                    
                     try:
                         candidate = self.find_commercial(remaining, when)
                     except:
@@ -350,8 +351,8 @@ class ShowCatalog:
                         keep_going = False
                         remaining = 0
 
-                if len(additional_reels):
-                    blocks.append(ReelBlock(None, additional_reels, None))
+                blocks.append(ReelBlock(None, additional_reels, None))
+
         return blocks
         
     def gather_clip_content(self, tag, duration, when):

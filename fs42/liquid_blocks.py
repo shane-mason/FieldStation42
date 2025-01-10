@@ -5,7 +5,7 @@ from fs42.block_plan import BlockPlanEntry
 
 class LiquidBlock():
 
-    def __init__(self, content, start_time, end_time, title=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard"):
         self.content = content
         #the requested starting time
         self.start_time = start_time
@@ -17,6 +17,7 @@ class LiquidBlock():
             self.title = title
         self.reel_blocks = None
         self.plan = None
+        self.break_strategy = break_strategy
 
     def __str__(self):
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
@@ -42,16 +43,19 @@ class LiquidBlock():
             raise(ValueError(err))
         if diff > 2: 
             self.reel_blocks = catalog.make_reel_fill(self.start_time, diff)
+        else:
+            self.reel_blocks = []
 
-        self.plan = ReelCutter.cut_reels_into_base(self.content, self.reel_blocks, 0, self.content_duration())
+
+        self.plan = ReelCutter.cut_reels_into_base(self.content, self.reel_blocks, 0, self.content_duration(), self.break_strategy)
         
 
     
 class LiquidClipBlock(LiquidBlock):
 
-    def __init__(self, content, start_time, end_time, title=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard"):
         if type(content) is list:
-            super().__init__(content, start_time, end_time, title)
+            super().__init__(content, start_time, end_time, title, break_strategy)
         else:
             raise(TypeError(f"LiquidClipBlock required content of type list. Got {type(content)} instead"))
 
@@ -76,8 +80,10 @@ class LiquidClipBlock(LiquidBlock):
             raise(ValueError(err))
         if diff > 2: 
             self.reel_blocks = catalog.make_reel_fill(self.start_time, diff)
+        else:
+            self.reel_blocks = []
 
-        self.plan = ReelCutter.cut_reels_into_clips(self.content, self.reel_blocks, 0, self.content_duration())
+        self.plan = ReelCutter.cut_reels_into_clips(self.content, self.reel_blocks, 0, self.content_duration(), self.break_strategy)
 
 class LiquidOffAirBlock(LiquidBlock):
 

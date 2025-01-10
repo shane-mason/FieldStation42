@@ -182,7 +182,6 @@ class ScheduleFrame(tk.Frame):
                                     bg=self.conf.bottom_bg,
                                     fg=self.conf.schedule_fg,
                                     font=self.conf._schedule_font,
-
                                     anchor="w",
                                     borderwidth=self.conf.schedule_border_width,
                                     relief=self.conf.schedule_border_relief

@@ -52,8 +52,11 @@ class StationManager(object):
                         print(f"Auto setting network type to standard for {d['station_conf']['network_name']}")
                         d['station_conf']["network_type"] = "standard"                
                     if "schedule_increment" not in d['station_conf']:
-                        print(f"Auto setting increment buffer to 30 minutes for {d['station_conf']['network_name']}")
+                        print(f"Auto setting increment buffer to 30 minutes for  {d['station_conf']['network_name']}")
                         d['station_conf']["schedule_increment"] = 30
+                    if "break_strategy" not in d['station_conf']:
+                        print(f"Auto setting break strategy to standard for {d['station_conf']['network_name']}")
+                        d['station_conf']["break_strategy"] = 'standard'
                     station_buffer.append(d['station_conf'])
                 except Exception as e:
                     print(f"Error loading station configuration: {fname}")

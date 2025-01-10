@@ -53,14 +53,21 @@ class LiquidSchedule():
     def _flood(self, start_time, end_target):
         diff = end_target - start_time
         content = self.catalog.get_all_by_tag("content")
+        new_blocks = []
         
+        print(f"start={start_time} end={end_target} diff={diff} ")
+
         for i in range(diff.days):
             current_mark = start_time + datetime.timedelta(days=i)
             next_mark = start_time + datetime.timedelta(days=i+1)
             block = LiquidLoopBlock(content, current_mark, next_mark, "Loop")
-            block.make_plan(self.catalog)
-            self._blocks.append(block)
+            new_blocks.append(block)
 
+        self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
+        for block in new_blocks:
+            block.make_plan(self.catalog)
+
+        self._blocks = self._blocks+new_blocks
         self._save_blocks()
 
     def _fluid(self, start_time, end_target):
@@ -86,7 +93,7 @@ class LiquidSchedule():
                         target_duration = self._calc_target_duration(candidate.duration)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
                         #TODO: Handle clip show tags
-                        new_blocks.append(LiquidBlock(candidate, current_mark, next_mark))
+                        new_blocks.append(LiquidBlock(candidate, current_mark, next_mark, candidate.title, self.conf['break_strategy']))
                 else:
                     
                     #handle clip show
@@ -96,7 +103,7 @@ class LiquidSchedule():
                         self._l.error(f"Could not find content for tag {tag} - please add content, check your configuration and retry")
                         sys.exit(-1)
                     else:
-                        clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag)
+                        clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag, self.conf['break_strategy'])
                         target_duration = self._calc_target_duration(clip_block.content_duration())
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
                         clip_block.end_time = next_mark
@@ -157,7 +164,7 @@ class LiquidSchedule():
             case "loop":
                 self._flood(start_building, end_building)
             case "guide":
-                raise NotImplementedError("Guide schedules are not yet supported")
+                raise NotImplementedError("Guide schedules are not yet supported for schedules")
 
     def add_days(self, day_count):
         for i in range(day_count):
@@ -171,19 +178,9 @@ class LiquidSchedule():
             
     def print_schedule(self):
         for block in self._blocks:
-            print(block)
-
-
-#print(calendar.monthrange(2024, 12))
-#conf = StationManager().station_by_name("indie42")
-#liq = LiquidSchedule(conf)
-#liq.add_week()
-#liq.print_schedule()
-
-#start = datetime.datetime.now().replace(hour=timings.OPERATING_HOURS[0], minute=0, second=0, microsecond=0)
-#datetime.datetime.now()
-#liq._fluid(start, start + datetime.timedelta(hours=10000))
-#liq.print_schedule()
+            print("here: " + block)
+            for entry in block.plan:
+                print(entry)
 
 
 

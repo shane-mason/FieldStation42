@@ -119,10 +119,10 @@ class LiquidManager(object):
                 print(_block)
                 current_mark = _block.start_time
                 next_mark = current_mark
-                #for _entry in _block.plan:
-                #    next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
-                #    print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
-                #    current_mark = next_mark
+                for _entry in _block.plan:
+                    next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
+                    print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
+                    current_mark = next_mark
 
   
 
