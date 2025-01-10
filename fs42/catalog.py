@@ -205,7 +205,7 @@ class ShowCatalog:
             with open(c_path, "rb") as f:
                 try:
                     self.clip_index = pickle.load(f)
-                except ModuleNotFoundError as e:
+                except AttributeError as e:
                     # print error message in red
                     print('\033[91m' + "Error loading catalogs - this means you probably need to update your catalog format")
                     print("Please rebuild catalogs by running station_42.py -x. Cheers!" + '\033[0m')
