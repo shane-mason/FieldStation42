@@ -117,9 +117,7 @@ class ScheduleFrame(tk.Frame):
 
     def populate_frame(self):
         gb = GuideBuilder()
-        gb.load_schedules(StationManager().stations)
         view = gb.build_view()
-
         lbl_current_time = tk.Label(self,
                             text="Network",
                             bg=self.conf.bottom_bg,
@@ -147,7 +145,7 @@ class ScheduleFrame(tk.Frame):
 
             l_offset+=self.conf.sched_w
 
-
+        
         self.canvas = tk.Canvas(self,bg='green',
                                 height=self.conf.half_h-self.conf.sched_h,
                                 width=self.conf.width,
@@ -156,7 +154,6 @@ class ScheduleFrame(tk.Frame):
         self.canvas.place(x=0, y=self.conf.sched_h)
 
         self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=self.conf.canvas_h, bg=self.conf.bottom_bg)
-
 
         x_offset = 0
         y_offset = 0
@@ -179,24 +176,25 @@ class ScheduleFrame(tk.Frame):
             x_offset = self.conf.network_w
 
             for c in row:
-
                 if c.width > 0:
                     schedule_label = tk.Label(self.scroll_frame,
                                     text=f"{c.title}",
                                     bg=self.conf.bottom_bg,
                                     fg=self.conf.schedule_fg,
                                     font=self.conf._schedule_font,
-
                                     anchor="w",
                                     borderwidth=self.conf.schedule_border_width,
                                     relief=self.conf.schedule_border_relief
                                     )
 
-                    schedule_label.place(x=x_offset, y=y_offset, height=int(self.conf.sched_h), width=int(self.conf.sched_w*c.width))
-                    x_offset += self.conf.sched_w*c.width
-
+                    the_width = ((self.conf.width-self.conf.network_w)/5400) * c.width
+                    
+                    schedule_label.place(x=x_offset, y=y_offset, height=int(self.conf.sched_h), width=the_width)
+                    x_offset += the_width
+                
             y_offset+= self.conf.sched_h
-
+            
+    
         self.scroll_frame_id = self.canvas.create_window((0, 0), window=self.scroll_frame, anchor=tk.NW)
         self.after(1000, self.scroll_canvas_view)
 

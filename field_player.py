@@ -6,7 +6,6 @@ import signal
 import logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
-from confs.fieldStation42_conf import main_conf
 from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket
@@ -14,7 +13,7 @@ from fs42.reception import ReceptionStatus
 
 #from fs42.guide_channel import guide_channel_runner, GuideCommands
 
-debounce_fragment = 0.05
+debounce_fragment = 0.1
 
 def main_loop(transition_fn):
     manager = StationManager()
@@ -22,7 +21,8 @@ def main_loop(transition_fn):
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
 
-    channel_socket = main_conf['channel_socket']
+    channel_socket = StationManager().server_conf['channel_socket']
+
     #go ahead and clear the channel socket (or create if it doesn't exist)
     with open(channel_socket, 'w'):
         pass
@@ -71,7 +71,7 @@ def main_loop(transition_fn):
             skip = now.minute * MIN_1 + now.second
             #skip = 60 * 59
             logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
-            outcome = player.play_slot(week_day, hour, skip, runtime_path=channel_conf["runtime_dir"])
+            outcome = player.play_slot(channel_conf['network_name'],datetime.datetime.now())
 
         logger.debug(f"Got player outcome:{outcome.status}")
 
@@ -117,7 +117,7 @@ def main_loop(transition_fn):
             
             stuck_timer+=1
             
-            if stuck_timer > 2 and "standby_image" in channel_conf:
+            if stuck_timer > 5 and "standby_image" in channel_conf:
                 player.play_file(channel_conf["standby_image"])
                 
             
@@ -145,7 +145,7 @@ def short_change_effect(player, reception ):
     reception.improve_amount = 0
 
     while not reception.is_degraded():
-        reception.degrade(.3)
+        reception.degrade(.2)
         player.update_filters()
         time.sleep(debounce_fragment)
     

@@ -1,5 +1,5 @@
 import json
-
+from fs42.schedule_hint import TagHintReader
 class StationManager(object):
     __we_are_all_one = {}
     stations = []
@@ -13,6 +13,23 @@ class StationManager(object):
     def __init__(self):
         if not len(self.stations):
             self.load_json_stations()
+            self.server_conf = {"channel_socket": "runtime/channel.socket"}
+        for i in  range(len(self.stations)):
+            station = self.stations[i]
+            if station['network_type'] == "standard":
+                self.stations[i] = TagHintReader.smooth_tags(station)
+
+    def station_by_name(self, name):
+        for station in self.stations:
+            if station["network_name"] == name:
+                return station
+        return None
+    
+    def station_by_channel(self, channel):
+        for station in self.stations:
+            if station["channel_number"] == channel:
+                return station
+        return None
 
     def index_from_channel(self, channel):
         index = 0
@@ -32,8 +49,13 @@ class StationManager(object):
                 try:
                     d = json.load(f)
                     if "network_type" not in d['station_conf']:
-                        print(f"Setting network type to standard for {d['station_conf']['network_name']}")
-                        d['station_conf']["network_type"] = "standard"
+                        d['station_conf']["network_type"] = "standard"                
+                    if "schedule_increment" not in d['station_conf']:
+                        d['station_conf']["schedule_increment"] = 30
+                    if "break_strategy" not in d['station_conf']:
+                        d['station_conf']["break_strategy"] = 'standard'
+                    if "commercial_free" not in d['station_conf']:
+                        d['station_conf']["commercial_free"] = False
                     station_buffer.append(d['station_conf'])
                 except Exception as e:
                     print(f"Error loading station configuration: {fname}")

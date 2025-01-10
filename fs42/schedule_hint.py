@@ -1,9 +1,60 @@
 
 from datetime import datetime
-from fs42.timings import MONTHS
 import re
+import copy
 
-#all hints should implement this interface
+from fs42 import timings
+
+
+class TagHintReader():
+
+    @staticmethod
+    def start_of_week(when_date):
+        #return date.replace()
+        pass
+
+    @staticmethod
+    def get_tag(conf, day_number, slot_number):
+        day_str = timings.DAYS[day_number]
+        response = None
+        if day_str in conf:
+            if str(slot_number) in conf[day_str]:
+                if 'tags' in conf[day_str][str(slot_number)]:
+                    return conf[day_str][str(slot_number)]['tags']
+                
+        return response
+    
+    @staticmethod
+    def smooth_tags(conf):
+        last_tag = None
+        smoothed = copy.deepcopy(conf)
+        for day_index in timings.DAYS:
+            for slot_index in timings.OPERATING_HOURS:
+                slot_index = str(slot_index)
+                if slot_index in conf[day_index]:
+                    if 'tags' in conf[day_index][slot_index]:
+                        last_tag = conf[day_index][slot_index]
+                    elif 'continued' in conf[day_index][slot_index]:
+                        if conf[day_index][slot_index]['continued'] == True:
+                            smoothed[day_index][slot_index]['tags'] = last_tag['tags']
+        return smoothed
+
+
+    @staticmethod
+    def complete_state(conf):
+        onair_state = None
+        completed = copy.deepcopy
+        for day_index in timings.DAYS:
+            for slot_index in timings.OPERATING_HOURS:
+                #did we transition? if so, mark it
+                if slot_index in conf[day_index]:
+                    #then onair
+                    pass
+                else:
+                    #then offair
+                    pass
+
+#all temporal hints should implement this interface
 class TemporalHint:
 
     def __init__(self):
@@ -25,7 +76,7 @@ class MonthHint:
 
     @staticmethod
     def test_pattern(to_test):
-        return to_test in MONTHS
+        return to_test in timings.MONTHS
 
     #when should be a datetime object
     def hint(self, when):
@@ -59,7 +110,7 @@ class QuarterHint:
 class RangeHint:
 
     #matches patterns like: December 1 - December 25
-    pattern = re.compile(f"^ *({'|'.join(MONTHS)}) *([0-3]?[0-9]) *-? *({'|'.join(MONTHS)}) *([0-3]?[0-9]) *$", re.IGNORECASE)
+    pattern = re.compile(f"^ *({'|'.join(timings.MONTHS)}) *([0-3]?[0-9]) *-? *({'|'.join(timings.MONTHS)}) *([0-3]?[0-9]) *$", re.IGNORECASE)
 
     def __init__(self, range_string):
         self.start_date = None

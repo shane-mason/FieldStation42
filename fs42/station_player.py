@@ -8,12 +8,13 @@ import json
 
 from python_mpv_jsonipc import MPV
 
-from confs.fieldStation42_conf import main_conf
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.reception import ReceptionStatus
+from fs42.liquid_manager import LiquidManager, PlayPoint
+from fs42.station_manager import StationManager
 
 def check_channel_socket():
-    channel_socket = main_conf['channel_socket']
+    channel_socket = StationManager().server_conf['channel_socket']
     r_sock = open(channel_socket, "r")
     contents = r_sock.read()
     r_sock.close()
@@ -93,87 +94,38 @@ class StationPlayer:
 
         return PlayerOutcome(PlayStatus.SUCCESS)
 
-    def play_slot(self, the_day, the_hour, offset=0, runtime_path=None):
-
-        if runtime_path:
-            self.runtime_path = runtime_path
-        fpath = f"{self.runtime_path}/{the_day}_{the_hour}.json";
-        self._l.info(f"Loading slot playlist on path: {fpath}")
-        self.playlist = self.read_json(fpath)
-        self._l.info(f"Slot playlist: {self.playlist}")
-        return self.start_playing(offset)
-
-    def read_json(self, file_path):
-        playlist = None
-        with open(file_path, "r") as f:
-            as_str = f.read()
-            playlist = json.loads(as_str)
-        return playlist
-
-    def start_playing(self, block_offset=0):
-        self._l.info(f"Starting to play offset in block {block_offset}")
-        offset_in_index = 0
-        if block_offset:
-            try:
-                (index, offset) = self._find_index_at_offset(block_offset)
-            except TypeError as e:
-                self._l.critical("Error getting index and offset - exiting playback")
-                return PlayerOutcome(PlayStatus.FAILED, e)
-
-            self._l.info(f"Calculated offsets index|offset = {index}|{offset}")
-            self.index = index
-            offset_in_index = offset
-        else:
-            self.index = 0
-        return self._play_from_index(offset_in_index)
-
-    def _find_index_at_offset(self, offset):
-        abs_start = 0
-        abs_end = 0
-        index = 0
-        for _entry in self.playlist:
-            abs_start = abs_end
-            abs_end = abs_start + _entry['duration']
-            if offset > abs_start and offset <= abs_end:
-                d2 = offset - abs_start
-                return(index, d2)
-            index += 1
+    def play_slot(self , network_name, when):
+        liquid = LiquidManager()
+        play_point = liquid.get_play_point(network_name, when)
+        if play_point == None:
+            return PlayerOutcome(PlayStatus.FAILED)
+        return self._play_from_point(play_point)
 
     #returns true if play is interrupted
-    def _play_from_index(self, offet_in_index=0):
+    def _play_from_point(self, play_point:PlayPoint):
 
-        if self.index < len(self.playlist):
+        if len(play_point.plan):
+
+            initial_skip = play_point.offset
+            
             #iterate over the slice from index to end
-            for entry in self.playlist[self.index:]:
+            for entry in play_point.plan[play_point.index:]:
                 self._l.info(f"Playing entry {entry}")
-                
-                self.mpv.play(entry["path"])
+                self._l.info(f"Initial Skip: {initial_skip}")
+                self.mpv.play(entry.path)
                 self.mpv.wait_for_property("duration")
                 
+                total_skip = entry.skip + initial_skip
+                self.mpv.seek(total_skip)
+                self._l.info(f"Seeking for: {total_skip}")
+                
 
-                wait_dur = entry['duration']
-                seek_dur = 0
-
-                #do any initial seek
-                if entry['start'] != 0:
-                    seek_dur += entry['start']
-
-                if offet_in_index:
-                    seek_dur += offet_in_index
-                    wait_dur -= offet_in_index
-                    #we process only on first index, so toggle it off
-                    offet_in_index = 0
-
-                if seek_dur:
-                    self.mpv.seek(seek_dur)
-                    self._l.info(f"Seeking for: {seek_dur}")
-
-                if wait_dur:
-                    self._l.info(f"Monitoring for: {wait_dur}")
-                    #self.show_text(f"Playing entry {entry}", 4)
+                if entry.duration:
+                    self._l.info(f"Monitoring for: {entry.duration-initial_skip}")
+            
                     #this is our main event loop
                     keep_waiting = True
-                    stop_time = datetime.datetime.now() + datetime.timedelta(seconds=wait_dur)
+                    stop_time = datetime.datetime.now() + datetime.timedelta(seconds=entry.duration-initial_skip)
                     while keep_waiting:
 
                         self.update_reception()
@@ -187,6 +139,10 @@ class StationPlayer:
                             response = check_channel_socket()
                             if response:
                                 return response
+                else:
+                    raise(PlayerOutcome(PlayStatus.FAILED))
+                
+                initial_skip = 0
 
             self._l.info("Done playing block")
             return PlayerOutcome(PlayStatus.SUCCESS)
