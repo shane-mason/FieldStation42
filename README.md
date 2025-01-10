@@ -4,6 +4,16 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 * When the TV is turned on, a believable show for the time slot and network should be playing
 * When switching between channels, the shows should continue playing serially as though they had been broadcasting the whole time
 
+# Important Note for Existing Users:
+The new scheduler merged as of Jan 09 and is not compatible with existing catalog indexes or schedules. After pulling, you will need to run the following commands before building a new schedule.
+
+`python3 station_42.py --rebuild_catalog`
+
+and
+
+`python3 station_42.py --delete_schedules`
+
+
 ![An older TV with an antenna rotator box in the background](docs/retro-tv.png?raw=true)
 
 ## Features
@@ -20,8 +30,10 @@ Broadcast TV simulator intended to provide an authentic experience of watching O
 ## Experimental Features - Cable Mode
 * Preview/guide channel with embedded video and configurable messages
     * This is a brand new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
-* Loop channels, useful for community bulletin style channels or information loops.
-    * Play videos in order from specified channels.
+* Flexible scheduling to support all kinds of channel types
+    * Traditional networks channels with commercials and bumps
+    * Commercial free channels with optional end bump padding at end (movie channels, public broadcasting networks)
+    * Loop channels, useful for community bulletin style channels or information loops.
 
 ![A screenshot of a guide channel simulation](docs/guide.png?raw=true)
 
