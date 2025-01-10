@@ -203,7 +203,15 @@ class ShowCatalog:
             self.build_catalog()
         else:
             with open(c_path, "rb") as f:
-                self.clip_index = pickle.load(f)
+                
+                try:
+                    self.clip_index = pickle.load(f)
+                except AttributeError as e:
+                    #print error message in red
+                    print('\033[91m' + "Error loading catalog - this means you probably need to update your catalog format")
+                    print("Please update your catalogs by running station_42.py -r to rebuild. Cheers!" + '\033[0m')
+                    sys.exit(-1)
+
             self._l.info("Catalog read read from file " + c_path)
 
     def print_catalog(self):
