@@ -37,7 +37,13 @@ class LiquidSchedule():
         s_path = self.conf['schedule_path']
         if os.path.isfile(s_path):
             with open(s_path, "rb") as f:
-                self._blocks = pickle.load(f)
+                try:
+                    self._blocks = pickle.load(f)
+                except ModuleNotFoundError as e:
+                    #print error message in red
+                    print('\033[91m' + "Error loading schedule - this means you probably need to update your schedule format")
+                    print("Please update your schedules by running station_42.py -x and then regenerating. Cheers!" + '\033[0m')
+                    sys.exit(-1)
         else:
             self._blocks = []
 
@@ -55,8 +61,6 @@ class LiquidSchedule():
         content = self.catalog.get_all_by_tag("content")
         new_blocks = []
         
-        print(f"start={start_time} end={end_target} diff={diff} ")
-
         for i in range(diff.days):
             current_mark = start_time + datetime.timedelta(days=i)
             next_mark = start_time + datetime.timedelta(days=i+1)

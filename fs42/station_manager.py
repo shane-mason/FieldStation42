@@ -49,14 +49,13 @@ class StationManager(object):
                 try:
                     d = json.load(f)
                     if "network_type" not in d['station_conf']:
-                        print(f"Auto setting network type to standard for {d['station_conf']['network_name']}")
                         d['station_conf']["network_type"] = "standard"                
                     if "schedule_increment" not in d['station_conf']:
-                        print(f"Auto setting increment buffer to 30 minutes for  {d['station_conf']['network_name']}")
                         d['station_conf']["schedule_increment"] = 30
                     if "break_strategy" not in d['station_conf']:
-                        print(f"Auto setting break strategy to standard for {d['station_conf']['network_name']}")
                         d['station_conf']["break_strategy"] = 'standard'
+                    if "commercial_free" not in d['station_conf']:
+                        d['station_conf']["commercial_free"] = False
                     station_buffer.append(d['station_conf'])
                 except Exception as e:
                     print(f"Error loading station configuration: {fname}")

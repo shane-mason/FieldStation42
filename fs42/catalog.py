@@ -317,7 +317,10 @@ class ShowCatalog:
         
         #aim for lower and should average close over time
         while remaining > (target_duration *.1):
-            candidate = self.find_commercial(max_commercial_duration, when)
+            if self.config['commercial_free'] == False:
+                candidate = self.find_commercial(max_commercial_duration, when)
+            else:
+                candidate = self.find_bump(max_commercial_duration, when)
             remaining -= candidate.duration
             reels.append(candidate)
         
@@ -340,7 +343,10 @@ class ShowCatalog:
                     candidate = None
                     
                     try:
-                        candidate = self.find_commercial(remaining, when)
+                        if self.config["commercial_free"] == False:
+                            candidate = self.find_commercial(remaining, when)
+                        else:
+                            candidate = self.find_bump(remaining, when)
                     except:
                         pass
 

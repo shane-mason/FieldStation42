@@ -17,7 +17,6 @@ MIN_1 = 60
 
 def next_week(when):
     weekday = when.weekday()
-    print(weekday)
     #go one day past the EOW (weekday is 0-6)
     eow = when + datetime.timedelta( days=(7-weekday))
     return datetime.datetime(eow.year, eow.month, eow.day, hour=OPERATING_HOURS[0])

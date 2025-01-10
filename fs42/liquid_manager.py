@@ -1,6 +1,8 @@
 import os
 import pickle
 import datetime
+import sys
+
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
 
@@ -42,7 +44,12 @@ class LiquidManager(object):
                 _path = station['schedule_path']
                 if os.path.isfile(_path):
                     with open(_path, "rb") as f:
-                        self.schedules[_id] = pickle.load(f)
+                        try:
+                            self.schedules[_id] = pickle.load(f)
+                        except ModuleNotFoundError as e:
+                            print('\033[91m' + "Error loading schedule - this means you probably need to update your schedule format")
+                            print("Please update your schedules by running station_42.py -x and then regenerating. Cheers!" + '\033[0m')
+                            sys.exit(-1)
                 else:
                     self.schedules[_id] = []
 
@@ -94,19 +101,14 @@ class LiquidManager(object):
     def get_play_point(self, network_name, when):
         #get the block and get plan
         _block:LiquidBlock = self.get_programming_block(network_name, when)
-        print(f"Got block: {_block}  when={when}")
         #find index in block plan
         found_index = 0
         current_mark = _block.start_time
         for entry in _block.plan:
-            print(f"ENTRY: {entry} ")
             next_mark = current_mark + datetime.timedelta(seconds=entry.duration) 
-            print(f"{found_index}  nextmark={next_mark}")
             if next_mark > when:
                 #then this is the index - calc offset
-                print(f"Found it {found_index}")
                 diff = when - current_mark
-                print(diff.total_seconds())
                 return PlayPoint(found_index, diff.total_seconds(), _block.plan)
             current_mark = next_mark
             found_index+=1
@@ -114,15 +116,16 @@ class LiquidManager(object):
     def print_schedule(self, network_name, when):
         when_day = when.timetuple().tm_yday
         for _block in self.schedules[network_name]:
-            _block_day = _block.start_time.timetuple().tm_yday
-            if when_day == _block_day:
-                print(_block)
-                current_mark = _block.start_time
-                next_mark = current_mark
-                for _entry in _block.plan:
-                    next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
-                    print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
-                    current_mark = next_mark
+            #_block_day = _block.start_time.timetuple().tm_yday
+            print(_block)
+            #if when_day == _block_day:
+            #    print(_block)
+                #current_mark = _block.start_time
+                #next_mark = current_mark
+                #for _entry in _block.plan:
+                #    next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
+                #    print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
+                #    current_mark = next_mark
 
   
 
