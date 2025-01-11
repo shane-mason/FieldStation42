@@ -2,6 +2,11 @@
     "network_name" : "PBS",
     "channel_number": 6,
 
+    "network_type": "standard",
+    "schedule_increment": 10,
+    "break_strategy": "end",
+    "commercial_free": true, 
+
     "catalog_path" : "catalog/pbs_catalog.bin",
     "content_dir" : "catalog/pbs_catalog",
     "commercial_dir" : "commercials",
