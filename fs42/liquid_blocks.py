@@ -96,7 +96,7 @@ class LiquidOffAirBlock(LiquidBlock):
         
         while current_mark < self.end_time:
             duration = self.content.duration
-            current_mark +=  datetime.timedelta(duration)
+            current_mark +=  datetime.timedelta(seconds=duration)
             if current_mark > self.end_time:
                 #then we will clip it to end at end time
                 delta = current_mark-self.end_time

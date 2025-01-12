@@ -92,7 +92,8 @@ def main():
                 elif args.add_month:
                     liquid.add_month()
                 else:
-                    logging.getLogger().error("Nothing to do - use -h --help to see options")
+                    logging.getLogger().error("You did not specify anything to do - use -h --help to see options")
+   
 
     if args.printcat and not found_print_target:
         logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")
