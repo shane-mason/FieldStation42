@@ -113,19 +113,17 @@ class LiquidManager(object):
             current_mark = next_mark
             found_index+=1
 
-    def print_schedule(self, network_name, when):
-        when_day = when.timetuple().tm_yday
+    def print_schedule(self, network_name, go_deep=False):
         for _block in self.schedules[network_name]:
-            _block_day = _block.start_time.timetuple().tm_yday
             print(_block)
-            #if when_day == _block_day:
-            #    #print(_block)
-            #    current_mark = _block.start_time
-            #    next_mark = current_mark
-            #    for _entry in _block.plan:
-            #        next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
-            #        print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
-            #        current_mark = next_mark
+            if go_deep:
+                #print(_block)
+                current_mark = _block.start_time
+                next_mark = current_mark
+                for _entry in _block.plan:
+                    next_mark = current_mark + datetime.timedelta(seconds=_entry.duration)
+                    print(f"{_entry} start={current_mark.time()} end={next_mark.time()}")
+                    current_mark = next_mark
 
   
 

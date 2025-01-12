@@ -60,7 +60,7 @@ def main():
         return
 
     if args.print_schedule:
-        LiquidManager().print_schedule(args.print_schedule, datetime.datetime.now())
+        LiquidManager().print_schedule(args.print_schedule, args.verbose)
         return
 
     found_print_target = False

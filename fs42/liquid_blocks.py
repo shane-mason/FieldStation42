@@ -60,7 +60,7 @@ class LiquidClipBlock(LiquidBlock):
             raise(TypeError(f"LiquidClipBlock required content of type list. Got {type(content)} instead"))
 
     def __str__(self):
-        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.content.title}"
+        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
 
     def content_duration(self):
         dur = 0
@@ -97,6 +97,7 @@ class LiquidOffAirBlock(LiquidBlock):
         while current_mark < self.end_time:
             duration = self.content.duration
             current_mark +=  datetime.timedelta(seconds=duration)
+            datetime.timedelta()
             if current_mark > self.end_time:
                 #then we will clip it to end at end time
                 delta = current_mark-self.end_time
@@ -118,13 +119,17 @@ class LiquidLoopBlock(LiquidBlock):
         while keep_going:
             clip = self.content[current_index]
             next_mark = current_mark + datetime.timedelta(seconds=clip.duration)
+            duration = clip.duration
             if next_mark < self.end_time:
-                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
                 current_index += 1
                 if current_index >= len(self.content):
                     current_index = 0
             else:
                 keep_going = False
+                duration = (self.end_time - current_mark).total_seconds()
+            
+            entries.append(BlockPlanEntry(clip.path, 0, duration))
+
             current_mark = next_mark
         self.plan = entries
         

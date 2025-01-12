@@ -124,7 +124,7 @@ class LiquidSchedule():
                 
                 #make it for one hour.
                 #TODO: handle when it starts at half hour - just go to next hour (not always one hour)
-                next_mark = current_mark + datetime.timedelta(hours=1)
+                next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
                 new_blocks.append(LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair"))
 
             current_mark = next_mark
