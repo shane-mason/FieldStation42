@@ -83,8 +83,7 @@ class LiquidSchedule():
 
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
-            tag = TagHintReader.get_tag(self.conf, current_mark.weekday(), current_mark.hour)
-
+            tag = TagHintReader.get_tag(self.conf, current_mark)
             if tag is not None:
                 if tag not in self.conf['clip_shows']:
                     candidate = self.catalog.find_candidate(tag, timings.HOUR*23, current_mark)

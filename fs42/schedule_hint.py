@@ -14,13 +14,22 @@ class TagHintReader():
         pass
 
     @staticmethod
-    def get_tag(conf, day_number, slot_number):
-        day_str = timings.DAYS[day_number]
+    def get_tag(conf, when:datetime):
+        day_str = timings.DAYS[when.weekday()]
+        slot_number = str(when.hour)
         response = None
         if day_str in conf:
-            if str(slot_number) in conf[day_str]:
-                if 'tags' in conf[day_str][str(slot_number)]:
-                    return conf[day_str][str(slot_number)]['tags']
+            if slot_number in conf[day_str]:
+                if 'tags' in conf[day_str][slot_number]:
+                    slot = conf[day_str][slot_number]['tags']
+                    
+                    if type(slot) is list:
+                        if len(slot) == 1 or when.minute < 30:
+                            return slot[0]
+                        else:
+                            return slot[1]
+                    else:
+                        return conf[day_str][slot_number]['tags']
                 
         return response
     

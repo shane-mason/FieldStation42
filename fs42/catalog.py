@@ -141,7 +141,11 @@ class ShowCatalog:
             slots = self.config[day]
             for k in slots:
                 if 'tags' in slots[k]:
-                    tags[slots[k]['tags']] = True
+                    if type(slots[k]['tags']) is list:
+                        for l in slots[k]['tags']:
+                            tags[l] == True
+                    else:
+                        tags[slots[k]['tags']] = True
 
         self.tags = list(tags.keys())
 
