@@ -57,7 +57,7 @@ def main():
                 if os.path.exists(station["schedule_path"]):
                     os.unlink(station["schedule_path"])
         logging.getLogger().info(f"All schedules deleted")
-        return
+
 
     if args.print_schedule:
         LiquidManager().print_schedule(args.print_schedule, args.verbose)
