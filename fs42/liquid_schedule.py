@@ -151,7 +151,7 @@ class LiquidSchedule():
         else:
             #then there is no schedule, so start with today (but at midnight)
             now = datetime.datetime.now()
-            start_building = now.replace(hour=timings.OPERATING_HOURS[0], minute=0, second=0, microsecond=0)
+            start_building = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         match how_much:
             case "day":
