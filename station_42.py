@@ -15,7 +15,7 @@ class Station42:
         self.config = config
         self._l = logging.getLogger(self.config['network_name'])
         self.catalog:ShowCatalog = ShowCatalog(self.config, rebuild_catalog=rebuild_catalog)
-        self.print_catalog = self.catalog.print_catalog
+        self.get_text_listing = self.catalog.get_text_listing
         self.check_catalog = self.catalog.check_catalog
 
 def main():
@@ -28,7 +28,7 @@ def main():
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )
     parser.add_argument('-d', '--add_day', action='store_true', help='Add one day to all schedules' )
-    parser.add_argument('-s', '--schedule', action='store_true', help='Initialize and align schedules across all stations.' )
+    parser.add_argument('-s', '--schedule', action='store_true', help='IView schedule summary information.' )
     parser.add_argument('-u', '--print_schedule', help='Print network schedule for current day (for debugging)' )
     parser.add_argument('-x', '--delete_schedules', action='store_true', help='Delete all schedules (but not catalogs)' )
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
@@ -72,7 +72,7 @@ def main():
         elif args.printcat:
             if station_conf['network_name'] == args.printcat:
                 logging.getLogger().info(f"Printing catalog for {station_conf['network_name']}")
-                Station42(station_conf, args.rebuild_catalog).print_catalog()
+                print(Station42(station_conf, args.rebuild_catalog).get_text_listing())
                 found_print_target = True
         else:
             logging.getLogger().info(f"Loading catalog for {station_conf['network_name']}")
@@ -92,7 +92,7 @@ def main():
                 elif args.add_month:
                     liquid.add_month()
                 else:
-                    logging.getLogger().error("You did not specify anything to do - use -h --help to see options")
+                    logging.getLogger().info("No schedules generated, use -h --help to see available options")
    
 
     if args.printcat and not found_print_target:

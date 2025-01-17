@@ -90,6 +90,9 @@ class MonthHint:
     #when should be a datetime object
     def hint(self, when):
         return when.month == self.month_number
+    
+    def __str__(self):
+        return self.month_name
 
 
 class QuarterHint:
@@ -115,6 +118,8 @@ class QuarterHint:
     def hint(self, when):
         return (int(when.month/3) + 1) == self.quarter
 
+    def __str__(self):
+        return self.quarter_name
 
 class RangeHint:
 
@@ -183,3 +188,6 @@ class RangeHint:
             return True
         else:
             return False
+
+    def __str__(self):
+        return f"range_hint"

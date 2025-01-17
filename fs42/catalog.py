@@ -126,6 +126,8 @@ class ShowCatalog:
                 raise NotImplementedError("Guide catalog not supported yet.")
     
     def _build_single(self, tag="content"):
+        self.clip_index = {}
+        self.tags = []
         #for station types with all files in a single directory
         self._l.info(f"Checking for media in {self.config['content_dir']} for single directory")
         file_list = ShowCatalog._find_media(self.config['content_dir'])
@@ -133,9 +135,15 @@ class ShowCatalog:
         self._l.info(f"Building complete - processed {len(self.config['content_dir'])} files")
         self._write_catalog()
 
+    def _build_tags(self):
+        self.tags = list(self.clip_index.keys())
+
     def _build_standard(self):
+        self.clip_index = {}
+        self.tags = []
+
         self._l.info(f"Standard network")
-        #get the list of all tags
+       #get the list of all tags
         tags = {}
         for day in DAYS:
             slots = self.config[day]
@@ -152,6 +160,7 @@ class ShowCatalog:
         #add commercial and bumps to the tags
         self.tags.append(self.config["commercial_dir"])
         self.tags.append(self.config["bump_dir"])
+
         total_count = 0
 
         #now populate each tag
@@ -202,13 +211,15 @@ class ShowCatalog:
         #takes a while, so check to see if it exists - build if not
         c_path = self.config['catalog_path']
         self._l.info("Loading catalog from file: " + c_path )
-        if not os.path.isfile(c_path):
+        if False: #not os.path.isfile(c_path):
             self._l.warning("Catalog not found - starting new build")
             self.build_catalog()
         else:
+            
             with open(c_path, "rb") as f:
                 try:
                     self.clip_index = pickle.load(f)
+                    self._build_tags()
                 except AttributeError as e:
                     # print error message in red
                     print('\033[91m' + "Error loading catalogs - this means you probably need to update your catalog format")
@@ -216,13 +227,15 @@ class ShowCatalog:
                     sys.exit(-1)
 
             self._l.info("Catalog read read from file " + c_path)
+        print("Loaded catatlog")
 
-    def print_catalog(self):
-        print("TITLE                | TAG        | Duration    | Hints ")
+    def get_text_listing(self):
+        content = "TITLE                | TAG        | Duration    | Hints\n"
         for tag in self.clip_index:
             if tag not in ['sign_off', 'off_air']:
                 for item in self.clip_index[tag]:
-                    print( item )
+                    content += f"{str(item)}\n"
+        return content
 
     def check_catalog(self):
         too_short = []
@@ -388,7 +401,17 @@ class ShowCatalog:
                 keep_going = False
         return clips
 
-            
+    def summary(self):
+        count = 0
+        print(f"Getting summary {self.tags}")
+        for tag in self.tags:
+            #print(self.clip_index[tag])
+            if type(self.clip_index[tag]) is list:
+                count += len(self.clip_index[tag])
+            else:
+                count += 1
+        text = f"Tag count: {len(self.tags)}  Video count: {count}"
+        return text
 
 
 
