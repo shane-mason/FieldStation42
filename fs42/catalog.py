@@ -151,7 +151,7 @@ class ShowCatalog:
                 if 'tags' in slots[k]:
                     if type(slots[k]['tags']) is list:
                         for l in slots[k]['tags']:
-                            tags[l] == True
+                            tags[l] = True
                     else:
                         tags[slots[k]['tags']] = True
 
