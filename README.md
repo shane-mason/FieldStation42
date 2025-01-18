@@ -46,7 +46,7 @@ This is a brand new project and in active development - installation requires so
 
 ## Installation & Setup
 
-    For a complete, step-by-step guide to setting up and administering FieldStation42 software, check out the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
+For a complete, step-by-step guide to setting up and administering FieldStation42 software, check out the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
 
 ### Quickstart Setup
 
