@@ -9,7 +9,7 @@ from fs42.station_manager import StationManager
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.catalog import ShowCatalog
 from fs42.liquid_manager import LiquidManager
-from fs42.ux.dialogs import SelectStationErr, LoadingScreen
+from fs42.ux.dialogs import SelectStationErr, LoadingScreen, GeneralErr
 
 
 class ScheduleScreen(Screen):
@@ -67,17 +67,29 @@ class ScheduleScreen(Screen):
                                             len(_block.plan))
                     
             case 'rebuild_all':
-                self.dt.clear(True)
-                ls = LoadingScreen()
-                self.app.push_screen(ls)
-                self.rebuild_all_thread()
+                #first, check that all catalogs exist:
+                all_found = self.all_catalogs_found()
+
+                if all_found:                    
+                    self.dt.clear(True)
+                    ls = LoadingScreen()
+                    self.app.push_screen(ls)
+                    self.rebuild_all_thread()
+                else:
+                    es = GeneralErr("Some stations do not have catalogs built. Select 'Back' and then 'Manage Catalogs' to build.")
+                    self.app.push_screen(es)
 
             case 'add_time':
-                self.dt.clear(True)
-                ls = LoadingScreen()
-                self.app.push_screen(ls)
-                self.addtime_thread("month")
+                all_found = self.all_catalogs_found()
 
+                if all_found:     
+                    self.dt.clear(True)
+                    ls = LoadingScreen()
+                    self.app.push_screen(ls)
+                    self.addtime_thread("month")
+                else:
+                    es = GeneralErr("Some stations do not have catalogs built. Select 'Back' and then 'Manage Catalogs' to build.")
+                    self.app.push_screen(es)                    
             case 'back':
                 self.app.pop_screen()
     
@@ -113,6 +125,18 @@ class ScheduleScreen(Screen):
                     os.unlink(station["schedule_path"])
                 LiquidSchedule(station).add_month()
         self.app.call_from_thread(self.rebuild_done)
+
+
+    def all_catalogs_found(self):
+        all_found = True
+        for station in StationManager().stations:
+            try:
+                if station['network_type'] != 'guide':
+                    ShowCatalog(station)
+            except FileNotFoundError:
+                all_found = False
+                break
+        return all_found
 
 
     def populate_stats(self):

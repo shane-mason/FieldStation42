@@ -64,16 +64,16 @@ class WelcomeScreen(Screen):
 
                 (start, end) = LiquidManager().get_extents(network_name)
                 if start and end:
-                    text += f"Schedule extents: {start:%Y-%m-%d} to {end:%Y-%m-%d}\n\n"
+                    text += f"* Schedule extents: {start:%Y-%m-%d} to {end:%Y-%m-%d}\n"
                 else:
                     if catalog_exists:
-                        text += f"Schedule not found. Click 'Manage Schedules' to generate schedules."
+                        text += f"* Schedule not found. Click 'Manage Schedules' to generate schedules."
                     else:
-                        text += f"Schedule not found. After building the catalog, click 'Manage Schedules' to generate schedules."
+                        text += f"* Schedule not found. After building the catalog, click 'Manage Schedules' to generate schedules."
             else:
                 if station['network_type'] == "guide":
-                    text += "Guide channels do not have catalogs or schedules\n\n"
+                    text += "* Guide channels do not have catalogs or schedules\n"
                 else:
-                    text += "Catalog not configured - check channel configuration."
+                    text += "* Catalog not configured - check channel configuration."
             text += "\n"
         self.md.update(text)

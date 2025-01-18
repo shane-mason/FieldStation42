@@ -36,6 +36,23 @@ class QuitScreen(ModalScreen):
             self.app.pop_screen()
 
 
+class GeneralErr(ModalScreen):
+    """Screen with a dialog to quit."""
+    CSS_PATH = "dialogs.tcss"
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label(self.message, id="question"),
+            Button("Okay", variant="primary", id="quit", classes="dialog_button"),
+            id="dialog",
+        )
+
+    def __init__(self,message):
+        self.message = message
+        super().__init__()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.app.pop_screen()
+
 class SelectStationErr(ModalScreen):
     """Screen with a dialog to quit."""
     CSS_PATH = "dialogs.tcss"

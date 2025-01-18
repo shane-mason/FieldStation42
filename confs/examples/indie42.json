@@ -20,7 +20,7 @@
     "standby_image": "runtime/standby.png",
 
     "monday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},
@@ -43,7 +43,7 @@
         "3": {"event" : "signoff"}
     },
     "tuesday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},
@@ -66,7 +66,7 @@
         "3": {"event" : "signoff"}
     },
     "wednesday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},
@@ -89,7 +89,7 @@
         "3": {"event" : "signoff"}
     },
     "thursday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},
@@ -112,7 +112,7 @@
         "3": {"event" : "signoff"}
     },
     "friday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},
@@ -135,7 +135,7 @@
         "3": {"event" : "signoff"}
     },
     "saturday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},
@@ -158,7 +158,7 @@
         "3": {"event" : "signoff"}
     },
     "sunday": {
-        "7":  {"tags": "cartoon"},
+        "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
         "10": {"tags" : "sitcom"},

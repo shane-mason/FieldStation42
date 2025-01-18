@@ -45,7 +45,7 @@ class CatalogScreen(Screen):
                 if(val == Select.BLANK):
                     self.app.push_screen(SelectStationErr())
                 else:
-                    self.dt.clear()
+                    self.dt.clear(True)
                     (the_val, index) = self.options[val]
                     try:
                         catalog = ShowCatalog(StationManager().station_by_name(the_val))
@@ -64,14 +64,14 @@ class CatalogScreen(Screen):
                 if(val == Select.BLANK):
                     self.app.push_screen(SelectStationErr())
                 else:
-                    self.dt.clear()
+                    self.dt.clear(True)
                     (the_val, index) = self.options[val]
                     ls = LoadingScreen()
                     self.app.push_screen(ls)
                     self.rebuild_thread(the_val)
                     
             case 'rebuild_all':
-                self.dt.clear()
+                self.dt.clear(True)
                 ls = LoadingScreen()
                 self.app.push_screen(ls)
                 self.rebuild_all_thread()
