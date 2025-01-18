@@ -7,7 +7,7 @@ from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
-from fs42.ux.ux import StationApp 
+
 import argparse
 
 class Station42:
@@ -39,6 +39,13 @@ def main():
     args = parser.parse_args()
 
     if args.graphical_interface or len(sys.argv) <= 1:
+        try:
+            from fs42.ux.ux import StationApp 
+        except ModuleNotFoundError:
+            logging.getLogger().error(f"Could not load graphical interface - please install textual")
+            logging.getLogger().error(f"Use this command to install: pip install textual")
+            sys.exit(-1)
+            
         app = StationApp()
         app.run()
         sys.exit()

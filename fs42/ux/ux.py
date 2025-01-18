@@ -3,7 +3,7 @@ from fs42.ux.welcome_screen import WelcomeScreen
 
 class StationApp(App):
 
-    SCREENS = {"WelcomeScreen": WelcomeScreen()}
+    SCREENS = {"WelcomeScreen": WelcomeScreen}
 
 
     def on_mount(self) -> None:

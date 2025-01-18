@@ -37,6 +37,8 @@ env/bin/pip3 install python-mpv-jsonipc
 
 env/bin/pip3 install pyserial
 
+env/bin/pip3 install textual
+
 echo Creating folders
 
 if [ -d runtime ]; then
