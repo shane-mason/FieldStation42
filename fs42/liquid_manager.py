@@ -54,6 +54,13 @@ class LiquidManager(object):
                     self.schedules[_id] = []
 
     
+
+    def get_schedule_by_name(self, network_name):
+        if network_name in self.schedules:
+            return self.schedules[network_name]
+        else:
+            return None
+
     def reset_all_schedules(self):
         for station in self.stations:
             if station['network_type'] != "guide":
