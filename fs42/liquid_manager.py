@@ -34,9 +34,9 @@ class LiquidManager(object):
     def __init__(self):
         if not len(self.stations):
             self.stations =  StationManager().stations
-            self._load_schedules()
+            self.reload_schedules()
 
-    def _load_schedules(self):
+    def reload_schedules(self):
         self.schedules = {}
         for station in self.stations:
             if station['network_type'] != 'guide':
@@ -66,7 +66,7 @@ class LiquidManager(object):
             if station['network_type'] != "guide":
                 if os.path.exists(station["schedule_path"]):
                     os.unlink(station["schedule_path"])
-        self._load_schedules()
+        self.reload_schedules()
 
     def get_extents(self, network_name):
         _id = network_name

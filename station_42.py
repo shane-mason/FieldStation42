@@ -1,11 +1,13 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
-import datetime
 import os
+import sys
+
 from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
+from fs42.ux.ux import StationApp 
 import argparse
 
 class Station42:
@@ -21,19 +23,25 @@ class Station42:
 def main():
 
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Liquid-Schedule Generation')
-    parser.add_argument('-c', '--check_catalogs', action='store_true', help='Check catalogs, print report and exit.')
+    parser.add_argument('-g', '--graphical_interface', action='store_true', help='Run graphical interface to configure catalogs and schedules')
     parser.add_argument('-l', '--logfile', help='Set logging to use output file - will append each run')
+    parser.add_argument('-c', '--check_catalogs', action='store_true', help='Check catalogs, print report and exit.')
     parser.add_argument('-p', '--printcat', help='Print the catalog for the specified network name and exit')
     parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Rebuild catalogs and schedules')
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )
     parser.add_argument('-d', '--add_day', action='store_true', help='Add one day to all schedules' )
-    parser.add_argument('-s', '--schedule', action='store_true', help='IView schedule summary information.' )
-    parser.add_argument('-u', '--print_schedule', help='Print network schedule for current day (for debugging)' )
+    parser.add_argument('-s', '--schedule', action='store_true', help='View schedule summary information for all stations.' )
+    parser.add_argument('-u', '--print_schedule', help='Print schedule for current day for the specified network name' )
     parser.add_argument('-x', '--delete_schedules', action='store_true', help='Delete all schedules (but not catalogs)' )
     parser.add_argument('-v', '--verbose', action='store_true', help='Set logging verbosity level to very chatty')
 
     args = parser.parse_args()
+
+    if args.graphical_interface or len(sys.argv) <= 1:
+        app = StationApp()
+        app.run()
+        sys.exit()
 
     if( args.verbose ):
         logging.getLogger().setLevel(logging.DEBUG)
@@ -56,6 +64,7 @@ def main():
             if station['network_type'] != "guide":
                 if os.path.exists(station["schedule_path"]):
                     os.unlink(station["schedule_path"])
+        LiquidManager().reload_schedules()
         logging.getLogger().info(f"All schedules deleted")
 
 

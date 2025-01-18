@@ -1,0 +1,15 @@
+#catalogscreen{
+    background: rgb(27,26,37);
+}
+
+#catalogscreen Button{
+    width: 20%;
+    margin: 1 1;
+    height: 3;
+}
+
+#catalogscreen Select{
+    width: 18%;
+    margin: 1 1;
+    height: 3;
+}

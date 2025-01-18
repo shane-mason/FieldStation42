@@ -1,0 +1,8 @@
+#welcomebutton{
+    width: 100%;
+}
+
+#welcomebutton Button{
+    width: 33%;
+    margin: 1 1;
+}

@@ -37,7 +37,8 @@ class CatalogEntry:
         self.hints = hints
 
     def __str__(self):
-        return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {self.hints}"
+        hints = list(map(str, self.hints))
+        return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {hints}"
         
 class MatchingContentNotFound(Exception):
     pass
@@ -230,7 +231,7 @@ class ShowCatalog:
         print("Loaded catatlog")
 
     def get_text_listing(self):
-        content = "TITLE                | TAG        | Duration    | Hints\n"
+        content = "TITLE                | TAG        | Duration  | Hints\n"
         for tag in self.clip_index:
             if tag not in ['sign_off', 'off_air']:
                 for item in self.clip_index[tag]:
@@ -402,17 +403,19 @@ class ShowCatalog:
         return clips
 
     def summary(self):
+        (count,tags) = self.summary_data()
+        text = f"{count} videos under {tags} tags"
+        return text
+
+    def summary_data(self):
         count = 0
-        print(f"Getting summary {self.tags}")
         for tag in self.tags:
             #print(self.clip_index[tag])
             if type(self.clip_index[tag]) is list:
                 count += len(self.clip_index[tag])
             else:
                 count += 1
-        text = f"Tag count: {len(self.tags)}  Video count: {count}"
-        return text
-
+        return (len(self.tags), count)        
 
 
                     
