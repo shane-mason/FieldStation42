@@ -41,7 +41,7 @@ def main_loop(transition_fn):
 
     def sigint_handler(sig, frame):
 
-        logger.critical("Recieved sig-int signal, attempting to exit gracefully...")
+        logger.critical("Received sig-int signal, attempting to exit gracefully...")
         player.shutdown()
 
         update_status_socket("stopped", "", -1)
