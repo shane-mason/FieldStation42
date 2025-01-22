@@ -8,7 +8,7 @@ logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', lev
 
 from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
-from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket
+from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket, update_status_socket
 from fs42.reception import ReceptionStatus
 
 #from fs42.guide_channel import guide_channel_runner, GuideCommands
@@ -43,6 +43,8 @@ def main_loop(transition_fn):
 
         logger.critical("Recieved sig-int signal, attempting to exit gracefully...")
         player.shutdown()
+
+        update_status_socket("stopped", "", -1)
         logger.info("Shutdown completed as expected - exiting application")
         exit(0)
 
@@ -58,10 +60,11 @@ def main_loop(transition_fn):
 
     while True:
         logger.info(f"Playing station: {channel_conf['network_name']}" )
-         
+        update_status_socket("playing", channel_conf['network_name'], channel_conf['channel_number']) 
        
         if  channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
+            
             outcome = player.show_guide(channel_conf)   
         elif not skip_play:
             now = datetime.datetime.now()
@@ -69,8 +72,9 @@ def main_loop(transition_fn):
             week_day = DAYS[now.weekday()]
             hour = now.hour
             skip = now.minute * MIN_1 + now.second
-            #skip = 60 * 59
+            
             logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
+            
             outcome = player.play_slot(channel_conf['network_name'],datetime.datetime.now())
 
         logger.debug(f"Got player outcome:{outcome.status}")
@@ -97,6 +101,7 @@ def main_loop(transition_fn):
 
                         else:
                             logger.critical("Got direct tune command, but no channel specified")
+
                 except Exception as e:
                     logger.exception(e)
                     logger.warning("Got payload on channel change, but JSON convert failed")
@@ -121,7 +126,8 @@ def main_loop(transition_fn):
             if stuck_timer == 2 and "standby_image" in channel_conf:
                 player.play_file(channel_conf["standby_image"])
                 
-            
+            update_status_socket("stuck", channel_conf['network_name'], channel_conf['channel_number'])
+
             time.sleep(1)
             logger.critical("Player failed to start - resting for 1 second and trying again")
             

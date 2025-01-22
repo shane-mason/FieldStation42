@@ -24,6 +24,20 @@ def check_channel_socket():
         return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
     return None
 
+def update_status_socket(status, network_name, channel):
+    status_obj = {
+        "status": status,
+        "network_name": network_name,
+        "channel_number": channel,
+        "timestamp": datetime.datetime.now().isoformat()
+    }
+    status_socket = StationManager().server_conf['status_socket']
+    as_str = json.dumps(status_obj)
+    with open(status_socket, "w") as fp:
+        fp.write(as_str)
+
+        
+
 class PlayStatus(Enum):
     FAILED = 1
     EXITED = 2

@@ -13,7 +13,8 @@ class StationManager(object):
     def __init__(self):
         if not len(self.stations):
             self.load_json_stations()
-            self.server_conf = {"channel_socket": "runtime/channel.socket"}
+            self.server_conf = {"channel_socket": "runtime/channel.socket",
+                                "status_socket": "runtime/play_status.socket"}
         for i in  range(len(self.stations)):
             station = self.stations[i]
             if station['network_type'] == "standard":

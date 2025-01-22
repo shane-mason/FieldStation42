@@ -98,7 +98,7 @@ def main():
                 logging.getLogger().info(f"Checking catalog for {station_conf['network_name']}")
                 station.check_catalog()
             else:
-                logging.getLogger().info(f"Making schedule for {station_conf['network_name']}")
+                #logging.getLogger().info(f"Making schedule for {station_conf['network_name']}")
                 #schedule = station.make_weekly_schedule()
                 liquid = LiquidSchedule(station_conf)
                 if args.add_day:
