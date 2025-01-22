@@ -9,11 +9,6 @@ from fs42 import timings
 class TagHintReader():
 
     @staticmethod
-    def start_of_week(when_date):
-        #return date.replace()
-        pass
-
-    @staticmethod
     def get_tag(conf, when:datetime):
         day_str = timings.DAYS[when.weekday()]
         slot_number = str(when.hour)
@@ -49,20 +44,6 @@ class TagHintReader():
         return smoothed
 
 
-    @staticmethod
-    def complete_state(conf):
-        onair_state = None
-        completed = copy.deepcopy
-        for day_index in timings.DAYS:
-            for slot_index in timings.OPERATING_HOURS:
-                #did we transition? if so, mark it
-                if slot_index in conf[day_index]:
-                    #then onair
-                    pass
-                else:
-                    #then offair
-                    pass
-
 #all temporal hints should implement this interface
 class TemporalHint:
 
@@ -76,6 +57,24 @@ class TemporalHint:
     #when is a datetime object for the time slot
     def hint(self, when):
         return True
+
+class BumpHint:
+    pre = "pre"
+    post = "post"
+
+    def __init__(self, where="pre"):
+        self.where = where
+
+    @staticmethod
+    def test_pattern(to_test):
+        return (to_test == BumpHint.pre or to_test == BumpHint.post)
+        
+    def hint(self, when):
+        #always return true, since it doesn't really matter when
+        return True
+    
+    def __str__(self):
+        return f"bump:{self.where}"
 
 class MonthHint:
 

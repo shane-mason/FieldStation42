@@ -1,12 +1,12 @@
-import os
-import glob
 import logging
 import pickle
 import sys
 import random
-from fs42.timings import MIN_1, MIN_5, HOUR, H_HOUR, DAYS, HOUR2
-from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint
+from fs42.timings import MIN_5, DAYS
+from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.liquid_blocks import ReelBlock
+from fs42.media_processor import MediaProcessor
+from fs42.schedule_hint import BumpHint
 
 try:
     #try to import from version > 2.0
@@ -25,31 +25,12 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-class CatalogEntry:
-    def __init__(self, path, duration, tag, hints=[]):
-        self.path = path
-        #get the show name from the path
-        self.title = os.path.basename(path).split(".")[0]
-        self.duration = duration
-        self.tag = tag
-        self.count = 0
-        self.hints = hints
-
-    def __str__(self):
-        hints = list(map(str, self.hints))
-        return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {hints}"
         
-class MatchingContentNotFound(Exception):
-    pass
 
-class NoFillerContentFound(Exception):
-    pass
 
 class ShowCatalog:
-    _logger = logging.getLogger("MEDIA")
-    supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv"]
-
+    prebump = "prebump"
+    postbump = "postbump"
 
     def __init__(self, config, rebuild_catalog=False, load=True, debug=False):
         self.config = config
@@ -61,59 +42,6 @@ class ShowCatalog:
             self.build_catalog()
         elif load:
             self.load_catalog()
-
-    @staticmethod
-    def _process_media(file_list, tag, hints=[]):
-        ShowCatalog._logger.debug(f"_process_media starting processing for tag={tag} on {len(file_list)} files")
-        show_clip_list = []
-        #get the duration and path for each clip and add to the tag
-        for fname in file_list:
-            ShowCatalog._logger.debug(f"--_process_media is working on {fname}")
-            # get video file length in seconds
-            video_clip = VideoFileClip(fname)
-            show_clip = CatalogEntry(fname, video_clip.duration, tag, hints)
-            show_clip_list.append(show_clip)
-            ShowCatalog._logger.debug(f"--_process_media is done with {fname}: {show_clip}")
-
-        ShowCatalog._logger.debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
-
-        return show_clip_list
-
-
-    @staticmethod
-    def _find_media(path):
-        ShowCatalog._logger.debug(f"_find_media scanning for media in {path}")
-        file_list = []
-        for ext in ShowCatalog.supported_formats:
-            this_format = glob.glob(f"{path}/*.{ext}")
-            file_list += this_format
-            ShowCatalog._logger.debug(f"--Found {len(this_format)} files with {ext} extension - {len(file_list)} total found in {path} so far")
- 
-        ShowCatalog._logger.debug(f"_find_media done scanning {path} {len(file_list)}")
-        return file_list
-
-    @staticmethod
-    def _process_hints(path):
-        base = os.path.basename(path)
-        hints = []
-        if MonthHint.test_pattern(base):
-            hints.append(MonthHint(base))
-        if QuarterHint.test_pattern(base):
-            hints.append(QuarterHint(base))
-        if RangeHint.test_pattern(base):
-            hints.append(RangeHint(base))
-
-        return hints
-
-    @staticmethod
-    def _process_subs(dir_path, tag):
-        subs = [ f.path for f in os.scandir(dir_path) if f.is_dir() ]
-        clips = []
-        for sub in subs:
-            file_list = ShowCatalog._find_media(sub)
-            hints = ShowCatalog._process_hints(sub)
-            clips += ShowCatalog._process_media(file_list, tag, hints=hints)
-        return clips
 
     def build_catalog(self):
         self._l.info(f"Starting catalog build for {self.config['network_name']}")
@@ -131,8 +59,8 @@ class ShowCatalog:
         self.tags = []
         #for station types with all files in a single directory
         self._l.info(f"Checking for media in {self.config['content_dir']} for single directory")
-        file_list = ShowCatalog._find_media(self.config['content_dir'])
-        self.clip_index[tag] = ShowCatalog._process_media(file_list, tag)
+        file_list = MediaProcessor._find_media(self.config['content_dir'])
+        self.clip_index[tag] = MediaProcessor._process_media(file_list, tag)
         self._l.info(f"Building complete - processed {len(self.config['content_dir'])} files")
         self._write_catalog()
 
@@ -169,16 +97,24 @@ class ShowCatalog:
             self.clip_index[tag] = []
             self._l.info(f"Checking for media with tag={tag} in content folder")
             tag_dir = f"{self.config['content_dir']}/{tag}"
-            file_list = ShowCatalog._find_media(tag_dir)
+            file_list = MediaProcessor._find_media(tag_dir)
 
-            self.clip_index[tag] = ShowCatalog._process_media(file_list, tag)
+            self.clip_index[tag] = MediaProcessor._process_media(file_list, tag)
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")
             self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
-            subdir_clips = ShowCatalog._process_subs(tag_dir, tag)
+            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=(tag==self.config["bump_dir"]))
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
-            self.clip_index[tag] += subdir_clips
-            total_count += len(self.clip_index[tag])
+            
+            if( tag == self.config["bump_dir"]):
+                (pre, fill, post) = MediaProcessor._by_position(subdir_clips, ShowCatalog.prebump, ShowCatalog.postbump)
+                self.clip_index[tag] = self.clip_index[tag] + fill
+                self.clip_index[ShowCatalog.prebump] = pre
+                self.clip_index[ShowCatalog.postbump] = post
+                total_count += len(pre) + len(fill) + len(post)
+            else:                
+                self.clip_index[tag] += subdir_clips
+                total_count += len(self.clip_index[tag])
 
         # add sign-off and off-air videos to the clip index
         if 'sign_off_video' in self.config:
@@ -202,6 +138,8 @@ class ShowCatalog:
             total_count+=1
 
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
+        self._build_tags()
+        print(self.tags)
         self._write_catalog()
 
     def _write_catalog(self):
@@ -211,7 +149,7 @@ class ShowCatalog:
     def load_catalog(self):
         #takes a while, so check to see if it exists - build if not
         c_path = self.config['catalog_path']
-        self._l.info("Loading catalog from file: " + c_path )
+        self._l.debug("Loading catalog from file: " + c_path )
         if False: #not os.path.isfile(c_path):
             self._l.warning("Catalog not found - starting new build")
             self.build_catalog()
@@ -227,13 +165,13 @@ class ShowCatalog:
                     print("Please rebuild catalogs by running station_42.py -x. Cheers!" + '\033[0m')
                     sys.exit(-1)
 
-            self._l.info("Catalog read read from file " + c_path)
-        print("Loaded catatlog")
+            self._l.debug("Catalog read read from file " + c_path)
+        
 
     def get_text_listing(self):
         content = "TITLE                | TAG        | Duration  | Hints\n"
         for tag in self.clip_index:
-            if tag not in ['sign_off', 'off_air']:
+            if tag not in ["sign_off", "off_air"]:
                 for item in self.clip_index[tag]:
                     content += f"{str(item)}\n"
         return content
@@ -278,13 +216,6 @@ class ShowCatalog:
 
         return random.choice(lowest_matches)
 
-
-    def _test_candidate_hints(hint_list, when):
-        for hint in hint_list:
-            if hint.hint(when) == False:
-                return False
-        return True
-
     def get_all_by_tag(self, tag):
         if tag in self.clip_index and len(self.clip_index[tag]):
             return self.clip_index[tag]
@@ -297,7 +228,7 @@ class ShowCatalog:
             matches = []
             for candidate in candidates:
                 # restrict content to fit and be valid (zero duration is likely not valid)
-                if candidate.duration < seconds and candidate.duration >= 1 and ShowCatalog._test_candidate_hints(candidate.hints, when):
+                if candidate.duration < seconds and candidate.duration >= 1 and MediaProcessor._test_candidate_hints(candidate.hints, when):
                     matches.append(candidate)
             random.shuffle(matches)
             if not len(matches):
@@ -313,12 +244,23 @@ class ShowCatalog:
             raise NoFillerContentFound("Can't find filler - add commercials and bumps...")
         return self.find_candidate(random.choice([bump_tag, com_tag, com_tag]), seconds, when)
 
-    def find_bump(self, seconds, when):
+
+    def find_bump(self, seconds, when, position=None):
         bump_tag = self.config['bump_dir']
 
         if not len(self.clip_index[bump_tag]):
             raise NoFillerContentFound("Can't find filler - add bumps...")
-        return self.find_candidate(bump_tag, seconds, when)
+        
+        if position:
+            if position == ShowCatalog.prebump and len(self.clip_index[ShowCatalog.prebump]):
+                return self.find_candidate(ShowCatalog.prebump, seconds, when)
+            elif position == ShowCatalog.postbump and len(self.clip_index[ShowCatalog.postbump]):
+                return self.find_candidate(ShowCatalog.postbump, seconds, when)
+            else:
+               #then none were specified, so use regular bumps
+               return self.find_candidate(bump_tag, seconds, when) 
+        else:
+            return self.find_candidate(bump_tag, seconds, when)
 
     def find_commercial(self, seconds, when):
         com_tag = self.config['commercial_dir']
@@ -334,8 +276,9 @@ class ShowCatalog:
         start_candidate = None
         end_candidate = None
         if bumpers:
-            start_candidate = self.find_bump(max_bumper_duration, when)
-            end_candidate = self.find_bump(max_bumper_duration, when)
+            start_candidate = self.find_bump(max_bumper_duration, when, ShowCatalog.prebump)
+            end_candidate = self.find_bump(max_bumper_duration, when, ShowCatalog.postbump)
+
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
             
@@ -371,7 +314,7 @@ class ShowCatalog:
                         if self.config["commercial_free"] == False:
                             candidate = self.find_commercial(remaining, when)
                         else:
-                            candidate = self.find_bump(remaining, when)
+                            candidate = self.find_bump(remaining, when, "fill")
                     except:
                         pass
 
