@@ -12,6 +12,7 @@ env/
 *.kdev4*
 *.kate-swp
 *confs/*.json
+*confs/mine
 fs42/guide_render/static/90s.html
 
 # C extensions
