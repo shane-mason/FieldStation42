@@ -9,7 +9,7 @@ except ImportError:
     #fall back to import from version 1.0
     from moviepy.editor import VideoFileClip # type: ignore
 
-from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint
+from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint
 from fs42.catalog_entry import CatalogEntry
 
 class MediaProcessor:
@@ -55,7 +55,8 @@ class MediaProcessor:
             hints.append(QuarterHint(base))
         if RangeHint.test_pattern(base):
             hints.append(RangeHint(base))
-
+        if DayPartHint.test_pattern(base):
+            hints.append(DayPartHint(base))
         if bumpdir:
             if BumpHint.test_pattern(base):
                 hints.append(BumpHint(base))

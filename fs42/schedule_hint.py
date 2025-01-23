@@ -58,6 +58,28 @@ class TemporalHint:
     def hint(self, when):
         return True
 
+class DayPartHint:
+    parts = {
+        "morning"  : range(6,10),
+        "daytime"  : range(10,17),
+        "prime"    : range(17,23),
+        "late"     : [23,0, 1, 2],
+        "overnight": range(2, 6) 
+    }
+    def __init__(self, part_name):
+        self.part = DayPartHint.parts[part_name]
+        self.part_name = part_name
+
+    @staticmethod
+    def test_pattern(to_test):
+        return to_test in DayPartHint.parts.keys()
+
+    def hint(self, when):
+        return when.hour in self.part 
+
+    def __str__(self):
+        return f"{self.part_name}"
+    
 class BumpHint:
     pre = "pre"
     post = "post"
