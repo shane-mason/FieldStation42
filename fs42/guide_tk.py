@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.getcwd())
 
 import tkinter as tk #import Tkinter
-
+from PIL import Image, ImageTk
 from fs42.guide_builder import GuideBuilder
 from fs42.station_manager import StationManager
 
@@ -24,6 +24,8 @@ class GuideWindowConf:
         self.message_fg = "white"
         self.message_font_family = "Arial"
         self.message_font_size = 25
+
+        self.images = []
 
         self.network_font_family = "Arial"
         self.network_font_size = 12
@@ -73,13 +75,17 @@ class AdFrame(tk.Frame):
     def __init__(self, parent, conf):
         super().__init__(parent, bg=conf.top_bg)
 
+
         self.lbl_v = tk.Label(self, text="Video Placeholder", bg='black', fg='white')
 
         self.lbl_v.place(x=conf.pad,
-                         y=conf.pad,
-                         width=conf.half_w-conf.pad*2,
-                         height=conf.half_h-conf.pad*2
-                         )
+                        y=conf.pad,
+                        width=conf.half_w-conf.pad*2,
+                        height=conf.half_h-conf.pad*2
+                        )
+
+        self.photo = None
+        self.image_index = 0
 
         self.lbl_messages = tk.Label(self,
                               text="This is the message\nplaceholder",
@@ -100,6 +106,19 @@ class AdFrame(tk.Frame):
         self.message_index+=1
         if self.message_index >= len(self.conf.messages):
             self.message_index = 0
+
+        if len(self.conf.images):
+            
+            as_img = Image.open(self.conf.images[self.image_index]) 
+            resized = as_img.resize((int(self.conf.half_w-self.conf.pad*2),
+                                     int(self.conf.half_h-self.conf.pad*2)))
+            self.photo =  ImageTk.PhotoImage(resized)
+            
+            self.lbl_v.configure(image=self.photo)
+
+            self.image_index+=1
+            if self.image_index >= len(self.conf.images):
+                self.image_index = 0
 
         self.after(self.conf._message_rotation_rate, self.rotate_message)
 
