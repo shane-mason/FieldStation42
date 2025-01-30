@@ -89,19 +89,29 @@ def main_loop(transition_fn):
             if outcome.payload:
                 try:
                     as_obj = json.loads(outcome.payload)
-                    if "command" in as_obj and as_obj["command"] == "direct":
-                        tune_up = False
-                        if "channel" in as_obj:
-                            logger.debug(f"Got direct tune command for channel {as_obj['channel']}")
-                            new_index = manager.index_from_channel(as_obj['channel'])
-                            if new_index is None:
-                                logger.warning(f"Got direct tune command but could not find station with channel {as_obj['channel']}")
+                    if "command" in as_obj:
+                        if as_obj["command"] == "direct":
+                            tune_up = False
+                            if "channel" in as_obj:
+                                logger.debug(f"Got direct tune command for channel {as_obj['channel']}")
+                                new_index = manager.index_from_channel(as_obj['channel'])
+                                if new_index is None:
+                                    logger.warning(f"Got direct tune command but could not find station with channel {as_obj['channel']}")
+                                else:
+                                    channel_index = new_index
                             else:
-                                channel_index = new_index
-
-                        else:
-                            logger.critical("Got direct tune command, but no channel specified")
-
+                                logger.critical("Got direct tune command, but no channel specified")
+                        elif as_obj["command"] == "up":
+                            tune_up = True
+                            logger.debug(f"Got channel up command")
+                        elif as_obj["command"] == "down":
+                            tune_up = False
+                            logger.debug(f"Got channel down command")
+                            channel_index-=1
+                            if channel_index<0:
+                                channel_index = len(manager.stations)-1
+                                        
+                    
                 except Exception as e:
                     logger.exception(e)
                     logger.warning("Got payload on channel change, but JSON convert failed")
