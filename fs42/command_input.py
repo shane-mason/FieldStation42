@@ -3,45 +3,54 @@ import datetime
 import serial
 import os
 import sys
+import json
 
-# listens for input on 'button press' and then writes to channel socket file (player will pick it up.)
-# uses circuit python
-
-#button = digitalio.DigitalInOut(board.D4)
-#button.direction = digitalio.Direction.INPUT
-#button.pull = digitalio.Pull.UP
-
-#while True:
-#    if not button.value:
-#        timestamp = datetime.datetime.now
-#        with open("runtime/channel.socket") as fp:
-#            fp.write(timestamp)
-
-#        time.sleep(5)
-#    else:
-#        time.sleep(.05)
-
-
-
-#uart = busio.UART(tx=board.GP0, rx=board.GP1)
 uart = serial.Serial("/dev/ttyAMA0", baudrate=9600, timeout=10)
-while True:
-    time.sleep(0.1)
-    if (uart.in_waiting > 0):
-        message = uart.readline()
-        command = message.decode('ascii')
-        print("Got Message: ", command)
-        if command.startswith("change"):
-            timestamp = datetime.datetime.now()
-            with open("runtime/channel.socket", "w") as fp:
-                fp.write(str(timestamp))
-        if command.startswith("exit"):
-            os.system("pkill -9 -f field_player.py")
-            os.system("killall mpv")
-            sys.exit(-1)
 
-        if command.startswith("halt"):
-            os.system("pkill -9 -f field_player.py")
-            os.system("killall mpv")
-            os.system("sudo halt")
-            sys.exit(-1)
+def old_loop():
+    while True:
+        time.sleep(0.1)
+        if (uart.in_waiting > 0):
+            message = uart.readline()
+            command = message.decode('ascii')
+            print("Got Message: ", command)
+            if command.startswith("change"):
+                timestamp = datetime.datetime.now()
+                with open("runtime/channel.socket", "w") as fp:
+                    fp.write(str(timestamp))
+            if command.startswith("exit"):
+                os.system("pkill -9 -f field_player.py")
+                os.system("killall mpv")
+                sys.exit(-1)
+
+            if command.startswith("halt"):
+                os.system("pkill -9 -f field_player.py")
+                os.system("killall mpv")
+                os.system("sudo halt")
+                sys.exit(-1)
+
+
+def new_loop():
+    while True:
+        time.sleep(0.1)
+        if (uart.in_waiting > 0):
+            message = uart.readline()
+            command = message.decode('ascii')
+            print("Got Message: ", command)
+            as_json = json.loads(command)
+
+            if as_json['channel'] == 99:
+                os.system("pkill -9 -f field_player.py")
+                os.system("killall mpv")
+                sys.exit(-1)
+            elif as_json['channel'] == 98:
+                os.system("pkill -9 -f field_player.py")
+                os.system("killall mpv")
+                os.system("sudo halt")
+                sys.exit(-1)
+            else:
+                with open("runtime/channel.socket", "w") as fp:
+                    fp.write(command)
+
+if __name__ == "__main__":
+    new_loop()
