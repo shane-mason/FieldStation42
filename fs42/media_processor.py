@@ -5,7 +5,7 @@ import glob
 import subprocess
 import json
 
-USE_LONG_PROCESS = True
+USE_EXPERIMENTAL_PROCESS = True
 
 try:
     #try to import from version > 2.0
@@ -29,11 +29,12 @@ class MediaProcessor:
             logging.getLogger("MEDIA").debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
             duration = 0.0
-            if USE_LONG_PROCESS:
+            if USE_EXPERIMENTAL_PROCESS:
+                #this wont work for mkv and webp and doesnt really save time - shouldn't use unless required 
+                duration = MediaProcessor._get_duration(fname)
+            else:
                 video_clip = VideoFileClip(fname)
                 duration = video_clip.duration
-            else:
-                duration = MediaProcessor._get_duration(fname)
 
             if duration <= 0.0:
                 logging.getLogger("MEDIA").warning(f"Could not get a duration for tag: {tag}  file: {fname}")
