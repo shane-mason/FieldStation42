@@ -2,6 +2,11 @@ import logging
 import os
 import glob
 
+import subprocess
+import json
+
+USE_LONG_PROCESS = False
+
 try:
     #try to import from version > 2.0
     from moviepy import VideoFileClip
@@ -23,15 +28,45 @@ class MediaProcessor:
         for fname in file_list:
             logging.getLogger("MEDIA").debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
-            video_clip = VideoFileClip(fname)
-            show_clip = CatalogEntry(fname, video_clip.duration, tag, hints)
-            show_clip_list.append(show_clip)
-            logging.getLogger("MEDIA").debug(f"--_process_media is done with {fname}: {show_clip}")
+            duration = 0.0
+            if USE_LONG_PROCESS:
+                video_clip = VideoFileClip(fname)
+                duration = video_clip.duration
+            else:
+                duration = MediaProcessor._get_duration(fname)
+
+            if duration <= 0.0:
+                logging.getLogger("MEDIA").warning(f"Could not get a duration for tag: {tag}  file: {fname}")
+                logging.getLogger("MEDIA").warning(f"Files with 0 length can't be added to the catalog.")
+            else:
+                show_clip = CatalogEntry(fname, duration, tag, hints)
+                show_clip_list.append(show_clip)
+                logging.getLogger("MEDIA").debug(f"--_process_media is done with {fname}: {show_clip}")
 
         logging.getLogger("MEDIA").debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
 
         return show_clip_list
 
+    @staticmethod
+    def _get_duration(file_name):
+        #escape characters that will break the shell
+        cleaned = file_name.replace(" ", "\ ").replace("&", "\&")
+        cleaned = cleaned.replace("'", "\\'").replace(",", "\,")
+        cleaned = cleaned.replace("(", "\(").replace(")", "\)")
+
+        command = r"ffprobe -v quiet -print_format json -show_format  -show_streams " + cleaned
+        res = json.loads(subprocess.check_output(command, shell=True))
+        
+        streams = res.get('streams')
+        
+        duration = -1.0
+        if len(streams):
+            dur_str = streams[0]['duration']
+            try:
+                duration = float(dur_str)
+            except:
+                duration = -1
+        return duration
 
     @staticmethod
     def _find_media(path):
