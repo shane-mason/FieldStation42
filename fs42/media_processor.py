@@ -5,7 +5,7 @@ import glob
 import subprocess
 import json
 
-USE_LONG_PROCESS = False
+USE_LONG_PROCESS = True
 
 try:
     #try to import from version > 2.0
