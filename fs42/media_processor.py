@@ -5,7 +5,7 @@ import glob
 import subprocess
 import json
 
-USE_EXPERIMENTAL_PROCESS = True
+USE_EXPERIMENTAL_PROCESS = False
 
 try:
     #try to import from version > 2.0
