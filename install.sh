@@ -31,7 +31,7 @@ else
 fi
 
 echo Installing python modules
-env/bin/pip3 install moviepy
+pip3 install --force-reinstall -v "moviepy==2.1.1"
 
 env/bin/pip3 install python-mpv-jsonipc
 
