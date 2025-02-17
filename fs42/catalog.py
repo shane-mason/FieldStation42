@@ -349,7 +349,7 @@ class ShowCatalog:
         return clips
 
     def summary(self):
-        (count,tags) = self.summary_data()
+        (tags, count) = self.summary_data()
         text = f"{count} videos under {tags} tags"
         return text
 
