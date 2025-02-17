@@ -57,6 +57,8 @@ class StationManager(object):
                         d['station_conf']["break_strategy"] = 'standard'
                     if "commercial_free" not in d['station_conf']:
                         d['station_conf']["commercial_free"] = False
+                    if "clip_shows" not in d["station_conf"]:
+                        d['station_conf']["clip_shows"] = []
                     station_buffer.append(d['station_conf'])
                 except Exception as e:
                     print(f"Error loading station configuration: {fname}")
