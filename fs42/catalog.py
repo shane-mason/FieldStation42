@@ -87,8 +87,10 @@ class ShowCatalog:
         self.tags = list(tags.keys())
 
         #add commercial and bumps to the tags
-        self.tags.append(self.config["commercial_dir"])
-        self.tags.append(self.config["bump_dir"])
+        if "commercial_dir" in self.config:
+            self.tags.append(self.config["commercial_dir"])
+        if "bump_dir" in self.config:
+            self.tags.append(self.config["bump_dir"])
 
         total_count = 0
 
