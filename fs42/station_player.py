@@ -56,7 +56,10 @@ class StationPlayer:
         if not mpv:
             self._l.info("Starting MPV instance")
             #command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window
-            self.mpv = MPV(start_mpv=True, ipc_socket="/tmp/mpvsocket", input_default_bindings=False, fs=True, idle=True, force_window=True)
+            self.mpv = MPV(start_mpv=True, ipc_socket="/tmp/mpvsocket", 
+                           input_default_bindings=False, fs=True, 
+                           idle=True, force_window=True,
+                           script_opts="osc-idlescreen=no" )
         self.runtime_path = runtime_path
         #self.playlist = self.read_json(runtime_filepath)
         self.index = 0
