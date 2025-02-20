@@ -65,7 +65,7 @@ def new_loop():
                     last_stat = as_str
                     as_str = as_str.rstrip()
                     print(as_str)
-                    uart.write(f"as_str\n".encode('utf-8'))
+                    uart.write(f"{as_str}\n".encode('utf-8'))
                     uart.flush()
 
             
