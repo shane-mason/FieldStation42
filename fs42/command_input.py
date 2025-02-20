@@ -58,8 +58,8 @@ def new_loop():
                 as_str = as_str.rstrip()
                 if as_str != last_stat:
                     last_stat = f"as_str\n"
-                    serial.write(bytes(as_str, "utf-8"))
-                    serial.flush()
+                    uart.write(as_str.encode('utf-8'))
+                    uart.flush()
 
             
 
