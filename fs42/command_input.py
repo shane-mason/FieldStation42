@@ -64,10 +64,10 @@ def new_loop():
                 if as_str != last_stat:
                     print("Status changed:")
                     last_stat = as_str
-                    as_str = as_str.rstrip()
-                    print(as_str)
-                    uart.write(f"{as_str}\n".encode('utf-8'))
+                    stat = json.loads(as_str)
+                    uart.write(f"{stat['channel_number']}\n".encode('utf-8'))
                     #uart.flush()
+                    
 
             
 
