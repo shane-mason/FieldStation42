@@ -55,10 +55,13 @@ def new_loop():
         else:
             with open("runtime/play_status.socket") as fp:
                 as_str = fp.read()
-                as_str = as_str.rstrip()
+                
                 if as_str != last_stat:
-                    last_stat = f"as_str\n"
-                    uart.write(as_str.encode('utf-8'))
+                    print("Status changed:")
+                    last_stat = as_str
+                    as_str = as_str.rstrip()
+                    print(as_str)
+                    uart.write(f"as_str\n".encode('utf-8'))
                     uart.flush()
 
             
