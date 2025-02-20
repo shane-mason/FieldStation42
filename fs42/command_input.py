@@ -31,6 +31,7 @@ def old_loop():
 
 
 def new_loop():
+    last_stat = ""
     while True:
         time.sleep(0.1)
         if (uart.in_waiting > 0):
@@ -51,6 +52,16 @@ def new_loop():
             else:
                 with open("runtime/channel.socket", "w") as fp:
                     fp.write(command)
+        else:
+            with open("runtime/play_status.socket") as fp:
+                as_str = fp.read()
+                as_str = as_str.rstrip()
+                if as_str != last_stat:
+                    last_stat = f"as_str\n"
+                    serial.write(bytes(as_str, "utf-8"))
+                    serial.flush()
+
+            
 
 if __name__ == "__main__":
     new_loop()
