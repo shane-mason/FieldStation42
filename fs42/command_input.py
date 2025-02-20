@@ -67,7 +67,7 @@ def new_loop():
                     as_str = as_str.rstrip()
                     print(as_str)
                     uart.write(f"{as_str}\n".encode('utf-8'))
-                    uart.flush()
+                    #uart.flush()
 
             
 
