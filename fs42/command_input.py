@@ -38,20 +38,24 @@ def new_loop():
             message = uart.readline()
             command = message.decode('ascii')
             print("Got Message: ", command)
-            as_json = json.loads(command)
+            try:
+                as_json = json.loads(command)
 
-            if as_json['channel'] == 99:
-                os.system("pkill -9 -f field_player.py")
-                os.system("killall mpv")
-                sys.exit(-1)
-            elif as_json['channel'] == 98:
-                os.system("pkill -9 -f field_player.py")
-                os.system("killall mpv")
-                os.system("sudo halt")
-                sys.exit(-1)
-            else:
-                with open("runtime/channel.socket", "w") as fp:
-                    fp.write(command)
+                if as_json['channel'] == 99:
+                    os.system("pkill -9 -f field_player.py")
+                    os.system("killall mpv")
+                    sys.exit(-1)
+                elif as_json['channel'] == 98:
+                    os.system("pkill -9 -f field_player.py")
+                    os.system("killall mpv")
+                    os.system("sudo halt")
+                    sys.exit(-1)
+                else:
+                    with open("runtime/channel.socket", "w") as fp:
+                        fp.write(command)
+            except Exception as e:
+                print("Error decoding message")
+                print(e)
         else:
             with open("runtime/play_status.socket") as fp:
                 as_str = fp.read()
