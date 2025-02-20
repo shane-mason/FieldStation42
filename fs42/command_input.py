@@ -35,10 +35,11 @@ def new_loop():
     while True:
         time.sleep(0.1)
         if (uart.in_waiting > 0):
-            message = uart.readline()
-            command = message.decode('ascii')
-            print("Got Message: ", command)
+
             try:
+                message = uart.readline()
+                command = message.decode('ascii')
+                print("Got Message: ", command)
                 as_json = json.loads(command)
 
                 if as_json['channel'] == 99:
