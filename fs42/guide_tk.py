@@ -290,11 +290,6 @@ def guide_channel_runner(user_conf, queue):
     AdFrame(app, merge_conf)
     ScheduleFrame(app, merge_conf)
 
-    if merge_conf.play_sound:
-        from playsound import playsound
-        playsound(merge_conf.sound_to_play, False)
-
-
     app.mainloop()
 
 if __name__ == '__main__':
