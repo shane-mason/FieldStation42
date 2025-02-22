@@ -10,7 +10,7 @@ from fs42.station_manager import StationManager
 class GuideWindowConf:
 
     def __init__(self, w=800, h=600):
-        self.fullscreen = False
+        self.fullscreen = True
         self.width = w
         self.height= h
 
@@ -52,7 +52,7 @@ class GuideWindowConf:
         self.network_w = self.width/6
         self.sched_w = (self.width-self.network_w)/self.schedule_row_count
         self.sched_h = self.half_h/(1+self.schedule_row_count)
-        self.canvas_h = self.sched_h * self.schedule_row_count + self.footer_height*len(self.footer_messages) + 1000
+        self.canvas_h = self.sched_h * self.schedule_row_count + self.footer_height*len(self.footer_messages) + 600
         self._message_font = (self.message_font_family, self.message_font_size)
         self._schedule_font = (self.schedule_font_family, self.schedule_font_size)
         self._network_font = (self.network_font_family, self.network_font_size)
@@ -256,7 +256,8 @@ class GuideApp(tk.Tk):
         self.title('FieldStation42 Guide')
 
         if self.conf.fullscreen:
-            self.attributes('-fullscreen', True)
+            self.overrideredirect(True)
+            #self.attributes('-fullscreen', True)
         else:
             self.geometry(f"{self.conf.width}x{self.conf.height}")
 
