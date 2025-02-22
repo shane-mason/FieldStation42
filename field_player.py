@@ -64,7 +64,8 @@ def main_loop(transition_fn):
        
         if  channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
-            
+            if channel_conf['play_sound']:
+                player.play_file(channel_conf["sound_to_play"])
             outcome = player.show_guide(channel_conf)   
         elif not skip_play:
             now = datetime.datetime.now()
