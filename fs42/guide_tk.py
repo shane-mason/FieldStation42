@@ -9,8 +9,8 @@ from fs42.station_manager import StationManager
 
 class GuideWindowConf:
 
-    def __init__(self, w=720, h=480):
-        self.fullscreen = True
+    def __init__(self, w=800, h=600):
+        self.fullscreen = False
         self.width = w
         self.height= h
 
