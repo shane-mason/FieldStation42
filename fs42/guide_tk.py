@@ -239,7 +239,7 @@ class ScheduleFrame(tk.Frame):
     def scroll_canvas_view(self):
         # get the current bounds
         top, bottom = self.canvas.yview()
-
+        print(bottom)
         if bottom >= 1.0:
             self.canvas.yview_moveto(-.2)
             self.after(3000, self.scroll_canvas_view)
