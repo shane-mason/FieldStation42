@@ -61,8 +61,8 @@ class TemporalHint:
 class DayPartHint:
     parts = {
         "morning"  : range(6,10),
-        "daytime"  : range(10,17),
-        "prime"    : range(17,23),
+        "daytime"  : range(10,18),
+        "prime"    : range(18,23),
         "late"     : [23,0, 1, 2],
         "overnight": range(2, 6) 
     }

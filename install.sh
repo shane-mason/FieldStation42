@@ -39,8 +39,6 @@ env/bin/pip3 install pyserial
 
 env/bin/pip3 install textual
 
-env/bin/pip3 install playsound
-
 echo Creating folders
 
 if [ -d runtime ]; then
