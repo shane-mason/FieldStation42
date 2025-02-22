@@ -258,8 +258,8 @@ class GuideApp(tk.Tk):
         if self.conf.fullscreen:
             self.overrideredirect(True)
             #self.attributes('-fullscreen', True)
-        else:
-            self.geometry(f"{self.conf.width}x{self.conf.height}")
+        
+        self.geometry(f"{self.conf.width}x{self.conf.height}")
 
 
 
