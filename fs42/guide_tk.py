@@ -55,7 +55,6 @@ class GuideWindowConf:
         self.network_w = self.width/6
         self.sched_w = (self.width-self.network_w)/self.schedule_row_count
         self.sched_h = self.half_h/(1+self.schedule_row_count)
-        self.canvas_h = (self.sched_h + 10) * self.schedule_row_count + self.footer_height*len(self.footer_messages) + 600
         self._message_font = (self.message_font_family, self.message_font_size)
         self._schedule_font = (self.schedule_font_family, self.schedule_font_size)
         self._network_font = (self.network_font_family, self.network_font_size)
@@ -167,15 +166,15 @@ class ScheduleFrame(tk.Frame):
 
             l_offset+=self.conf.sched_w
 
-        
+        canvas_h = self.conf.sched_h * len(view['rows']) + self.conf.footer_height*len(self.conf.footer_messages) + 200
         self.canvas = tk.Canvas(self,bg='green',
                                 height=self.conf.half_h-self.conf.sched_h,
                                 width=self.conf.width,
-                                scrollregion=(0,0,self.conf.canvas_h,self.conf.width)
+                                scrollregion=(0,0,canvas_h,self.conf.width)
                                 )
         self.canvas.place(x=0, y=self.conf.sched_h)
 
-        self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=self.conf.canvas_h, bg=self.conf.bottom_bg)
+        self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=canvas_h, bg=self.conf.bottom_bg)
 
         x_offset = 0
         y_offset = 0
