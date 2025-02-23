@@ -123,7 +123,7 @@ class GuideBuilder:
             timings.append(f"{hour_two}:30")
         else:
             timings.append(f"{hour_one}:00")
-            timings.append(f"{hour_two}:30")
+            timings.append(f"{hour_one}:30")
             timings.append(f"{hour_two}:00")
 
         formatted_timings = []
