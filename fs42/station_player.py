@@ -97,7 +97,7 @@ class StationPlayer:
         guide_process = multiprocessing.Process(target=guide_channel_runner, args=( guide_config, queue,))
         guide_process.start()
 
-        if guide_config['play_sound']:
+        if 'play_sound' in guide_config and guide_config['play_sound']:
             self.play_file(guide_config["sound_to_play"])
         else:
             self.mpv.stop()
