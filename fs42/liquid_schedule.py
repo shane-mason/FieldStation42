@@ -64,7 +64,7 @@ class LiquidSchedule():
         for i in range(diff.days):
             current_mark = start_time + datetime.timedelta(days=i)
             next_mark = start_time + datetime.timedelta(days=i+1)
-            block = LiquidLoopBlock(content, current_mark, next_mark, "Loop")
+            block = LiquidLoopBlock(content, current_mark, next_mark, self.conf['network_name'])
             new_blocks.append(block)
 
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
