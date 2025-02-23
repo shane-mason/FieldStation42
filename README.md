@@ -1,17 +1,8 @@
 # FieldStation42
-Broadcast TV simulator intended to provide an authentic experience of watching OTA television with the following goals:
+Cable and broadcast TV simulator intended to provide an authentic experience of watching OTA television with the following goals:
 
 * When the TV is turned on, a believable show for the time slot and network should be playing
 * When switching between channels, the shows should continue playing serially as though they had been broadcasting the whole time
-
-# Important Note for Existing Users:
-The new scheduler merged as of Jan 09 and is not compatible with existing catalog indexes or schedules. After pulling, you will need to run the following commands before building a new schedule.
-
-`python3 station_42.py --rebuild_catalog`
-
-and
-
-`python3 station_42.py --delete_schedules`
 
 
 ![An older TV with an antenna rotator box in the background](docs/retro-tv.png?raw=true)
@@ -21,15 +12,14 @@ and
 * Automatically interleaves commercial break and bumps into content
 * Generates weekly schedules based on per-station configurations
 * Feature length content - supports movie length show blocks
-* Randomly selects shows that have not been played recently to keep a fresh lineup
+* Randomly selects shows from the programming slot that have not been played recently to keep a fresh lineup
 * Set dates ranges for shows (like seasonal sports or holiday shows)
 * Per-station configuration of station sign-off video and off-air loops
-* UX to view weekly schedules
+* UX to manage catalogs and schedules
 * Optional hardware connections to change the channel
-
-## Experimental Features - Cable Mode
+* Loooing channels - useful for community bulliten channels
 * Preview/guide channel with embedded video and configurable messages
-    * This is a brand new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
+    * This is a new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
 * Flexible scheduling to support all kinds of channel types
     * Traditional networks channels with commercials and bumps
     * Commercial free channels with optional end bump padding at end (movie channels, public broadcasting networks)
@@ -64,27 +54,34 @@ For a complete, step-by-step guide to setting up and administering FieldStation4
 * Configure start-on-boot (optional and not recommended unless you are making a dedicated device.)
     * Run `fs42/hot_start.sh` on the command line
 
-The quickstart above is only designed to provide an overview of the required step - use the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki) for more detailed description of the steps.
+The quickstart above is only designed to provide an overview of the required steps - use the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki) for more detailed description of the steps.
 
 # How It Works
 FieldStation42 has multiple components that work together to recreate that old-school TV nostalgia.
 
 ### station_42.py
-This script is used to perform 2 primary tasks: build the catalog from disk (only needs to happen when content changes) and building weekly schedules. If no catalog exists, it will create one otherwise, it will just create weekly schedules for all configured channels. If a catalog exists, but you want to overwrite it (like when the channel content has been updated) use the `--rebuild_catalog` command line switch. Run this weekly via a cron job to create new schedules.
-
-### ux.py
-This script is used to view schedules for networks - it can act as a guide of sorts.
+Use this to create catalogs and generate schedules. Catalogs are used to store metadata about the stations content, so they need to be rebuilt each time the content changes. Since it is inspecting files on disk, this can take some time depending on the number of videos in your content library. The liquid-scheduler uses the catalogs and the stations configuration to build schedules, so catalogs should be built first. Running `station_42.py` with no arguments will start a UI that runs in the terminal. You can use this to manage catalogs and schedules, or you can perform all operations using command line arguments with no UI. To see the list of all options, run `station_42.py --help`. 
 
 ### field_player.py
-This is the main TV interface. On startup, it will read the weekly schedule and open the correct video file and skip to the correct position. It will re-perform this step each time the channel is changed for the new.
+This is the main TV interface. On startup, it will read the schedule and open the correct video file and skip to the correct position based on the current time. It will re-perform this step each time the channel is changed. If you tune back to a previous channel, it will pick up the current time and start playing as though it had been playing the whole time.
+
+The player monitors the plain text file `runtime/channel.socket` for commands to change the channel and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py` if any content is found there - or you can use the following command to cause the player to change to channel 3:
+
+`echo {\"command\": \"direct\", \"channel\": 3} > runtime/channel.socket`
+
+You can also open `runtime/channel.socket` in a text editor and enter the following json snippet (change 3 to whatever number you want to change to)
+
+`{"command": "direct", "channel": 3}`
+
+The following command will cause the player to tune up or down respectively
+
+`{"command": "up", "channel": -1}`
+`{"command": "down", "channel": -1}`
+
+The player writes its status and current channel to `runtime/play_status.socket` - this can be monitored by an external program if needed. See [this page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`.
 
 ### command_input.py
-This is an optional component, use this to connect an external device (Raspberry Pico) to invoke a channel change. The following command will cause a channel change:
-
-`echo anything > runtime/channel.socket`
-
-### aerial_listener.py
-This is another optional component that is used with CircuitPython on a Raspberry Pico (or similar)
+This is provided as an example component to show how to connect an external device or program to invoke a channel changes and pass status information. This script listens for incoming commands on the pi's UART connection and then writes channel change commands to `runtime/channel.socket` 
 
 
 ## Connecting to Rasberry Pico (Optional)
@@ -93,9 +90,6 @@ If you don't want a remote button changer, like the antenna rotator box from the
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
-Note: if you are using a pico to along with command_input.py from FS42, you will need to install the serial module in your virtual env to communicate with the pico (see below)
-
-`pip3 install serial`
 
 ## Connecting to a TV
 The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HTMI->Composit or HDMI->RF adapter. These units are available online or at an electronic retailer.
