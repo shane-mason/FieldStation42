@@ -1,19 +1,24 @@
-from machine import Pin, UART
 import json
-import tm1637
-
-tm = tm1637.TM1637(clk=Pin(1), dio=Pin(0), brightness=0)    
-    
-from keypad import Keypad
 import time
 
+# install blinka: 
+# https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
+# pip3 install adafruit-circuitpython-matrixkeypad
+import digitalio
+import adafruit_matrixkeypad
+import board
+
+# pip3 install raspberrypi-tm1637
+import tm1637
+
+tm = tm1637.TM1637(clk=5, dio=4, brightness=0)    
+    
+
 # Define GPIO pins for rows
-row_pins = [Pin(3),Pin(8),Pin(7),Pin(5)]
-#row_pins = [Pin(),Pin(),Pin(),Pin()]
+row_pins = [digitalio.DigitalInOut(x) for x in (board.D9, board.D6, board.D5)]
 
 # Define GPIO pins for columns
-column_pins = [Pin(9),Pin(2),Pin(6)]
-#column_pins = [Pin(4),Pin(2),Pin()]
+column_pins = [digitalio.DigitalInOut(x) for x in (board.D13, board.D12, board.D11, board.D10)]
 
 
 # Define keypad layout
@@ -23,20 +28,16 @@ keys = [
     ['7', '8', '9'],
     ['down', '0', 'up']]
 
-keypad = Keypad(row_pins, column_pins, keys)
+keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
 
 tm.show("FS42")
 
-#setup uart
-uart = UART(1)
-
-uart.init(9600, tx=Pin(20), rx=Pin(21))
 
 def send_command(command, channel=-1):
     as_obj = {'command' : command, 'channel': channel}
     as_str = json.dumps(as_obj)
     print(f"Sending command: {as_str}")
-    uart.write(f"{as_str}\n")
+    pass
     
 def event_loop():
     
@@ -92,7 +93,7 @@ def event_loop():
         
         time.sleep(0.1)
         
-        while uart.any():
+        while False:
             print("Got message")
             print(uart.any())
             as_str = uart.readline()
