@@ -54,7 +54,7 @@ def event_loop():
         
         if key_pressed:
             tm.show(f"    ")
-            last_selection_tick = time.ticks_ms()
+            last_selection_tick = time.monotonic
             in_selection = True
             
             as_num = None
@@ -85,7 +85,8 @@ def event_loop():
             
         # see if we need to reset selection or apply it
         if in_selection:
-            if time.ticks_diff( time.ticks_ms(), last_selection_tick) > 1500:
+            tick_diff = time.monotonic - last_selection_tick
+            if tick_diff > 1.5:
                 print(f"Applying selection CH{as_num:02d}")
                 tm.show(f"CH{as_num:02d}")
                 last_selection_tick = -1
