@@ -50,7 +50,7 @@ def event_loop():
     last_selection_tick = -1
     channel_num = 0 
     while True:
-        key_pressed = keypad.read_keypad()
+        key_pressed = read_keys()
         
         if key_pressed:
             tm.show(f"    ")
