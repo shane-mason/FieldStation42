@@ -54,7 +54,7 @@ def event_loop():
         
         if key_pressed:
             tm.show(f"    ")
-            last_selection_tick = time.monotonic
+            last_selection_tick = time.monotonic()
             in_selection = True
             
             as_num = None
