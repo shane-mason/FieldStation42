@@ -14,7 +14,7 @@ import tm1637
 
 
 CHANNEL_SOCKET = "runtime/channel.socket"
-STATUS_SOCKET = "runtime/status.socket"
+STATUS_SOCKET = "runtime/play_status.socket"
 
 
 tm = tm1637.TM1637(clk=17, dio=18)    
