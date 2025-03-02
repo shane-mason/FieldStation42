@@ -11,22 +11,19 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
-tm = tm1637.TM1637(clk=5, dio=4, brightness=0)    
-    
+tm = tm1637.TM1637(clk=17, dio=18)    
+tm.brightness(0)
 
-# Define GPIO pins for rows
-row_pins = [digitalio.DigitalInOut(x) for x in (board.D9, board.D6, board.D5)]
-
-# Define GPIO pins for columns
-column_pins = [digitalio.DigitalInOut(x) for x in (board.D13, board.D12, board.D11, board.D10)]
+cols = [digitalio.DigitalInOut(x) for x in (board.D26, board.D20, board.D21)]
+rows = [digitalio.DigitalInOut(x) for x in (board.D5, board.D6, board.D13, board.D19)]
 
 
 # Define keypad layout
-keys = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
-    ['down', '0', 'up']]
+keys = (
+    ('1', '2', '3'),
+    ('4', '5', '6'),
+    ('7', '8', '9'),
+    ('down', '0', 'up'))
 
 keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
 
@@ -38,6 +35,13 @@ def send_command(command, channel=-1):
     as_str = json.dumps(as_obj)
     print(f"Sending command: {as_str}")
     pass
+
+
+def read_keys():
+    pressed = keypad.pressed_keys
+    if len(pressed) == 1:
+        return pressed[0]
+    return None
     
 def event_loop():
     
