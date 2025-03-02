@@ -1,15 +1,21 @@
 import json
 import time
 
-# install blinka: 
+# Uses adafruit circuitpython via Blink - install blinka first: 
 # https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
 # pip3 install adafruit-circuitpython-matrixkeypad
 import digitalio
 import adafruit_matrixkeypad
 import board
 
+#also requires tm1673 library:
 # pip3 install raspberrypi-tm1637
 import tm1637
+
+
+CHANNEL_SOCKET = "runtime/channel.socket"
+STATUS_SOCKET = "runtime/status.socket"
+
 
 tm = tm1637.TM1637(clk=17, dio=18)    
 tm.brightness(0)
@@ -29,20 +35,39 @@ keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
 
 tm.show("FS42")
 
+last_stat = ""
 
 def send_command(command, channel=-1):
     as_obj = {'command' : command, 'channel': channel}
     as_str = json.dumps(as_obj)
     print(f"Sending command: {as_str}")
-    pass
+    with open(CHANNEL_SOCKET, "w") as fp:
+        fp.write(as_str)    
 
+
+def check_status():
+    global last_stat
+    new_stat = None
+    with open(STATUS_SOCKET) as fp:
+        as_str = fp.read()
+
+        if as_str != last_stat:
+            print("Status changed:")
+            last_stat = as_str
+            new_stat = json.loads(as_str)
+
+    return new_stat
+            
+        
 
 def read_keys():
     pressed = keypad.pressed_keys
     if len(pressed) == 1:
         return pressed[0]
     return None
-    
+
+
+
 def event_loop():
     
     last_pressed = ""
@@ -98,16 +123,10 @@ def event_loop():
         
         time.sleep(0.1)
         
-        while False:
-            print("Got message")
-            print(uart.any())
-            as_str = uart.readline()
-            as_str = as_str.decode('ascii')
-            as_str = as_str.rstrip()
-            print(as_str)
-
+        new_stat = check_status()
+        if new_stat:
             try:
-                channel_num = int(as_str)
+                channel_num = int(new_stat['channel_number'])
                 if channel_num >= 0:
                     tm.show(f"CH{channel_num:02d}")
                     print("Set channel: ", channel_num)
