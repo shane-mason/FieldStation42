@@ -14,8 +14,8 @@ import tm1637
 tm = tm1637.TM1637(clk=17, dio=18)    
 tm.brightness(0)
 
-cols = [digitalio.DigitalInOut(x) for x in (board.D26, board.D20, board.D21)]
-rows = [digitalio.DigitalInOut(x) for x in (board.D5, board.D6, board.D13, board.D19)]
+column_pins = [digitalio.DigitalInOut(x) for x in (board.D26, board.D20, board.D21)]
+row_pins = [digitalio.DigitalInOut(x) for x in (board.D5, board.D6, board.D13, board.D19)]
 
 
 # Define keypad layout
