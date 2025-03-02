@@ -85,7 +85,7 @@ def event_loop():
             
         # see if we need to reset selection or apply it
         if in_selection:
-            tick_diff = time.monotonic - last_selection_tick
+            tick_diff = time.monotonic() - last_selection_tick
             if tick_diff > 1.5:
                 print(f"Applying selection CH{as_num:02d}")
                 tm.show(f"CH{as_num:02d}")
