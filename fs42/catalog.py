@@ -236,7 +236,9 @@ class ShowCatalog:
             if not len(matches):
                 err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
                 raise(MatchingContentNotFound(err))
-            return self._lowest_count(matches)
+            result = self._lowest_count(matches)
+            result.count += 1
+            return result
 
     def find_filler(self, seconds, when):
         bump_tag = self.config['bump_dir']
@@ -249,7 +251,7 @@ class ShowCatalog:
 
     def find_bump(self, seconds, when, position=None):
         bump_tag = self.config['bump_dir']
-
+        
         if not len(self.clip_index[bump_tag]):
             raise NoFillerContentFound("Can't find filler - add bumps...")
         
