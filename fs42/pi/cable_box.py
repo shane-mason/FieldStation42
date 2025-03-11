@@ -1,5 +1,7 @@
 import json
 import time
+import os
+import sys
 
 # Uses adafruit circuitpython via Blink - install blinka first: 
 # https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
@@ -42,9 +44,20 @@ class CableBox:
     def send_command(self, command, channel=-1):
         as_obj = {'command' : command, 'channel': channel}
         as_str = json.dumps(as_obj)
-        print(f"Sending command: {as_str}")
-        with open(self.channel_socket, "w") as fp:
-            fp.write(as_str)    
+        if command == "direct" and channel == 99:
+            #then we want to shut the player down
+            os.system("pkill -SIGINT -f field_player.py")
+            sys.exit(0)
+        elif command == "direct" and channel == 98:
+            #then we want to shutdown and halt the system
+            os.system("pkill -9 -f field_player.py")
+            os.system("killall mpv")
+            os.system("sudo halt")
+            sys.exit(-1)
+        else:
+            print(f"Sending command: {as_str}")
+            with open(self.channel_socket, "w") as fp:
+                fp.write(as_str)    
 
     def check_status(self):
         new_stat = None
@@ -128,7 +141,7 @@ class CableBox:
                 try:
                     channel_num = int(new_stat['channel_number'])
                     if channel_num >= 0:
-                        self.tm.show(f"CH{channel_num:02d}")
+                        self.tm.show(f"CH{channel_num:02d}") 
                         print("Set channel: ", channel_num)
                     else:
                         self.tm.show("FS42")
