@@ -65,10 +65,13 @@ class CableBox:
             as_str = fp.read()
 
             if as_str != self.last_stat:
-                print("Status changed:")
+                print(f"Status changed: {as_str}")
                 self.last_stat = as_str
-                new_stat = json.loads(as_str)
-
+                try:
+                    new_stat = json.loads(as_str)
+                except:
+                    #assume that it was a partial read and try again next time
+                    print(f"Error decoding status: {as_str}")
         return new_stat
                 
             
