@@ -5,7 +5,9 @@ import glob
 import subprocess
 import json
 
-USE_EXPERIMENTAL_PROCESS = False
+import ffmpeg
+
+USE_EXPERIMENTAL_PROCESS = True
 
 try:
     #try to import from version > 2.0
@@ -50,6 +52,15 @@ class MediaProcessor:
 
     @staticmethod
     def _get_duration(file_name):
+        probed = ffmpeg.probe(file_name)
+
+        if "streams" in probed and len(probed["streams"]) and "duration" in probed["streams"][0]:
+            return float(probed["streams"][0]["duration"])
+        else:
+            return -1
+
+    @staticmethod
+    def _get_duration_old(file_name):
         #escape characters that will break the shell
         cleaned = file_name.replace(" ", "\ ").replace("&", "\&")
         cleaned = cleaned.replace("'", "\\'").replace(",", "\,")
