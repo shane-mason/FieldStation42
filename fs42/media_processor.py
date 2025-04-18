@@ -60,27 +60,6 @@ class MediaProcessor:
             return -1
 
     @staticmethod
-    def _get_duration_old(file_name):
-        #escape characters that will break the shell
-        cleaned = file_name.replace(" ", "\ ").replace("&", "\&")
-        cleaned = cleaned.replace("'", "\\'").replace(",", "\,")
-        cleaned = cleaned.replace("(", "\(").replace(")", "\)")
-
-        command = r"ffprobe -v quiet -print_format json -show_format  -show_streams " + cleaned
-        res = json.loads(subprocess.check_output(command, shell=True))
-        
-        streams = res.get('streams')
-        
-        duration = -1.0
-        if len(streams):
-            dur_str = streams[0]['duration']
-            try:
-                duration = float(dur_str)
-            except:
-                duration = -1
-        return duration
-
-    @staticmethod
     def _find_media(path):
         logging.getLogger("MEDIA").debug(f"_find_media scanning for media in {path}")
         file_list = []
