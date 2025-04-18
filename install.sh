@@ -39,7 +39,7 @@ env/bin/pip3 install pyserial
 
 env/bin/pip3 install textual
 
-env/bin/pip3 ffmpeg-python
+env/bin/pip3 install ffmpeg-python
 
 echo Creating folders
 
