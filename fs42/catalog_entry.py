@@ -10,7 +10,7 @@ class CatalogEntry:
     def __init__(self, path, duration, tag, hints=[]):
         self.path = path
         #get the show name from the path
-        self.title = os.path.basename(path).split(".")[0]
+        self.title = os.path.splitext(os.path.basename(path))[0]
         self.duration = duration
         self.tag = tag
         self.count = 0
