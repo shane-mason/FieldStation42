@@ -274,26 +274,26 @@ class ShowCatalog:
         return self.find_candidate(com_tag, seconds, when)                
 
     #makes blocks of reels in bump-commercial-commercial-bump format
-    def make_reel_block(self, when,  bumpers=True, max_bumper_duration=120, max_commercial_duration=120, target_duration=120):
+    def make_reel_block(self, when,  bumpers=True, target_duration=120):
         reels = []
         remaining = target_duration
         start_candidate = None
         end_candidate = None
         if bumpers:
-            start_candidate = self.find_bump(max_bumper_duration, when, ShowCatalog.prebump)
-            end_candidate = self.find_bump(max_bumper_duration, when, ShowCatalog.postbump)
+            start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump)
+            end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump)
 
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
             
         
-        #aim for lower and should average close over time
+        #aim for lower and should average close over time since the returned can be larger
         while remaining > (target_duration *.1):
             
             if self.config['commercial_free'] == False:
-                candidate = self.find_commercial(max_commercial_duration, when)
+                candidate = self.find_commercial(target_duration, when)
             else:
-                candidate = self.find_bump(max_commercial_duration, when)
+                candidate = self.find_bump(target_duration, when)
             remaining -= candidate.duration
             reels.append(candidate)
         
@@ -303,7 +303,7 @@ class ShowCatalog:
         remaining = length
         blocks = []
         while remaining:
-            block = self.make_reel_block(when, bumpers)
+            block = self.make_reel_block(when, bumpers, self.config['break_duration'])
             
             if (remaining - block.duration) > 0:
                 remaining -= block.duration
