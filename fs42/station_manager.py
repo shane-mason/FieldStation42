@@ -4,6 +4,13 @@ class StationManager(object):
     __we_are_all_one = {}
     stations = []
 
+    overwatch = {"network_type": "standard",
+                "schedule_increment": 30,
+                "break_strategy": "standard",
+                "commercial_free": False,
+                "clip_shows": [],
+                "break_duration": 120}
+
     # NOTE: This is the borg singleton pattern - __we_are_all_one
     def __new__(cls, *args, **kwargs):
         obj = super(StationManager, cls).__new__(cls, *args, **kwargs)
@@ -40,8 +47,11 @@ class StationManager(object):
             index+=1
         return None
 
+
     def load_json_stations(self):
         import glob
+
+
         cfiles = glob.glob("confs/*.json")
         station_buffer = []
         for fname in cfiles:
@@ -49,16 +59,11 @@ class StationManager(object):
             with open(fname) as f:
                 try:
                     d = json.load(f)
-                    if "network_type" not in d['station_conf']:
-                        d['station_conf']["network_type"] = "standard"                
-                    if "schedule_increment" not in d['station_conf']:
-                        d['station_conf']["schedule_increment"] = 30
-                    if "break_strategy" not in d['station_conf']:
-                        d['station_conf']["break_strategy"] = 'standard'
-                    if "commercial_free" not in d['station_conf']:
-                        d['station_conf']["commercial_free"] = False
-                    if "clip_shows" not in d["station_conf"]:
-                        d['station_conf']["clip_shows"] = []
+                    #set defaults for optionals
+                    for key in StationManager.overwatch:
+                        if key not in d['station_conf']:
+                            d['station_conf'][key] = StationManager.overwatch[key]
+
                     station_buffer.append(d['station_conf'])
                 except Exception as e:
                     print(f"Error loading station configuration: {fname}")
