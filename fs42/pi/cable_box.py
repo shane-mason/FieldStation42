@@ -14,7 +14,10 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
-
+THINK = "---"
+UP = "up"
+DOWN = "down"
+DIRECT = "direct"
 
 class CableBox:
 
@@ -35,7 +38,7 @@ class CableBox:
             ('1', '2', '3'),
             ('4', '5', '6'),
             ('7', '8', '9'),
-            ('down', '0', 'up'))
+            (DOWN, '0', UP))
 
         self.keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
         self.last_stat = ""
@@ -73,7 +76,8 @@ class CableBox:
                     #assume that it was a partial read and try again next time
                     print(f"Error decoding status: {as_str}")
         return new_stat
-                
+    
+            
             
 
     def read_keys(self):
@@ -90,6 +94,7 @@ class CableBox:
         in_selection = False
         last_selection_tick = -1
         channel_num = 0 
+        
         while True:
             key_pressed = self.read_keys()
             
@@ -101,16 +106,16 @@ class CableBox:
                 as_num = None
                 print("Key pressed:", key_pressed)
                 
-                if key_pressed == "up":
-                    self.send_command("up")
+                if key_pressed == UP:
+                    self.send_command(UP)
                     channel_num += 1
-                    self.tm.show(f"----")
+                    self.tm.show(THINK)
                     in_selection = False
-                elif key_pressed == "down":
+                elif key_pressed == DOWN:
                     if(channel_num > 0):
-                        self.send_command("down")
+                        self.send_command(DOWN)
                         channel_num -= 1
-                        self.tm.show(f"----")
+                        self.tm.show(THINK)
                     in_selection = False
                 else:                                    
                     try:
@@ -135,6 +140,7 @@ class CableBox:
                     last_pressed = ""
                     channel_num = as_num
                     self.send_command("direct", channel_num)
+
                 
             
             time.sleep(0.1)
