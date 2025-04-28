@@ -289,8 +289,8 @@ class ShowCatalog:
         
         #aim for lower and should average close over time
         while remaining > (target_duration *.1):
-            #make 25% of them be regular bumps
-            if self.config['commercial_free'] == False and random.random() > .25:
+            
+            if self.config['commercial_free'] == False:
                 candidate = self.find_commercial(max_commercial_duration, when)
             else:
                 candidate = self.find_bump(max_commercial_duration, when)
