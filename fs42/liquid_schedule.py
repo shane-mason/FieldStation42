@@ -22,18 +22,21 @@ class LiquidSchedule():
         self._load_blocks()
 
     def _calc_target_duration(self, duration):
+        #get the target duration for the show based on the shedule increment
         multiple = self.conf['schedule_increment'] * 60
         if multiple == 0:
             return duration
         return multiple * math.ceil(duration / multiple)
 
     def _calc_target_start(self, mark):
+        #determine when the block was supposed to start based on the schedule increment
         multiple = self.conf['schedule_increment'] * 60
         if multiple == 0:
             return mark
         return multiple * math.floor(mark / multiple)
 
     def _load_blocks(self):
+        # load all the blocks from disk
         s_path = self.conf['schedule_path']
         if os.path.isfile(s_path):
             with open(s_path, "rb") as f:
@@ -48,15 +51,19 @@ class LiquidSchedule():
             self._blocks = []
 
     def _save_blocks(self):
+        #save blocks to disk
         with open(self.conf['schedule_path'], 'wb') as f:
             pickle.dump(self._blocks, f)
 
     def _end_time(self):
+        #get the lastest time in the schedule
         if len(self._blocks) > 0:
             return self._blocks[-1].end_time
         else:
             return None
+        
     def _flood(self, start_time, end_target):
+        #flood the schedule - this is used for loop channels
         diff = end_target - start_time
         content = self.catalog.get_all_by_tag("content")
         new_blocks = []
@@ -75,6 +82,7 @@ class LiquidSchedule():
         self._save_blocks()
 
     def _fluid(self, start_time, end_target):
+        # this is the core of the scheduler.
         new_blocks = []
         current_mark = start_time
 
@@ -112,6 +120,7 @@ class LiquidSchedule():
                         clip_block.end_time = next_mark
                         new_blocks.append(clip_block)              
 
+
             else:
                 #then we are offair - get offair video
                 candidate = self.catalog.get_offair()
@@ -141,7 +150,8 @@ class LiquidSchedule():
 
 
     def _increment(self, how_much):
-        #furst, get the current end-of-schedule
+        # add time to the existing schedule
+        #firsst, get the current end-of-schedule
         current_end = self._end_time()
         start_building = None
         end_building = None
