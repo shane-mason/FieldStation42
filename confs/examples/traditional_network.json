@@ -6,6 +6,7 @@
     "schedule_increment": 30,
     "break_strategy": "standard",
     "commercial_free": false, 
+    "break_duration": 120,
 
     "catalog_path" : "catalog/nbc_catalog.bin",
     "content_dir" : "catalog/nbc_catalog",
