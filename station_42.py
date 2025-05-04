@@ -31,6 +31,7 @@ def main():
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )
     parser.add_argument('-d', '--add_day', action='store_true', help='Add one day to all schedules' )
+    parser.add_argument('-t', '--trace_schedule', help='Print schedule for current day for the specified network name' )
     parser.add_argument('-s', '--schedule', action='store_true', help='View schedule summary information for all stations.' )
     parser.add_argument('-u', '--print_schedule', help='Print schedule for current day for the specified network name' )
     parser.add_argument('-x', '--delete_schedules', action='store_true', help='Delete all schedules (but not catalogs)' )
