@@ -29,7 +29,7 @@ class TestCatalogHints(unittest.TestCase):
         hints = ShowCatalog._process_hints("somepath/somedir/March 1 - March 15")
         self.assertEqual(len(hints), 1)
         self.assertIsInstance(hints[0], RangeHint)
-        hints = ShowCatalog._process_hints("December/somedir/March 1 - March 15")
+        hints = ShowCatalog._process_hints("March/somedir/March 1 - March 15")
         self.assertEqual(len(hints), 1)
         self.assertIsInstance(hints[0], RangeHint)
 
