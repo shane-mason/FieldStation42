@@ -11,7 +11,6 @@ from fs42.timings import MIN_1, DAYS
 from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket, update_status_socket
 from fs42.reception import ReceptionStatus
 
-#from fs42.guide_channel import guide_channel_runner, GuideCommands
 
 debounce_fragment = 0.1
 
@@ -197,7 +196,6 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.DEBUG)
 
     if(args.logfile):
-        print("will be logging ", args.logfile)
         formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:%(message)s')
         fh = logging.FileHandler(args.logfile)
         fh.setFormatter(formatter)
