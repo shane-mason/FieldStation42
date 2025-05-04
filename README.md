@@ -83,16 +83,15 @@ The player writes its status and current channel to `runtime/play_status.socket`
 ### command_input.py
 This is provided as an example component to show how to connect an external device or program to invoke a channel changes and pass status information. This script listens for incoming commands on the pi's UART connection and then writes channel change commands to `runtime/channel.socket` 
 
-
-## Connecting to Rasberry Pico (Optional)
-If you don't want a remote button changer, like the antenna rotator box from the video, you don't need to follow this section. You can change the channel using the process above.
-
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
-
 ## Connecting to a TV
-The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HTMI->Composit or HDMI->RF adapter. These units are available online or at an electronic retailer.
+The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HTMI->Composit or HDMI->RF adapter. These units are available online or at an electronics retailer.
+
+## Connecting a remote control or other device
+Since the player can recieve external commands and publishes its status as described above, its easy to connect external devices of all kinds. See [this wiki page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`. For a detailed guide on setting up a bluetooth remote control, [see this page in the discussion boards](https://github.com/shane-mason/FieldStation42/discussions/47).
+
 
 ![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
 
