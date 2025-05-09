@@ -7,7 +7,7 @@ TEST_CONF = {"network_name": "TEST"}
 class TestCatalogHints(unittest.TestCase):
 
     def test_process_subdir_not(self):
-        hints = ShowCatalog._process_hints("should be none")
+    hints = ShowCatalog._process_hints("should be none")
         self.assertEqual(len(hints), 0)
 
     def test_process_subdir_month(self):
