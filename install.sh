@@ -23,7 +23,13 @@ $python -m venv env
 
 if [ -d env ]; then
   echo Virtual environment created - activating it now
-  source env/bin/activate
+  # Unix
+  if [ -f env/Scripts/activate ]; then
+    source env/Scripts/activate
+  # Windows
+  elif [ -f env/bin/activate ]; then
+    source env/bin/activate
+  fi
 else
   echo Virtual environment failed - check that your python venv is installed on your system
   echo Exiting with errors.
@@ -31,15 +37,7 @@ else
 fi
 
 echo Installing python modules
-pip3 install --force-reinstall -v "moviepy==2.1.1"
-
-env/bin/pip3 install python-mpv-jsonipc
-
-env/bin/pip3 install pyserial
-
-env/bin/pip3 install textual
-
-env/bin/pip3 install ffmpeg-python
+pip install -r requirements.txt
 
 echo Creating folders
 
