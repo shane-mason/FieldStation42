@@ -202,7 +202,7 @@ class ShowCatalog:
     def get_offair(self):
         if 'off_air' in self.clip_index:
             return self.clip_index['off_air']
-        if 'off_air_image' in self.clip_index['off_air_image']:
+        if 'off_air_image' in self.clip_index:
             return self.clip_index['off_air_image']
         return None
 
