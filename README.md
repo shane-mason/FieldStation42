@@ -25,10 +25,10 @@ Cable and broadcast TV simulator intended to provide an authentic experience of 
     * Commercial free channels with optional end bump padding at end (movie channels, public broadcasting networks)
     * Loop channels, useful for community bulletin style channels or information loops.
 
-![A screenshot of a guide channel simulation](docs/guide.png?raw=true)
+![A cable box next to a TV](docs/cable_cover_3.png?raw=true)
 
 ## Alpha software - installation is not simple
-This is a brand new project and in active development - installation requires some background in the following:
+This is a fairly new project and in active development - installation requires some background in the following:
 
 * Basic linux command line usage
 * Reading and editing JSON configuration files
