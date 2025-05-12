@@ -1,0 +1,95 @@
+html, body {
+    font-family: sans-serif;
+    background: #111;
+    color: white;
+    margin: 0;
+    padding: 10px;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  
+  .btn {
+    font-size: 2em;
+    margin: 5px;
+    padding: 15px 0;
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    background: #444;
+    color: white;
+  }
+
+  .btn:hover {
+    background: #666;
+  }
+  
+  .btn-flex {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+  }
+  
+  .btn-flex .arrow {
+    flex: 0 0 auto;
+    margin-left: 8px;
+    font-size: 1.5em;
+  }
+  
+  .btn-flex .label {
+    flex: 1;
+    text-align: center;
+  }
+
+  
+  .seven-seg {
+    font-family: 'Courier New', monospace;
+    font-size: 4em;
+    color: #0f0;
+    background: black;
+    padding: 10px 20px;
+    border-radius: 10px;
+    margin: 10px auto 5px auto;
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+  }
+  
+  #network-name {
+    color: #aaa;
+    font-size: 1.2em;
+    height:1.2em;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  
+  .row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  .keypad {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 300px;
+    margin: 10px auto 5px auto;
+  }
+  
+  .keypad .btn {
+    width: calc(33.333% - 10px);
+    margin: 5px;
+    box-sizing: border-box;
+  }
+  
+  #entry {
+    font-size: 2em;
+    margin: 10px;
+    color: #0f0;
+    text-align: center;
+  }
+  

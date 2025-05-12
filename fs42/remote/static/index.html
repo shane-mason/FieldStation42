@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FieldStation42 TV Remote</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/remote.css">
+  <script src="/static/remote.js" defer></script>
+</head>
+<body>
+  <div class="container">
+    <div class="seven-seg" id="current-channel">--</div>
+    <div id="network-name">Loading...</div>
+
+    <div class="row">
+      <button class="btn btn-flex" onclick="sendCommand('up')">
+        <span class="arrow">▲</span>
+        <span class="label">Channel Up</span>
+      </button>
+    </div>
+    <div class="row">
+      <button class="btn btn-flex" onclick="sendCommand('down')">
+        <span class="arrow">▼</span>
+        <span class="label">Channel Down</span>
+      </button>
+    </div>
+
+    <div id="entry">_</div>
+
+    <div class="keypad">
+      <button class="btn" onclick="appendDigit(1)">1</button>
+      <button class="btn" onclick="appendDigit(2)">2</button>
+      <button class="btn" onclick="appendDigit(3)">3</button>
+      <button class="btn" onclick="appendDigit(4)">4</button>
+      <button class="btn" onclick="appendDigit(5)">5</button>
+      <button class="btn" onclick="appendDigit(6)">6</button>
+      <button class="btn" onclick="appendDigit(7)">7</button>
+      <button class="btn" onclick="appendDigit(8)">8</button>
+      <button class="btn" onclick="appendDigit(9)">9</button>
+      <button class="btn" onclick="clearEntry()">C</button>
+      <button class="btn" onclick="appendDigit(0)">0</button>
+      <button class="btn" onclick="sendDirect(true)">Enter</button>
+    </div>
+  </div>
+</body>
+</html>
