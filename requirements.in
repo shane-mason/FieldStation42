@@ -3,3 +3,5 @@ python-mpv-jsonipc
 pyserial
 textual
 ffmpeg-python
+fastapi
+uvicorn
