@@ -66,6 +66,8 @@ def main():
         print(LiquidManager().get_summary())
         return
     
+
+    
     if args.delete_schedules:
         logging.getLogger().info(f"Deleting all schedules")
         for station in StationManager().stations:

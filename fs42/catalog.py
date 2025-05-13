@@ -340,6 +340,7 @@ class ShowCatalog:
         clips = []
         while keep_going:
             try:
+                # if it is a small or negative number, this will throw an exception when a candidate isn't found
                 candidate = self.find_candidate(tag, duration - current_duration, when)
                 current_duration+=candidate.duration
                 clips.append(candidate)
@@ -347,6 +348,7 @@ class ShowCatalog:
                 if len(clips) == 0:
                     #then there isn't any valid content at all.
                     raise e
+                # then there are no more clips, so exit the loop
                 keep_going = False
         return clips
 

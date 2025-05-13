@@ -46,7 +46,7 @@ class LiquidBlock():
         else:
             self.reel_blocks = []
 
-
+        
         self.plan = ReelCutter.cut_reels_into_base(self.content, self.reel_blocks, 0, self.content_duration(), self.break_strategy)
         
 
@@ -82,13 +82,14 @@ class LiquidClipBlock(LiquidBlock):
             self.reel_blocks = catalog.make_reel_fill(self.start_time, diff)
         else:
             self.reel_blocks = []
-
+            
         self.plan = ReelCutter.cut_reels_into_clips(self.content, self.reel_blocks, 0, self.content_duration(), self.break_strategy)
+
 
 class LiquidOffAirBlock(LiquidBlock):
 
     def __init__(self, content, start_time, end_time, title=None):
-        super().__init__(content, start_time, end_time, title)
+        super().__init__(content, start_time, end_time, title) 
 
     def make_plan(self, catalog):
         self.plan = []

@@ -5,7 +5,7 @@ class StationManager(object):
     stations = []
 
     overwatch = {"network_type": "standard",
-                "schedule_increment": 30,
+                "schedule_increment": 30,  
                 "break_strategy": "standard",
                 "commercial_free": False,
                 "clip_shows": [],
@@ -55,7 +55,6 @@ class StationManager(object):
         cfiles = glob.glob("confs/*.json")
         station_buffer = []
         for fname in cfiles:
-            print(f"Loading configuration for: {fname}")
             with open(fname) as f:
                 try:
                     d = json.load(f)
