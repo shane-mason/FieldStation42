@@ -103,12 +103,12 @@ class LiquidSchedule():
                     else:
                         target_duration = self._calc_target_duration(candidate.duration)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
-                        #TODO: Handle clip show tags
+
                         new_blocks.append(LiquidBlock(candidate, current_mark, next_mark, candidate.title, self.conf['break_strategy']))
                 else:
                     
                     #handle clip show
-                    clip_content  = self.catalog.gather_clip_content(tag, timings.HOUR, current_mark)
+                    clip_content  = self.catalog.gather_clip_content(tag, timings.HOUR_CONTENT_DURATION, current_mark)
                     if len(clip_content) == 0:
                         #this should only happen on an error (have a tag, but no candidate)
                         self._l.error(f"Could not find content for tag {tag} - please add content, check your configuration and retry")

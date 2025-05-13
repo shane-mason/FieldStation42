@@ -12,8 +12,8 @@ MIN_5 = 300
 MIN_3 = 180
 MIN_2 = 120
 MIN_1 = 60
-
-
+HOUR_CONTENT_DURATION = 2640 #44 minutes
+H_HOUR_CONTENT_DURATION = 1320 #22 minutes
 
 def next_week(when):
     weekday = when.weekday()

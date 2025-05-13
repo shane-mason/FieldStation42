@@ -1,3 +1,4 @@
+import math 
 
 from fs42.block_plan import BlockPlanEntry
 
@@ -43,18 +44,24 @@ class ReelCutter:
                 #and put the reel at the end if there is one
                 entries += _block.make_plan()
         else:
+
             
-            clips_per_segment = len(clips)/break_count
+            
+            clips_per_segment = 1
+            if (len(clips)>break_count):
+                clips_per_segment = round(len(clips)/break_count)
+
+            
 
             for i in range(len(clips)):
                 clip = clips[i]
                 entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
-                if (i % clips_per_segment) == 0:
-                    reel = reel_blocks.pop(0)
-                    entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
+                if len(reel_blocks) and (i % clips_per_segment) == 0:
+                    reel_b = reel_blocks.pop(0)
+                    entries += reel_b.make_plan()
             
             while len(reel_blocks):
-                reel = reel_blocks.pop(0)
-                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))                
+                reel_b = reel_blocks.pop(0)
+                entries += reel_b.make_plan()               
 
         return entries
