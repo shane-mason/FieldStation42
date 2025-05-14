@@ -4,9 +4,12 @@ from fs42.block_plan import BlockPlanEntry
 
 class ReelCutter:
     @staticmethod
-    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy):
+    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump):
         entries = []
         break_count = 0
+
+        if start_bump:
+            entries.append(BlockPlanEntry(start_bump.path, 0, start_bump.duration))
 
         if reel_blocks:
             break_count = len(reel_blocks)
@@ -27,11 +30,18 @@ class ReelCutter:
                 entries += reel_blocks[i].make_plan()
                 offset += segment_duration
 
+        if end_bump:
+            entries.append(BlockPlanEntry(end_bump.path, 0, end_bump.duration))
+
         return entries
     
     @staticmethod
-    def cut_reels_into_clips(clips, reel_blocks, base_offset, base_duration, break_stategy):
+    def cut_reels_into_clips(clips, reel_blocks, break_stategy, start_bump, end_bump):
         entries = []
+
+        if start_bump:
+            entries.append(BlockPlanEntry(start_bump.path, 0, start_bump.duration))
+
         if reel_blocks:
             break_count = len(reel_blocks)
         else:
@@ -44,8 +54,6 @@ class ReelCutter:
                 #and put the reel at the end if there is one
                 entries += _block.make_plan()
         else:
-
-            
             
             clips_per_segment = 1
             if (len(clips)>break_count):
@@ -63,5 +71,8 @@ class ReelCutter:
             while len(reel_blocks):
                 reel_b = reel_blocks.pop(0)
                 entries += reel_b.make_plan()               
+
+        if end_bump:
+            entries.append(BlockPlanEntry(end_bump.path, 0, end_bump.duration))
 
         return entries

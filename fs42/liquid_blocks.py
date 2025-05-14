@@ -5,7 +5,7 @@ from fs42.block_plan import BlockPlanEntry
 
 class LiquidBlock():
 
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard"):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", start_bump=None, end_bump=None):
         self.content = content
         #the requested starting time
         self.start_time = start_time
@@ -18,6 +18,8 @@ class LiquidBlock():
         self.reel_blocks = None
         self.plan = None
         self.break_strategy = break_strategy
+        self.start_bump = start_bump
+        self.end_bump = end_bump
 
     def __str__(self):
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
@@ -36,26 +38,40 @@ class LiquidBlock():
         #first, collect any reels (commercials and bumps) we might need to buffer to the requested duration
         diff = self.playback_duration() - self.content_duration()
         
+        #is there a start bump?
+        if self.start_bump:
+            diff -= self.start_bump.duration
+
+        if self.end_bump:
+            diff -= self.end_bump.duration
+
         self.reel_blocks = None
         if diff < -2:
             err = f"Schedule logic error: duration requested {self.playback_duration()} is less than content {self.content_duration()}"
             err += f" for show named: {self.content.title}"
             raise(ValueError(err))
+        
         if diff > 2: 
             self.reel_blocks = catalog.make_reel_fill(self.start_time, diff)
         else:
             self.reel_blocks = []
 
         
-        self.plan = ReelCutter.cut_reels_into_base(self.content, self.reel_blocks, 0, self.content_duration(), self.break_strategy)
+        self.plan = ReelCutter.cut_reels_into_base(self.content, 
+                                                   self.reel_blocks, 
+                                                   0, 
+                                                   self.content_duration(), 
+                                                   self.break_strategy, 
+                                                   self.start_bump, 
+                                                   self.end_bump)
         
 
     
 class LiquidClipBlock(LiquidBlock):
 
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard"):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", start_bump=None, end_bump=None):
         if type(content) is list:
-            super().__init__(content, start_time, end_time, title, break_strategy)
+            super().__init__(content, start_time, end_time, title, break_strategy, start_bump, end_bump)
         else:
             raise(TypeError(f"LiquidClipBlock required content of type list. Got {type(content)} instead"))
 
@@ -83,7 +99,7 @@ class LiquidClipBlock(LiquidBlock):
         else:
             self.reel_blocks = []
             
-        self.plan = ReelCutter.cut_reels_into_clips(self.content, self.reel_blocks, 0, self.content_duration(), self.break_strategy)
+        self.plan = ReelCutter.cut_reels_into_clips(self.content, self.reel_blocks, self.break_strategy, self.start_bump, self.end_bump)
 
 
 class LiquidOffAirBlock(LiquidBlock):

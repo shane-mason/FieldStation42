@@ -10,27 +10,34 @@ class TagHintReader():
 
     @staticmethod
     def get_tag(conf, when:datetime):
+        response = None
+        slot = TagHintReader.get_slot(conf, when)
+        if slot and "tags" in slot:
+            tags = slot['tags']
+            
+            if type(tags) is list:
+                if len(tags) == 1 or when.minute < 30:
+                    response = tags[0]
+                else:
+                    response = tags[1]
+            else:
+                response = tags
+
+        return response
+    
+    def get_slot(conf, when:datetime):
         day_str = timings.DAYS[when.weekday()]
         slot_number = str(when.hour)
         response = None
         if day_str in conf:
             if slot_number in conf[day_str]:
-                if 'tags' in conf[day_str][slot_number]:
-                    slot = conf[day_str][slot_number]['tags']
-                    
-                    if type(slot) is list:
-                        if len(slot) == 1 or when.minute < 30:
-                            return slot[0]
-                        else:
-                            return slot[1]
-                    else:
-                        return conf[day_str][slot_number]['tags']
+                response = conf[day_str][slot_number]
                 
         return response
     
     @staticmethod
     def smooth_tags(conf):
-        #this function smooths tags through slot boundaries - so if not specified will use previous tag
+        #this function smooths tags through slot boundaries - so if not specified
         last_tag = None
         smoothed = copy.deepcopy(conf)
         for day_index in timings.DAYS:

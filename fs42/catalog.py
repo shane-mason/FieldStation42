@@ -72,6 +72,9 @@ class ShowCatalog:
         self.tags = []
 
         self._l.info(f"Standard network")
+        start_bumps = {}
+        end_bumps = {}
+
        #get the list of all tags
         tags = {}
         for day in DAYS:
@@ -84,6 +87,34 @@ class ShowCatalog:
                     else:
                         tags[slots[k]['tags']] = True
 
+                if 'start_bump' in slots[k]:
+                    start_bumps[slots[k]['start_bump']] = True
+                if 'end_bump' in slots[k]:
+                    end_bumps[slots[k]['end_bump']] = True
+
+        self.clip_index["start_bumps"] = {}
+        self.clip_index["end_bumps"] = {}
+
+        #collect start and end bumps first
+        for fp in start_bumps:
+            path = f"{self.config['content_dir']}/{fp}"
+            sb = MediaProcessor._process_media([path], "start_bumps")
+            if len(sb) == 1:
+                self.clip_index["start_bumps"][fp] = sb[0]
+            else:
+                self._l.error("Start bump specified but not found {fp}")
+                self._l.error("File paths for start_bump should be relative to the content_dir")
+
+        for fp in end_bumps:
+            path = f"{self.config['content_dir']}/{fp}"
+            eb = MediaProcessor._process_media([path], "end_bumps")
+            if len(sb) == 1:
+                self.clip_index["end_bumps"][fp] = eb[0]
+            else:
+                self._l.error("Start bump specified but not found {fp}")
+                self._l.error("File paths for end_bump should be relative to the content_dir")
+
+        # now inspect the tags and scan corresponding folders for media
         self.tags = list(tags.keys())
 
         #add commercial and bumps to the tags
@@ -205,6 +236,17 @@ class ShowCatalog:
         if 'off_air_image' in self.clip_index:
             return self.clip_index['off_air_image']
         return None
+
+    def get_start_bump(self, fp):
+        if fp in self.clip_index['start_bumps']:
+            return self.clip_index['start_bumps'][fp]
+        return None
+    
+    def get_end_bump(self, fp):
+        if fp in self.clip_index['end_bumps']:
+            return self.clip_index['end_bumps'][fp]
+        return None
+
 
     def _lowest_count(self, candidates):
         min_count = sys.maxsize
