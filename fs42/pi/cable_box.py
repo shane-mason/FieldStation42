@@ -2,8 +2,9 @@ import json
 import time
 import os
 import sys
+import subprocess
 
-# Uses adafruit circuitpython via Blink - install blinka first: 
+# Uses adafruit circuitpython via Blink - install blinka first:
 # https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
 # pip3 install adafruit-circuitpython-matrixkeypad
 import digitalio
@@ -14,10 +15,15 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
-THINK = "---"
-UP = "up"
-DOWN = "down"
-DIRECT = "direct"
+def get_temperature():
+    a = str(subprocess.check_output(['vcgencmd', 'measure_temp']))
+    print("A is", a)
+    b = a.split("=")[1]
+    c = float(b.split("'")[0])
+    # output in form: temp=49.4'C
+    f = round((c*1.8)+32)
+    return f
+    # return c
 
 class CableBox:
 
@@ -26,7 +32,7 @@ class CableBox:
         self.channel_socket = channel_socket
         self.status_socket = status_socket
 
-        self.tm = tm1637.TM1637(clk=17, dio=18)    
+        self.tm = tm1637.TM1637(clk=17, dio=18)
         self.tm.brightness(0)
         self.tm.show("FS42")
 
@@ -38,11 +44,13 @@ class CableBox:
             ('1', '2', '3'),
             ('4', '5', '6'),
             ('7', '8', '9'),
-            (DOWN, '0', UP))
+            ('down', '0', 'up'))
 
         self.keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
         self.last_stat = ""
-        
+
+        #mode to display and update temp
+        self.temp_mode = False
 
     def send_command(self, command, channel=-1):
         as_obj = {'command' : command, 'channel': channel}
@@ -57,10 +65,15 @@ class CableBox:
             os.system("killall mpv")
             os.system("sudo halt")
             sys.exit(-1)
+
+        elif command == "direct" and channel == 97:
+            #temp = get_temperature()
+            #self.tm.show(f"{temp}*")
+            self.temp_mode = True
         else:
             print(f"Sending command: {as_str}")
             with open(self.channel_socket, "w") as fp:
-                fp.write(as_str)    
+                fp.write(as_str)
 
     def check_status(self):
         new_stat = None
@@ -76,9 +89,8 @@ class CableBox:
                     #assume that it was a partial read and try again next time
                     print(f"Error decoding status: {as_str}")
         return new_stat
-    
-            
-            
+
+
 
     def read_keys(self):
         pressed = self.keypad.pressed_keys
@@ -89,46 +101,48 @@ class CableBox:
 
 
     def event_loop(self):
-        
+
         last_pressed = ""
         in_selection = False
         last_selection_tick = -1
-        channel_num = 0 
-        
+        channel_num = 0
+        tick_count = 0
         while True:
+
             key_pressed = self.read_keys()
-            
+
             if key_pressed:
+                self.temp_mode = False
                 self.tm.show(f"    ")
                 last_selection_tick = time.monotonic()
                 in_selection = True
-                
+
                 as_num = None
                 print("Key pressed:", key_pressed)
-                
-                if key_pressed == UP:
-                    self.send_command(UP)
+
+                if key_pressed == "up":
+                    self.send_command("up")
                     channel_num += 1
-                    self.tm.show(THINK)
+                    self.tm.show(f"----")
                     in_selection = False
-                elif key_pressed == DOWN:
+                elif key_pressed == "down":
                     if(channel_num > 0):
-                        self.send_command(DOWN)
+                        self.send_command("down")
                         channel_num -= 1
-                        self.tm.show(THINK)
+                        self.tm.show(f"----")
                     in_selection = False
-                else:                                    
+                else:
                     try:
                         as_num = int(last_pressed+key_pressed)
                         last_pressed = key_pressed
                         self.tm.show(f"  {as_num:02d}")
                     except:
                         pass
-                
-                
+
+
                 time.sleep(0.3)
 
-                
+
             # see if we need to reset selection or apply it
             if in_selection:
                 tick_diff = time.monotonic() - last_selection_tick
@@ -141,24 +155,28 @@ class CableBox:
                     channel_num = as_num
                     self.send_command("direct", channel_num)
 
-                
-            
+
             time.sleep(0.1)
-            
+
             new_stat = self.check_status()
             if new_stat:
+                self.temp_mode = False
                 try:
                     channel_num = int(new_stat['channel_number'])
                     if channel_num >= 0:
-                        self.tm.show(f"CH{channel_num:02d}") 
+                        self.tm.show(f"CH{channel_num:02d}")
                         print("Set channel: ", channel_num)
                     else:
                         self.tm.show("FS42")
                 except:
                     self.tm.show("FS42")
 
+            if self.temp_mode and (tick_count%10)==0:
+                temp = get_temperature()
+                self.tm.show(f"{temp}*")
 
-if __name__ == "__main__": 
+            tick_count+=1
+
+if __name__ == "__main__":
     cable_box = CableBox()
     cable_box.event_loop()
-
