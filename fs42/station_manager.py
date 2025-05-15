@@ -88,7 +88,7 @@ class StationManager(object):
                                     hours.append(hour)
                                     hour+=1
                                 hour = 0
-                                while hour < end_hour:
+                                while hour <= end_hour:
                                     hours.append(hour)
                                     hour+=1
                                 new_parts[key] = hours
