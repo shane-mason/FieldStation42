@@ -24,33 +24,52 @@ class MediaProcessor:
 
     @staticmethod
     def _process_media(file_list, tag, hints=[]):
-        logging.getLogger("MEDIA").debug(f"_process_media starting processing for tag={tag} on {len(file_list)} files")
+        _l = logging.getLogger("MEDIA")
+        _l.debug(f"_process_media starting processing for tag={tag} on {len(file_list)} files")
         show_clip_list = []
+
+        #collect list of files that fail
+        failed = []
+
         #get the duration and path for each clip and add to the tag
         for fname in file_list:
-            logging.getLogger("MEDIA").debug(f"--_process_media is working on {fname}")
+            _l.debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
             duration = 0.0
-            
-            if USE_EXPERIMENTAL_PROCESS:
-                #this wont work for mkv and webp and doesnt really save time - shouldn't use unless required 
-                duration = MediaProcessor._get_duration(fname)
-            
-            #it might not support streams, so check with moviepy
-            if duration <= 0.0:
-                video_clip = VideoFileClip(fname)
-                duration = video_clip.duration
-            
-            #see if both returned 0
-            if duration <= 0.0:
-                logging.getLogger("MEDIA").warning(f"Could not get a duration for tag: {tag}  file: {fname}")
-                logging.getLogger("MEDIA").warning(f"Files with 0 length can't be added to the catalog.")
-            else:
-                show_clip = CatalogEntry(fname, duration, tag, hints)
-                show_clip_list.append(show_clip)
-                logging.getLogger("MEDIA").debug(f"--_process_media is done with {fname}: {show_clip}")
+            try:
+                if USE_EXPERIMENTAL_PROCESS:
+                    #this wont work for mkv and webp and doesnt really save time - shouldn't use unless required 
+                    duration = MediaProcessor._get_duration(fname)
+                
+                #it might not support streams, so check with moviepy
+                if duration <= 0.0:
+                    video_clip = VideoFileClip(fname)
+                    duration = video_clip.duration
+                
+                #see if both returned 0
+                if duration <= 0.0:
+                    _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
+                    _l.warning(f"Files with 0 length can't be added to the catalog.")
+                else:
+                    show_clip = CatalogEntry(fname, duration, tag, hints)
+                    show_clip_list.append(show_clip)
+                    _l.debug(f"--_process_media is done with {fname}: {show_clip}")
 
-        logging.getLogger("MEDIA").debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
+            except Exception as e:
+                _l.exception(e)
+                _l.error(f"Error processing media file {fname}")
+                failed.append(fname)
+
+        _l.debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
+        
+        if len(failed):
+            _l.warning(f"Errors were encountered during processing - error count: {len(failed)}")
+            count_printed = 0
+            for f in failed:
+                _l.warning(f)
+                count_printed += 1
+                if count_printed >= 10:
+                    _l.warning(f"and {len(failed)-count_printed} more...")
 
         return show_clip_list
 
