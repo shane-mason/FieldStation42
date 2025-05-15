@@ -8,7 +8,7 @@ import datetime
 import math
 
 from fs42.catalog import ShowCatalog
-from fs42.schedule_hint import TagHintReader
+from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
     
@@ -91,8 +91,8 @@ class LiquidSchedule():
 
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
-            slot_config = TagHintReader.get_slot(self.conf, current_mark)
-            tag_str = TagHintReader.get_tag(self.conf, current_mark)
+            slot_config = SlotReader.get_slot(self.conf, current_mark)
+            tag_str = SlotReader.get_tag(self.conf, current_mark)
             
             new_block = None
             if tag_str is not None:

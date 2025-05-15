@@ -1,55 +1,11 @@
 
 from datetime import datetime
 import re
-import copy
 
 from fs42 import timings
+from fs42 import station_manager
 
 
-class TagHintReader():
-
-    @staticmethod
-    def get_tag(conf, when:datetime):
-        response = None
-        slot = TagHintReader.get_slot(conf, when)
-        if slot and "tags" in slot:
-            tags = slot['tags']
-            
-            if type(tags) is list:
-                if len(tags) == 1 or when.minute < 30:
-                    response = tags[0]
-                else:
-                    response = tags[1]
-            else:
-                response = tags
-
-        return response
-    
-    def get_slot(conf, when:datetime):
-        day_str = timings.DAYS[when.weekday()]
-        slot_number = str(when.hour)
-        response = None
-        if day_str in conf:
-            if slot_number in conf[day_str]:
-                response = conf[day_str][slot_number]
-                
-        return response
-    
-    @staticmethod
-    def smooth_tags(conf):
-        #this function smooths tags through slot boundaries - so if not specified
-        last_tag = None
-        smoothed = copy.deepcopy(conf)
-        for day_index in timings.DAYS:
-            for slot_index in timings.OPERATING_HOURS:
-                slot_index = str(slot_index)
-                if slot_index in conf[day_index]:
-                    if 'tags' in conf[day_index][slot_index]:
-                        last_tag = conf[day_index][slot_index]
-                    elif 'continued' in conf[day_index][slot_index]:
-                        if conf[day_index][slot_index]['continued'] == True:
-                            smoothed[day_index][slot_index]['tags'] = last_tag['tags']
-        return smoothed
 
 
 #all temporal hints should implement this interface
@@ -67,20 +23,14 @@ class TemporalHint:
         return True
 
 class DayPartHint:
-    parts = {
-        "morning"  : range(6,10),
-        "daytime"  : range(10,18),
-        "prime"    : range(18,23),
-        "late"     : [23,0, 1, 2],
-        "overnight": range(2, 6) 
-    }
+
     def __init__(self, part_name):
-        self.part = DayPartHint.parts[part_name]
+        self.part = station_manager.StationManager().get_day_parts()[part_name]
         self.part_name = part_name
 
     @staticmethod
     def test_pattern(to_test):
-        return to_test in DayPartHint.parts.keys()
+        return to_test in station_manager.StationManager().get_day_parts().keys()
 
     def hint(self, when):
         return when.hour in self.part 
