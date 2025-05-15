@@ -1,6 +1,8 @@
 import json
+import logging
 import os
 from fs42.slot_reader import SlotReader
+import glob
 
 class StationManager(object):
     __we_are_all_one = {}
@@ -12,6 +14,8 @@ class StationManager(object):
                 "commercial_free": False,
                 "clip_shows": [],
                 "break_duration": 120}
+
+    filechecks = ["sign_off_video", "off_air_video", "standby_image"]
 
     main_config = "confs/main_config.json"
 
@@ -65,6 +69,7 @@ class StationManager(object):
         return self.server_conf["day_parts"]
 
     def load_main_config(self):
+        _l = logging.getLogger("STATIONMANAGER")
         if os.path.exists(StationManager.main_config):
             with open(StationManager.main_config) as f:
                 try:
@@ -96,12 +101,13 @@ class StationManager(object):
 
                 except Exception as e:
                     print(e)
-                    print(f"Error loading main config overrides from {StationManager.main_config}")
+                    _l.exception(e)
+                    _l.error(f"Error loading main config overrides from {StationManager.main_config}")
                     exit(-1)
         # else skip, no over rides
 
-    def load_json_stations(self):
-        import glob
+    def load_json_stations(self): 
+        _l = logging.getLogger("STATIONMANAGER")
         cfiles = glob.glob("confs/*.json")
         station_buffer = []
         for fname in cfiles:
@@ -114,10 +120,21 @@ class StationManager(object):
                             if key not in d['station_conf']:
                                 d['station_conf'][key] = StationManager.overwatch[key]
 
+                        for to_check in StationManager.filechecks:
+                            if to_check in d['station_conf']:
+                                if not os.path.exists(d['station_conf'][to_check]):
+                                    _l.error("*" * 60)
+                                    _l.error(f"Error while checking configuration for {fname}")
+                                    _l.error(f"The filepath specified for {to_check} does not exist: {d['station_conf'][to_check]}")
+                                    _l.error("*" * 60)
+                                    exit(-1)
+
                         station_buffer.append(d['station_conf'])
                     except Exception as e:
-                        print(f"Error loading station configuration: {fname}")
-                        print(e)
+                        _l.error("*" * 60)
+                        _l.error(f"Error loading station configuration: {fname}")
+                        _l.exception(e)
+                        _l.error("*" * 60)
                         exit(-1)
 
         self.stations = sorted(station_buffer, key=lambda station: station['channel_number'])
