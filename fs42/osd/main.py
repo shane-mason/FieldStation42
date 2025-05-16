@@ -1,67 +1,95 @@
 import json
 import glfw
+from pydantic import BaseModel
+from enum import Enum
 
 from render import Text, create_window, clear_screen
 
-SCREEN_WIDTH=1024
-SCREEN_HEIGHT=768
-SCREEN_ASPECT_RATIO=SCREEN_WIDTH/SCREEN_HEIGHT
-
-Y_MARGIN = .1
-X_MARGIN = .1
-
 SOCKET_FILE = "runtime/play_status.socket"
 
-class ChannelDisplay(object):
-    def __init__(self, window):
-        self.cur_status = ""
-        self.time_to_display = 2
-        self.y_position = "TOP"
-        self.x_position = "LEFT"
+class HAlignment(Enum):
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    CENTER = "CENTER"
 
-        self._text = Text(window, "", font_size=40,
-                          color=(0, 255, 0, 200))
-        self.format_text = "{channel_number} - {network_name}"
+class VAlignment(Enum):
+    TOP = "TOP"
+    BOTTOM = "BOTTOM"
+    CENTER = "CENTER"
+
+class OSDConfig(BaseModel):
+    display_time: float = 2.0
+    halign: HAlignment = HAlignment.LEFT
+    valign: VAlignment = VAlignment.TOP
+    format_text: str = "{channel_number} - {network_name}"
+    text_color: tuple[int, int, int, int] = (0, 255, 0, 200)
+    font_size: int = 40
+    font: str | None = None 
+    x_margin: float = 0.1
+    y_margin: float = 0.1
+
+class ChannelDisplay(object):
+    def __init__(self, window, config: OSDConfig):
+        self.config = config
+
+        self._text = Text(window, "", font_size=self.config.font_size,
+                          color=self.config.text_color,
+                          font=self.config.font)
+
+        self.cur_status = {"channel_number": -1, "network_name": "Offline"}
+        self.time_since_change = 0
+
         self.check_status()
 
     def check_status(self, socket_file=SOCKET_FILE):
         with open(socket_file, "r") as f:
             status = f.read()
-            if status != self.cur_status:
-                self.cur_status = status
-                self.time_since_change = 0
-                try:
-                    status = json.loads(status)
-                except:
-                    print(f"Unable to parse player status, {status}")
-                self._text.string = self.format_text.format(**status)
+            try:
+                status = json.loads(status)
+                # only care about channel number and network, timestamp
+                # changes shouldn't cause a render
+                status = {"channel_number": status["channel_number"],
+                          "network_name": status["network_name"]}
+            except:
+                print(f"Unable to parse player status, {status}")
+
+            else:
+                if status != self.cur_status:
+                    self.cur_status = status
+                    self.time_since_change = 0
+                    if status:
+                        self._text.string = self.config.format_text.format(**status)
 
     def update(self, dt):
         self.time_since_change += dt
         self.check_status()
 
     def draw(self):
-        if self.time_since_change < self.time_to_display:
-            if self.x_position == "LEFT":
-                x = -1 + X_MARGIN
-            elif self.x_position == "RIGHT":
-                x = 1 - self._text.width - X_MARGIN
+        if self.time_since_change < self.config.display_time:
+            # Screen coords are -1 to 1 with 0 in the center, -1,-1 is bottom left.
+            # text draw origin is at bottom left
+            if self.config.halign == HAlignment.LEFT:
+                x = -1 + self.config.x_margin
+            elif self.config.halign == HAlignment.RIGHT:
+                x = 1 - self._text.width - self.config.x_margin
             else: # CENTER
                 x = -self._text.width / 2
 
-            if self.y_position == "BOTTOM":
-                y = -1 + Y_MARGIN
-            elif self.y_position == "TOP":
-                y = 1 - self._text.height - Y_MARGIN
+            if self.config.valign == VAlignment.BOTTOM:
+                y = -1 + self.config.y_margin
+            elif self.config.valign == VAlignment.TOP:
+                y = 1 - self._text.height - self.config.y_margin
             else: # CENTER
                 y = -self._text.height / 2
 
             self._text.draw(x, y)
 
+with open("osd/channel_display.json", "r") as f:
+    config = OSDConfig.model_validate_json(f.read())
 
 window = create_window()
 
-osd = ChannelDisplay(window)
+osd = ChannelDisplay(window, config)
 
 # --------------------------
 # Main loop

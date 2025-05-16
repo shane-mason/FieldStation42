@@ -5,6 +5,8 @@ import json
 
 DEFAULT_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
+__font_objects = {}
+
 class Text(object):
     def __init__(self, window, string="", font_size=32, color=(255,255,255,255), font=None):
         self._string = string
@@ -96,7 +98,11 @@ def create_text_texture(text, font_size=32, font=None, color = (255, 255, 255, 2
     if font is None:
         font = DEFAULT_FONT
 
-    font = ImageFont.truetype(font, font_size)
+
+    if (font, font_size) not in __font_objects:
+        font = ImageFont.truetype(font, font_size)
+        __font_objects[(font, font_size)] = font
+    font = __font_objects[(font, font_size)]
 
     # Create a dummy image to calculate text size
     dummy_image = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
