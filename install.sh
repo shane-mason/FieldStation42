@@ -21,7 +21,9 @@ echo Creating python virtual environment
 
 $python -m venv env
 
+
 if [ -d env ]; then
+  #rm env/bin/activate
   echo Virtual environment created - activating it now
   # Unix
   if [ -f env/Scripts/activate ]; then
@@ -29,6 +31,10 @@ if [ -d env ]; then
   # Windows
   elif [ -f env/bin/activate ]; then
     source env/bin/activate
+  else
+    echo Virtual environment does not contain activate script - this is an error
+    echo Ensure that python3-venv is installed and run the installer again.
+    exit -1
   fi
 else
   echo Virtual environment failed - check that your python venv is installed on your system
