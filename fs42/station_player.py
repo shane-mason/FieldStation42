@@ -5,6 +5,7 @@ import multiprocessing
 import time
 import datetime
 import json
+import os
 
 from python_mpv_jsonipc import MPV
 
@@ -24,19 +25,21 @@ def check_channel_socket():
         return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
     return None
 
-def update_status_socket(status, network_name, channel):
+def update_status_socket(status, network_name, channel, title=None):
     status_obj = {
         "status": status,
         "network_name": network_name,
         "channel_number": channel,
         "timestamp": datetime.datetime.now().isoformat()
     }
+    if title is not None:
+        status_obj["title"] = title
     status_socket = StationManager().server_conf['status_socket']
     as_str = json.dumps(status_obj)
     with open(status_socket, "w") as fp:
         fp.write(as_str)
 
-        
+
 
 class PlayStatus(Enum):
     FAILED = 1
@@ -51,24 +54,26 @@ class PlayerOutcome:
 
 class StationPlayer:
 
-    def __init__(self, runtime_path, mpv=None):
+    def __init__(self, station_config, mpv=None):
         self._l = logging.getLogger("FieldPlayer")
         if not mpv:
             self._l.info("Starting MPV instance")
             #command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window
-            self.mpv = MPV(start_mpv=True, ipc_socket="/tmp/mpvsocket", 
-                           input_default_bindings=False, fs=True, 
+            self.mpv = MPV(start_mpv=True, ipc_socket="/tmp/mpvsocket",
+                           input_default_bindings=False, fs=True,
                            idle=True, force_window=True,
                            script_opts="osc-idlescreen=no" )
-        self.runtime_path = runtime_path
+        self.station_config = station_config
         #self.playlist = self.read_json(runtime_filepath)
         self.index = 0
         self.reception = ReceptionStatus()
+        self.current_playing_file_path = None
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
 
     def shutdown(self):
+        self.current_playing_file_path = None
         self.mpv.terminate()
 
     def update_filters(self):
@@ -84,6 +89,14 @@ class StationPlayer:
                 self.mpv.vf = self.reception.filter()
 
     def play_file(self, file_path):
+        self.current_playing_file_path = file_path # Added
+        basename = os.path.basename(file_path) # Added
+        title, _ = os.path.splitext(basename) # Added
+        if self.station_config:
+            update_status_socket("playing", self.station_config['network_name'], self.station_config['channel_number'], title)
+        else:
+            self._l.warning("station_config not available in play_file, cannot update status socket with title.")
+
         self.mpv.play(file_path)
         self.mpv.wait_for_property("duration")
         return
@@ -101,7 +114,7 @@ class StationPlayer:
             self.play_file(guide_config["sound_to_play"])
         else:
             self.mpv.stop()
-
+            self.current_playing_file_path = None
         keep_going = True
         while keep_going:
             time.sleep(.05)
@@ -118,6 +131,7 @@ class StationPlayer:
         liquid = LiquidManager()
         play_point = liquid.get_play_point(network_name, when)
         if play_point == None:
+            self.current_playing_file_path = None
             return PlayerOutcome(PlayStatus.FAILED)
         return self._play_from_point(play_point)
 
@@ -127,22 +141,21 @@ class StationPlayer:
         if len(play_point.plan):
 
             initial_skip = play_point.offset
-            
+
             #iterate over the slice from index to end
             for entry in play_point.plan[play_point.index:]:
                 self._l.info(f"Playing entry {entry}")
                 self._l.info(f"Initial Skip: {initial_skip}")
-                self.mpv.play(entry.path)
-                self.mpv.wait_for_property("duration")
-                
+                self.play_file(entry.path)
+
                 total_skip = entry.skip + initial_skip
                 self.mpv.seek(total_skip)
                 self._l.info(f"Seeking for: {total_skip}")
-                
+
 
                 if entry.duration:
                     self._l.info(f"Monitoring for: {entry.duration-initial_skip}")
-            
+
                     #this is our main event loop
                     keep_waiting = True
                     stop_time = datetime.datetime.now() + datetime.timedelta(seconds=entry.duration-initial_skip)
@@ -161,14 +174,20 @@ class StationPlayer:
                                 return response
                 else:
                     raise(PlayerOutcome(PlayStatus.FAILED))
-                
+
                 initial_skip = 0
 
             self._l.info("Done playing block")
             return PlayerOutcome(PlayStatus.SUCCESS)
         else:
+            self.current_playing_file_path = None
             return PlayerOutcome(PlayStatus.FAILED, "Failure getting index...")
 
-
+    def get_current_title(self):
+        if self.current_playing_file_path:
+            basename = os.path.basename(self.current_playing_file_path)
+            title, _ = os.path.splitext(basename)
+            return title
+        return None
 
 

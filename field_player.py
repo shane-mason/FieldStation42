@@ -59,20 +59,21 @@ def main_loop(transition_fn):
 
     while True:
         logger.info(f"Playing station: {channel_conf['network_name']}" )
-        update_status_socket("playing", channel_conf['network_name'], channel_conf['channel_number']) 
-       
+        current_title = player.get_current_title()
+        update_status_socket("playing", channel_conf['network_name'], channel_conf['channel_number'],current_title)
+
         if  channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
             outcome = player.show_guide(channel_conf)
         elif not skip_play:
             now = datetime.datetime.now()
-            
+
             week_day = DAYS[now.weekday()]
             hour = now.hour
             skip = now.minute * MIN_1 + now.second
-            
+
             logger.info(f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} ")
-            
+
             outcome = player.play_slot(channel_conf['network_name'],datetime.datetime.now())
 
         logger.debug(f"Got player outcome:{outcome.status}")
@@ -108,8 +109,8 @@ def main_loop(transition_fn):
                             channel_index-=1
                             if channel_index<0:
                                 channel_index = len(manager.stations)-1
-                                        
-                    
+
+
                 except Exception as e:
                     logger.exception(e)
                     logger.warning("Got payload on channel change, but JSON convert failed")
@@ -120,30 +121,31 @@ def main_loop(transition_fn):
                 channel_index+=1
                 if channel_index>=len(manager.stations):
                     channel_index = 0
-                
+
             channel_conf = manager.stations[channel_index]
-            
+            player.station_config = channel_conf
+
             #long_change_effect(player, reception)
             transition_fn(player, reception)
 
         elif outcome.status == PlayStatus.FAILED:
-            
+
             stuck_timer+=1
-            
+
             #only put it up once after 2 seconds of being stuck
             if stuck_timer == 2 and "standby_image" in channel_conf:
                 player.play_file(channel_conf["standby_image"])
-                
-            update_status_socket("stuck", channel_conf['network_name'], channel_conf['channel_number'])
+            current_title_on_stuck = player.get_current_title()
+            update_status_socket("stuck", channel_conf['network_name'], channel_conf['channel_number'],current_title_on_stuck)
 
             time.sleep(1)
             logger.critical("Player failed to start - resting for 1 second and trying again")
-            
+
             # check for channel change so it doesn't stay stuck on a broken channel
             new_outcome = check_channel_socket()
             if new_outcome is not None:
                 outcome = new_outcome
-                # set skip play so outcome isn't overwritten 
+                # set skip play so outcome isn't overwritten
                 # and the channel change can be processed next loop
                 skip_play = True
         elif outcome.status == PlayStatus.SUCCESS:
@@ -151,7 +153,7 @@ def main_loop(transition_fn):
         else:
             stuck_timer = 0
 
-        
+
 def none_change_effect(player, reception):
     pass
 
@@ -163,7 +165,7 @@ def short_change_effect(player, reception ):
         reception.degrade(.2)
         player.update_filters()
         time.sleep(debounce_fragment)
-    
+
     reception.improve_amount = prev
 
 def long_change_effect(player, reception):
@@ -210,6 +212,6 @@ if __name__ == "__main__":
         elif args.transition == "none":
             trans_fn = none_change_effect
         #else keep short change as default
-        
+
 
     main_loop(trans_fn)
