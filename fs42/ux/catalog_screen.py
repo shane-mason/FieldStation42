@@ -107,7 +107,7 @@ class CatalogScreen(Screen):
     def rebuild_all_thread(self) -> None:
         for station in StationManager().stations:
             msg = f"Building catalog for {station['network_name']}" 
-            self.app.call_from_thread(self.update_loading_message, msg)
+            #self.app.call_from_thread(self.update_loading_message, msg)
             if station['network_type'] != 'guide':
                 catalog = ShowCatalog(station, rebuild_catalog=True)
                 #catalog.build_catalog()
