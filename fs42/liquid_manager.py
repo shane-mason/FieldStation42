@@ -71,7 +71,7 @@ class LiquidManager(object):
     def get_extents(self, network_name):
         _id = network_name
         if _id not in self.schedules:
-            raise(ValueError(f"Can't get extent for network named {network_name}"))
+            raise(ValueError(f"Can't get extent for network named {network_name} - it does not exist."))
         _blocks = self.schedules[_id]
         if len(_blocks):
             return(_blocks[0].start_time, _blocks[-1].end_time)

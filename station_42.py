@@ -65,6 +65,7 @@ def main():
         logging.getLogger().info(f"Printing shedule summary.")
         print(LiquidManager().get_summary())
         return
+        
     
     if args.delete_schedules:
         logging.getLogger().info(f"Deleting all schedules")

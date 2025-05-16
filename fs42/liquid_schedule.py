@@ -8,7 +8,7 @@ import datetime
 import math
 
 from fs42.catalog import ShowCatalog
-from fs42.schedule_hint import TagHintReader
+from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
     
@@ -91,34 +91,49 @@ class LiquidSchedule():
 
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
-            tag = TagHintReader.get_tag(self.conf, current_mark)
-            if tag is not None:
-                if tag not in self.conf['clip_shows']:
-                    candidate = self.catalog.find_candidate(tag, timings.HOUR*23, current_mark)
+            slot_config = SlotReader.get_slot(self.conf, current_mark)
+            tag_str = SlotReader.get_tag(self.conf, current_mark)
+            
+            new_block = None
+            if tag_str is not None:
+                
+                start_b = None
+                end_b = None
+
+                #does this slot have a start bump?
+                if "start_bump" in slot_config:
+                    #get the start bump from the catalog
+                    start_b = self.catalog.get_start_bump(slot_config["start_bump"])
+                if "end_bump" in slot_config:
+                    end_b = self.catalog.get_end_bump(slot_config["end_bump"])
+
+
+                if tag_str not in self.conf['clip_shows']:
+                    candidate = self.catalog.find_candidate(tag_str, timings.HOUR*23, current_mark)
 
                     if candidate is None:
                         #this should only happen on an error (have a tag, but no candidate)
-                        self._l.error(f"Could not find content for tag {tag} - please add content, check your configuration and retry")
+                        self._l.error(f"Could not find content for tag {tag_str} - please add content, check your configuration and retry")
                         sys.exit(-1)
                     else:
                         target_duration = self._calc_target_duration(candidate.duration)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
-                        #TODO: Handle clip show tags
-                        new_blocks.append(LiquidBlock(candidate, current_mark, next_mark, candidate.title, self.conf['break_strategy']))
+
+                        new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, self.conf['break_strategy'], start_b, end_b)
                 else:
                     
                     #handle clip show
-                    clip_content  = self.catalog.gather_clip_content(tag, timings.HOUR, current_mark)
+                    clip_content  = self.catalog.gather_clip_content(tag_str, timings.HOUR_CONTENT_DURATION, current_mark)
                     if len(clip_content) == 0:
                         #this should only happen on an error (have a tag, but no candidate)
-                        self._l.error(f"Could not find content for tag {tag} - please add content, check your configuration and retry")
+                        self._l.error(f"Could not find content for tag {tag_str} - please add content, check your configuration and retry")
                         sys.exit(-1)
                     else:
-                        clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag, self.conf['break_strategy'])
+                        clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag_str, self.conf['break_strategy'], start_b, end_b)
                         target_duration = self._calc_target_duration(clip_block.content_duration())
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
                         clip_block.end_time = next_mark
-                        new_blocks.append(clip_block)              
+                        new_block = clip_block              
 
 
             else:
@@ -133,8 +148,10 @@ class LiquidSchedule():
                 #make it for one hour.
                 #TODO: handle when it starts at half hour - just go to next hour (not always one hour)
                 next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-                new_blocks.append(LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair"))
+                new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair")
 
+            #here
+            new_blocks.append(new_block)
             current_mark = next_mark
         self._l.info(f"Content and reel schedules are completed")
 
