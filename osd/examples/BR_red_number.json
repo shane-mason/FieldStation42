@@ -1,0 +1,10 @@
+[
+	{
+	    "halign": "RIGHT",
+	    "valign": "BOTTOM",
+            "text_color": [255, 0, 0, 200],
+            "font_size": 60,
+            "y_margin": 0.15,
+	    "format_text": "{channel_number}"
+	}
+]
