@@ -1,67 +1,110 @@
 import json
+from pathlib import Path
 import glfw
+from pydantic import BaseModel
+from enum import Enum
 
 from render import Text, create_window, clear_screen
 
-SCREEN_WIDTH=1024
-SCREEN_HEIGHT=768
-SCREEN_ASPECT_RATIO=SCREEN_WIDTH/SCREEN_HEIGHT
-
-Y_MARGIN = .1
-X_MARGIN = .1
-
 SOCKET_FILE = "runtime/play_status.socket"
+CONFIG_FILE_PATH = Path("osd/osd.json")
 
-class ChannelDisplay(object):
-    def __init__(self, window):
-        self.cur_status = ""
-        self.time_to_display = 2
-        self.y_position = "TOP"
-        self.x_position = "LEFT"
+class HAlignment(Enum):
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    CENTER = "CENTER"
 
-        self._text = Text(window, "", font_size=40,
-                          color=(0, 255, 0, 200))
-        self.format_text = "{channel_number} - {network_name}"
+class VAlignment(Enum):
+    TOP = "TOP"
+    BOTTOM = "BOTTOM"
+    CENTER = "CENTER"
+
+class StatusDisplayConfig(BaseModel):
+    display_time: float = 2.0
+    halign: HAlignment = HAlignment.LEFT
+    valign: VAlignment = VAlignment.TOP
+    format_text: str = "{channel_number} - {network_name}"
+    text_color: tuple[int, int, int, int] = (0, 255, 0, 200)
+    font_size: int = 40
+    expansion_factor: float = 1.0
+    font: str | None = None 
+    x_margin: float = 0.1
+    y_margin: float = 0.1
+
+class StatusDisplay(object):
+    def __init__(self, window, config: StatusDisplayConfig):
+        self.config = config
+
+        self._text = Text(window, "", font_size=self.config.font_size,
+                          color=self.config.text_color,
+                          expansion_factor=self.config.expansion_factor,
+                          font=self.config.font)
+
+        self.time_since_change = 0
+
         self.check_status()
 
     def check_status(self, socket_file=SOCKET_FILE):
         with open(socket_file, "r") as f:
             status = f.read()
-            if status != self.cur_status:
-                self.cur_status = status
-                self.time_since_change = 0
-                try:
-                    status = json.loads(status)
-                except:
-                    print(f"Unable to parse player status, {status}")
-                self._text.string = self.format_text.format(**status)
+            try:
+                status = json.loads(status)
+            except:
+                print(f"Unable to parse player status, {status}")
+
+            else:
+                new_string = self.config.format_text.format(**status)
+                if new_string != self._text.string:
+                    print(status, new_string)
+                    self.time_since_change = 0
+                    if new_string:
+                        self._text.string = new_string
 
     def update(self, dt):
         self.time_since_change += dt
         self.check_status()
 
     def draw(self):
-        if self.time_since_change < self.time_to_display:
-            if self.x_position == "LEFT":
-                x = -1 + X_MARGIN
-            elif self.x_position == "RIGHT":
-                x = 1 - self._text.width - X_MARGIN
+        if self.time_since_change < self.config.display_time:
+            # Screen coords are -1 to 1 with 0 in the center, -1,-1 is bottom left.
+            # text draw origin is at bottom left
+            if self.config.halign == HAlignment.LEFT:
+                x = -1 + self.config.x_margin
+            elif self.config.halign == HAlignment.RIGHT:
+                x = 1 - self._text.width - self.config.x_margin
             else: # CENTER
                 x = -self._text.width / 2
 
-            if self.y_position == "BOTTOM":
-                y = -1 + Y_MARGIN
-            elif self.y_position == "TOP":
-                y = 1 - self._text.height - Y_MARGIN
+            if self.config.valign == VAlignment.BOTTOM:
+                y = -1 + self.config.y_margin
+            elif self.config.valign == VAlignment.TOP:
+                y = 1 - self._text.height - self.config.y_margin
             else: # CENTER
                 y = -self._text.height / 2
 
             self._text.draw(x, y)
 
+objects = []
 
 window = create_window()
 
-osd = ChannelDisplay(window)
+if CONFIG_FILE_PATH.exists():
+    with open(CONFIG_FILE_PATH, "r") as f:
+        config_dict = json.load(f)
+        for obj in config_dict:
+            if obj['type'] == "StatusDisplay":
+                del obj['type']
+                config = StatusDisplayConfig.model_validate(obj)
+                print(config)
+                osd = StatusDisplay(window, config)
+                objects.append(osd)
+            else:
+                print(f"Unrecognized osd object type: {obj['type']}")
+else:
+    config = StatusDisplayConfig()
+    objects.append(StatusDisplay(window, config))
+
+
 
 # --------------------------
 # Main loop
@@ -74,8 +117,11 @@ while not glfw.window_should_close(window):
 
     clear_screen()
 
-    osd.update(delta_time)
-    osd.draw()
+    for obj in objects:
+        obj.update(delta_time)
+
+    for obj in objects:
+        obj.draw()
 
     glfw.swap_buffers(window)
 
