@@ -41,7 +41,7 @@ $python -m venv env
 
 
 if [ -d env ]; then
-  #rm env/bin/activate
+
   echo Virtual environment created - activating it now
   # Unix
   if [ -f env/Scripts/activate ]; then
