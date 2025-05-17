@@ -1,6 +1,24 @@
 #! /usr/bin/bash
 
 echo Installing Fieldstation 42
+
+# System packages (apt)
+apt_packages=(python3 python3-tk mpv ffmpeg)
+missing_apt=()
+
+echo "Checking APT packages..."
+for pkg in "${apt_packages[@]}"; do
+    dpkg -s "$pkg" &>/dev/null || missing_apt+=("$pkg")
+done
+
+if [ ${#missing_apt[@]} -ne 0 ]; then
+    echo "Installing missing system packages: ${missing_apt[*]}"
+    sudo apt update
+    sudo apt install -y "${missing_apt[@]}"
+else
+    echo "All system packages already installed."
+fi
+
 echo Finding python installation...
 python=python3
 
