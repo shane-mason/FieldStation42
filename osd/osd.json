@@ -1,0 +1,9 @@
+[
+	{
+	    "halign": "LEFT",
+	    "valign": "TOP",
+	    "font_size": 40,
+	    "text_color": [ 0, 255, 0, 200 ],
+	    "format_text": "{channel_number} - {network_name}"
+	}
+]

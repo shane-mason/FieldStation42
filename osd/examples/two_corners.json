@@ -1,0 +1,12 @@
+[
+	{
+	    "halign": "LEFT",
+	    "valign": "TOP",
+	    "format_text": "{channel_number}"
+	},
+	{
+	    "halign": "RIGHT",
+	    "valign": "TOP",
+	    "format_text": "{network_name}"
+	}
+]
