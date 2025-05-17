@@ -1,0 +1,18 @@
+[
+	{
+	    "halign": "LEFT",
+	    "valign": "TOP",
+	    "font_size": 40,
+	    "text_color": [ 0, 255, 0, 200 ],
+	    "format_text": "{channel_number} - {network_name}",
+	    "type": "StatusDisplay"
+	},
+	{
+	    "halign": "CENTER",
+	    "valign": "BOTTOM",
+	    "font_size": 30,
+	    "text_color": [ 0, 255, 0, 200 ],
+	    "format_text": "{title}",
+	    "type": "StatusDisplay"
+	}
+]
