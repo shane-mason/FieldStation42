@@ -43,7 +43,7 @@ function sendDirect(force) {
     if (force || entryBuffer.length > 0) clearEntry();
 }
 
-function updateStatusDisplay(data) {    
+function updateStatusDisplay(data) {
     if (data.channel != null && data.channel >= 1) {
     document.getElementById("current-channel").innerText = data.channel.toString().padStart(2, "0");
     } else {
@@ -51,6 +51,8 @@ function updateStatusDisplay(data) {
     }
 
     document.getElementById("network-name").innerText = data.name || "";
+    document.getElementById("title").innerText = data.title || ""; // Added this line
+
 }
 
 function updateStatus() {
