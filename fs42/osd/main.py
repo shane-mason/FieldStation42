@@ -55,7 +55,6 @@ class StatusDisplay(object):
             else:
                 new_string = self.config.format_text.format(**status)
                 if new_string != self._text.string:
-                    print(status, new_string)
                     self.time_since_change = 0
                     if new_string:
                         self._text.string = new_string
@@ -92,10 +91,11 @@ if CONFIG_FILE_PATH.exists():
     with open(CONFIG_FILE_PATH, "r") as f:
         config_dict = json.load(f)
         for obj in config_dict:
+            if 'type' not in obj:
+                obj['type'] = "StatusDisplay"
             if obj['type'] == "StatusDisplay":
                 del obj['type']
                 config = StatusDisplayConfig.model_validate(obj)
-                print(config)
                 osd = StatusDisplay(window, config)
                 objects.append(osd)
             else:

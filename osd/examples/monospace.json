@@ -6,7 +6,6 @@
 	    "expansion_factor": 4,
 	    "text_color": [ 0, 255, 0, 200 ],
             "font": "/usr/share/fonts/truetype/noto/NotoMono-Regular.ttf",
-	    "format_text": "{channel_number} - {network_name}",
-	    "type": "StatusDisplay"
+	    "format_text": "{channel_number} - {network_name}"
 	}
 ]
