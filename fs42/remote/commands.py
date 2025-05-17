@@ -13,12 +13,13 @@ def read_status():
             status = json.loads(line)
             return {
                 "channel": status.get("channel_number", -1),
-                "name": status.get("network_name", "")
+                "name": status.get("network_name", ""),
+                "title": status.get("title", ""),
             }
     except Exception as e:
         traceback.print_exc()
         return {"channel": -1, "name": ""}
-    
+
 def write_command(message: dict):
     """Takes a dictionary command"""
     message = json.dumps(message) + "\n"

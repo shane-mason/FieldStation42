@@ -6,7 +6,7 @@ html, body {
     overflow: hidden;
     touch-action: manipulation;
   }
-  
+
   .btn {
     font-size: 1.5em;
     margin: 5px;
@@ -21,26 +21,26 @@ html, body {
   .btn:hover {
     background: #666;
   }
-  
+
   .btn-flex {
     display: flex;
     align-items: center;
     justify-content: flex-start;
     text-align: left;
   }
-  
+
   .btn-flex .arrow {
     flex: 0 0 auto;
     margin-left: 8px;
     font-size: 1.5em;
   }
-  
+
   .btn-flex .label {
     flex: 1;
     text-align: center;
   }
 
-  
+
   .seven-seg {
     font-family: 'Courier New', monospace;
     font-size: 4em;
@@ -53,7 +53,7 @@ html, body {
     max-width: 300px;
     text-align: center;
   }
-  
+
   #network-name {
     color: #aaa;
     font-size: 1.2em;
@@ -62,7 +62,7 @@ html, body {
     margin-top: 5px;
     text-align: center;
   }
-  
+
   .row {
     display: flex;
     justify-content: center;
@@ -70,7 +70,7 @@ html, body {
     max-width: 300px;
     margin: 0 auto;
   }
-  
+
   .keypad {
     display: flex;
     flex-wrap: wrap;
@@ -79,17 +79,33 @@ html, body {
     max-width: 300px;
     margin: 10px auto 5px auto;
   }
-  
+
   .keypad .btn {
     width: calc(33.333% - 10px);
     margin: 5px;
     box-sizing: border-box;
   }
-  
+
   #entry {
     font-size: 2em;
     margin: 10px;
     color: #0f0;
     text-align: center;
   }
-  
+
+  /* Added styles for the current title */
+  #title {
+    color: #15cc24; /* Light gray, adjust as needed */
+    font-size: 1em;
+    text-align: center;
+    margin-top: 15px; /* Space above the title */
+    margin-bottom: 10px; /* Space below the title */
+    padding: 0 10px; /* Horizontal padding */
+    height: 2.4em; /* Approx 2 lines of text, adjust as needed */
+    overflow: hidden; /* Prevents long titles from breaking layout */
+    text-overflow: ellipsis; /* Shows ... for very long titles */
+    white-space: normal; /* Allow text to wrap if needed, though height will limit it */
+    max-width: 300px; /* Match keypad width */
+    margin-left: auto;
+    margin-right: auto;
+  }
