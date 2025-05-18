@@ -41,12 +41,12 @@ def main():
 
     if args.graphical_interface or len(sys.argv) <= 1:
         try:
-            from fs42.ux.ux import StationApp 
+            from fs42.ux.ux import StationApp
         except ModuleNotFoundError:
             logging.getLogger().error(f"Could not load graphical interface - please install textual")
             logging.getLogger().error(f"Use this command to install: pip install textual")
             sys.exit(-1)
-            
+
         app = StationApp()
         app.run()
         sys.exit()
@@ -65,8 +65,7 @@ def main():
         logging.getLogger().info(f"Printing shedule summary.")
         print(LiquidManager().get_summary())
         return
-        
-    
+
     if args.delete_schedules:
         logging.getLogger().info(f"Deleting all schedules")
         for station in StationManager().stations:
@@ -76,15 +75,16 @@ def main():
         LiquidManager().reload_schedules()
         logging.getLogger().info(f"All schedules deleted")
 
-
     if args.print_schedule:
         LiquidManager().print_schedule(args.print_schedule, args.verbose)
         return
 
+    sm = StationManager()
     found_print_target = False
+    processed_catalog_paths = set() # Initialize set to track processed catalog paths
 
-    for station_conf in StationManager().stations:
-        if station_conf['network_type'] == "guide":
+    for station_conf in sm.stations:
+        if station_conf['network_type'] == 'guide':
             #catch guide so we don't print it or try to further process
             logging.getLogger().info(f"Loaded guide channel")
         elif args.printcat:
@@ -93,8 +93,28 @@ def main():
                 print(Station42(station_conf, args.rebuild_catalog).get_text_listing())
                 found_print_target = True
         else:
-            logging.getLogger().info(f"Loading catalog for {station_conf['network_name']}")
-            station = Station42(station_conf, args.rebuild_catalog)
+            rebuild_flag_for_this_station = args.rebuild_catalog
+            if args.rebuild_catalog:
+                catalog_path = station_conf.get('catalog_path')
+                if catalog_path:
+                    if catalog_path in processed_catalog_paths:
+                        logging.getLogger().info(
+                            f"Catalog for path '{catalog_path}' (network: {station_conf['network_name']}) "
+                            f"has already been processed in this run. Skipping redundant rebuild."
+                        )
+                        rebuild_flag_for_this_station = False
+                    else:
+                        # This catalog path will be processed (rebuilt or loaded if rebuild fails but path is new)
+                        processed_catalog_paths.add(catalog_path)
+                else:
+                    logging.getLogger().warning(
+                        f"Station '{station_conf['network_name']}' does not have a 'catalog_path' defined. "
+                        f"It will be rebuilt if --rebuild_catalog is set, but cannot share a catalog."
+                    )
+
+            logging.getLogger().info(f"Processing station: {station_conf['network_name']}")
+            station = Station42(station_conf, rebuild_flag_for_this_station)
+
             if args.check_catalogs:
                 #then just run a check and exit
                 logging.getLogger().info(f"Checking catalog for {station_conf['network_name']}")
@@ -111,7 +131,6 @@ def main():
                     liquid.add_month()
                 else:
                     logging.getLogger().info("No schedules generated, use -h --help to see available options")
-   
 
     if args.printcat and not found_print_target:
         logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")
