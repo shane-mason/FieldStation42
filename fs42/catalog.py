@@ -203,7 +203,7 @@ class ShowCatalog:
     def _write_catalog(self):
         with open(self.config['catalog_path'], 'wb') as f:
             cat_out = {
-                'version': '0.1',
+                'version': 0.1,
                 'clip_index': self.clip_index,
                 'sequences': self.sequences
             }
@@ -221,8 +221,13 @@ class ShowCatalog:
             with open(c_path, "rb") as f:
                 try:
                     cat_in = pickle.load(f)
-                    self.clip_index = cat_in['clip_index']
-                    self.sequences = cat_in['sequences']
+                    #make sure this is a modern version of the catalog
+                    if 'version' in cat_in:
+                        self.clip_index = cat_in['clip_index']
+                        self.sequences = cat_in['sequences']
+                    else:
+                        self.clip_index = cat_in
+                        self.sequences = {}
                     self._build_tags()
                 except AttributeError as e:
                     # print error message in red
