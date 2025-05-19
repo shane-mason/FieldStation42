@@ -6,7 +6,7 @@ from fs42.timings import MIN_5, DAYS
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
-from fs42.schedule_hint import BumpHint
+from fs42.series import SeriesIndex, SequenceEntry
 
 try:
     #try to import from version > 2.0
@@ -35,9 +35,14 @@ class ShowCatalog:
     def __init__(self, config, rebuild_catalog=False, load=True, debug=False):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
-
+        
+        # the main index for videos
         self.clip_index = {}
+        # stores sequences (series) and their play-state
+        self.sequences = {}
+        # basically, a flattened list of clip_index keys
         self.tags = []
+
         if rebuild_catalog:
             self.build_catalog()
         elif load:
@@ -87,10 +92,29 @@ class ShowCatalog:
                     else:
                         tags[slots[k]['tags']] = True
 
-                if 'start_bump' in slots[k]:
-                    start_bumps[slots[k]['start_bump']] = True
-                if 'end_bump' in slots[k]:
-                    end_bumps[slots[k]['end_bump']] = True
+                    if 'start_bump' in slots[k]:
+                        start_bumps[slots[k]['start_bump']] = True
+                    if 'end_bump' in slots[k]:
+                        end_bumps[slots[k]['end_bump']] = True
+
+                    if 'sequence' in slots[k]:
+                        # the user supplied sequence name
+                        seq_name = slots[k]['sequence']
+                        seq_key = ""
+                        to_add = []
+                        if  isinstance(slots[k]['tags'], list):
+                            to_add += slots[k]['tags']
+                        else:
+                            to_add.append(slots[k]['tags'])
+
+
+                        for seq_tag in to_add:
+                            seq_key = SeriesIndex.make_key(seq_tag,seq_name)
+                            if seq_key not in self.sequences:
+                                series = SeriesIndex(seq_tag)
+                                file_list = MediaProcessor._rfind_media(f"{self.config['content_dir']}/{seq_tag}")
+                                series.populate(file_list)
+                                self.sequences[seq_key] = series
 
         self.clip_index["start_bumps"] = {}
         self.clip_index["end_bumps"] = {}
@@ -128,6 +152,7 @@ class ShowCatalog:
         #now populate each tag
         for tag in self.tags:
             self.clip_index[tag] = []
+
             self._l.info(f"Checking for media with tag={tag} in content folder")
             tag_dir = f"{self.config['content_dir']}/{tag}"
             file_list = MediaProcessor._find_media(tag_dir)
@@ -177,7 +202,12 @@ class ShowCatalog:
 
     def _write_catalog(self):
         with open(self.config['catalog_path'], 'wb') as f:
-            pickle.dump(self.clip_index, f)
+            cat_out = {
+                'version': '0.1',
+                'clip_index': self.clip_index,
+                'sequences': self.sequences
+            }
+            pickle.dump(cat_out, f)
 
     def load_catalog(self):
         #takes a while, so check to see if it exists - build if not
@@ -190,7 +220,9 @@ class ShowCatalog:
             
             with open(c_path, "rb") as f:
                 try:
-                    self.clip_index = pickle.load(f)
+                    cat_in = pickle.load(f)
+                    self.clip_index = cat_in['clip_index']
+                    self.sequences = cat_in['sequences']
                     self._build_tags()
                 except AttributeError as e:
                     # print error message in red
@@ -247,6 +279,30 @@ class ShowCatalog:
             return self.clip_index['end_bumps'][fp]
         return None
 
+    def get_next_in_sequence(self, sequence_key):
+        if sequence_key not in self.sequences:
+            self._l.error("Sequence specified but could not find - please check your configuration and rebuild the catalog.")
+            exit(-1)
+        
+        print(sequence_key)
+        episode = self.sequences[sequence_key].get_next()
+        entry:CatalogEntry = self._by_fpath(episode)
+        return entry
+        
+
+    def _by_fpath(self, fpath):
+        print("Looking for:", str(fpath))
+        for tag in self.clip_index:
+            try:
+                for item in self.clip_index[tag]:
+                    if type(item) is CatalogEntry:
+                        #print(item.path)
+                
+                        if item.path == fpath:
+                         #   print("Found it!")
+                            return item
+            except TypeError as te:
+                pass
 
     def _lowest_count(self, candidates):
         min_count = sys.maxsize
