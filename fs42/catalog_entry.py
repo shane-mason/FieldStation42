@@ -18,4 +18,4 @@ class CatalogEntry:
 
     def __str__(self):
         hints = list(map(str, self.hints))
-        return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {hints}"
+        return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {hints} | {self.path}"
