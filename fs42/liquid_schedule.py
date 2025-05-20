@@ -11,6 +11,7 @@ from fs42.catalog import ShowCatalog
 from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
+from fs42.series import SeriesIndex
     
 class LiquidSchedule():
 
@@ -92,7 +93,7 @@ class LiquidSchedule():
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
             slot_config = SlotReader.get_slot(self.conf, current_mark)
-            tag_str = SlotReader.get_tag(self.conf, current_mark)
+            tag_str = SlotReader.get_tag_from_slot(slot_config, current_mark)
             
             new_block = None
             if tag_str is not None:
@@ -109,7 +110,14 @@ class LiquidSchedule():
 
 
                 if tag_str not in self.conf['clip_shows']:
-                    candidate = self.catalog.find_candidate(tag_str, timings.HOUR*23, current_mark)
+                    candidate = None
+                    #see if this is a series with a sequence defined
+                    if 'sequence' in slot_config:
+                        seq_name = slot_config['sequence']
+                        seq_key = SeriesIndex.make_key(tag_str, seq_name)
+                        candidate = self.catalog.get_next_in_sequence(seq_key)
+                    else:
+                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR*23, current_mark)
 
                     if candidate is None:
                         #this should only happen on an error (have a tag, but no candidate)

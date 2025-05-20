@@ -22,6 +22,23 @@ class SlotReader():
 
         return response
     
+
+    def get_tag_from_slot(slot, when:datetime):
+        response = None
+        if slot and "tags" in slot:
+            tags = slot['tags']
+            
+            if type(tags) is list:
+                if len(tags) == 1 or when.minute < 30:
+                    response = tags[0]
+                else:
+                    response = tags[1]
+            else:
+                response = tags
+
+        return response
+
+
     def get_slot(conf, when:datetime):
         day_str = timings.DAYS[when.weekday()]
         slot_number = str(when.hour)
