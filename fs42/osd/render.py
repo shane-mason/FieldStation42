@@ -1,14 +1,13 @@
 import glfw
 from OpenGL.GL import *
 from PIL import Image, ImageDraw, ImageFont
-import json
 
 DEFAULT_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 __font_objects = {}
 
 class Text(object):
-    def __init__(self, window, string="",expansion_factor=1, font_size=32, color=(255,255,255,255), font=None):
+    def __init__(self, window, string="",expansion_factor=1.0, font_size=32, color=(255,255,255,255), font=None):
         self._string = string
         self._font_size = font_size
         self._color = color
@@ -156,6 +155,8 @@ def create_window():
     glfw.window_hint(glfw.DECORATED, glfw.FALSE)
     glfw.window_hint(glfw.FLOATING, glfw.TRUE)
     glfw.window_hint(glfw.FOCUSED, glfw.TRUE)
+    glfw.window_hint(glfw.AUTO_ICONIFY, glfw.FALSE)
+    glfw.window_hint(glfw.RESIZABLE, glfw.FALSE)
     window = glfw.create_window(mode.size.width, mode.size.height, "FieldStation42 OSD", monitor, None)
     glfw.make_context_current(window)
     glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
@@ -167,5 +168,5 @@ def create_window():
     return window
 
 def clear_screen(color = (0, 0, 0, 0)):
-    glClearColor(0, 0, 0, 0)  # Transparent clear
+    glClearColor(*color)
     glClear(GL_COLOR_BUFFER_BIT)
