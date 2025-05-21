@@ -6,7 +6,7 @@ from fs42.timings import MIN_5, DAYS
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
-from fs42.series import SeriesIndex, SequenceEntry
+from fs42.series import SeriesIndex
 
 try:
     #try to import from version > 2.0

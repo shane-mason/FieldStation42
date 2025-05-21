@@ -98,7 +98,6 @@ class MediaProcessor:
 
     @staticmethod
     def _rfind_media(path):
-        print("Looking in ", path)
         logging.getLogger("MEDIA").debug(f"_rfind_media scanning for media in {path}")
         file_list = []
         directory = Path(path)
@@ -107,8 +106,6 @@ class MediaProcessor:
         for ext in MediaProcessor.supported_formats:
             this_format = directory.rglob(f"*.{ext}")
             file_list += this_format
-            #logging.getLogger("MEDIA").debug(f"--Found {len(this_format)} files with {ext} extension - {len(file_list)} total found in {path} so far")
-
 
         logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(file_list)}")
         return file_list 

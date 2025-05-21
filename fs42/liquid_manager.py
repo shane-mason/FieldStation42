@@ -5,6 +5,7 @@ import sys
 
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
+from fs42.catalog import ShowCatalog
 
 class ScheduleNotFound(Exception):
     pass
@@ -64,9 +65,20 @@ class LiquidManager(object):
     def reset_all_schedules(self):
         for station in self.stations:
             if station['network_type'] != "guide":
+                
                 if os.path.exists(station["schedule_path"]):
                     os.unlink(station["schedule_path"])
         self.reload_schedules()
+
+
+    def reset_sequences(self, station):
+        # get the catalog
+        catalog = ShowCatalog(station)
+        #clips = 
+            #start at current time
+
+            #
+        pass
 
     def get_extents(self, network_name):
         _id = network_name
