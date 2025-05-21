@@ -30,10 +30,12 @@ class StatusDisplayConfig(BaseModel):
     font: str | None = None 
     x_margin: float = 0.1
     y_margin: float = 0.1
+    delay: float = 0.0
 
 class StatusDisplay(object):
     def __init__(self, window, config: StatusDisplayConfig):
         self.config = config
+        self.window = window
 
         self._text = Text(window, "", font_size=self.config.font_size,
                           color=self.config.text_color,
@@ -55,7 +57,7 @@ class StatusDisplay(object):
             else:
                 new_string = self.config.format_text.format(**status)
                 if new_string != self._text.string:
-                    self.time_since_change = 0
+                    self.time_since_change = -self.config.delay
                     if new_string:
                         self._text.string = new_string
 
@@ -105,15 +107,14 @@ else:
     objects.append(StatusDisplay(window, config))
 
 
-
 # --------------------------
 # Main loop
 
 now = glfw.get_time()
 while not glfw.window_should_close(window):
+    glfw.wait_events_timeout(1.0 / 30.0)  # ~30 FPS, low CPU
     now, last = glfw.get_time(), now
     delta_time = now - last
-    glfw.poll_events()
 
     clear_screen()
 
@@ -126,6 +127,5 @@ while not glfw.window_should_close(window):
     glfw.swap_buffers(window)
 
 # Cleanup
-glDeleteTextures([texture])
 glfw.terminate()
 

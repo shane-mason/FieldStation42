@@ -20,13 +20,12 @@ class SeriesIndex:
         return f"{series_name}-{sequence_name}"
 
     def populate(self, file_list):
-        
-        
         for file in file_list:
             entry = SequenceEntry(file)
             self._episodes.append(entry)
-        
-        print(self._episodes)
+
+        #explicitely sort them by file path for alpha-numeric ordering:
+        self._episodes = sorted(self._episodes, key=lambda entry: entry.fpath)
         
 
     def get_series_length(self):
