@@ -5,7 +5,9 @@ from fs42.slot_reader import SlotReader
 import glob
 
 class StationManager(object):
+
     __we_are_all_one = {}
+    
     stations = []
 
     overwatch = {"network_type": "standard",

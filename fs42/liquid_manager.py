@@ -5,6 +5,8 @@ import sys
 
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
+from fs42.catalog import ShowCatalog
+from fs42 import series
 
 class ScheduleNotFound(Exception):
     pass
@@ -23,7 +25,7 @@ class PlayPoint():
 
 class LiquidManager(object):
     __we_are_all_one = {}
-    stations = []
+    station_configs = []
 
     # NOTE: This is the borg singleton pattern - __we_are_all_one
     def __new__(cls, *args, **kwargs):
@@ -32,13 +34,13 @@ class LiquidManager(object):
         return obj
     
     def __init__(self):
-        if not len(self.stations):
-            self.stations =  StationManager().stations
+        if not len(self.station_configs):
+            self.station_configs =  StationManager().stations
             self.reload_schedules()
 
     def reload_schedules(self):
         self.schedules = {}
-        for station in self.stations:
+        for station in self.station_configs:
             if station['network_type'] != 'guide':
                 _id = station['network_name']
                 _path = station['schedule_path']
@@ -62,11 +64,39 @@ class LiquidManager(object):
             return None
 
     def reset_all_schedules(self):
-        for station in self.stations:
-            if station['network_type'] != "guide":
-                if os.path.exists(station["schedule_path"]):
-                    os.unlink(station["schedule_path"])
+        for station_config in self.station_configs:
+            if station_config['network_type'] != "guide":
+                self.reset_sequences(station_config)
+                if os.path.exists(station_config["schedule_path"]):
+                    os.unlink(station_config["schedule_path"])
         self.reload_schedules()
+
+
+    def reset_sequences(self, station_config):
+        # get the catalog
+        catalog = ShowCatalog(station_config)
+
+        _blocks: list[LiquidBlock] = self.schedules[station_config['network_name']]
+        now = datetime.datetime.now()
+        _reaped = {}
+    
+        for _block in _blocks:
+            #are we to now yet?
+            if _block.start_time > now:
+                #does it have a sequence and is that sequence in the catalog?
+                if _block.sequence_key and _block.sequence_key in catalog.sequences:
+                    #have we found it before?
+                    if _block.sequence_key not in _reaped:
+                        # register that we found it
+                        _reaped[_block.sequence_key] = _block
+                        # get the sequence
+                        _sequence: series.SeriesIndex = catalog.sequences[_block.sequence_key]
+                        # if its a sequence, then content is a catalog entry with a path
+                        print(f"resetting {_block.sequence_key}")
+                        _sequence.reset_by_fpath(_block.content.path)
+
+        catalog._write_catalog()
+        
 
     def get_extents(self, network_name):
         _id = network_name

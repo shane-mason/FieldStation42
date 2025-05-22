@@ -6,7 +6,7 @@ from fs42.timings import MIN_5, DAYS
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
-from fs42.series import SeriesIndex, SequenceEntry
+from fs42.series import SeriesIndex
 
 try:
     #try to import from version > 2.0
@@ -98,6 +98,10 @@ class ShowCatalog:
                         end_bumps[slots[k]['end_bump']] = True
 
                     if 'sequence' in slots[k]:
+                        #make sure its not a clip show
+                        
+                        
+
                         # the user supplied sequence name
                         seq_name = slots[k]['sequence']
                         seq_key = ""
@@ -109,6 +113,10 @@ class ShowCatalog:
 
 
                         for seq_tag in to_add:
+                            if seq_tag in self.config['clip_shows']:
+                                self._l.error(f"Schedule logic error in {self.config['network_name']}: Clip shows are not currently supported as sequences")
+                                self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {day} in slot {k}")
+                                exit(-1)
                             seq_key = SeriesIndex.make_key(seq_tag,seq_name)
                             if seq_key not in self.sequences:
                                 series = SeriesIndex(seq_tag)
@@ -289,22 +297,18 @@ class ShowCatalog:
             self._l.error("Sequence specified but could not find - please check your configuration and rebuild the catalog.")
             exit(-1)
         
-        print(sequence_key)
         episode = self.sequences[sequence_key].get_next()
         entry:CatalogEntry = self._by_fpath(episode)
         return entry
         
 
     def _by_fpath(self, fpath):
-        print("Looking for:", str(fpath))
         for tag in self.clip_index:
             try:
                 for item in self.clip_index[tag]:
                     if type(item) is CatalogEntry:
-                        #print(item.path)
                 
                         if item.path == fpath:
-                         #   print("Found it!")
                             return item
             except TypeError as te:
                 pass

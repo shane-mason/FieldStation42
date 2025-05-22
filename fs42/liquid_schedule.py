@@ -108,7 +108,7 @@ class LiquidSchedule():
                 if "end_bump" in slot_config:
                     end_b = self.catalog.get_end_bump(slot_config["end_bump"])
 
-
+                seq_key = None
                 if tag_str not in self.conf['clip_shows']:
                     candidate = None
                     #see if this is a series with a sequence defined
@@ -116,6 +116,7 @@ class LiquidSchedule():
                         seq_name = slot_config['sequence']
                         seq_key = SeriesIndex.make_key(tag_str, seq_name)
                         candidate = self.catalog.get_next_in_sequence(seq_key)
+
                     else:
                         candidate = self.catalog.find_candidate(tag_str, timings.HOUR*23, current_mark)
 
@@ -128,6 +129,9 @@ class LiquidSchedule():
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
 
                         new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, self.conf['break_strategy'], start_b, end_b)
+                        #add sequence information
+                        if seq_key:
+                            new_block.sequence_key = seq_key
                 else:
                     
                     #handle clip show

@@ -20,6 +20,7 @@ class LiquidBlock():
         self.break_strategy = break_strategy
         self.start_bump = start_bump
         self.end_bump = end_bump
+        self.sequence_key = None
 
     def __str__(self):
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
