@@ -12,7 +12,7 @@ class SeriesIndex:
 
     def __init__(self, tag_path ):
         self.tag_path = tag_path
-        self._episodes = []
+        self._episodes: list[SequenceEntry] = []
         self._index = -1
 
     @staticmethod
@@ -43,8 +43,17 @@ class SeriesIndex:
     def get_current(self):
         return self._episodes[self._index].fpath
 
-    def schedule_episode(self, fpath):
-        pass
+    def reset_by_fpath(self, fpath):
+        for i in range(len(self._episodes)):
+            if self._episodes[i].fpath == fpath:
+                self._index = i
+                break
+        
+        #now, we want to go one episode earlier, so that this is the next episode
+        self._index -= 1
+        #wrap back to the end if we went negative
+        self._index = (len(self._episodes)-1) if self._index < 0 else self._index
+        
 
     def _by_fpath(self, fpath):
         for episode in self._episodes:
