@@ -29,6 +29,7 @@ def test_next_episode(test_list):
     assert episodes == expected_episodes
 
 def test_next_episode_complex():
+    # More difficult name and random order
     test_list = [
         "prime/avatar/Avatar - The Last Airbender - S01E02 - The Avatar Returns.mkv",
         "prime/avatar/Avatar - The Last Airbender - S01E01 - The Boy in the Iceberg.mkv",
