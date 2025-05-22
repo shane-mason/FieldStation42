@@ -68,12 +68,7 @@ def main():
 
     if args.delete_schedules:
         logging.getLogger().info(f"Deleting all schedules")
-        #for station in StationManager().stations:
-        #    if station['network_type'] != "guide":
-        #        if os.path.exists(station["schedule_path"]):
-        #            os.unlink(station["schedule_path"])
         LiquidManager().reset_all_schedules()
-        #LiquidManager().reload_schedules()
         logging.getLogger().info(f"All schedules deleted")
 
     if args.print_schedule:
