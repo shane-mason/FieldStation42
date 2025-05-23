@@ -74,6 +74,7 @@ class ShowCatalog:
 
     def _build_standard(self):
         self.clip_index = {}
+        #self.sequences = {}
         self.tags = []
 
         self._l.info(f"Standard network")
@@ -97,32 +98,7 @@ class ShowCatalog:
                     if 'end_bump' in slots[k]:
                         end_bumps[slots[k]['end_bump']] = True
 
-                    if 'sequence' in slots[k]:
-                        #make sure its not a clip show
-                        
-                        
-
-                        # the user supplied sequence name
-                        seq_name = slots[k]['sequence']
-                        seq_key = ""
-                        to_add = []
-                        if  isinstance(slots[k]['tags'], list):
-                            to_add += slots[k]['tags']
-                        else:
-                            to_add.append(slots[k]['tags'])
-
-
-                        for seq_tag in to_add:
-                            if seq_tag in self.config['clip_shows']:
-                                self._l.error(f"Schedule logic error in {self.config['network_name']}: Clip shows are not currently supported as sequences")
-                                self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {day} in slot {k}")
-                                exit(-1)
-                            seq_key = SeriesIndex.make_key(seq_tag,seq_name)
-                            if seq_key not in self.sequences:
-                                series = SeriesIndex(seq_tag)
-                                file_list = MediaProcessor._rfind_media(f"{self.config['content_dir']}/{seq_tag}")
-                                series.populate(file_list)
-                                self.sequences[seq_key] = series
+        self.scan_sequences()
 
         self.clip_index["start_bumps"] = {}
         self.clip_index["end_bumps"] = {}
@@ -217,31 +193,66 @@ class ShowCatalog:
             }
             pickle.dump(cat_out, f)
 
+    def rebuild_sequences(self, commit=False):
+        self.sequences = {}
+        self.scan_sequences()
+        if commit:
+            self._write_catalog()
+
+    def scan_sequences(self, commit=False):
+
+        for day in DAYS:
+            slots = self.config[day]
+            for k in slots:
+
+                if 'sequence' in slots[k]:
+                    # the user supplied sequence name
+                    seq_name = slots[k]['sequence']
+                    seq_key = ""
+                    to_add = []
+                    if  isinstance(slots[k]['tags'], list):
+                        to_add += slots[k]['tags']
+                    else:
+                        to_add.append(slots[k]['tags'])
+
+
+                    for seq_tag in to_add:
+                        if seq_tag in self.config['clip_shows']:
+                            self._l.error(f"Schedule logic error in {self.config['network_name']}: Clip shows are not currently supported as sequences")
+                            self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {day} in slot {k}")
+                            exit(-1)
+                        seq_key = SeriesIndex.make_key(seq_tag,seq_name)
+                        if seq_key not in self.sequences:
+                            self._l.info(f"Adding sequence {seq_key}")
+                            series = SeriesIndex(seq_tag)
+                            file_list = MediaProcessor._rfind_media(f"{self.config['content_dir']}/{seq_tag}")
+                            series.populate(file_list)
+                            self.sequences[seq_key] = series
+        if commit:
+            self._write_catalog()
+
     def load_catalog(self):
         #takes a while, so check to see if it exists - build if not
         c_path = self.config['catalog_path']
         self._l.debug("Loading catalog from file: " + c_path )
-        if False: #not os.path.isfile(c_path):
-            self._l.warning("Catalog not found - starting new build")
-            self.build_catalog()
-        else:
+
             
-            with open(c_path, "rb") as f:
-                try:
-                    cat_in = pickle.load(f)
-                    #make sure this is a modern version of the catalog
-                    if 'version' in cat_in:
-                        self.clip_index = cat_in['clip_index']
-                        self.sequences = cat_in['sequences']
-                    else:
-                        self.clip_index = cat_in
-                        self.sequences = {}
-                    self._build_tags()
-                except AttributeError as e:
-                    # print error message in red
-                    print('\033[91m' + "Error loading catalogs - this means you probably need to update your catalog format")
-                    print("Please rebuild catalogs by running station_42.py -x. Cheers!" + '\033[0m')
-                    sys.exit(-1)
+        with open(c_path, "rb") as f:
+            try:
+                cat_in = pickle.load(f)
+                #make sure this is a modern version of the catalog
+                if 'version' in cat_in:
+                    self.clip_index = cat_in['clip_index']
+                    self.sequences = cat_in['sequences']
+                else:
+                    self.clip_index = cat_in
+                    self.sequences = {}
+                self._build_tags()
+            except AttributeError as e:
+                # print error message in red
+                print('\033[91m' + "Error loading catalogs - this means you probably need to update your catalog format")
+                print("Please rebuild catalogs by running station_42.py --rebuild_catalog" + '\033[0m')
+                sys.exit(-1)
 
             self._l.debug("Catalog read read from file " + c_path)
         

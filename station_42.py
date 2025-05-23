@@ -28,10 +28,11 @@ def main():
     parser.add_argument('-c', '--check_catalogs', action='store_true', help='Check catalogs, print report and exit.')
     parser.add_argument('-p', '--printcat', help='Print the catalog for the specified network name and exit')
     parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Rebuild catalogs and schedules')
+    parser.add_argument('-q', '--rebuild_sequences', action='store_true', help='Restarts all sequences - will take effect in next schedule build.')
+    parser.add_argument('-a', '--scan_sequences', action='store_true', help='Scan for new sequences that have been added to configurations for next schedule build.')
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )
     parser.add_argument('-d', '--add_day', action='store_true', help='Add one day to all schedules' )
-    parser.add_argument('-t', '--trace_schedule', help='Print schedule for current day for the specified network name' )
     parser.add_argument('-s', '--schedule', action='store_true', help='View schedule summary information for all stations.' )
     parser.add_argument('-u', '--print_schedule', help='Print schedule for current day for the specified network name' )
     parser.add_argument('-x', '--delete_schedules', action='store_true', help='Delete all schedules (but not catalogs)' )
@@ -65,6 +66,9 @@ def main():
         logging.getLogger().info(f"Printing shedule summary.")
         print(LiquidManager().get_summary())
         return
+    
+
+
 
     if args.delete_schedules:
         logging.getLogger().info(f"Deleting all schedules")
@@ -90,8 +94,8 @@ def main():
                 found_print_target = True
         else:
             rebuild_flag_for_this_station = args.rebuild_catalog
+            catalog_path = station_conf.get('catalog_path')
             if args.rebuild_catalog:
-                catalog_path = station_conf.get('catalog_path')
                 if catalog_path:
                     if catalog_path in processed_catalog_paths:
                         logging.getLogger().info(
@@ -107,9 +111,15 @@ def main():
                         f"Station '{station_conf['network_name']}' does not have a 'catalog_path' defined. "
                         f"It will be rebuilt if --rebuild_catalog is set, but cannot share a catalog."
                     )
+            
 
             logging.getLogger().info(f"Processing station: {station_conf['network_name']}")
             station = Station42(station_conf, rebuild_flag_for_this_station)
+
+            if args.rebuild_sequences:
+                station.catalog.rebuild_sequences(True)
+            elif args.scan_sequences:
+                station.catalog.scan_sequences(True)
 
             if args.check_catalogs:
                 #then just run a check and exit
