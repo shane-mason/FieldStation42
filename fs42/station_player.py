@@ -163,7 +163,12 @@ class StationPlayer:
                 self.play_file(entry.path)
 
                 total_skip = entry.skip + initial_skip
-                self.mpv.seek(total_skip)
+                try:
+                    self.mpv.seek(total_skip)
+                except Exception:
+                    self._l.error(f"Failed seeking on {entry.path}")
+                    return PlayerOutcome(PlayStatus.FAILED)
+
                 self._l.info(f"Seeking for: {total_skip}")
 
 
@@ -187,7 +192,7 @@ class StationPlayer:
                             if response:
                                 return response
                 else:
-                    raise(PlayerOutcome(PlayStatus.FAILED))
+                    return PlayerOutcome(PlayStatus.FAILED)
 
                 initial_skip = 0
 
