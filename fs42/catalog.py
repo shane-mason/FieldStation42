@@ -11,7 +11,7 @@ from fs42.series import SeriesIndex
 try:
     #try to import from version > 2.0
     from moviepy import VideoFileClip
-except ImportError: 
+except ImportError:
     #fall back to import from version 1.0
     from moviepy.editor import VideoFileClip # type: ignore
 
@@ -25,7 +25,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-        
+
 
 
 class ShowCatalog:
@@ -35,7 +35,7 @@ class ShowCatalog:
     def __init__(self, config, rebuild_catalog=False, load=True, debug=False):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
-        
+
         # the main index for videos
         self.clip_index = {}
         # stores sequences (series) and their play-state
@@ -58,7 +58,7 @@ class ShowCatalog:
                 return self._build_single()
             case "guide":
                 raise NotImplementedError("Guide catalog not supported yet.")
-    
+
     def _build_single(self, tag="content"):
         self.clip_index = {}
         self.tags = []
@@ -126,9 +126,9 @@ class ShowCatalog:
         self.tags = list(tags.keys())
 
         #add commercial and bumps to the tags
-        if "commercial_dir" in self.config:
+        if "commercial_dir" in self.config and self.config["commercial_dir"]:
             self.tags.append(self.config["commercial_dir"])
-        if "bump_dir" in self.config:
+        if "bump_dir" in self.config and self.config["bump_dir"]:
             self.tags.append(self.config["bump_dir"])
 
         total_count = 0
@@ -147,14 +147,14 @@ class ShowCatalog:
             subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=(tag==self.config["bump_dir"]))
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
-            
+
             if( tag == self.config["bump_dir"]):
                 (pre, fill, post) = MediaProcessor._by_position(subdir_clips, ShowCatalog.prebump, ShowCatalog.postbump)
                 self.clip_index[tag] = self.clip_index[tag] + fill
                 self.clip_index[ShowCatalog.prebump] = pre
                 self.clip_index[ShowCatalog.postbump] = post
                 total_count += len(pre) + len(fill) + len(post)
-            else:                
+            else:
                 self.clip_index[tag] += subdir_clips
                 total_count += len(self.clip_index[tag])
 
@@ -236,7 +236,7 @@ class ShowCatalog:
         c_path = self.config['catalog_path']
         self._l.debug("Loading catalog from file: " + c_path )
 
-            
+
         with open(c_path, "rb") as f:
             try:
                 cat_in = pickle.load(f)
@@ -255,7 +255,7 @@ class ShowCatalog:
                 sys.exit(-1)
 
             self._l.debug("Catalog read read from file " + c_path)
-        
+
 
     def get_text_listing(self):
         content = "TITLE                | TAG        | Duration  | Hints\n"
@@ -297,7 +297,7 @@ class ShowCatalog:
         if fp in self.clip_index['start_bumps']:
             return self.clip_index['start_bumps'][fp]
         return None
-    
+
     def get_end_bump(self, fp):
         if fp in self.clip_index['end_bumps']:
             return self.clip_index['end_bumps'][fp]
@@ -307,18 +307,19 @@ class ShowCatalog:
         if sequence_key not in self.sequences:
             self._l.error("Sequence specified but could not find - please check your configuration and rebuild the catalog.")
             exit(-1)
-        
+
         episode = self.sequences[sequence_key].get_next()
         entry:CatalogEntry = self._by_fpath(episode)
         return entry
-        
+
 
     def _by_fpath(self, fpath):
         for tag in self.clip_index:
             try:
                 for item in self.clip_index[tag]:
                     if type(item) is CatalogEntry:
-                        if str(item.path) == str(fpath):
+
+                        if item.path == fpath:
                             return item
             except TypeError as te:
                 pass
@@ -340,7 +341,7 @@ class ShowCatalog:
             return self.clip_index[tag]
         else:
             return None
-        
+
     def find_candidate(self, tag, seconds, when):
         if tag in self.clip_index and len(self.clip_index[tag]):
             candidates = self.clip_index[tag]
@@ -368,10 +369,10 @@ class ShowCatalog:
 
     def find_bump(self, seconds, when, position=None):
         bump_tag = self.config['bump_dir']
-        
+
         if not len(self.clip_index[bump_tag]):
             raise NoFillerContentFound("Can't find filler - add bumps...")
-        
+
         if position:
             if position == ShowCatalog.prebump and len(self.clip_index[ShowCatalog.prebump]):
                 return self.find_candidate(ShowCatalog.prebump, seconds, when)
@@ -379,7 +380,7 @@ class ShowCatalog:
                 return self.find_candidate(ShowCatalog.postbump, seconds, when)
             else:
                #then none were specified, so use regular bumps
-               return self.find_candidate(bump_tag, seconds, when) 
+               return self.find_candidate(bump_tag, seconds, when)
         else:
             return self.find_candidate(bump_tag, seconds, when)
 
@@ -388,7 +389,7 @@ class ShowCatalog:
 
         if not len(self.clip_index[com_tag]):
             raise NoFillerContentFound("Can't find filler - add commercials...")
-        return self.find_candidate(com_tag, seconds, when)                
+        return self.find_candidate(com_tag, seconds, when)
 
     #makes blocks of reels in bump-commercial-commercial-bump format
     def make_reel_block(self, when,  bumpers=True, target_duration=120):
@@ -402,18 +403,18 @@ class ShowCatalog:
 
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
-            
-        
+
+
         #aim for lower and should average close over time since the returned can be larger
         while remaining > (target_duration *.1):
-            
+
             if self.config['commercial_free'] == False:
                 candidate = self.find_commercial(target_duration, when)
             else:
                 candidate = self.find_bump(target_duration, when)
             remaining -= candidate.duration
             reels.append(candidate)
-        
+
         return ReelBlock(start_candidate, reels, end_candidate)
 
     def make_reel_fill(self, when, length, bumpers=True):
@@ -421,7 +422,7 @@ class ShowCatalog:
         blocks = []
         while remaining:
             block = self.make_reel_block(when, bumpers, self.config['break_duration'])
-            
+
             if (remaining - block.duration) > 0:
                 remaining -= block.duration
                 blocks.append(block)
@@ -431,7 +432,7 @@ class ShowCatalog:
                 additional_reels = []
                 while remaining and keep_going:
                     candidate = None
-                    
+
                     try:
                         if self.config["commercial_free"] == False:
                             candidate = self.find_commercial(remaining, when)
@@ -450,7 +451,7 @@ class ShowCatalog:
                 blocks.append(ReelBlock(None, additional_reels, None))
 
         return blocks
-        
+
     def gather_clip_content(self, tag, duration, when):
         current_duration = 0
         keep_going = True
@@ -482,9 +483,4 @@ class ShowCatalog:
                 count += len(self.clip_index[tag])
             else:
                 count += 1
-        return (len(self.tags), count)        
-
-
-                    
-                
-
+        return (len(self.tags), count)
