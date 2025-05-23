@@ -318,8 +318,7 @@ class ShowCatalog:
             try:
                 for item in self.clip_index[tag]:
                     if type(item) is CatalogEntry:
-                
-                        if item.path == fpath:
+                        if str(item.path) == str(fpath):
                             return item
             except TypeError as te:
                 pass
