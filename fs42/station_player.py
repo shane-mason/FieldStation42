@@ -98,6 +98,10 @@ class StationPlayer:
             self._l.warning("station_config not available in play_file, cannot update status socket with title.")
 
         self.mpv.play(file_path)
+        
+        if 'panscan' in self.station_config:
+            self.mpv.panscan = self.station_config['panscan']
+
         self.mpv.wait_for_property("duration")
         return
 
