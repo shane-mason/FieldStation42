@@ -10,9 +10,9 @@ class SequenceEntry:
 
 class SeriesIndex:
 
-    def __init__(self, tag_path ):
+    def __init__(self, tag_path):
         self.tag_path = tag_path
-        self._episodes = []
+        self._episodes: list[SequenceEntry] = []
         self._index = -1
 
     @staticmethod
@@ -20,7 +20,6 @@ class SeriesIndex:
         return f"{series_name}-{sequence_name}"
 
     def populate(self, file_list):
-    
         for file in file_list:
             entry = SequenceEntry(file)
             self._episodes.append(entry)
@@ -31,7 +30,7 @@ class SeriesIndex:
 
     def get_series_length(self):
         return len(self._episodes)
-    
+
     def get_next(self):
         if self._index < 0 or self._index >= len(self._episodes):
             self._index = 0
