@@ -133,7 +133,7 @@ class MediaProcessor:
         subs = [ f.path for f in os.scandir(dir_path) if f.is_dir() ]
         clips = []
         for sub in subs:
-            file_list = MediaProcessor._find_media(sub)
+            file_list = MediaProcessor._rfind_media(sub)
             hints = MediaProcessor._process_hints(sub, tag, bumpdir)
             clips += MediaProcessor._process_media(file_list, tag, hints=hints)
         return clips
