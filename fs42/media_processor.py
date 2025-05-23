@@ -106,9 +106,12 @@ class MediaProcessor:
         for ext in MediaProcessor.supported_formats:
             this_format = directory.rglob(f"*.{ext}")
             file_list += this_format
+        converted = []
+        for posix_path in file_list:
+            converted.append(str(posix_path))
 
-        logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(file_list)}")
-        return file_list 
+        logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(converted)}")
+        return converted 
 
     @staticmethod
     def _process_hints(path, tag, bumpdir=False):
