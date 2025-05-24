@@ -82,7 +82,7 @@ class LiquidManager(object):
     
         for _block in _blocks:
             #are we to now yet?
-            if _block.start_time > now:
+            if _block.start_time > now and hasattr(_block, "sequence_key"):
                 #does it have a sequence and is that sequence in the catalog?
                 if _block.sequence_key and _block.sequence_key in catalog.sequences:
                     #have we found it before?
