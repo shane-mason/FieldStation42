@@ -15,7 +15,7 @@ from fs42.ux.dialogs import SelectStationErr, LoadingScreen, GeneralErr
 class ScheduleScreen(Screen):
     CSS_PATH = "catalog_screen.tcss"
     def compose(self) -> ComposeResult:
-        yield Header(f"Welcome to Station42")
+        yield Header("Welcome to Station42")
         self.dt = DataTable()
 
         self.options = []

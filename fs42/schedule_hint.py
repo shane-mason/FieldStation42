@@ -169,4 +169,4 @@ class RangeHint:
             return False
 
     def __str__(self):
-        return f"range_hint"
+        return "range_hint"

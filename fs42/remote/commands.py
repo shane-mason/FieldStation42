@@ -16,7 +16,7 @@ def read_status():
                 "name": status.get("network_name", ""),
                 "title": status.get("title", ""),
             }
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return {"channel": -1, "name": ""}
 

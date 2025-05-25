@@ -102,10 +102,10 @@ def main_loop(transition_fn):
                                 logger.critical("Got direct tune command, but no channel specified")
                         elif as_obj["command"] == "up":
                             tune_up = True
-                            logger.debug(f"Got channel up command")
+                            logger.debug("Got channel up command")
                         elif as_obj["command"] == "down":
                             tune_up = False
-                            logger.debug(f"Got channel down command")
+                            logger.debug("Got channel down command")
                             channel_index-=1
                             if channel_index<0:
                                 channel_index = len(manager.stations)-1

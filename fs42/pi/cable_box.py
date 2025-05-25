@@ -113,7 +113,7 @@ class CableBox:
 
             if key_pressed:
                 self.temp_mode = False
-                self.tm.show(f"    ")
+                self.tm.show("    ")
                 last_selection_tick = time.monotonic()
                 in_selection = True
 
@@ -123,13 +123,13 @@ class CableBox:
                 if key_pressed == "up":
                     self.send_command("up")
                     channel_num += 1
-                    self.tm.show(f"----")
+                    self.tm.show("----")
                     in_selection = False
                 elif key_pressed == "down":
                     if(channel_num > 0):
                         self.send_command("down")
                         channel_num -= 1
-                        self.tm.show(f"----")
+                        self.tm.show("----")
                     in_selection = False
                 else:
                     try:

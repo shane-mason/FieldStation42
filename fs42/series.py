@@ -1,5 +1,3 @@
-from datetime import datetime
-from fs42.media_processor import MediaProcessor
 
 class SequenceEntry:
 

@@ -5,7 +5,6 @@ sys.path.append(os.getcwd())
 import tkinter as tk #import Tkinter
 from PIL import Image, ImageTk
 from fs42.guide_builder import GuideBuilder
-from fs42.station_manager import StationManager
 
 class GuideWindowConf:
 

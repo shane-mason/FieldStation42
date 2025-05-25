@@ -5,14 +5,13 @@ from textual import work
 
 from fs42.station_manager import StationManager
 from fs42.catalog import ShowCatalog
-from fs42.liquid_manager import LiquidManager
 from fs42.ux.dialogs import SelectStationErr, LoadingScreen
 
 
 class CatalogScreen(Screen):
     CSS_PATH = "catalog_screen.tcss"
     def compose(self) -> ComposeResult:
-        yield Header(f"Welcome to Station42")
+        yield Header("Welcome to Station42")
         self.dt = DataTable()
 
         self.options = []

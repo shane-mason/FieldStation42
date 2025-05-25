@@ -1,6 +1,5 @@
 import logging
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
-import os
 import sys
 
 from fs42.catalog import ShowCatalog
@@ -44,8 +43,8 @@ def main():
         try:
             from fs42.ux.ux import StationApp
         except ModuleNotFoundError:
-            logging.getLogger().error(f"Could not load graphical interface - please install textual")
-            logging.getLogger().error(f"Use this command to install: pip install textual")
+            logging.getLogger().error("Could not load graphical interface - please install textual")
+            logging.getLogger().error("Use this command to install: pip install textual")
             sys.exit(-1)
 
         app = StationApp()
@@ -63,7 +62,7 @@ def main():
         logging.getLogger().addHandler(fh)
 
     if args.schedule:
-        logging.getLogger().info(f"Printing shedule summary.")
+        logging.getLogger().info("Printing shedule summary.")
         print(LiquidManager().get_summary())
         return
     
@@ -71,9 +70,9 @@ def main():
 
 
     if args.delete_schedules:
-        logging.getLogger().info(f"Deleting all schedules")
+        logging.getLogger().info("Deleting all schedules")
         LiquidManager().reset_all_schedules()
-        logging.getLogger().info(f"All schedules deleted")
+        logging.getLogger().info("All schedules deleted")
 
     if args.print_schedule:
         LiquidManager().print_schedule(args.print_schedule, args.verbose)
@@ -86,7 +85,7 @@ def main():
     for station_conf in sm.stations:
         if station_conf['network_type'] == 'guide':
             #catch guide so we don't print it or try to further process
-            logging.getLogger().info(f"Loaded guide channel")
+            logging.getLogger().info("Loaded guide channel")
         elif args.printcat:
             if station_conf['network_name'] == args.printcat:
                 logging.getLogger().info(f"Printing catalog for {station_conf['network_name']}")

@@ -3,8 +3,6 @@ import os
 import glob
 from pathlib import Path
 
-import subprocess
-import json
 
 import ffmpeg
 
@@ -50,7 +48,7 @@ class MediaProcessor:
                 #see if both returned 0
                 if duration <= 0.0:
                     _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
-                    _l.warning(f"Files with 0 length can't be added to the catalog.")
+                    _l.warning("Files with 0 length can't be added to the catalog.")
                     failed.append(fname)
                 else:
                     show_clip = CatalogEntry(fname, duration, tag, hints)

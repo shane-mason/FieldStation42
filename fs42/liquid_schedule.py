@@ -43,7 +43,7 @@ class LiquidSchedule():
             with open(s_path, "rb") as f:
                 try:
                     self._blocks = pickle.load(f)
-                except ModuleNotFoundError as e:
+                except ModuleNotFoundError:
                     #print error message in red
                     print('\033[91m' + "Error loading schedule - this means you probably need to update your schedule format")
                     print("Please update your schedules by running station_42.py -x and then regenerating. Cheers!" + '\033[0m')
@@ -165,7 +165,7 @@ class LiquidSchedule():
             #here
             new_blocks.append(new_block)
             current_mark = next_mark
-        self._l.info(f"Content and reel schedules are completed")
+        self._l.info("Content and reel schedules are completed")
 
         #now, make plans for all the blocks
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
@@ -173,7 +173,7 @@ class LiquidSchedule():
             block.make_plan(self.catalog)
 
         self._blocks = self._blocks + new_blocks
-        self._l.info(f"Saving blocks to disk")
+        self._l.info("Saving blocks to disk")
         self._save_blocks()
     
 

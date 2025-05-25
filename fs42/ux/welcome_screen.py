@@ -1,4 +1,3 @@
-import datetime
 
 from textual.app import Screen, ComposeResult
 from textual.widgets import Button, Header, Markdown
@@ -7,14 +6,14 @@ from textual.containers import Horizontal
 from fs42.station_manager import StationManager
 from fs42.catalog import ShowCatalog
 from fs42.liquid_manager import LiquidManager
-from fs42.ux.dialogs import QuitScreen, SelectStationScreen
+from fs42.ux.dialogs import QuitScreen
 from fs42.ux.catalog_screen import CatalogScreen
 from fs42.ux.schedule_screen import ScheduleScreen
 
 class WelcomeScreen(Screen):
     CSS_PATH = "welcome_screen.tcss"
     def compose(self) -> ComposeResult:
-        yield Header(f"Welcome to Station42")
+        yield Header("Welcome to Station42")
         self.md = Markdown("LOADING...")
         yield self.md
         yield Horizontal(
@@ -59,7 +58,7 @@ class WelcomeScreen(Screen):
                     text += f"Catalog summary: {cat.summary()}\n\n"
                     catalog_exists = True
                 except FileNotFoundError:
-                    text += f"Catalog not found. Click 'Manage Catalogs' to build new catalog.\n\n"
+                    text += "Catalog not found. Click 'Manage Catalogs' to build new catalog.\n\n"
                     catalog_exists = False
 
                 (start, end) = LiquidManager().get_extents(network_name)
@@ -67,9 +66,9 @@ class WelcomeScreen(Screen):
                     text += f"* Schedule extents: {start:%Y-%m-%d} to {end:%Y-%m-%d}\n"
                 else:
                     if catalog_exists:
-                        text += f"* Schedule not found. Click 'Manage Schedules' to generate schedules."
+                        text += "* Schedule not found. Click 'Manage Schedules' to generate schedules."
                     else:
-                        text += f"* Schedule not found. After building the catalog, click 'Manage Schedules' to generate schedules."
+                        text += "* Schedule not found. After building the catalog, click 'Manage Schedules' to generate schedules."
             else:
                 if station['network_type'] == "guide":
                     text += "* Guide channels do not have catalogs or schedules\n"
