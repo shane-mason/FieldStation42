@@ -67,10 +67,6 @@ class StationPlayer:
                 idle=True,
                 force_window=True,
                 script_opts="osc-idlescreen=no",
-                vo="gpu",
-                gpu_api="opengl",
-                hwdec="auto-safe",
-                video_sync="desync"
             )
 
         self.station_config = station_config
