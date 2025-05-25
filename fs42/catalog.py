@@ -214,7 +214,7 @@ class ShowCatalog:
 
                         if isinstance(slots[k]['tags'], list):
                             for tag in slots[k]['tags']:
-                            self._build_sequence(tag, slots[k]) 
+                                self._build_sequence(tag, slots[k]) 
                         else:
                             self._build_sequence(slots[k]['tags'], slots[k])
 
