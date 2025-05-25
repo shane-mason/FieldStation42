@@ -210,26 +210,39 @@ class ShowCatalog:
                     seq_name = slots[k]['sequence']
                     seq_key = ""
                     to_add = []
-                    if  isinstance(slots[k]['tags'], list):
-                        to_add += slots[k]['tags']
+
+                    if isinstance(slots[k]['tags'], list):
+                        for tag in slots[k]['tags']:
+                           self._build_sequence(tag, slots[k]) 
                     else:
-                        to_add.append(slots[k]['tags'])
+                        self._build_sequence(slots[k]['tags'], slots[k])
 
-
-                    for seq_tag in to_add:
-                        if seq_tag in self.config['clip_shows']:
-                            self._l.error(f"Schedule logic error in {self.config['network_name']}: Clip shows are not currently supported as sequences")
-                            self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {day} in slot {k}")
-                            exit(-1)
-                        seq_key = SeriesIndex.make_key(seq_tag,seq_name)
-                        if seq_key not in self.sequences:
-                            self._l.info(f"Adding sequence {seq_key}")
-                            series = SeriesIndex(seq_tag)
-                            file_list = MediaProcessor._rfind_media(f"{self.config['content_dir']}/{seq_tag}")
-                            series.populate(file_list)
-                            self.sequences[seq_key] = series
         if commit:
             self._write_catalog()
+
+    def _build_sequence(self, this_tag, slot):
+        seq_tag = this_tag
+        seq_name = slot['sequence']
+        seq_key = SeriesIndex.make_key(seq_tag,seq_name)
+
+        if seq_tag in self.config['clip_shows']:
+            self._l.error(f"Schedule logic error in {self.config['network_name']}: Clip shows are not currently supported as sequences")
+            self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {day} in slot {k}")
+            exit(-1)
+       
+        if seq_key not in self.sequences:
+            self._l.info(f"Adding sequence {seq_key}")
+            seq_start = 0
+            seq_end = 1
+            if 'sequence_start' in slot:
+                seq_start = slot['sequence_start']
+            if 'sequence_end' in slot:
+                seq_end = slot['sequence_end']
+
+            series = SeriesIndex(seq_tag, seq_start, seq_end)
+            file_list = MediaProcessor._rfind_media(f"{self.config['content_dir']}/{seq_tag}")
+            series.populate(file_list)
+            self.sequences[seq_key] = series
 
     def load_catalog(self):
         #takes a while, so check to see if it exists - build if not
