@@ -1,0 +1,6 @@
+[lint]
+select = ["E", "F", "B", "ANN"]
+ignore = ["E501", "ANN101", "ANN102"]  # Ignore long lines and self/cls type hints
+
+[lint.flake8-annotations]
+mypy-init-return = true  # Require return type on `__init__`
