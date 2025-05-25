@@ -51,7 +51,7 @@ class StatusDisplay(object):
             status = f.read()
             try:
                 status = json.loads(status)
-            except:
+            except Exception:
                 print(f"Unable to parse player status, {status}")
 
             else:

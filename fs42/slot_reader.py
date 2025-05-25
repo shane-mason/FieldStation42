@@ -61,6 +61,6 @@ class SlotReader():
                     if 'tags' in conf[day_index][slot_index]:
                         last_tag = conf[day_index][slot_index]
                     elif 'continued' in conf[day_index][slot_index]:
-                        if conf[day_index][slot_index]['continued'] == True:
+                        if conf[day_index][slot_index]['continued']:
                             smoothed[day_index][slot_index]['tags'] = last_tag['tags']
         return smoothed

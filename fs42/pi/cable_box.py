@@ -85,7 +85,7 @@ class CableBox:
                 self.last_stat = as_str
                 try:
                     new_stat = json.loads(as_str)
-                except:
+                except Exception:
                     #assume that it was a partial read and try again next time
                     print(f"Error decoding status: {as_str}")
         return new_stat
@@ -136,7 +136,7 @@ class CableBox:
                         as_num = int(last_pressed+key_pressed)
                         last_pressed = key_pressed
                         self.tm.show(f"  {as_num:02d}")
-                    except:
+                    except Exception:
                         pass
 
 
@@ -168,7 +168,7 @@ class CableBox:
                         print("Set channel: ", channel_num)
                     else:
                         self.tm.show("FS42")
-                except:
+                except Exception:
                     self.tm.show("FS42")
 
             if self.temp_mode and (tick_count%10)==0:

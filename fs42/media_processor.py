@@ -1,12 +1,10 @@
 import logging
 import os
 import glob
-from pathlib import Path
 
 
 import ffmpeg
 
-USE_EXPERIMENTAL_PROCESS = True
 
 try:
     #try to import from version > 2.0
@@ -17,6 +15,7 @@ except ImportError:
 
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint
 from fs42.catalog_entry import CatalogEntry
+USE_EXPERIMENTAL_PROCESS = True
 
 class MediaProcessor:
     supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv"]
@@ -98,7 +97,6 @@ class MediaProcessor:
     def _rfind_media(path):
         logging.getLogger("MEDIA").debug(f"_rfind_media scanning for media in {path}")
         file_list = []
-        directory = Path(path)
 
         #get all the files
         for ext in MediaProcessor.supported_formats:
@@ -140,7 +138,7 @@ class MediaProcessor:
     @staticmethod
     def _test_candidate_hints(hint_list, when):
         for hint in hint_list:
-            if hint.hint(when) == False:
+            if not hint.hint(when):
                 return False
         return True
     

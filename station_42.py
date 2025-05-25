@@ -1,5 +1,4 @@
 import logging
-logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 import sys
 
 from fs42.catalog import ShowCatalog
@@ -8,6 +7,7 @@ from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
 
 import argparse
+logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 class Station42:
 

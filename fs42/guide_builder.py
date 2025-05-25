@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
-from fs42.timings import DAYS
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_blocks import LiquidBlock
@@ -79,11 +78,11 @@ class GuideBuilder:
         self.static_dir = static_dir
 
     def build_view(self):
-        slots = []
+        # slots = []
         view = {'rows': [], 'meta': []}
 
         now = datetime.datetime.now()
-        week_day = DAYS[now.weekday()]
+        # week_day = DAYS[now.weekday()]
         hour = now.hour
 
 

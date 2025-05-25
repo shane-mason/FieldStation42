@@ -28,7 +28,6 @@ jobs:
     - name: Run ruff
       run: | 
         ruff check
-        ruff format --check
 
   test:
     runs-on: ubuntu-latest

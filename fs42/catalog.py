@@ -408,7 +408,7 @@ class ShowCatalog:
         #aim for lower and should average close over time since the returned can be larger
         while remaining > (target_duration *.1):
 
-            if self.config['commercial_free'] == False:
+            if not self.config['commercial_free']:
                 candidate = self.find_commercial(target_duration, when)
             else:
                 candidate = self.find_bump(target_duration, when)
@@ -434,11 +434,11 @@ class ShowCatalog:
                     candidate = None
 
                     try:
-                        if self.config["commercial_free"] == False:
+                        if not self.config["commercial_free"]:
                             candidate = self.find_commercial(remaining, when)
                         else:
                             candidate = self.find_bump(remaining, when, "fill")
-                    except:
+                    except Exception:
                         pass
 
                     if candidate is not None:

@@ -4,13 +4,13 @@ import datetime
 import json
 import signal
 import logging
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import StationPlayer, PlayStatus, check_channel_socket, update_status_socket
 from fs42.reception import ReceptionStatus
 
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 debounce_fragment = 0.1
 
@@ -50,7 +50,7 @@ def main_loop(transition_fn):
     signal.signal(signal.SIGINT, sigint_handler)
 
     channel_conf = manager.stations[channel_index]
-    recheck_channel = False
+    # recheck_channel = False
 
     # this is actually the main loop
     outcome = None

@@ -1,6 +1,5 @@
 from enum import Enum
 import logging
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 import multiprocessing
 import time
 import datetime
@@ -13,6 +12,8 @@ from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.reception import ReceptionStatus
 from fs42.liquid_manager import LiquidManager, PlayPoint
 from fs42.station_manager import StationManager
+
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 def check_channel_socket():
     channel_socket = StationManager().server_conf['channel_socket']
@@ -140,7 +141,7 @@ class StationPlayer:
     def play_slot(self , network_name, when):
         liquid = LiquidManager()
         play_point = liquid.get_play_point(network_name, when)
-        if play_point == None:
+        if play_point is None:
             self.current_playing_file_path = None
             return PlayerOutcome(PlayStatus.FAILED)
         return self._play_from_point(play_point)

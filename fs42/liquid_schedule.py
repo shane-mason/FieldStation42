@@ -1,8 +1,6 @@
 import os
 import sys
-sys.path.append(os.getcwd())
 import logging
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 import pickle
 import datetime
 import math
@@ -12,6 +10,9 @@ from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
 from fs42.series import SeriesIndex
+
+sys.path.append(os.getcwd())
+logging.basicConfig(format='%(asctime)s %(levelname)s:%(name)s:%(message)s', level=logging.INFO)
     
 class LiquidSchedule():
 
