@@ -202,20 +202,21 @@ class ShowCatalog:
     def scan_sequences(self, commit=False):
 
         for day in DAYS:
-            slots = self.config[day]
-            for k in slots:
+            if day in self.config:
+                slots = self.config[day]
+                for k in slots:
 
-                if 'sequence' in slots[k]:
-                    # the user supplied sequence name
-                    seq_name = slots[k]['sequence']
-                    seq_key = ""
-                    to_add = []
+                    if 'sequence' in slots[k]:
+                        # the user supplied sequence name
+                        seq_name = slots[k]['sequence']
+                        seq_key = ""
+                        to_add = []
 
-                    if isinstance(slots[k]['tags'], list):
-                        for tag in slots[k]['tags']:
-                           self._build_sequence(tag, slots[k]) 
-                    else:
-                        self._build_sequence(slots[k]['tags'], slots[k])
+                        if isinstance(slots[k]['tags'], list):
+                            for tag in slots[k]['tags']:
+                            self._build_sequence(tag, slots[k]) 
+                        else:
+                            self._build_sequence(slots[k]['tags'], slots[k])
 
         if commit:
             self._write_catalog()
