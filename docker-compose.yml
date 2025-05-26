@@ -1,0 +1,18 @@
+services:
+  fieldstation:
+    build: 
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: fieldstation42
+    volumes:
+      - ../catalog:/app/catalog
+      - ../runtime:/app/runtime
+      - /mnt/d/Media/TV:/mnt/d/Media/TV
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /mnt/wslg/PulseServer:/tmp/pulse-socket
+    environment:
+      - DISPLAY=${DISPLAY}
+      - PULSE_SERVER=unix:/tmp/pulse-socket
+      - XDG_RUNTIME_DIR=/tmp
+    stdin_open: true
+    tty: true
