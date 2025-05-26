@@ -104,9 +104,9 @@ class LiquidSchedule():
                 #does this slot have a start bump?
                 if "start_bump" in slot_config:
                     #get the start bump from the catalog
-                    start_b = self.catalog.get_start_bump(slot_config["start_bump"])
+                    start_b = self.catalog.get_start_bump(slot_config['start_bump'])
                 if "end_bump" in slot_config:
-                    end_b = self.catalog.get_end_bump(slot_config["end_bump"])
+                    end_b = self.catalog.get_end_bump(slot_config['end_bump'])
 
                 seq_key = None
                 if tag_str not in self.conf['clip_shows']:

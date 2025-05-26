@@ -108,7 +108,7 @@ class ShowCatalog:
             path = f"{self.config['content_dir']}/{fp}"
             sb = MediaProcessor._process_media([path], "start_bumps")
             if len(sb) == 1:
-                self.clip_index["start_bumps"][fp] = sb[0]
+                self.clip_index['start_bumps'][fp] = sb[0]
             else:
                 self._l.error("Start bump specified but not found {fp}")
                 self._l.error("File paths for start_bump should be relative to the content_dir")
@@ -117,7 +117,7 @@ class ShowCatalog:
             path = f"{self.config['content_dir']}/{fp}"
             eb = MediaProcessor._process_media([path], "end_bumps")
             if len(sb) == 1:
-                self.clip_index["end_bumps"][fp] = eb[0]
+                self.clip_index['end_bumps'][fp] = eb[0]
             else:
                 self._l.error("Start bump specified but not found {fp}")
                 self._l.error("File paths for end_bump should be relative to the content_dir")
@@ -128,9 +128,10 @@ class ShowCatalog:
         #add commercial and bumps to the tags
         if "commercial_dir" in self.config and self.config["commercial_dir"]:
             self.tags.append(self.config["commercial_dir"])
+        # setup the general bump dir
         if "bump_dir" in self.config and self.config["bump_dir"]:
             self.tags.append(self.config["bump_dir"])
-
+        
         total_count = 0
 
         #now populate each tag
