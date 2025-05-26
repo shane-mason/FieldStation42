@@ -3,17 +3,19 @@ import os
 import glob
 import ffmpeg
 
+
 try:
-    #try to import from version > 2.0
+    # try to import from version > 2.0
     from moviepy import VideoFileClip
-except ImportError: 
-    #fall back to import from version 1.0
-    from moviepy.editor import VideoFileClip # type: ignore
+except ImportError:
+    # fall back to import from version 1.0
+    from moviepy.editor import VideoFileClip  # type: ignore
 
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint
 from fs42.catalog_entry import CatalogEntry
 
 USE_EXPERIMENTAL_PROCESS = True
+
 
 class MediaProcessor:
     supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv"]
@@ -24,25 +26,25 @@ class MediaProcessor:
         _l.debug(f"_process_media starting processing for tag={tag} on {len(file_list)} files")
         show_clip_list = []
 
-        #collect list of files that fail
+        # collect list of files that fail
         failed = []
 
-        #get the duration and path for each clip and add to the tag
+        # get the duration and path for each clip and add to the tag
         for fname in file_list:
             _l.debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
             duration = 0.0
             try:
                 if USE_EXPERIMENTAL_PROCESS:
-                    #this wont work for mkv and webp and doesnt really save time - shouldn't use unless required 
+                    # this wont work for mkv and webp and doesnt really save time - shouldn't use unless required
                     duration = MediaProcessor._get_duration(fname)
-                
-                #it might not support streams, so check with moviepy
+
+                # it might not support streams, so check with moviepy
                 if duration <= 0.0:
                     video_clip = VideoFileClip(fname)
                     duration = video_clip.duration
-                
-                #see if both returned 0
+
+                # see if both returned 0
                 if duration <= 0.0:
                     _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
                     _l.warning("Files with 0 length can't be added to the catalog.")
@@ -58,7 +60,7 @@ class MediaProcessor:
                 failed.append(fname)
 
         _l.debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
-        
+
         if len(failed):
             _l.warning(f"Errors were encountered during processing - error count: {len(failed)}")
             count_printed = 0
@@ -66,7 +68,7 @@ class MediaProcessor:
                 _l.warning(f)
                 count_printed += 1
                 if count_printed >= 10:
-                    _l.warning(f"and {len(failed)-count_printed} more...")
+                    _l.warning(f"and {len(failed) - count_printed} more...")
 
         return show_clip_list
 
@@ -86,8 +88,10 @@ class MediaProcessor:
         for ext in MediaProcessor.supported_formats:
             this_format = glob.glob(f"{path}/*.{ext}")
             file_list += this_format
-            logging.getLogger("MEDIA").debug(f"--Found {len(this_format)} files with {ext} extension - {len(file_list)} total found in {path} so far")
- 
+            logging.getLogger("MEDIA").debug(
+                f"--Found {len(this_format)} files with {ext} extension - {len(file_list)} total found in {path} so far"
+            )
+
         logging.getLogger("MEDIA").debug(f"_find_media done scanning {path} {len(file_list)}")
         return file_list
 
@@ -96,14 +100,14 @@ class MediaProcessor:
         logging.getLogger("MEDIA").debug(f"_rfind_media scanning for media in {path}")
         file_list = []
 
-        #get all the files
+        # get all the files
         for ext in MediaProcessor.supported_formats:
-            #this_format = directory.rglob(f"*.{ext}")
+            # this_format = directory.rglob(f"*.{ext}")
             this_format = glob.glob(f"{path}/**/*.{ext}", recursive=True)
             file_list += this_format
 
         logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(file_list)}")
-        return file_list 
+        return file_list
 
     @staticmethod
     def _process_hints(path, tag, bumpdir=False):
@@ -125,7 +129,7 @@ class MediaProcessor:
 
     @staticmethod
     def _process_subs(dir_path, tag, bumpdir=False):
-        subs = [ f.path for f in os.scandir(dir_path) if f.is_dir() ]
+        subs = [f.path for f in os.scandir(dir_path) if f.is_dir()]
         clips = []
         for sub in subs:
             file_list = MediaProcessor._rfind_media(sub)
@@ -139,13 +143,13 @@ class MediaProcessor:
             if not hint.hint(when):
                 return False
         return True
-    
+
     @staticmethod
     def _by_position(bumps, pre_tag, post_tag):
         pre = []
         fill = []
         post = []
-        
+
         for bump in bumps:
             found = False
             for hint in bump.hints:
@@ -162,4 +166,3 @@ class MediaProcessor:
             if not found:
                 fill.append(bump)
         return (pre, fill, post)
-        
