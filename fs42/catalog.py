@@ -181,7 +181,6 @@ class ShowCatalog:
 
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
         self._build_tags()
-        #print(self.tags)
         self._write_catalog()
 
     def _write_catalog(self):
@@ -228,7 +227,7 @@ class ShowCatalog:
 
         if seq_tag in self.config['clip_shows']:
             self._l.error(f"Schedule logic error in {self.config['network_name']}: Clip shows are not currently supported as sequences")
-            self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {day} in slot {k}")
+            self._l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {this_tag} as {seq_key}")
             exit(-1)
        
         if seq_key not in self.sequences:

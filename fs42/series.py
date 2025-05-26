@@ -16,7 +16,7 @@ class SeriesIndex:
         self._episodes: list[SequenceEntry] = []
         self._index = -1
         if start_point < 0 or start_point > 1 or start_point > end_point:
-            raise ValueError(f"Sequence start point for {tag} must be more than 0, less than 1 and less than sequence end. Check your configuration.")
+            raise ValueError(f"Sequence start point for {tag_path} must be more than 0, less than 1 and less than sequence end. Check your configuration.")
         if end_point < 0 or end_point > 1:
             raise ValueError(f"Sequence end point for {tag_path} must be greater than zero and less than 1. Check your configuration.")
         self._start_perc = start_point
