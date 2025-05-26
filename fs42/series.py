@@ -1,4 +1,5 @@
 from datetime import datetime
+import math
 from fs42.media_processor import MediaProcessor
 
 class SequenceEntry:
@@ -10,10 +11,17 @@ class SequenceEntry:
 
 class SeriesIndex:
 
-    def __init__(self, tag_path ):
+    def __init__(self, tag_path, start_point=0, end_point=1 ):
         self.tag_path = tag_path
         self._episodes: list[SequenceEntry] = []
         self._index = -1
+        if start_point < 0 or start_point > 1 or start_point > end_point:
+            raise ValueError(f"Sequence start point for {tag_path} must be more than 0, less than 1 and less than sequence end. Check your configuration.")
+        if end_point < 0 or end_point > 1:
+            raise ValueError(f"Sequence end point for {tag_path} must be greater than zero and less than 1. Check your configuration.")
+        self._start_perc = start_point
+        self._end_perc = end_point
+        self.__defaults() 
 
     @staticmethod
     def make_key(series_name, sequence_name):
@@ -26,19 +34,37 @@ class SeriesIndex:
 
         #explicitely sort them by file path for alpha-numeric ordering:
         self._episodes = sorted(self._episodes, key=lambda entry: entry.fpath)
-        
+        self.__defaults()
+        self._index =  self._start_index
+
 
     def get_series_length(self):
         return len(self._episodes)
     
-    def get_next(self):
-        if self._index < 0 or self._index >= len(self._episodes):
-            self._index = 0
-        else:
-            self._index+=1
-            self._index = 0 if self._index >= len(self._episodes) else self._index 
+    def __defaults(self):
+        if not hasattr(self, '_start_perc'):
+            self._start_perc = 0
+        if not hasattr(self, '_end_perc'):
+            self._end_perc = 1
+            
+        #handle previous catalog versions
+        self._start_index = math.floor(self._start_perc * (len(self._episodes))) 
+        self._end_index = math.floor(self._end_perc * (len(self._episodes))) 
+            
         
-        return self._episodes[self._index].fpath
+    def get_next(self):
+        self.__defaults()    
+        to_return = None
+        if self._index < 0 or self._index >= self._end_index:
+            self._index = self._start_index
+            to_return = self._episodes[self._index].fpath
+        else:
+            to_return = self._episodes[self._index].fpath
+            self._index+=1
+            if self._index >= self._end_index:
+                self._index = self._start_index
+        
+        return to_return
     
     def get_current(self):
         return self._episodes[self._index].fpath

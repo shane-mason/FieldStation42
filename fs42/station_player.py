@@ -25,12 +25,12 @@ def check_channel_socket():
         return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
     return None
 
-def update_status_socket(status, network_name, channel, title=None):
+def update_status_socket(status, network_name, channel, title=None,timestamp="%Y-%m-%dT%H:%M:%S"):
     status_obj = {
         "status": status,
         "network_name": network_name,
         "channel_number": channel,
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.datetime.now().strftime(timestamp)
     }
     if title is not None:
         status_obj["title"] = title
@@ -93,12 +93,13 @@ class StationPlayer:
         basename = os.path.basename(file_path) # Added
         title, _ = os.path.splitext(basename) # Added
         if self.station_config:
-            update_status_socket("playing", self.station_config['network_name'], self.station_config['channel_number'], title)
+            ts_format = os.environ.get('FS42_TS', "%Y-%m-%dT%H:%M:%S")
+            update_status_socket("playing", self.station_config['network_name'], self.station_config['channel_number'], title, timestamp=ts_format)
         else:
             self._l.warning("station_config not available in play_file, cannot update status socket with title.")
 
         self.mpv.play(file_path)
-        
+
         if 'panscan' in self.station_config:
             self.mpv.panscan = self.station_config['panscan']
 
