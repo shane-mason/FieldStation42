@@ -77,7 +77,7 @@ class ShowCatalog:
         #self.sequences = {}
         self.tags = []
 
-        self._l.info(f"Standard network")
+        self._l.info("Standard network")
         start_bumps = {}
         end_bumps = {}
 
@@ -88,8 +88,8 @@ class ShowCatalog:
             for k in slots:
                 if 'tags' in slots[k]:
                     if type(slots[k]['tags']) is list:
-                        for l in slots[k]['tags']:
-                            tags[l] = True
+                        for m in slots[k]['tags']:
+                            tags[m] = True
                     else:
                         tags[slots[k]['tags']] = True
 
@@ -161,21 +161,21 @@ class ShowCatalog:
 
         # add sign-off and off-air videos to the clip index
         if 'sign_off_video' in self.config:
-            self._l.debug(f"Adding sign-off video")
+            self._l.debug("Adding sign-off video")
             video_clip = VideoFileClip(self.config["sign_off_video"])
             self.clip_index['sign_off'] = CatalogEntry(self.config["sign_off_video"], video_clip.duration, 'sign_off')
             self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
             total_count+=1
 
         if "off_air_video" in self.config:
-            self._l.debug(f"Adding off air video")
+            self._l.debug("Adding off air video")
             video_clip = VideoFileClip(self.config["off_air_video"])
             self.clip_index['off_air'] = CatalogEntry(self.config["off_air_video"], video_clip.duration, 'off_air')
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count+=1
 
         if "off_air_image" in self.config:
-            self._l.debug(f"Adding offair image")
+            self._l.debug("Adding offair image")
             self.clip_index['off_air_image'] = CatalogEntry(self.config['off_air_image'], MIN_5, 'off_air')
             self._l.debug(f"Added off air image {self.config['off_air_image']}")
             total_count+=1
@@ -208,10 +208,6 @@ class ShowCatalog:
 
                     if 'sequence' in slots[k]:
                         # the user supplied sequence name
-                        seq_name = slots[k]['sequence']
-                        seq_key = ""
-                        to_add = []
-
                         if isinstance(slots[k]['tags'], list):
                             for tag in slots[k]['tags']:
                                 self._build_sequence(tag, slots[k]) 
@@ -262,7 +258,7 @@ class ShowCatalog:
                     self.clip_index = cat_in
                     self.sequences = {}
                 self._build_tags()
-            except AttributeError as e:
+            except AttributeError:
                 # print error message in red
                 print('\033[91m' + "Error loading catalogs - this means you probably need to update your catalog format")
                 print("Please rebuild catalogs by running station_42.py --rebuild_catalog" + '\033[0m')
@@ -335,7 +331,7 @@ class ShowCatalog:
                 
                         if item.path == fpath:
                             return item
-            except TypeError as te:
+            except TypeError:
                 pass
 
     def _lowest_count(self, candidates):
@@ -422,7 +418,7 @@ class ShowCatalog:
         #aim for lower and should average close over time since the returned can be larger
         while remaining > (target_duration *.1):
             
-            if self.config['commercial_free'] == False:
+            if not self.config['commercial_free']:
                 candidate = self.find_commercial(target_duration, when)
             else:
                 candidate = self.find_bump(target_duration, when)
@@ -448,11 +444,11 @@ class ShowCatalog:
                     candidate = None
                     
                     try:
-                        if self.config["commercial_free"] == False:
+                        if not self.config["commercial_free"]:
                             candidate = self.find_commercial(remaining, when)
                         else:
                             candidate = self.find_bump(remaining, when, "fill")
-                    except:
+                    except Exception:
                         pass
 
                     if candidate is not None:
