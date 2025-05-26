@@ -104,7 +104,8 @@ class MediaProcessor:
 
         #get all the files
         for ext in MediaProcessor.supported_formats:
-            this_format = directory.rglob(f"*.{ext}")
+            #this_format = directory.rglob(f"*.{ext}")
+            this_format = glob.glob(f"{path}/**/*.{ext}", recursive=True)
             file_list += this_format
 
         logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(file_list)}")
