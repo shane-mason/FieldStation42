@@ -10,12 +10,14 @@ class EnvironmentType(StrEnum):
     DOCKER = auto()
     LOCAL = auto()
 
-# Load .env file (if it exists)
 load_dotenv()
 
-SCRIPT_MAP = {
+SCRIPT_ALIASES = {
     "station_42": "station_42.py",
+    "catalog": "station_42.py",
+
     "field_player": "field_player.py",
+    "play": "field_player.py",
 }
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -28,12 +30,12 @@ def main():
     mode_group.add_argument("-d", "--docker", action="store_true", help="Force Docker mode")
     mode_group.add_argument("-l", "--local", action="store_true", help="Force Local mode")
 
-    parser.add_argument("command", choices=SCRIPT_MAP.keys(), help="Which script to run")
+    parser.add_argument("command", choices=SCRIPT_ALIASES.keys(), help="Which script to run")
     parser.add_argument("args", nargs=argparse.REMAINDER, help="Arguments to pass to the script")
 
     parsed = parser.parse_args()
 
-    script = SCRIPT_MAP[parsed.command]
+    script = SCRIPT_ALIASES[parsed.command]
     script_path = PROJECT_ROOT / script
 
     # Determine effective mode
