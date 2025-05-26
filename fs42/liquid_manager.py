@@ -48,7 +48,7 @@ class LiquidManager(object):
                     with open(_path, "rb") as f:
                         try:
                             self.schedules[_id] = pickle.load(f)
-                        except ModuleNotFoundError as e:
+                        except ModuleNotFoundError:
                             print('\033[91m' + "Error loading schedule - this means you probably need to update your schedule format")
                             print("Please update your schedules by running station_42.py -x and then regenerating. Cheers!" + '\033[0m')
                             sys.exit(-1)

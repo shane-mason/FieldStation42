@@ -1,14 +1,7 @@
 import logging
 import os
 import glob
-from pathlib import Path
-
-import subprocess
-import json
-
 import ffmpeg
-
-USE_EXPERIMENTAL_PROCESS = True
 
 try:
     #try to import from version > 2.0
@@ -19,6 +12,8 @@ except ImportError:
 
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint
 from fs42.catalog_entry import CatalogEntry
+
+USE_EXPERIMENTAL_PROCESS = True
 
 class MediaProcessor:
     supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv"]
@@ -50,7 +45,7 @@ class MediaProcessor:
                 #see if both returned 0
                 if duration <= 0.0:
                     _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
-                    _l.warning(f"Files with 0 length can't be added to the catalog.")
+                    _l.warning("Files with 0 length can't be added to the catalog.")
                     failed.append(fname)
                 else:
                     show_clip = CatalogEntry(fname, duration, tag, hints)
@@ -100,7 +95,6 @@ class MediaProcessor:
     def _rfind_media(path):
         logging.getLogger("MEDIA").debug(f"_rfind_media scanning for media in {path}")
         file_list = []
-        directory = Path(path)
 
         #get all the files
         for ext in MediaProcessor.supported_formats:
@@ -142,7 +136,7 @@ class MediaProcessor:
     @staticmethod
     def _test_candidate_hints(hint_list, when):
         for hint in hint_list:
-            if hint.hint(when) == False:
+            if not hint.hint(when):
                 return False
         return True
     

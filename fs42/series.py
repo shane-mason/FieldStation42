@@ -1,6 +1,4 @@
-from datetime import datetime
 import math
-from fs42.media_processor import MediaProcessor
 
 class SequenceEntry:
 
