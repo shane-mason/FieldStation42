@@ -1,6 +1,6 @@
 services:
   fieldstation:
-    build: 
+    build:
       context: .
       dockerfile: docker/Dockerfile
     container_name: fieldstation42
