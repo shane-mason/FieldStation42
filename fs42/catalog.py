@@ -401,7 +401,7 @@ class ShowCatalog:
             if position == ShowCatalog.prebump and len(self.clip_index[pre_key]):
                 return self.find_candidate(pre_key, seconds, when)
             elif position == ShowCatalog.postbump and len(self.clip_index[post_key]):
-                return self.find_candidate(pre_key, seconds, when)
+                return self.find_candidate(post_key, seconds, when)
             else:
                 # then none were specified, so use regular bumps
                 return self.find_candidate(bump_tag, seconds, when)
