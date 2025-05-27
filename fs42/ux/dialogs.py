@@ -89,7 +89,6 @@ class SelectStationScreen(ModalScreen[str]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cmd_go":
             val = self.select_station.value
-            print("Got valye: ", val)
             if(val == Select.BLANK):
                 self.dismiss(None)
             else:
