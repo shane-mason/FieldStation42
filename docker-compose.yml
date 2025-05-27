@@ -7,6 +7,7 @@ services:
     volumes:
       - ./catalog:/app/catalog
       - ./runtime:/app/runtime
+      - ./confs:/app/confs
       - /mnt/d/Media/TV:/mnt/d/Media/TV
       - /tmp/.X11-unix:/tmp/.X11-unix
       - /mnt/wslg/PulseServer:/tmp/pulse-socket
