@@ -1,4 +1,0 @@
-python3
-python3-tk
-mpv
-ffmpeg

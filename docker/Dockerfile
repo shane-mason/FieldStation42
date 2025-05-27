@@ -1,11 +1,11 @@
-FROM ubuntu:22.04
+FROM python:3.11-slim-bullseye
 
 # Avoid tzdata interactive prompt
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
 RUN apt update && apt install -y \
-    python3 python3-pip python3-tk \
+    python3-tk \
     mpv ffmpeg \
     libgl1-mesa-glx libx11-6 \
     x11-utils \
