@@ -91,21 +91,31 @@ class StationPlayer:
                 self.mpv.vf = self.reception.filter()
 
     def play_file(self, file_path):
-        self.current_playing_file_path = file_path # Added
-        basename = os.path.basename(file_path) # Added
-        title, _ = os.path.splitext(basename) # Added
-        if self.station_config:
-            ts_format = os.environ.get('FS42_TS', "%Y-%m-%dT%H:%M:%S")
-            update_status_socket("playing", self.station_config['network_name'], self.station_config['channel_number'], title, timestamp=ts_format)
-        else:
-            self._l.warning("station_config not available in play_file, cannot update status socket with title.")
+        try:
+            if os.path.exists(file_path):
+                self.current_playing_file_path = file_path # Added
+                basename = os.path.basename(file_path) # Added
+                title, _ = os.path.splitext(basename) # Added
+                if self.station_config:
+                    ts_format = os.environ.get('FS42_TS', "%Y-%m-%dT%H:%M:%S")
+                    update_status_socket("playing", self.station_config['network_name'], self.station_config['channel_number'], title, timestamp=ts_format)
+                else:
+                    self._l.warning("station_config not available in play_file, cannot update status socket with title.")
 
-        self.mpv.play(file_path)
+                self.mpv.play(file_path)
 
-        if 'panscan' in self.station_config:
-            self.mpv.panscan = self.station_config['panscan']
+                if 'panscan' in self.station_config:
+                    self.mpv.panscan = self.station_config['panscan']
 
-        self.mpv.wait_for_property("duration")
+                self.mpv.wait_for_property("duration")
+                return True
+            else:
+                self._l.error(f"Trying to play file {file_path} but it doesn't exist - check your configuration and try again.")
+                return False
+        except Exception as e:
+            self._l.exception(e)
+            self._l.error(f"Enountered unknown error attempting to play {file_path} - please check your configurations.")
+            return False
         return
 
     def play_image(self, duration):
@@ -118,10 +128,15 @@ class StationPlayer:
         guide_process.start()
 
         if 'play_sound' in guide_config and guide_config['play_sound']:
-            self.play_file(guide_config["sound_to_play"])
+            #make sure it actually exists
+            playing = self.play_file(guide_config["sound_to_play"])
+            if not playing:
+                self.mpv.stop()
+                self.current_playing_file_path = None    
         else:
             self.mpv.stop()
             self.current_playing_file_path = None
+            
         keep_going = True
         while keep_going:
             time.sleep(.05)

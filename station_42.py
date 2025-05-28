@@ -1,6 +1,4 @@
 import logging
-logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
-import os
 import sys
 
 from fs42.catalog import ShowCatalog
@@ -9,6 +7,8 @@ from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
 
 import argparse
+
+logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
 class Station42:
 
@@ -63,7 +63,7 @@ def main():
         logging.getLogger().addHandler(fh)
 
     if args.schedule:
-        logging.getLogger().info(f"Printing shedule summary.")
+        logging.getLogger().info("Printing shedule summary.")
         print(LiquidManager().get_summary())
         return
     
@@ -71,9 +71,9 @@ def main():
 
 
     if args.delete_schedules:
-        logging.getLogger().info(f"Deleting all schedules")
+        logging.getLogger().info("Deleting all schedules")
         LiquidManager().reset_all_schedules()
-        logging.getLogger().info(f"All schedules deleted")
+        logging.getLogger().info("All schedules deleted")
 
     if args.print_schedule:
         LiquidManager().print_schedule(args.print_schedule, args.verbose)
@@ -86,7 +86,18 @@ def main():
     for station_conf in sm.stations:
         if station_conf['network_type'] == 'guide':
             #catch guide so we don't print it or try to further process
-            logging.getLogger().info(f"Loaded guide channel")
+            logging.getLogger().info("Loading and checking guide channel")
+            from fs42.guide_tk import GuideWindowConf
+            gconf = GuideWindowConf()
+            errors = gconf.check_config(station_conf)
+            if len(errors):
+                logging.getLogger().error("Errors found in Guide Channel configuration:")
+                for err in errors:
+                    logging.getLogger().error(err)
+                logging.getLogger().error("Please check your configuration and try agian.")
+                exit(-1)
+            else:
+                logging.getLogger().info("Guide channel checks completed.")
         elif args.printcat:
             if station_conf['network_name'] == args.printcat:
                 logging.getLogger().info(f"Printing catalog for {station_conf['network_name']}")
