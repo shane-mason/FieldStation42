@@ -106,7 +106,8 @@ class LogoDisplay(object):
         self.current_logo_texture = None
         self.current_logo_size = (0, 0)
         self.current_channel_info = {}
-        self.time_since_change = float('inf')  # Start with no logo
+        self.channel_config = {}  # <--- stores per-channel config like show_logo, logo_permanent
+        self.time_since_change = float('inf')
         
         self.check_status()
 
@@ -115,32 +116,48 @@ class LogoDisplay(object):
             with open(socket_file, "r") as f:
                 status = f.read()
                 status = json.loads(status)
-                
+
                 if status != self.current_channel_info:
                     self.current_channel_info = status
                     self.time_since_change = 0
                     self.load_logo_for_channel(status)
-                    
         except Exception as e:
             print(f"Unable to parse player status for logo: {e}")
 
     def load_logo_for_channel(self, channel_info):
         logo_path = None
-        
-        if 'network_name' in channel_info:
-            logo_path = self.config.logo_mapping.get(channel_info['network_name'])
-        
-        if not logo_path and 'channel_number' in channel_info:
-            logo_path = self.config.logo_mapping.get(str(channel_info['channel_number']))
-        
+        self.channel_config = {}
+
+        network_name = channel_info.get("network_name")
+        if network_name:
+            config_path = Path("confs") / f"{network_name}.json"
+
+            if config_path.exists():
+                try:
+                    with open(config_path, "r") as f:
+                        channel_file = json.load(f)
+                        
+                    self.channel_config = channel_file.get("station_conf", channel_file)
+                    logo_path = self.channel_config.get("logo_path")
+
+                    if self.channel_config.get("show_logo", True) is False:
+                        if self.current_logo_texture:
+                            glDeleteTextures([self.current_logo_texture])
+                        self.current_logo_texture = None
+                        return
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to read config for {network_name}: {e}")
+            else:
+                print(f"[WARNING] No config file for {network_name}")
+
         if not logo_path:
             logo_path = self.config.default_logo
-            
+
         if logo_path and Path(logo_path).exists():
             try:
                 if self.current_logo_texture:
                     glDeleteTextures([self.current_logo_texture])
-                
                 self.current_logo_texture, width, height = load_texture(logo_path)
                 self.current_logo_size = (width, height)
             except Exception as e:
@@ -158,25 +175,27 @@ class LogoDisplay(object):
     def draw(self):
         if not self.current_logo_texture:
             return
-            
-        if not self.config.always_show and self.time_since_change >= 5.0:  # Hide after 5 seconds if not always_show
+
+        is_permanent = self.channel_config.get("logo_permanent", False)
+
+        if not is_permanent and not self.config.always_show and self.time_since_change >= 5.0:
             return
-            
-        logo_width = self.config.width * 2  # Convert to NDC (-1 to 1 range)
+
+        logo_width = self.config.width * 2
         logo_height = self.config.height * 2
-        
+
         if self.config.halign == HAlignment.LEFT:
             x = -1 + self.config.x_margin
         elif self.config.halign == HAlignment.RIGHT:
             x = 1 - logo_width - self.config.x_margin
-        else:  # CENTER
+        else:
             x = -logo_width / 2
 
         if self.config.valign == VAlignment.BOTTOM:
             y = -1 + self.config.y_margin
         elif self.config.valign == VAlignment.TOP:
             y = 1 - logo_height - self.config.y_margin
-        else:  # CENTER
+        else:
             y = -logo_height / 2
 
         glBindTexture(GL_TEXTURE_2D, self.current_logo_texture)
