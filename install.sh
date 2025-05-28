@@ -1,6 +1,7 @@
 #! /usr/bin/bash
 
 echo Installing Fieldstation 42
+
 echo Finding python installation...
 python=python3
 
@@ -19,28 +20,33 @@ fi
 echo Moving forward with python :: $python
 echo Creating python virtual environment
 
-$python -m venv env
+if [ -f /.dockerenv ]; then
+  echo "Running inside Docker — skipping venv setup."
 
+else
+  $python -m venv env
+  # do your venv setup
+  if [ -d env ]; then
 
-if [ -d env ]; then
-
-  echo Virtual environment created - activating it now
-  # Unix
-  if [ -f env/Scripts/activate ]; then
-    source env/Scripts/activate
-  # Windows
-  elif [ -f env/bin/activate ]; then
-    source env/bin/activate
+    echo Virtual environment created - activating it now
+    # Unix
+    if [ -f env/Scripts/activate ]; then
+      source env/Scripts/activate
+    # Windows
+    elif [ -f env/bin/activate ]; then
+      source env/bin/activate
+    else
+      echo Virtual environment does not contain activate script - this is an error
+      echo Ensure that python3-venv is installed and run the installer again.
+      exit -1
+    fi
   else
-    echo Virtual environment does not contain activate script - this is an error
-    echo Ensure that python3-venv is installed and run the installer again.
+    echo Virtual environment failed - check that your python venv is installed on your system
+    echo Exiting with errors.
     exit -1
   fi
-else
-  echo Virtual environment failed - check that your python venv is installed on your system
-  echo Exiting with errors.
-  exit -1
 fi
+
 
 echo Installing python modules
 pip install -r requirements.txt
