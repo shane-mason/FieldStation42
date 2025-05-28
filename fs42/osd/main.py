@@ -4,7 +4,8 @@ import glfw
 from pydantic import BaseModel
 from enum import Enum
 
-from render import Text, create_window, clear_screen
+from render import Text, create_window, clear_screen, load_texture
+from OpenGL.GL import *
 
 SOCKET_FILE = "runtime/play_status.socket"
 CONFIG_FILE_PATH = Path("osd/osd.json")
@@ -31,6 +32,17 @@ class StatusDisplayConfig(BaseModel):
     x_margin: float = 0.1
     y_margin: float = 0.1
     delay: float = 0.0
+
+class LogoDisplayConfig(BaseModel):
+    halign: HAlignment = HAlignment.RIGHT
+    valign: VAlignment = VAlignment.TOP
+    width: float = 0.112  
+    height: float = 0.15  
+    x_margin: float = 0.05
+    y_margin: float = 0.05
+    logo_mapping: dict[str, str] = {}
+    default_logo: str | None = None
+    always_show: bool = False
 
 class StatusDisplay(object):
     def __init__(self, window, config: StatusDisplayConfig):
@@ -85,6 +97,104 @@ class StatusDisplay(object):
 
             self._text.draw(x, y)
 
+class LogoDisplay(object):
+    def __init__(self, window, config: LogoDisplayConfig):
+        self.config = config
+        self.window = window
+        self.window_width, self.window_height = glfw.get_framebuffer_size(window)
+        
+        self.current_logo_texture = None
+        self.current_logo_size = (0, 0)
+        self.current_channel_info = {}
+        self.time_since_change = float('inf')  # Start with no logo
+        
+        self.check_status()
+
+    def check_status(self, socket_file=SOCKET_FILE):
+        try:
+            with open(socket_file, "r") as f:
+                status = f.read()
+                status = json.loads(status)
+                
+                if status != self.current_channel_info:
+                    self.current_channel_info = status
+                    self.time_since_change = 0
+                    self.load_logo_for_channel(status)
+                    
+        except Exception as e:
+            print(f"Unable to parse player status for logo: {e}")
+
+    def load_logo_for_channel(self, channel_info):
+        logo_path = None
+        
+        if 'network_name' in channel_info:
+            logo_path = self.config.logo_mapping.get(channel_info['network_name'])
+        
+        if not logo_path and 'channel_number' in channel_info:
+            logo_path = self.config.logo_mapping.get(str(channel_info['channel_number']))
+        
+        if not logo_path:
+            logo_path = self.config.default_logo
+            
+        if logo_path and Path(logo_path).exists():
+            try:
+                if self.current_logo_texture:
+                    glDeleteTextures([self.current_logo_texture])
+                
+                self.current_logo_texture, width, height = load_texture(logo_path)
+                self.current_logo_size = (width, height)
+            except Exception as e:
+                print(f"Error loading logo {logo_path}: {e}")
+                self.current_logo_texture = None
+        else:
+            if self.current_logo_texture:
+                glDeleteTextures([self.current_logo_texture])
+            self.current_logo_texture = None
+
+    def update(self, dt):
+        self.time_since_change += dt
+        self.check_status()
+
+    def draw(self):
+        if not self.current_logo_texture:
+            return
+            
+        if not self.config.always_show and self.time_since_change >= 5.0:  # Hide after 5 seconds if not always_show
+            return
+            
+        logo_width = self.config.width * 2  # Convert to NDC (-1 to 1 range)
+        logo_height = self.config.height * 2
+        
+        if self.config.halign == HAlignment.LEFT:
+            x = -1 + self.config.x_margin
+        elif self.config.halign == HAlignment.RIGHT:
+            x = 1 - logo_width - self.config.x_margin
+        else:  # CENTER
+            x = -logo_width / 2
+
+        if self.config.valign == VAlignment.BOTTOM:
+            y = -1 + self.config.y_margin
+        elif self.config.valign == VAlignment.TOP:
+            y = 1 - logo_height - self.config.y_margin
+        else:  # CENTER
+            y = -logo_height / 2
+
+        glBindTexture(GL_TEXTURE_2D, self.current_logo_texture)
+        self.draw_logo_quad(x, y, logo_width, logo_height)
+
+    def draw_logo_quad(self, x, y, w, h):
+        glBegin(GL_QUADS)
+        glColor4f(1, 1, 1, 1)
+        glTexCoord2f(0, 1); glVertex2f(x, y)
+        glTexCoord2f(1, 1); glVertex2f(x + w, y)
+        glTexCoord2f(1, 0); glVertex2f(x + w, y + h)
+        glTexCoord2f(0, 0); glVertex2f(x, y + h)
+        glEnd()
+
+    def __del__(self):
+        if self.current_logo_texture:
+            glDeleteTextures([self.current_logo_texture])
+
 objects = []
 
 window = create_window()
@@ -100,6 +210,11 @@ if CONFIG_FILE_PATH.exists():
                 config = StatusDisplayConfig.model_validate(obj)
                 osd = StatusDisplay(window, config)
                 objects.append(osd)
+            elif obj['type'] == "LogoDisplay":
+                del obj['type']
+                config = LogoDisplayConfig.model_validate(obj)
+                logo = LogoDisplay(window, config)
+                objects.append(logo)
             else:
                 print(f"Unrecognized osd object type: {obj['type']}")
 else:
@@ -128,4 +243,3 @@ while not glfw.window_should_close(window):
 
 # Cleanup
 glfw.terminate()
-

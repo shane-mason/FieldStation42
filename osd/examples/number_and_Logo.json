@@ -1,0 +1,23 @@
+[
+	{
+	    "halign": "LEFT",
+	    "valign": "TOP",
+	    "font_size": 40,
+	    "text_color": [ 0, 255, 0, 200 ],
+	    "format_text": "{channel_number} - {network_name}"
+	},
+    {
+        "halign": "RIGHT",
+        "valign": "BOTTOM",
+        "width": 0.112,
+        "height": 0.15,
+        "x_margin": 0.15,
+        "y_margin": 0.15,
+        "always_show": true,
+        "logo_mapping": {
+            "ABC": "logos/ABC.png"
+        },
+        "default_logo": "logos/FS42.png",
+        "type": "LogoDisplay"
+    }
+]
