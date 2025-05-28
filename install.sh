@@ -74,5 +74,25 @@ else
   echo Catalog folder doesn\'t exist, making now
   mkdir catalog
 fi
+
+HOT_START_PATH="fs42/hot_start.sh"
+if [ -f "$HOT_START_PATH" ]; then
+  echo "$HOT_START_PATH already exists - skipping creation"
+else
+  echo "$HOT_START_PATH not found - creating it now"
+  cat << 'EOF' > "$HOT_START_PATH"
+#/usr/bin/bash
+
+cd ~/FieldStation42
+. env/bin/activate
+
+python3 field_player.py 1>/dev/null 2>/dev/null & disown
+python3 fs42/command_input.py 1>/dev/null 2>/dev/null & disown
+EOF
+  chmod +x "$HOT_START_PATH"
+  echo "$HOT_START_PATH created and made executable"
+fi
+
+
 echo Installation is complete
 echo You can find example configurations in confs/examples
