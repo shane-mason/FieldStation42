@@ -13,6 +13,7 @@ from fs42.station_manager import StationManager
 class GuideWindowConf:
     def __init__(self, w=720, h=480):
         self.fullscreen = True
+        
         self.width = w
         self.height = h
 
@@ -80,6 +81,14 @@ class GuideWindowConf:
         for fp in to_check:
             if not os.path.exists(fp):
                 err = f"Guide channel config references a file named {fp} but it does not exist on disk"
+                errors.append(err)
+
+        #check that its fullscreen, or else that width and height are specified
+        if not self.fullscreen:
+            if not self.width or not self.height:
+                err="""Guide channel fullscreen is set to false, but width or height is not speficied.
+                If fullscreen is not set to true, please set both width and height in pixels.
+                """
                 errors.append(err)
         return errors
 
@@ -278,21 +287,39 @@ class ScheduleFrame(tk.Frame):
 
 
 class GuideApp(tk.Tk):
-    def __init__(self, conf, queue=None):
+    def __init__(self, user_conf, queue=None):
         super().__init__()
-
-        self.conf = conf
+       
         self.title("FieldStation42 Guide")
 
-        if self.conf.fullscreen:
-            self.overrideredirect(True)
-            # self.attributes('-fullscreen', True)
+        #set defaults, just in case
+        if "width" not in user_conf:
+            user_conf['width'] = 720
+        if "height" not in user_conf:
+            user_conf['height'] = 480
 
-        self.geometry(f"{self.conf.width}x{self.conf.height}")
+        if user_conf['fullscreen']:
+            #self.overrideredirect(True)
+            self.attributes('-fullscreen', True)
+            user_conf['width'] = self.winfo_screenwidth()
+            user_conf['height'] = self.winfo_screenheight()
+        else:
+            self.overrideredirect(True)
+            self.geometry(f"{user_conf['width']}x{user_conf['height']}")
+
+        merge_conf = GuideWindowConf(w=user_conf['width'], h=user_conf['height'])
+
+        if user_conf:
+            merge_conf.merge_config(user_conf)
+
+        self.conf = merge_conf
 
         # self.resizable(False, False)
         self.after(1000, self.tick)
         self.queue = queue
+
+    def get_conf(self):
+        return self.conf
 
     def tick(self):
         if self.queue and self.queue.qsize() > 0:
@@ -305,14 +332,10 @@ class GuideApp(tk.Tk):
 
 
 def guide_channel_runner(user_conf, queue):
-    merge_conf = GuideWindowConf()
-
-    if user_conf:
-        merge_conf.merge_config(user_conf)
-
-    app = GuideApp(merge_conf, queue)
-    AdFrame(app, merge_conf)
-    ScheduleFrame(app, merge_conf)
+    
+    app = GuideApp(user_conf, queue)
+    AdFrame(app, app.get_conf())
+    ScheduleFrame(app, app.get_conf())
 
     app.mainloop()
 

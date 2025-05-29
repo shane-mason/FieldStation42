@@ -7,5 +7,8 @@
     "messages" : ["FieldStation42\nCable Entertainment", "Cheers!\nFrom us to you!", "FieldStation42 Guide\nOn cable mode."],
     "images": ["runtime/guide/image0.png", "runtime/guide/image1.png", "runtime/guide/image2.png"],
     "play_sound": true,
-    "sound_to_play": "runtime/guide/background.mp3"
+    "sound_to_play": "runtime/guide/background.mp3",
+    "fullscreen" : false,
+    "width": 720,
+    "height": 480
 }}

@@ -56,10 +56,12 @@ class StationManager(object):
     def station_by_name(self, name):
         if name in self._name_index:
             return self._name_index[name]
+        return None
     
     def station_by_channel(self, channel_number):
         if channel_number in self._number_index:
             return self._number_index[channel_number]
+        return None
 
     def index_from_channel(self, channel):
         index = 0
