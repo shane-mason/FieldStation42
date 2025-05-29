@@ -42,8 +42,11 @@ class StationManager(object):
                     "overnight": range(2, 6),
                 },
             }
+            self._number_index = {}
+            self._name_index = {}
             self.load_main_config()
             self.load_json_stations()
+
 
         for i in range(len(self.stations)):
             station = self.stations[i]
@@ -51,16 +54,12 @@ class StationManager(object):
                 self.stations[i] = SlotReader.smooth_tags(station)
 
     def station_by_name(self, name):
-        for station in self.stations:
-            if station["network_name"] == name:
-                return station
-        return None
-
-    def station_by_channel(self, channel):
-        for station in self.stations:
-            if station["channel_number"] == channel:
-                return station
-        return None
+        if name in self._name_index:
+            return self._name_index[name]
+    
+    def station_by_channel(self, channel_number):
+        if channel_number in self._number_index:
+            return self._number_index[channel_number]
 
     def index_from_channel(self, channel):
         index = 0
@@ -154,3 +153,8 @@ class StationManager(object):
                         exit(-1)
 
         self.stations = sorted(station_buffer, key=lambda station: station["channel_number"])
+
+        #make index
+        for station in self.stations:
+            self._name_index[station['network_name']] = station
+            self._number_index[station['channel_number']] = station
