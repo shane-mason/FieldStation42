@@ -41,6 +41,9 @@ class StationManager(object):
                     "late": [23, 0, 1, 2],
                     "overnight": range(2, 6),
                 },
+                "time_format": "%H:%M",
+                "ts_format": "%Y-%m-%dT%H:%M:%S"
+
             }
             self._number_index = {}
             self._name_index = {}
