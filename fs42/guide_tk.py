@@ -298,7 +298,7 @@ class GuideApp(tk.Tk):
         if "height" not in user_conf:
             user_conf['height'] = 480
 
-        if user_conf['fullscreen']:
+        if 'fullscreen' in user_conf and user_conf['fullscreen']:
             #self.overrideredirect(True)
             self.attributes('-fullscreen', True)
             user_conf['width'] = self.winfo_screenwidth()
