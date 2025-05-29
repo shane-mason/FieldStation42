@@ -9,20 +9,20 @@ Cable and broadcast TV simulator intended to provide an authentic experience of 
 
 ## Features
 * Supports multiple simultanous channels
-* Automatically interleaves commercial break and bumps into content
+* Automatically interleaves commercial breaks and bumps into content
 * Generates weekly schedules based on per-station configurations
 * Feature length content - supports movie length show blocks
-* Randomly selects shows from the programming slot that have not been played recently to keep a fresh lineup
-* Set dates ranges for shows (like seasonal sports or holiday shows)
+* To keep a fresh lineup, randomly selects shows that have not been played recently
+* Set date ranges for shows (like for seasonal sports or holiday shows)
 * Per-station configuration of station sign-off video and off-air loops
-* UX to manage catalogs and schedules
+* User interface to manage catalogs and schedules
 * Optional hardware connections to change the channel
-* Loooing channels - useful for community bulliten channels
+* Looping channels - useful for community bulletin channels
 * Preview/guide channel with embedded video and configurable messages
     * This is a new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)
 * Flexible scheduling to support all kinds of channel types
-    * Traditional networks channels with commercials and bumps
-    * Commercial free channels with optional end bump padding at end (movie channels, public broadcasting networks)
+    * Traditional network channels with commercials and bumps
+    * Commercial-free channels with optional end bump padding at end (movie channels, public broadcasting networks)
     * Loop channels, useful for community bulletin style channels or information loops.
 
 ![A cable box next to a TV](docs/cable_cover_3.png?raw=true)
@@ -30,7 +30,7 @@ Cable and broadcast TV simulator intended to provide an authentic experience of 
 ## Alpha software - installation is not simple
 This is a fairly new project and in active development - installation requires some background in the following:
 
-* Basic linux command line usage
+* Basic Linux command line usage
 * Reading and editing JSON configuration files
 * Movie file conversion and organizing in folders
 
@@ -87,10 +87,10 @@ This is provided as an example component to show how to connect an external devi
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
 ## Connecting to a TV
-The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HTMI->Composit or HDMI->RF adapter. These units are available online or at an electronics retailer.
+The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HDMI->Composite or HDMI->RF adapter. These units are available online or at an electronics retailer.
 
 ## Connecting a remote control or other device
-Since the player can recieve external commands and publishes its status as described above, its easy to connect external devices of all kinds. See [this wiki page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`. For a detailed guide on setting up a bluetooth remote control, [see this page in the discussion boards](https://github.com/shane-mason/FieldStation42/discussions/47).
+Since the player can recieve external commands and publishes its status as described above, it's easy to connect external devices of all kinds. See [this wiki page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`. For a detailed guide on setting up a Bluetooth remote control, [see this page in the discussion boards](https://github.com/shane-mason/FieldStation42/discussions/47).
 
 
 ![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
