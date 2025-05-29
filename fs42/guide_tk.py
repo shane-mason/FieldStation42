@@ -1,11 +1,13 @@
 import os
 import sys
+import datetime
 
 sys.path.append(os.getcwd())
 
 import tkinter as tk  # import Tkinter
 from PIL import Image, ImageTk
 from fs42.guide_builder import GuideBuilder
+from fs42.station_manager import StationManager
 
 
 class GuideWindowConf:
@@ -150,7 +152,7 @@ class ScheduleFrame(tk.Frame):
     def populate_frame(self):
         gb = GuideBuilder()
         view = gb.build_view()
-        lbl_current_time = tk.Label(
+        self.lbl_current_time = tk.Label(
             self,
             text="Network",
             bg=self.conf.bottom_bg,
@@ -159,7 +161,7 @@ class ScheduleFrame(tk.Frame):
             borderwidth=self.conf.schedule_border_width,
             relief=self.conf.schedule_border_relief,
         )
-        lbl_current_time.place(x=0, y=0, height=self.conf.sched_h, width=self.conf.network_w)
+        self.lbl_current_time.place(x=0, y=0, height=self.conf.sched_h, width=self.conf.network_w)
 
         l_offset = self.conf.network_w
 
@@ -209,6 +211,7 @@ class ScheduleFrame(tk.Frame):
             )
 
             channel_label.place(x=x_offset, y=y_offset, height=int(self.conf.sched_h), width=int(self.conf.network_w))
+            self.update_time()
 
             x_offset = self.conf.network_w
 
@@ -265,6 +268,13 @@ class ScheduleFrame(tk.Frame):
         else:
             self.canvas.yview_moveto(top + 0.001)
             self.after(100, self.scroll_canvas_view)
+
+    def update_time(self):
+        time_f = StationManager().server_conf["time_format"]
+        current_time = datetime.datetime.now().strftime(time_f)
+
+        self.lbl_current_time.config(text=current_time)
+        self.after(1000, self.update_time)
 
 
 class GuideApp(tk.Tk):
