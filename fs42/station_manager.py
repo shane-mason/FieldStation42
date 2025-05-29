@@ -42,8 +42,7 @@ class StationManager(object):
                     "overnight": range(2, 6),
                 },
                 "time_format": "%H:%M",
-                "ts_format": "%Y-%m-%dT%H:%M:%S"
-
+                "date_time_format": "%Y-%m-%dT%H:%M:%S"
             }
             self._number_index = {}
             self._name_index = {}
@@ -107,11 +106,11 @@ class StationManager(object):
                                     hour += 1
                                 new_parts[key] = hours
                         self.server_conf["day_parts"] = new_parts
-                    if "time_stamp_format" not in d:
+                    if "date_time_format" not in d:
                         # check the environment variable or set default then
-                        self.server_conf["ts_format"] = os.environ.get("FS42_TS", "%Y-%m-%dT%H:%M:%S")
+                        self.server_conf["date_time_format"] = os.environ.get("FS42_TS", "%Y-%m-%dT%H:%M:%S")
                     else:
-                        self.server_conf["ts_format"] = d["time_stamp_format"]
+                        self.server_conf["date_time_format"] = d["date_time_format"]
                     if "time_format" in d:
                         self.server_conf["time_format"] = d["time_format"]
                     else:

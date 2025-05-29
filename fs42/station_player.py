@@ -104,10 +104,10 @@ class StationPlayer:
                 basename = os.path.basename(file_path)  # Added
                 title, _ = os.path.splitext(basename)  # Added
                 if self.station_config:
-                    if "ts_format" in StationManager().server_conf:
-                        ts_format = StationManager().server_conf["ts_format"]
+                    if "date_time_format" in StationManager().server_conf:
+                        ts_format = StationManager().server_conf["date_time_format"]
                     else:
-                        ts_format = "ts_format"
+                        ts_format = "%Y-%m-%dT%H:%M:%S"
                     update_status_socket(
                         "playing",
                         self.station_config["network_name"],
