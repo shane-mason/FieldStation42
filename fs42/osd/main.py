@@ -117,10 +117,16 @@ class LogoDisplay(object):
                 status = f.read()
                 status = json.loads(status)
 
-                if status != self.current_channel_info:
+                current_network = self.current_channel_info.get("network_name")
+                new_network = status.get("network_name")
+                
+                if new_network != current_network:
                     self.current_channel_info = status
                     self.time_since_change = 0
                     self.load_logo_for_channel(status)
+                else:
+                    self.current_channel_info = status
+                    
         except Exception as e:
             print(f"Unable to parse player status for logo: {e}")
 
