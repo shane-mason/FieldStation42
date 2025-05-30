@@ -106,9 +106,15 @@ class StationPlayer:
                         ts_format = StationManager().server_conf["date_time_format"]
                     else:
                         ts_format = "%Y-%m-%dT%H:%M:%S"
-                    duration = f'{datetime.timedelta(seconds=int(current_time))}/{datetime.timedelta(seconds=int(file_duration))}' if file_duration else "n/a"
-
-                    update_status_socket("playing", self.station_config['network_name'], self.station_config['channel_number'], title, timestamp=ts_format,duration=duration)
+                    duration = f'{str(datetime.timedelta(seconds=int(current_time)))}/{str(datetime.timedelta(seconds=int(file_duration)))}' if file_duration else "n/a"
+                    update_status_socket("" \
+                        "playing",
+                        self.station_config['network_name'],
+                        self.station_config['channel_number'],
+                        title,
+                        timestamp=ts_format,
+                        duration=duration
+                     )
                 else:
                     self._l.warning(
                         "station_config not available in play_file, cannot update status socket with title."
