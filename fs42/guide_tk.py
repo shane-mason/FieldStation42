@@ -13,7 +13,7 @@ from fs42.station_manager import StationManager
 class GuideWindowConf:
     def __init__(self, w=720, h=480):
         self.fullscreen = True
-        
+
         self.width = w
         self.height = h
 
@@ -84,10 +84,10 @@ class GuideWindowConf:
                 err = f"Guide channel config references a file named {fp} but it does not exist on disk"
                 errors.append(err)
 
-        #check that its fullscreen, or else that width and height are specified
+        # check that its fullscreen, or else that width and height are specified
         if not self.fullscreen:
             if not self.width or not self.height:
-                err="""Guide channel fullscreen is set to false, but width or height is not speficied.
+                err = """Guide channel fullscreen is set to false, but width or height is not speficied.
                 If fullscreen is not set to true, please set both width and height in pixels.
                 """
                 errors.append(err)
@@ -160,7 +160,6 @@ class ScheduleFrame(tk.Frame):
         self.place(x=0, y=conf.half_h, height=conf.half_h, width=conf.width)
 
     def populate_frame(self):
-
         gb = GuideBuilder()
         view = gb.build_view(normalize=self.conf.normalize_title)
 
@@ -292,26 +291,25 @@ class ScheduleFrame(tk.Frame):
 class GuideApp(tk.Tk):
     def __init__(self, user_conf, queue=None):
         super().__init__()
-       
+
         self.title("FieldStation42 Guide")
 
-        #set defaults, just in case
+        # set defaults, just in case
         if "width" not in user_conf:
-            user_conf['width'] = 720
+            user_conf["width"] = 720
         if "height" not in user_conf:
-            user_conf['height'] = 480
+            user_conf["height"] = 480
 
-        if 'fullscreen' in user_conf and user_conf['fullscreen']:
-            user_conf['width'] = self.winfo_screenwidth()
-            user_conf['height'] = self.winfo_screenheight()
+        if "fullscreen" in user_conf and user_conf["fullscreen"]:
+            user_conf["width"] = self.winfo_screenwidth()
+            user_conf["height"] = self.winfo_screenheight()
 
-        if 'window_decorations' in user_conf and not user_conf["window_decorations"]:
-            print("No decorations")
+        if "window_decorations" not in user_conf or not user_conf["window_decorations"]:
             self.overrideredirect(True)
-            
+
         self.geometry(f"{user_conf['width']}x{user_conf['height']}")
 
-        merge_conf = GuideWindowConf(w=user_conf['width'], h=user_conf['height'])
+        merge_conf = GuideWindowConf(w=user_conf["width"], h=user_conf["height"])
 
         if user_conf:
             merge_conf.merge_config(user_conf)
@@ -336,7 +334,6 @@ class GuideApp(tk.Tk):
 
 
 def guide_channel_runner(user_conf, queue):
-    
     app = GuideApp(user_conf, queue)
     AdFrame(app, app.get_conf())
     ScheduleFrame(app, app.get_conf())
