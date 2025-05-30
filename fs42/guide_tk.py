@@ -302,15 +302,14 @@ class GuideApp(tk.Tk):
             user_conf['height'] = 480
 
         if 'fullscreen' in user_conf and user_conf['fullscreen']:
-            #self.overrideredirect(True)
-            self.attributes('-fullscreen', True)
             user_conf['width'] = self.winfo_screenwidth()
             user_conf['height'] = self.winfo_screenheight()
 
-        else:
-
+        if 'window_decorations' in user_conf and not user_conf["window_decorations"]:
+            print("No decorations")
             self.overrideredirect(True)
-            self.geometry(f"{user_conf['width']}x{user_conf['height']}")
+            
+        self.geometry(f"{user_conf['width']}x{user_conf['height']}")
 
         merge_conf = GuideWindowConf(w=user_conf['width'], h=user_conf['height'])
 
