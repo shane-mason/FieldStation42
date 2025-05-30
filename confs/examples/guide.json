@@ -10,5 +10,6 @@
     "sound_to_play": "runtime/guide/background.mp3",
     "fullscreen" : false,
     "width": 720,
-    "height": 480
+    "height": 480,
+    "normalize_title": true
 }}

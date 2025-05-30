@@ -52,6 +52,7 @@ class GuideWindowConf:
 
         self.play_sound = False
         self.sound_to_play = "runtime/guide/easy.mp3"
+        self.normalize_title = True
 
         self._calc_internals()
 
@@ -159,8 +160,10 @@ class ScheduleFrame(tk.Frame):
         self.place(x=0, y=conf.half_h, height=conf.half_h, width=conf.width)
 
     def populate_frame(self):
+
         gb = GuideBuilder()
-        view = gb.build_view()
+        view = gb.build_view(normalize=self.conf.normalize_title)
+
         self.lbl_current_time = tk.Label(
             self,
             text="Network",
