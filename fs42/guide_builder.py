@@ -1,14 +1,15 @@
 import sys
 import os
-from fs42.timings import DAYS
-from fs42.station_manager import StationManager
-from fs42.liquid_manager import LiquidManager
-from fs42.liquid_blocks import LiquidBlock
 import json
 import datetime
 import re
-
 sys.path.append(os.getcwd())
+from fs42.station_manager import StationManager
+from fs42.liquid_manager import LiquidManager
+from fs42.liquid_blocks import LiquidBlock
+
+
+
 
 
 def normalize_video_title(title):
@@ -92,10 +93,10 @@ class GuideBuilder:
 
         if now.minute > 30:
             past_half = True
-            start_time = now.replace(minute=30, second=0, microsecond=0)
+            start_time = now.replace(minute=30, second=1, microsecond=0)
         else:
             past_half = False
-            start_time = now.replace(minute=30, second=0, microsecond=0)
+            start_time = now.replace(minute=0, second=1, microsecond=0)
 
         # each statio is a row
         for station in StationManager().stations:
@@ -138,4 +139,7 @@ class GuideBuilder:
 
 if __name__ == "__main__":
     gb = GuideBuilder()
-    gb.build_view()
+    blocks = gb.build_view()
+    for block in blocks:
+        print(block)
+        print(blocks[block])
