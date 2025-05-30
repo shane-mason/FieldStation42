@@ -44,8 +44,8 @@ def main():
         try:
             from fs42.ux.ux import StationApp
         except ModuleNotFoundError:
-            logging.getLogger().error(f"Could not load graphical interface - please install textual")
-            logging.getLogger().error(f"Use this command to install: pip install textual")
+            logging.getLogger().error("Could not load graphical interface - please install textual")
+            logging.getLogger().error("Use this command to install: pip install textual")
             sys.exit(-1)
 
         app = StationApp()
@@ -66,9 +66,6 @@ def main():
         logging.getLogger().info("Printing shedule summary.")
         print(LiquidManager().get_summary())
         return
-    
-
-
 
     if args.delete_schedules:
         logging.getLogger().info("Deleting all schedules")
