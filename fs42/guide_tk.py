@@ -306,7 +306,9 @@ class GuideApp(tk.Tk):
             self.attributes('-fullscreen', True)
             user_conf['width'] = self.winfo_screenwidth()
             user_conf['height'] = self.winfo_screenheight()
+
         else:
+
             self.overrideredirect(True)
             self.geometry(f"{user_conf['width']}x{user_conf['height']}")
 
@@ -344,4 +346,5 @@ def guide_channel_runner(user_conf, queue):
 
 
 if __name__ == "__main__":
-    guide_channel_runner({}, None)
+    conf = StationManager().station_by_name("Guide")
+    guide_channel_runner(conf, None)
