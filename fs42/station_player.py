@@ -16,7 +16,6 @@ from fs42.station_manager import StationManager
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
-
 def check_channel_socket():
     channel_socket = StationManager().server_conf["channel_socket"]
     r_sock = open(channel_socket, "r")
@@ -28,8 +27,7 @@ def check_channel_socket():
         return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
     return None
 
-
-def update_status_socket(status, network_name, channel, title=None, timestamp="%Y-%m-%dT%H:%M:%S"):
+def update_status_socket(status, network_name, channel, title=None,timestamp="%Y-%m-%dT%H:%M:%S", duration=None):
     status_obj = {
         "status": status,
         "network_name": network_name,
@@ -38,6 +36,8 @@ def update_status_socket(status, network_name, channel, title=None, timestamp="%
     }
     if title is not None:
         status_obj["title"] = title
+    if duration is not None:
+        status_obj["duration"] = duration
     status_socket = StationManager().server_conf["status_socket"]
     as_str = json.dumps(status_obj)
     with open(status_socket, "w") as fp:
@@ -50,12 +50,10 @@ class PlayStatus(Enum):
     SUCCESS = 3
     CHANNEL_CHANGE = 4
 
-
 class PlayerOutcome:
     def __init__(self, status=PlayStatus.SUCCESS, payload=None):
         self.status = status
         self.payload = payload
-
 
 class StationPlayer:
     def __init__(self, station_config, mpv=None):
@@ -97,24 +95,26 @@ class StationPlayer:
             else:
                 self.mpv.vf = self.reception.filter()
 
-    def play_file(self, file_path):
+    def play_file(self, file_path, file_duration=None, current_time=None):
         try:
             if os.path.exists(file_path):
-                self.current_playing_file_path = file_path  # Added
-                basename = os.path.basename(file_path)  # Added
-                title, _ = os.path.splitext(basename)  # Added
+                self.current_playing_file_path = file_path
+                basename = os.path.basename(file_path)
+                title, _ = os.path.splitext(basename)
                 if self.station_config:
                     if "date_time_format" in StationManager().server_conf:
                         ts_format = StationManager().server_conf["date_time_format"]
                     else:
                         ts_format = "%Y-%m-%dT%H:%M:%S"
+                    duration = f'{str(datetime.timedelta(seconds=int(current_time)))}/{str(datetime.timedelta(seconds=int(file_duration)))}' if file_duration else "n/a"
                     update_status_socket(
                         "playing",
                         self.station_config["network_name"],
                         self.station_config["channel_number"],
                         title,
                         timestamp=ts_format,
-                    )
+                        duration=duration
+                     )
                 else:
                     self._l.warning(
                         "station_config not available in play_file, cannot update status socket with title."
@@ -164,7 +164,6 @@ class StationPlayer:
         else:
             self.mpv.stop()
             self.current_playing_file_path = None
-
         keep_going = True
         while keep_going:
             time.sleep(0.05)
@@ -191,12 +190,12 @@ class StationPlayer:
             initial_skip = play_point.offset
 
             # iterate over the slice from index to end
-            for entry in play_point.plan[play_point.index :]:
+            for entry in play_point.plan[play_point.index:]:
                 self._l.info(f"Playing entry {entry}")
                 self._l.info(f"Initial Skip: {initial_skip}")
-                self.play_file(entry.path)
-
                 total_skip = entry.skip + initial_skip
+                self.play_file(entry.path, file_duration=entry.duration,current_time=total_skip)
+
                 try:
                     self.mpv.seek(total_skip)
                 except Exception:

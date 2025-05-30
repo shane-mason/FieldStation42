@@ -59,8 +59,6 @@ def main_loop(transition_fn):
 
     while True:
         logger.info(f"Playing station: {channel_conf['network_name']}" )
-        current_title = player.get_current_title()
-        update_status_socket("playing", channel_conf['network_name'], channel_conf['channel_number'],current_title)
 
         if  channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
