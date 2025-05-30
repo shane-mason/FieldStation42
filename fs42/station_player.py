@@ -107,10 +107,10 @@ class StationPlayer:
                     else:
                         ts_format = "%Y-%m-%dT%H:%M:%S"
                     duration = f'{str(datetime.timedelta(seconds=int(current_time)))}/{str(datetime.timedelta(seconds=int(file_duration)))}' if file_duration else "n/a"
-                    update_status_socket("" \
+                    update_status_socket(
                         "playing",
-                        self.station_config['network_name'],
-                        self.station_config['channel_number'],
+                        self.station_config["network_name"],
+                        self.station_config["channel_number"],
                         title,
                         timestamp=ts_format,
                         duration=duration
