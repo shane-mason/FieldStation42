@@ -1,13 +1,10 @@
-# Dockerfile that uses python:3.11-slim-bullseye 
+# Running FS42 as a Docker Container
 
-docker-compose.yml with mounts for catalog, runtime, and confs so the data persists across containers
+This uses a docker-compose file with mounts for catalog, runtime, and confs so the data persists across containers.
 
 ## Status
 
 This is a brand new feature and experimental. Please test, and if you find issues, post a ticket on GitHub.
-
-We'll probably at some point want to switch to adding a gh actions step to create and push it to the github container registry, that way there'd be less setup (apt and pypi packages already installed, and no need to clone the repo) but I think this is a good start
-
 
 ## Instructions
 ### Required:
@@ -40,24 +37,24 @@ make docker-build
 ```
 
 To start the container:
-```
-docker compose up
+```sh
+make docker-up
 ```
 
 We have wrapper commands to open field_player and station_42 in docker:
 
-```
+```sh
 make station_42
 ```
 
-```
+```sh
 make field_player
 ```
 
 Those commands will bring the container up and down on the fly (which should be fine since the data is mounted and thus persistent) but if you want to keep it up, you can type `make docker-up` and it will bring the container up.
 
 To bring the container down:
-```
+```sh
 make docker-down
 ```
 
@@ -94,6 +91,4 @@ field_player() {
 }
 ```
 
-This way, you can run `station_42` or `field_player` anywhere and it will work.
-
-Note: the location for FS42_LOCATION would likely need to change on your machine.
+This way, you can run `station_42` or `field_player` anywhere to launch them. (the location for FS42_LOCATION would likely need to change on your machine)
