@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 import glfw
 from pydantic import BaseModel
@@ -6,6 +7,17 @@ from enum import Enum
 
 from render import Text, create_window, clear_screen, load_texture
 from OpenGL.GL import *
+
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    from fs42.station_manager import StationManager
+except ImportError as e:
+    print(f"Failed to import StationManager: {e}")
+    print(f"Looked in: {project_root}")
+    print("Please ensure the fs42 package structure is correct")
+    sys.exit(1)
 
 SOCKET_FILE = "runtime/play_status.socket"
 CONFIG_FILE_PATH = Path("osd/osd.json")
@@ -102,13 +114,16 @@ class LogoDisplay(object):
         self.config = config
         self.window = window
         self.window_width, self.window_height = glfw.get_framebuffer_size(window)
-        
-        self.current_logo_texture = None
+        self.station_manager = StationManager()
+        self.current_logo_textures = []  # List of textures for animated GIFs
         self.current_logo_size = (0, 0)
+        self.current_frame_durations = []  # Duration for each frame in seconds
+        self.current_frame_index = 0
+        self.frame_timer = 0.0
+        self.is_animated = False
         self.current_channel_info = {}
-        self.channel_config = {}  # <--- stores per-channel config like show_logo, logo_permanent
+        self.channel_config = {}  # stores per-channel config like show_logo, logo_permanent
         self.time_since_change = float('inf')
-        
         self.check_status()
 
     def check_status(self, socket_file=SOCKET_FILE):
@@ -130,56 +145,143 @@ class LogoDisplay(object):
         except Exception as e:
             print(f"Unable to parse player status for logo: {e}")
 
+    def load_animated_gif(self, gif_path):
+        """Load an animated GIF and extract all frames"""
+        try:
+            from PIL import Image
+
+            self.clear_logo_textures()
+            
+            with Image.open(gif_path) as img:
+                frames = []
+                durations = []
+
+                for frame_num in range(img.n_frames):
+                    img.seek(frame_num)
+
+                    frame = img.convert('RGBA')
+                    
+                    duration = img.info.get('duration', 100) / 1000.0
+                    durations.append(duration)
+                    
+                    frame_data = frame.tobytes()
+                    width, height = frame.size
+                    
+                    texture_id = glGenTextures(1)
+                    glBindTexture(GL_TEXTURE_2D, texture_id)
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, 
+                               GL_RGBA, GL_UNSIGNED_BYTE, frame_data)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+                    
+                    frames.append(texture_id)
+                
+                self.current_logo_textures = frames
+                self.current_frame_durations = durations
+                self.current_logo_size = (width, height)
+                self.current_frame_index = 0
+                self.frame_timer = 0.0
+                self.is_animated = len(frames) > 1
+                
+                print(f"[INFO] Loaded animated GIF: {gif_path} ({len(frames)} frames)")
+                return True
+                
+        except ImportError:
+            print("[ERROR] PIL (Pillow) is required for animated GIF support. Install with: pip install Pillow")
+            return False
+        except Exception as e:
+            print(f"[ERROR] Error loading animated GIF {gif_path}: {e}")
+            return False
+    
+    def clear_logo_textures(self):
+        """Clear all current logo textures"""
+        if self.current_logo_textures:
+            glDeleteTextures(self.current_logo_textures)
+        self.current_logo_textures = []
+        self.current_frame_durations = []
+        self.current_frame_index = 0
+        self.frame_timer = 0.0
+        self.is_animated = False
+
+    def load_static_logo(self, logo_path):
+        """Load a static logo (PNG, JPG, etc.)"""
+        self.clear_logo_textures()
+        
+        try:
+            texture_id, width, height = load_texture(logo_path)
+            self.current_logo_textures = [texture_id]
+            self.current_frame_durations = [0]  # Static image has no duration
+            self.current_logo_size = (width, height)
+            self.current_frame_index = 0
+            self.frame_timer = 0.0
+            self.is_animated = False
+            print(f"[INFO] Loaded static logo: {logo_path}")
+            
+        except Exception as e:
+            print(f"[ERROR] Error loading static logo {logo_path}: {e}")
+            self.clear_logo_textures()
+
     def load_logo_for_channel(self, channel_info):
         logo_path = None
         self.channel_config = {}
 
         network_name = channel_info.get("network_name")
         if network_name:
-            config_path = Path("confs") / f"{network_name}.json"
-
-            if config_path.exists():
-                try:
-                    with open(config_path, "r") as f:
-                        channel_file = json.load(f)
-                        
-                    self.channel_config = channel_file.get("station_conf", channel_file)
-                    logo_path = self.channel_config.get("logo_path")
-
-                    if self.channel_config.get("show_logo", True) is False:
-                        if self.current_logo_texture:
-                            glDeleteTextures([self.current_logo_texture])
-                        self.current_logo_texture = None
+            try:
+                station_data = self.station_manager.station_by_name(network_name)
+                
+                if station_data and isinstance(station_data, dict):
+                    self.channel_config = station_data
+                    logo_path = station_data.get("logo_path")
+                    
+                    if station_data.get("show_logo", True) is False:
+                        self.clear_logo_textures()
                         return
+                else:
+                    print(f"[WARNING] StationManager returned no data for {network_name}")
+                    
+            except Exception as e:
+                print(f"[ERROR] Failed to get station data for {network_name}: {e}")
 
-                except Exception as e:
-                    print(f"[ERROR] Failed to read config for {network_name}: {e}")
-            else:
-                print(f"[WARNING] No config file for {network_name}")
 
         if not logo_path:
             logo_path = self.config.default_logo
 
         if logo_path and Path(logo_path).exists():
             try:
-                if self.current_logo_texture:
-                    glDeleteTextures([self.current_logo_texture])
-                self.current_logo_texture, width, height = load_texture(logo_path)
-                self.current_logo_size = (width, height)
+                if logo_path.lower().endswith('.gif'):
+                    success = self.load_animated_gif(logo_path)
+                    if not success:
+                        self.load_static_logo(logo_path)
+                else:
+                    self.load_static_logo(logo_path)
+                    
             except Exception as e:
-                print(f"Error loading logo {logo_path}: {e}")
-                self.current_logo_texture = None
+                print(f"[ERROR] Error loading logo {logo_path}: {e}")
+                self.clear_logo_textures()
         else:
-            if self.current_logo_texture:
-                glDeleteTextures([self.current_logo_texture])
-            self.current_logo_texture = None
+            if logo_path:
+                print(f"[WARNING] Logo file not found: {logo_path}")
+            self.clear_logo_textures()
 
     def update(self, dt):
         self.time_since_change += dt
         self.check_status()
 
+        if self.is_animated and self.current_logo_textures:
+            self.frame_timer += dt
+
+            if self.current_frame_index < len(self.current_frame_durations):
+                current_frame_duration = self.current_frame_durations[self.current_frame_index]
+                
+                if self.frame_timer >= current_frame_duration:
+                    self.frame_timer = 0.0
+                    self.current_frame_index = (self.current_frame_index + 1) % len(self.current_logo_textures)
+
     def draw(self):
-        if not self.current_logo_texture:
+        if not self.current_logo_textures:
             return
 
         is_permanent = self.channel_config.get("logo_permanent", False)
@@ -204,7 +306,9 @@ class LogoDisplay(object):
         else:
             y = -logo_height / 2
 
-        glBindTexture(GL_TEXTURE_2D, self.current_logo_texture)
+        # Bind the current frame's texture
+        current_texture = self.current_logo_textures[self.current_frame_index]
+        glBindTexture(GL_TEXTURE_2D, current_texture)
         self.draw_logo_quad(x, y, logo_width, logo_height)
 
     def draw_logo_quad(self, x, y, w, h):
@@ -217,8 +321,8 @@ class LogoDisplay(object):
         glEnd()
 
     def __del__(self):
-        if self.current_logo_texture:
-            glDeleteTextures([self.current_logo_texture])
+        if hasattr(self, 'current_logo_textures') and self.current_logo_textures:
+            glDeleteTextures(self.current_logo_textures)
 
 objects = []
 
