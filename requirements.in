@@ -5,3 +5,5 @@ textual
 ffmpeg-python
 fastapi
 uvicorn
+glfw
+PyOpenGL
