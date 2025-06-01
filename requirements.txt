@@ -20,6 +20,8 @@ ffmpeg-python==0.2.0
     # via -r requirements.in
 future==1.0.0
     # via ffmpeg-python
+glfw==2.9.0
+    # via -r requirements.in
 h11==0.16.0
     # via uvicorn
 idna==3.10
@@ -59,6 +61,8 @@ pydantic-core==2.33.2
     # via pydantic
 pygments==2.19.1
     # via rich
+pyopengl==3.1.9
+    # via -r requirements.in
 pyserial==3.5
     # via -r requirements.in
 python-dotenv==1.1.0
