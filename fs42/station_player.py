@@ -27,7 +27,7 @@ def check_channel_socket():
         return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
     return None
 
-def update_status_socket(status, network_name, channel, title=None,timestamp="%Y-%m-%dT%H:%M:%S", duration=None):
+def update_status_socket(status, network_name, channel, title=None,timestamp="%Y-%m-%dT%H:%M:%S", duration=None, file_path=None):
     status_obj = {
         "status": status,
         "network_name": network_name,
@@ -38,6 +38,8 @@ def update_status_socket(status, network_name, channel, title=None,timestamp="%Y
         status_obj["title"] = title
     if duration is not None:
         status_obj["duration"] = duration
+    if file_path is not None:
+        status_obj["file_path"] = file_path
     status_socket = StationManager().server_conf["status_socket"]
     as_str = json.dumps(status_obj)
     with open(status_socket, "w") as fp:
@@ -113,8 +115,9 @@ class StationPlayer:
                         self.station_config["channel_number"],
                         title,
                         timestamp=ts_format,
-                        duration=duration
-                     )
+                        duration=duration,
+                        file_path=file_path
+                    )
                 else:
                     self._l.warning(
                         "station_config not available in play_file, cannot update status socket with title."
