@@ -1,12 +1,14 @@
 import logging
 import sys
+import argparse
 
 from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
+from fs42.fluid_builder import FluidBuilder
 
-import argparse
+FF_USE_FLUID_FILE_CACHE = True
 
 logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
@@ -146,8 +148,15 @@ def main():
                 else:
                     logging.getLogger().info("No schedules generated, use -h --help to see available options")
 
+    
+    if args.rebuild_catalog and FF_USE_FLUID_FILE_CACHE:
+        FluidBuilder().trim_file_cache()
+
+
     if args.printcat and not found_print_target:
         logging.getLogger().error(f"Could not find catalog for network named: {args.printcat}")
+
+
 
 if __name__ == "__main__":
     main()
