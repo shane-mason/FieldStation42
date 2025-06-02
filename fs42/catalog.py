@@ -221,7 +221,9 @@ class ShowCatalog:
             self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, fluid=self.__fluid_builder)
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")
             self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
-            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps)
+
+            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder)
+            
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
 

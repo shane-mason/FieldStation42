@@ -29,7 +29,7 @@ class MediaProcessor:
                 full_path = os.path.realpath(fname)
                 cached = fluid.check_file_cache(full_path)
                 if cached:
-                    _l.info(f"Found cache version of {fname}")
+                    _l.info(f"Using cache version of {fname}")
                     duration = cached.duration
 
             if not duration:
@@ -159,13 +159,13 @@ class MediaProcessor:
         return hints
 
     @staticmethod
-    def _process_subs(dir_path, tag, bumpdir=False):
+    def _process_subs(dir_path, tag, bumpdir=False, fluid=None):
         subs = [f.path for f in os.scandir(dir_path) if f.is_dir()]
         clips = []
         for sub in subs:
             file_list = MediaProcessor._rfind_media(sub)
             hints = MediaProcessor._process_hints(sub, tag, bumpdir)
-            clips += MediaProcessor._process_media(file_list, tag, hints=hints)
+            clips += MediaProcessor._process_media(file_list, tag, hints=hints, fluid=fluid)
         return clips
 
     @staticmethod
