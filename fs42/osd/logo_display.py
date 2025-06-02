@@ -4,6 +4,8 @@ from pathlib import Path
 import glfw
 from pydantic import BaseModel
 from enum import Enum
+import random
+import glob
 
 from render import load_texture
 from OpenGL.GL import *
@@ -53,7 +55,51 @@ class LogoDisplay(object):
         self.channel_config = {}  # stores per-channel config like show_logo, logo_permanent
         self.time_since_change = float('inf')
         self.current_content_type = ContentType.UNKNOWN
+        self.available_logos = [] 
+        self.current_logo_path = None 
         self.check_status()
+
+    def get_available_logos(self, logo_dir_path):
+        """Get list of all logo files in the logo directory"""
+        logo_extensions = ['*.png', '*.jpg', '*.jpeg', '*.gif', '*.bmp']
+        available_logos = []
+        
+        for ext in logo_extensions:
+            available_logos.extend(glob.glob(str(logo_dir_path / ext)))
+            available_logos.extend(glob.glob(str(logo_dir_path / ext.upper())))
+        
+        return [Path(logo) for logo in available_logos]
+
+    def select_logo_for_channel(self, station_data):
+        """Select which logo to use based on multi_logo setting"""
+        multi_logo = station_data.get("multi_logo", "single").lower()
+        
+        if multi_logo not in ["single", "multi"]:
+            multi_logo = "single"  # Default fallback
+        
+        content_dir = station_data.get("content_dir")
+        logo_dir = station_data.get("logo_dir")
+        default_logo = station_data.get("default_logo")
+
+        if content_dir and logo_dir:
+            logo_dir_path = Path(content_dir) / logo_dir
+        elif logo_dir:
+            logo_dir_path = project_root / logo_dir
+        else:
+            return None
+        
+        if multi_logo == "single":
+            if default_logo:
+                return logo_dir_path / default_logo
+        else:
+            if not hasattr(self, 'available_logos') or not self.available_logos:
+                self.available_logos = self.get_available_logos(logo_dir_path)
+            
+            if self.available_logos:
+                selected_logo = random.choice(self.available_logos)
+                return selected_logo
+        
+        return None
 
     def check_status(self, socket_file=SOCKET_FILE):
         try:
@@ -79,6 +125,8 @@ class LogoDisplay(object):
                     # Reset timer when returning to FEATURE content
                     if old_content_type != ContentType.FEATURE and self.current_content_type == ContentType.FEATURE:
                         self.time_since_change = 0
+                        if self.channel_config.get("multi_logo", "single").lower() == "multi":
+                            self.load_logo_for_channel(status)
                     self.current_channel_info = status
                 else:
                     self.current_channel_info = status
@@ -175,29 +223,31 @@ class LogoDisplay(object):
                 
                 if station_data and isinstance(station_data, dict):
                     self.channel_config = station_data
-                    logo_path = station_data.get("logo_path")
                     
                     if station_data.get("show_logo", True) is False:
                         self.clear_logo_textures()
                         return
+
+                    logo_path = self.select_logo_for_channel(station_data)
+                    
                 else:
                     print(f"[WARNING] StationManager returned no data for {network_name}")
                     
             except Exception as e:
                 print(f"[ERROR] Failed to get station data for {network_name}: {e}")
 
-
-        if not logo_path:
+        if not logo_path and self.config.default_logo:
             logo_path = self.config.default_logo
 
         if logo_path and Path(logo_path).exists():
             try:
-                if logo_path.lower().endswith('.gif'):
-                    success = self.load_animated_gif(logo_path)
+                self.current_logo_path = str(logo_path)
+                if str(logo_path).lower().endswith('.gif'):
+                    success = self.load_animated_gif(str(logo_path))
                     if not success:
-                        self.load_static_logo(logo_path)
+                        self.load_static_logo(str(logo_path))
                 else:
-                    self.load_static_logo(logo_path)
+                    self.load_static_logo(str(logo_path))
                     
             except Exception as e:
                 print(f"[ERROR] Error loading logo {logo_path}: {e}")
