@@ -46,13 +46,14 @@ class FluidStatements:
         cursor.close()
 
     @staticmethod
-    def trim_file_entries(connection: sqlite3.Connection):
+    def trim_file_entries(connection: sqlite3.Connection, older_than:datetime):
         """Checks all files in the cache to ensure still on disk and removes them if not."""
 
         cursor = connection.cursor()
-        cursor.execute("SELECT * FROM file_meta;")
+        cursor.execute("SELECT * FROM file_meta WHERE last_updated < ?;", (older_than,))
         to_remove = []
         rows = cursor.fetchall()
+        logging.getLogger("FLUID").info(f"Checking {len(rows)} files on the filesystem")
         for row in rows:
             repo_entry = FileRepoEntry()
             repo_entry.from_db_row(row)
@@ -125,5 +126,5 @@ class FluidStatements:
                             meta TEXT
                             )
                             """)
-        
+
         cursor.close()

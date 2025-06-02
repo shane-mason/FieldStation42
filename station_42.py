@@ -1,7 +1,7 @@
 import logging
 import sys
 import argparse
-
+import datetime
 from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
@@ -23,6 +23,8 @@ class Station42:
         self.check_catalog = self.catalog.check_catalog
 
 def main():
+
+    execution_start_time = datetime.datetime.now()
 
     parser = argparse.ArgumentParser(description='FieldStation42 Catalog and Liquid-Schedule Generation')
     parser.add_argument('-g', '--graphical_interface', action='store_true', help='Run graphical interface to configure catalogs and schedules')
@@ -150,7 +152,7 @@ def main():
 
     
     if args.rebuild_catalog and FF_USE_FLUID_FILE_CACHE:
-        FluidBuilder().trim_file_cache()
+        FluidBuilder().trim_file_cache(execution_start_time)
 
 
     if args.printcat and not found_print_target:

@@ -2,10 +2,13 @@ import logging
 import sqlite3
 import sys
 import os
+
 sys.path.append(os.getcwd())
 
 from fs42.fluid_statements import FluidStatements
 from fs42.media_processor import MediaProcessor
+
+
 class FluidBuilder:
     def __init__(self):
         self.db_path = "runtime/fs42_fluid.db"
@@ -27,19 +30,18 @@ class FluidBuilder:
         with sqlite3.connect(self.db_path) as connection:
             results = FluidStatements.check_file_cache(connection, full_path)
             connection.commit()
-    
+
         return results
-    
-    def trim_file_cache(self):
+
+    def trim_file_cache(self, from_time):
         with sqlite3.connect(self.db_path) as connection:
             logging.getLogger().info("Trimming fluid file cache")
-            FluidStatements.trim_file_entries(connection)
-            connection.commit()            
+            FluidStatements.trim_file_entries(connection, from_time)
+            connection.commit()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+    logging.basicConfig(format="%(levelname)s:%(name)s:%(message)s", level=logging.INFO)
     builder = FluidBuilder()
     builder.scan_file_cache("catalog/nbc_content/")
     exists = builder.check_file_cache("/home/wrongdog/FieldStation42/catalog/public_domain/bextra/post-black.mov")
-
