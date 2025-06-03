@@ -16,6 +16,8 @@ except ImportError:
     from moviepy.editor import VideoFileClip  # type: ignore
 
 
+FF_USE_FLUID_FILE_CACHE = True
+
 class bcolors:
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
@@ -42,6 +44,8 @@ class ShowCatalog:
         self.sequences = {}
         # basically, a flattened list of clip_index keys
         self.tags = []
+
+        self.__fluid_builder = None
 
         if rebuild_catalog:
             self.build_catalog()
@@ -84,6 +88,14 @@ class ShowCatalog:
 
         match self.config["network_type"]:
             case "standard":
+                if FF_USE_FLUID_FILE_CACHE:
+                    from fs42.fluid_builder import FluidBuilder
+
+                    self.__fluid_builder = FluidBuilder()
+                    self._l.info("Initializing fluid file cache...")
+                    self.__fluid_builder.scan_file_cache(self.config["content_dir"])
+                    self._l.info("Fluid file cache updated - continuing build")
+
                 return self._build_standard()
             case "loop":
                 return self._build_single()
@@ -140,7 +152,7 @@ class ShowCatalog:
         # collect start and end bumps first
         for fp in start_bumps:
             path = f"{self.config['content_dir']}/{fp}"
-            sb = MediaProcessor._process_media([path], "start_bumps")
+            sb = MediaProcessor._process_media([path], "start_bumps", fluid=self.__fluid_builder)
             if len(sb) == 1:
                 self.clip_index["start_bumps"][fp] = sb[0]
             else:
@@ -149,7 +161,7 @@ class ShowCatalog:
 
         for fp in end_bumps:
             path = f"{self.config['content_dir']}/{fp}"
-            eb = MediaProcessor._process_media([path], "end_bumps")
+            eb = MediaProcessor._process_media([path], "end_bumps", fluid=self.__fluid_builder)
             if len(sb) == 1:
                 self.clip_index["end_bumps"][fp] = eb[0]
             else:
@@ -206,10 +218,12 @@ class ShowCatalog:
             tag_dir = f"{self.config['content_dir']}/{tag}"
             file_list = MediaProcessor._find_media(tag_dir)
 
-            self.clip_index[tag] = MediaProcessor._process_media(file_list, tag)
+            self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, fluid=self.__fluid_builder)
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")
             self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
-            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps)
+
+            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder)
+            
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
 
