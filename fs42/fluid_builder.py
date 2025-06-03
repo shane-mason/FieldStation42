@@ -44,4 +44,4 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(levelname)s:%(name)s:%(message)s", level=logging.INFO)
     builder = FluidBuilder()
     builder.scan_file_cache("catalog/nbc_content/")
-    exists = builder.check_file_cache("/home/wrongdog/FieldStation42/catalog/public_domain/bextra/post-black.mov")
+    exists = builder.check_file_cache("FieldStation42/catalog/public_domain/bextra/post-black.mov")
