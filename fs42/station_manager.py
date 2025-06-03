@@ -115,6 +115,11 @@ class StationManager(object):
                         self.server_conf["time_format"] = d["time_format"]
                     else:
                         self.server_conf["time_format"] = "%H:%M"
+                    
+                    if "start_mpv" in d:
+                        self.server_conf["start_mpv"] = d["start_mpv"]
+                    else:
+                        self.server_conf["start_mpv"] = True
 
                 except Exception as e:
                     print(e)

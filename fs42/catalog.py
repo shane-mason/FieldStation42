@@ -18,6 +18,7 @@ except ImportError:
 
 FF_USE_FLUID_FILE_CACHE = True
 
+
 class bcolors:
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
@@ -223,7 +224,7 @@ class ShowCatalog:
             self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
 
             subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder)
-            
+
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
 

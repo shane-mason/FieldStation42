@@ -60,11 +60,18 @@ class PlayerOutcome:
 class StationPlayer:
     def __init__(self, station_config, mpv=None):
         self._l = logging.getLogger("FieldPlayer")
+
+        start_it = True
+
+        if "start_mpv" in StationManager().server_conf:
+            start_it = StationManager().server_conf["start_mpv"]
+            
+        
         if not mpv:
             self._l.info("Starting MPV instance")
             # command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window
             self.mpv = MPV(
-                start_mpv=True,
+                start_mpv=start_it,
                 ipc_socket="/tmp/mpvsocket",
                 input_default_bindings=False,
                 fs=True,
