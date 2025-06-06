@@ -46,7 +46,7 @@ class FluidStatements:
         cursor.close()
 
     @staticmethod
-    def trim_file_entries(connection: sqlite3.Connection, older_than:datetime):
+    def trim_file_entries(connection: sqlite3.Connection, older_than: datetime):
         """Checks all files in the cache to ensure still on disk and removes them if not."""
 
         cursor = connection.cursor()
