@@ -154,9 +154,9 @@ class StationManager(object):
                                     exit(-1)
 
                         # normalize clip shows. Can be of form: ["some_show", {tag:other_show, duration:other_duration}]
-                        # want to normalize them all to the tag/duration form
+                        # want to normalize them all to the tag/duration form and convert minutes to account for break strategy
                         clip_dict = {}
-
+                        
                         for entry in d["station_conf"]["clip_shows"]:
                             clip_tag = ""
                             requested_duration = 0
@@ -180,13 +180,13 @@ class StationManager(object):
                                     _l.error(f"Can't determine tag for input {entry}")
                                     _l.error("*" * 60)
                                     exit(-1)
-
+                            
                             fill_target = 1.0
-                            # determine how much to fill with clips based on break strategy
+                            #determine how much to fill with clips based on break strategy
                             if d["station_conf"]["schedule_increment"]:
                                 fill_target = 0.95 if d["station_conf"]["schedule_increment"] else 0.73
 
-                            # change minutes to seconds and apply keep-ratio based on break strategy
+                            #change minutes to seconds and apply keep-ratio based on break strategy
                             target_seconds = (requested_duration * timings.MIN_1) * fill_target
                             clip_dict[clip_tag] = {"tags": clip_tag, "duration": target_seconds}
 
