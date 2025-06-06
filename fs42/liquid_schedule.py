@@ -147,7 +147,7 @@ class LiquidSchedule:
                 else:
                     # handle clip show
                     clip_content = self.catalog.gather_clip_content(
-                        tag_str, timings.HOUR_CONTENT_DURATION, current_mark
+                        tag_str, self.conf["clip_shows"][tag_str]["duration"], current_mark
                     )
                     if len(clip_content) == 0:
                         # this should only happen on an error (have a tag, but no candidate)

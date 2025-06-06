@@ -1,8 +1,9 @@
 import json
 import logging
 import os
-from fs42.slot_reader import SlotReader
 import glob
+from fs42.slot_reader import SlotReader
+from fs42 import timings
 
 
 class StationManager(object):
@@ -42,13 +43,12 @@ class StationManager(object):
                     "overnight": range(2, 6),
                 },
                 "time_format": "%H:%M",
-                "date_time_format": "%Y-%m-%dT%H:%M:%S"
+                "date_time_format": "%Y-%m-%dT%H:%M:%S",
             }
             self._number_index = {}
             self._name_index = {}
             self.load_main_config()
             self.load_json_stations()
-
 
         for i in range(len(self.stations)):
             station = self.stations[i]
@@ -59,7 +59,7 @@ class StationManager(object):
         if name in self._name_index:
             return self._name_index[name]
         return None
-    
+
     def station_by_channel(self, channel_number):
         if channel_number in self._number_index:
             return self._number_index[channel_number]
@@ -115,7 +115,7 @@ class StationManager(object):
                         self.server_conf["time_format"] = d["time_format"]
                     else:
                         self.server_conf["time_format"] = "%H:%M"
-                    
+
                     if "start_mpv" in d:
                         self.server_conf["start_mpv"] = d["start_mpv"]
                     else:
@@ -153,7 +153,46 @@ class StationManager(object):
                                     _l.error("*" * 60)
                                     exit(-1)
 
+                        # normalize clip shows. Can be of form: ["some_show", {tag:other_show, duration:other_duration}]
+                        # want to normalize them all to the tag/duration form
+                        clip_dict = {}
+
+                        for entry in d["station_conf"]["clip_shows"]:
+                            clip_tag = ""
+                            requested_duration = 0
+                            if isinstance(entry, str):
+                                # then set to default of an hour
+                                clip_tag = entry
+                                requested_duration = 60
+                            else:
+                                # make sure it is well formed
+                                if "tags" in entry:
+                                    clip_tag = entry["tags"]
+                                    if "duration" in entry:
+                                        # then just use the entry
+                                        requested_duration = entry["duration"]
+                                    else:
+                                        # then default the duration
+                                        requested_duration = 60
+                                else:
+                                    _l.error("*" * 60)
+                                    _l.error(f"Error while checking clip show configuration for {fname}")
+                                    _l.error(f"Can't determine tag for input {entry}")
+                                    _l.error("*" * 60)
+                                    exit(-1)
+
+                            fill_target = 1.0
+                            # determine how much to fill with clips based on break strategy
+                            if d["station_conf"]["schedule_increment"]:
+                                fill_target = 0.95 if d["station_conf"]["schedule_increment"] else 0.73
+
+                            # change minutes to seconds and apply keep-ratio based on break strategy
+                            target_seconds = (requested_duration * timings.MIN_1) * fill_target
+                            clip_dict[clip_tag] = {"tags": clip_tag, "duration": target_seconds}
+
+                        d["station_conf"]["clip_shows"] = clip_dict
                         station_buffer.append(d["station_conf"])
+
                     except Exception as e:
                         _l.error("*" * 60)
                         _l.error(f"Error loading station configuration: {fname}")
@@ -163,7 +202,7 @@ class StationManager(object):
 
         self.stations = sorted(station_buffer, key=lambda station: station["channel_number"])
 
-        #make index
+        # make index
         for station in self.stations:
-            self._name_index[station['network_name']] = station
-            self._number_index[station['channel_number']] = station
+            self._name_index[station["network_name"]] = station
+            self._number_index[station["channel_number"]] = station
