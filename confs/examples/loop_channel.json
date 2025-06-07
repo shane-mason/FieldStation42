@@ -5,5 +5,6 @@
     "runtime_dir" : "runtime/loop",
     "content_dir" : "catalog/loop",
     "catalog_path": "catalog/loop.bin",
-    "schedule_path": "runtime/loop_schedule.bin"
+    "schedule_path": "runtime/loop_schedule.bin",
+    "network_long_name": "My Looping Channel"
 }}
