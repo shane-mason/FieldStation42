@@ -128,6 +128,7 @@ class ShowCatalog:
         # get the list of all tags
         tags = {}
         bump_overrides = {}
+        commercial_overrides = {}
         for day in DAYS:
             slots = self.config[day]
             for k in slots:
@@ -140,6 +141,8 @@ class ShowCatalog:
 
                     if "bump_dir" in slots[k]:
                         bump_overrides[slots[k]["bump_dir"]] = True
+                    if "commercial_dir" in slots[k]:
+                        commercial_overrides[slots[k]["commercial_dir"]] = True
                     if "start_bump" in slots[k]:
                         start_bumps[slots[k]["start_bump"]] = True
                     if "end_bump" in slots[k]:
@@ -185,6 +188,9 @@ class ShowCatalog:
 
         for override_dir in bump_overrides:
             total_count += self._scan_directory(override_dir, is_bumps=True)
+
+        for override_dir in commercial_overrides:
+            total_count += self._scan_directory(override_dir)
 
         # add sign-off and off-air videos to the clip index
         if "sign_off_video" in self.config:
@@ -423,15 +429,15 @@ class ShowCatalog:
         else:
             return self.find_candidate(bump_tag, seconds, when)
 
-    def find_commercial(self, seconds, when):
-        com_tag = self.config["commercial_dir"]
+    def find_commercial(self, seconds, when, commercial_dir):
+        com_tag = commercial_dir if commercial_dir else self.config["commercial_dir"]
 
         if not len(self.clip_index[com_tag]):
-            raise NoFillerContentFound("Can't find filler - add commercials...")
+            raise NoFillerContentFound(f"Can't find filler content in {com_tag} - please add commercials.")
         return self.find_candidate(com_tag, seconds, when)
 
     # makes blocks of reels in bump-commercial-commercial-bump format
-    def make_reel_block(self, when, bumpers=True, target_duration=120, bump_dir=None):
+    def make_reel_block(self, when, bumpers=True, target_duration=120, commercial_dir=None, bump_dir=None):
         reels = []
         remaining = target_duration
         start_candidate = None
@@ -447,7 +453,7 @@ class ShowCatalog:
         # aim for lower and should average close over time since the returned can be larger
         while remaining > (target_duration * 0.1):
             if not self.config["commercial_free"]:
-                candidate = self.find_commercial(target_duration, when)
+                candidate = self.find_commercial(target_duration, when, commercial_dir)
             else:
                 candidate = self.find_bump(target_duration, when, None, bump_dir)
             remaining -= candidate.duration
@@ -455,11 +461,13 @@ class ShowCatalog:
 
         return ReelBlock(start_candidate, reels, end_candidate)
 
-    def make_reel_fill(self, when, length, use_bumpers=True, bump_dir=None):
+    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None):
         remaining = length
         blocks = []
         while remaining:
-            block = self.make_reel_block(when, use_bumpers, self.config["break_duration"], bump_dir=bump_dir)
+            block = self.make_reel_block(
+                when, use_bumpers, self.config["break_duration"], commercial_dir=commercial_dir, bump_dir=bump_dir
+            )
 
             if (remaining - block.duration) > 0:
                 remaining -= block.duration
