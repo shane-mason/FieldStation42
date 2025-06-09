@@ -224,7 +224,10 @@ class LiquidSchedule:
             case "loop":
                 self._flood(start_building, end_building)
             case "guide":
-                raise NotImplementedError("Guide schedules are not yet supported for schedules")
+                raise NotImplementedError("Guide channels are not yet supported for making schedules")
+            case "streaming":
+                #just return for now
+                return
 
     def add_days(self, day_count):
         for i in range(day_count):

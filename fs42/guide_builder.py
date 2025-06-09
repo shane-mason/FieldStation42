@@ -3,13 +3,11 @@ import os
 import json
 import datetime
 import re
+
 sys.path.append(os.getcwd())
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_blocks import LiquidBlock
-
-
-
 
 
 def normalize_video_title(title):
@@ -100,7 +98,7 @@ class GuideBuilder:
 
         # each statio is a row
         for station in StationManager().stations:
-            if station["network_type"] == "guide":
+            if station["network_type"] == "guide" or station["network_type"] == "streaming":
                 continue
             entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
 

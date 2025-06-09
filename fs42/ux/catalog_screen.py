@@ -17,7 +17,7 @@ class CatalogScreen(Screen):
         self.options = []
         index = 0
         for station in StationManager().stations:
-            if station['network_type'] != "guide":
+            if station['network_type'] != "guide" and station['network_type'] != "streaming" :
                 self.options.append((station['network_name'], index))   
                 index+=1 
         self.select_station: Select[int] =  Select(self.options, id="stationselector", prompt="Select Station")
@@ -98,7 +98,7 @@ class CatalogScreen(Screen):
     @work(exclusive=True, thread=True)
     def rebuild_thread(self, network_name: str) -> None:
         station = StationManager().station_by_name(network_name)
-        if station['network_type'] != 'guide':
+        if station['network_type'] != 'guide' and station['network_type'] != 'streaming':
             ShowCatalog(station, rebuild_catalog=True)
         self.app.call_from_thread(self.rebuild_done)
 
@@ -107,7 +107,7 @@ class CatalogScreen(Screen):
         for station in StationManager().stations:
             
             #self.app.call_from_thread(self.update_loading_message, msg)
-            if station['network_type'] != 'guide':
+            if station['network_type'] != 'guide' and station['network_type'] != 'streaming':
                 ShowCatalog(station, rebuild_catalog=True)
                 #catalog.build_catalog()
         self.app.call_from_thread(self.rebuild_done)

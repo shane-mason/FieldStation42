@@ -59,6 +59,9 @@ class ShowCatalog:
             pickle.dump(cat_out, f)
 
     def load_catalog(self):
+        if self.config["network_type"] == "streaming":
+            return
+
         # takes a while, so check to see if it exists - build if not
         c_path = self.config["catalog_path"]
         self._l.debug("Loading catalog from file: " + c_path)
@@ -102,6 +105,9 @@ class ShowCatalog:
                 return self._build_single()
             case "guide":
                 raise NotImplementedError("Guide catalog not supported yet.")
+            case "streaming":
+                #just return for now
+                return
 
     def _build_single(self, tag="content"):
         self.clip_index = {}
