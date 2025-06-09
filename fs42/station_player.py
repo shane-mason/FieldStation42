@@ -213,9 +213,13 @@ class StationPlayer:
                 self._l.info(f"Playing entry {entry}")
                 self._l.info(f"Initial Skip: {initial_skip}")
                 total_skip = entry.skip + initial_skip
-                self.play_file(
-                    entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=entry.is_stream
-                )
+
+                is_stream = False
+
+                if hasattr(entry, "is_stream"):
+                    is_stream = entry.is_stream
+
+                self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream)
 
                 try:
                     self.mpv.seek(total_skip)
