@@ -73,7 +73,7 @@ class LiquidManager(object):
 
     def reset_all_schedules(self):
         for station_config in self.station_configs:
-            if station_config["network_type"] != "guide":
+            if station_config["network_type"] != "guide" and station_config["network_type"] != "streaming":
                 self.reset_sequences(station_config)
                 if os.path.exists(station_config["schedule_path"]):
                     os.unlink(station_config["schedule_path"])
