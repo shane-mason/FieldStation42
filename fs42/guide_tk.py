@@ -154,10 +154,11 @@ class AdFrame(tk.Frame):
 class ScheduleFrame(tk.Frame):
     def __init__(self, parent, conf):
         super().__init__(parent, bg=conf.bottom_bg)
-
+        self.parent = parent
         self.conf = conf
         self.populate_frame()
         self.place(x=0, y=conf.half_h, height=conf.half_h, width=conf.width)
+        self.start_time = datetime.datetime.now()
 
     def populate_frame(self):
         gb = GuideBuilder()
@@ -274,8 +275,15 @@ class ScheduleFrame(tk.Frame):
         top, bottom = self.canvas.yview()
         # print(bottom)
         if bottom >= 1.0:
-            self.canvas.yview_moveto(-0.2)
+            diff = datetime.datetime.now() - self.start_time
+            # check to see if its been more than a minute since we started
+            if diff > datetime.timedelta(minutes=1):
+                self.refresh()
+            else:
+                self.canvas.yview_moveto(-0.2)
+
             self.after(3000, self.scroll_canvas_view)
+
         else:
             self.canvas.yview_moveto(top + 0.001)
             self.after(100, self.scroll_canvas_view)
@@ -286,6 +294,10 @@ class ScheduleFrame(tk.Frame):
 
         self.lbl_current_time.config(text=current_time)
         self.after(1000, self.update_time)
+
+    def refresh(self):
+        self.destroy()
+        self.__init__(self.parent, self.conf)
 
 
 class GuideApp(tk.Tk):
