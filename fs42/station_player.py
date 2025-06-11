@@ -11,7 +11,8 @@ from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.reception import ReceptionStatus
-from fs42.liquid_manager import LiquidManager, PlayPoint
+from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound
+from fs42.liquid_schedule import LiquidSchedule
 from fs42.station_manager import StationManager
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
@@ -197,7 +198,19 @@ class StationPlayer:
 
     def play_slot(self, network_name, when):
         liquid = LiquidManager()
-        play_point = liquid.get_play_point(network_name, when)
+        try:
+            play_point = liquid.get_play_point(network_name, when)
+        except ScheduleNotFound:
+            self._l.critical("*********************Schedule Panic*********************")
+            self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
+            schedule = LiquidSchedule(StationManager().station_by_name(network_name))
+            schedule.add_days(1)
+            self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
+            liquid.reload_schedules()
+            self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
+            #fail so we can return and try again
+            return PlayerOutcome(PlayStatus.FAILED)
+
         if play_point is None:
             self.current_playing_file_path = None
             return PlayerOutcome(PlayStatus.FAILED)

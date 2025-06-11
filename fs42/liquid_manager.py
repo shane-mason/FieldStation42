@@ -39,10 +39,10 @@ class LiquidManager(object):
 
     def __init__(self):
         if not len(self.station_configs):
-            self.station_configs = StationManager().stations
             self.reload_schedules()
 
     def reload_schedules(self):
+        self.station_configs = StationManager().stations
         self.schedules = {}
         for station in self.station_configs:
             if station["network_type"] != "guide" and station["network_type"] != "streaming":
@@ -158,7 +158,7 @@ class LiquidManager(object):
         station_conf = StationManager().station_by_name(network_name)
         if station_conf["network_type"] == "streaming":
             return self._build_stream_point(station_conf, when)
-        print(station_conf["network_type"])
+
         # get the block and get plan
         _block: LiquidBlock = self.get_programming_block(network_name, when)
         # find index in block plan
