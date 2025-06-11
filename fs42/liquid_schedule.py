@@ -77,7 +77,9 @@ class LiquidSchedule:
         content = self.catalog.get_all_by_tag("content")
         new_blocks = []
 
-        programming_name = self.conf["network_long_name"] if "network_long_name" in self.conf else self.conf["network_name"]
+        programming_name = (
+            self.conf["network_long_name"] if "network_long_name" in self.conf else self.conf["network_name"]
+        )
 
         for i in range(diff.days):
             current_mark = start_time + datetime.timedelta(days=i)
@@ -114,10 +116,16 @@ class LiquidSchedule:
                     break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
                 if "end_bump" in slot_config:
                     break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
+
                 if "bump_dir" in slot_config:
                     break_info["bump_dir"] = slot_config["bump_dir"]
+                else:
+                    break_info["bump_dir"] = self.conf["bump_dir"]
+
                 if "commercial_dir" in slot_config:
                     break_info["commercial_dir"] = slot_config["commercial_dir"]
+                else:
+                    break_info["commercial_dir"] = self.conf["commercial_dir"]
 
                 seq_key = None
 
@@ -226,7 +234,7 @@ class LiquidSchedule:
             case "guide":
                 raise NotImplementedError("Guide channels are not yet supported for making schedules")
             case "streaming":
-                #just return for now
+                # just return for now
                 return
 
     def add_days(self, day_count):
