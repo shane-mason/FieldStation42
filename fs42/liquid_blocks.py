@@ -144,6 +144,8 @@ class LiquidLoopBlock(LiquidBlock):
         super().__init__(content, start_time, end_time, title)
 
     def make_plan(self, catalog):
+        if not self.content:
+            raise ValueError("LiquidLoopBlock requires content")
         entries = []
         keep_going = True
         current_mark: datetime.datetime = self.start_time
