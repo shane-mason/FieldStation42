@@ -492,8 +492,8 @@ class ShowCatalog:
                             candidate = self.find_bump(remaining, when, "fill")
                     except MatchingContentNotFound as e:
                         if remaining > self.min_gap:
-                            self._l.warning("Hit an exception trying to find filler content between shows:")
-                            self._l.exception(e)
+                            self._l.warning(f"Could not find matching content for {remaining} seconds - will have a schedule gap")
+                            #self._l.exception(e)
 
                     if candidate is not None:
                         additional_reels.append(candidate)
