@@ -47,7 +47,7 @@ class ShowCatalog:
         self.tags = []
 
         self.__fluid_builder = None
-
+        self.min_gap = 10
         if rebuild_catalog:
             self.build_catalog()
         elif load:
@@ -487,11 +487,13 @@ class ShowCatalog:
 
                     try:
                         if not self.config["commercial_free"]:
-                            candidate = self.find_commercial(remaining, when)
+                            candidate = self.find_commercial(seconds=remaining, when=when, commercial_dir=commercial_dir)
                         else:
                             candidate = self.find_bump(remaining, when, "fill")
-                    except Exception:
-                        pass
+                    except MatchingContentNotFound as e:
+                        if remaining > self.min_gap:
+                            self._l.warning("Hit an exception trying to find filler content between shows:")
+                            self._l.exception(e)
 
                     if candidate is not None:
                         additional_reels.append(candidate)
