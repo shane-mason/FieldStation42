@@ -41,8 +41,9 @@ XVFB_DISPLAY=":$DISPLAY_NUM"
 LOCK_FILE="/tmp/.X${DISPLAY_NUM}-lock"
 export DISPLAY=$XVFB_DISPLAY
 
+#Adjust Width and Height to your screen aspect ratio
 WIDTH=1280
-HEIGHT=1040
+HEIGHT=720
 FRAMERATE=30
 
 echo "[INFO] Streaming: $URL on display $XVFB_DISPLAY, port $PORT"
@@ -75,6 +76,7 @@ sleep 2
 ########################################
 # 6. Start Chromium
 ########################################
+ #Adjust scale factor to stretch image to screen size
 echo "[CHROMIUM] Launching Chromium..."
 chromium-browser \
   --no-sandbox \
@@ -83,13 +85,15 @@ chromium-browser \
   --disable-session-crashed-bubble \
   --no-first-run \
   --kiosk \
+  --hide-scrollbars \
+  --force-device-scale-factor=1 \
   --window-size=${WIDTH},${HEIGHT} \
-  --window-position=0,0 \
   --user-data-dir="$PROFILE_DIR" \
+  --window-position=0,0.5 \
   "$URL" &
 CHROMIUM_PID=$!
 sleep 10
-
+#--window-position=0,0 \
 ########################################
 # 7. Screenshot Debug
 ########################################
