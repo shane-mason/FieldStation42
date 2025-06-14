@@ -11,7 +11,8 @@ from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.reception import ReceptionStatus
-from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound
+from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, ScheduleQueryNotInBounds
+
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.station_manager import StationManager
 
@@ -20,9 +21,8 @@ logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", lev
 
 def check_channel_socket():
     channel_socket = StationManager().server_conf["channel_socket"]
-    r_sock = open(channel_socket, "r")
-    contents = r_sock.read()
-    r_sock.close()
+    with open(channel_socket, "r") as r_sock:
+        contents = r_sock.read()
     if len(contents):
         with open(channel_socket, "w"):
             pass
@@ -113,10 +113,12 @@ class StationPlayer:
     def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False):
         try:
             if os.path.exists(file_path) or is_stream:
+                self._l.info(f"%%%Attempting to play {file_path}")
                 self.current_playing_file_path = file_path
                 basename = os.path.basename(file_path)
                 title, _ = os.path.splitext(basename)
                 if self.station_config:
+                    self._l.info("%%%Got station config, updating status socket")
                     if "date_time_format" in StationManager().server_conf:
                         ts_format = StationManager().server_conf["date_time_format"]
                     else:
@@ -142,9 +144,10 @@ class StationPlayer:
 
                 if "panscan" in self.station_config:
                     self.mpv.panscan = self.station_config["panscan"]
-
+                self._l.info(f"playing {file_path}")
                 self.mpv.play(file_path)
                 self.mpv.wait_for_property("duration")
+                self._l.info("## Set duration, returning true")
 
                 return True
             else:
@@ -155,10 +158,9 @@ class StationPlayer:
         except Exception as e:
             self._l.exception(e)
             self._l.error(
-                f"Enountered unknown error attempting to play {file_path} - please check your configurations."
+                f"Encountered unknown error attempting to play {file_path} - please check your configurations."
             )
             return False
-        return
 
     def play_image(self, duration):
         pass
@@ -196,19 +198,22 @@ class StationPlayer:
 
         return PlayerOutcome(PlayStatus.SUCCESS)
 
+    def schedule_panic(self, network_name):
+        self._l.critical("*********************Schedule Panic*********************")
+        self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
+        schedule = LiquidSchedule(StationManager().station_by_name(network_name))
+        schedule.add_days(1)
+        self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
+        LiquidManager().reload_schedules()
+
     def play_slot(self, network_name, when):
         liquid = LiquidManager()
         try:
             play_point = liquid.get_play_point(network_name, when)
-        except ScheduleNotFound:
-            self._l.critical("*********************Schedule Panic*********************")
-            self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
-            schedule = LiquidSchedule(StationManager().station_by_name(network_name))
-            schedule.add_days(1)
-            self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
-            liquid.reload_schedules()
+        except (ScheduleNotFound, ScheduleQueryNotInBounds):
+            self.schedule_panic(network_name)
             self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
-            #fail so we can return and try again
+            # fail so we can return and try again
             return PlayerOutcome(PlayStatus.FAILED)
 
         if play_point is None:

@@ -85,9 +85,12 @@ def main_loop(transition_fn):
                 f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} "
             )
 
+
             outcome = player.play_slot(
                 channel_conf["network_name"], datetime.datetime.now()
             )
+
+
 
         logger.debug(f"Got player outcome:{outcome.status}")
 

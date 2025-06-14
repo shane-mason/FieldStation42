@@ -9,11 +9,11 @@ from fs42.catalog import ShowCatalog
 from fs42 import series
 
 
-class ScheduleNotFound(Exception):
+class ScheduleQueryNotInBounds(Exception):
     pass
 
 
-class SheduleQueryNotInBounds(Exception):
+class ScheduleNotFound(Exception):
     pass
 
 
@@ -130,7 +130,7 @@ class LiquidManager(object):
             raise ScheduleNotFound(f"Schedule doesn't exist for {network_name}")
         # handle not in bounds
         elif start > when or end < when:
-            raise SheduleQueryNotInBounds(
+            raise ScheduleQueryNotInBounds(
                 f"Query for {network_name} programming at {when} failes because schedule is from {start} to {end}"
             )
         # handle expected case
@@ -161,6 +161,7 @@ class LiquidManager(object):
 
         # get the block and get plan
         _block: LiquidBlock = self.get_programming_block(network_name, when)
+
         # find index in block plan
         found_index = 0
         current_mark = _block.start_time
