@@ -5,7 +5,7 @@ from fs42.block_plan import BlockPlanEntry
 
 
 class LiquidBlock:
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, break_points=None):
         self.content = content
         # the requested starting time
         self.start_time = start_time
@@ -26,6 +26,8 @@ class LiquidBlock:
             self.end_bump = break_info["end_bump"] if "end_bump" in break_info else None
             self.bump_override = break_info["bump_dir"] if "bump_dir" in break_info else None
             self.commercial_override = break_info["commercial_dir"] if "commercial_dir" in break_info else None
+
+        self.break_points = break_points
 
     def __str__(self):
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
@@ -58,7 +60,7 @@ class LiquidBlock:
 
         if diff > 2:
             self.reel_blocks = catalog.make_reel_fill(
-                self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override
+                self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override, break_points=self.break_points
             )
         else:
             self.reel_blocks = []
@@ -71,6 +73,7 @@ class LiquidBlock:
             self.break_strategy,
             self.start_bump,
             self.end_bump,
+            self.break_points,
         )
 
 

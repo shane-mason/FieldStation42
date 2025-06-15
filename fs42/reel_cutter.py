@@ -3,7 +3,7 @@ from fs42.block_plan import BlockPlanEntry
 
 class ReelCutter:
     @staticmethod
-    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump):
+    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump, break_points):
         entries = []
         break_count = 0
 
@@ -12,6 +12,8 @@ class ReelCutter:
 
         if reel_blocks:
             break_count = len(reel_blocks)
+
+        assert not break_points or len(break_points) == break_count
 
         if break_count <= 1 or break_stratgy == "end":
             # then don't cut the base at all
@@ -24,6 +26,8 @@ class ReelCutter:
             offset = base_offset
 
             for i in range(break_count):
+                if break_points:
+                    segment_duration = break_points[i] - break_points[i-1] if i > 0 else break_points[i]
                 entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
                 entries += reel_blocks[i].make_plan()
                 offset += segment_duration

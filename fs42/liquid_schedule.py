@@ -6,6 +6,7 @@ import logging
 import pickle
 import datetime
 import math
+import json
 
 from fs42.catalog import ShowCatalog
 from fs42.slot_reader import SlotReader
@@ -15,7 +16,6 @@ from fs42.series import SeriesIndex
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
-
 class LiquidSchedule:
     def __init__(self, conf):
         self._l = logging.getLogger("Liquid")
@@ -23,6 +23,7 @@ class LiquidSchedule:
         self.conf = conf
         self.catalog = ShowCatalog(conf)
         self._load_blocks()
+        self._load_break_points()
 
     def _calc_target_duration(self, duration):
         # get the target duration for the show based on the shedule increment
@@ -63,6 +64,13 @@ class LiquidSchedule:
         # save blocks to disk
         with open(self.conf["schedule_path"], "wb") as f:
             pickle.dump(self._blocks, f)
+
+    def _load_break_points(self):
+        if "break_points_db" in self.conf:
+            path = self.conf["break_points_db"]
+            if os.path.isfile(path):
+                with open(path,"r") as f:
+                    self.break_points = json.load(f)
 
     def _end_time(self):
         # get the lastest time in the schedule
@@ -149,9 +157,10 @@ class LiquidSchedule:
                     else:
                         target_duration = self._calc_target_duration(candidate.duration)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
+                        break_points = self.break_points[candidate.path] if candidate.path in self.break_points else None
 
                         new_block = LiquidBlock(
-                            candidate, current_mark, next_mark, candidate.title, self.conf["break_strategy"], break_info
+                            candidate, current_mark, next_mark, candidate.title, self.conf["break_strategy"], break_info, break_points
                         )
                         # add sequence information
                         if seq_key:

@@ -93,7 +93,14 @@ class MediaProcessor:
 
     @staticmethod
     def _get_duration(file_name) -> float:
-        probed = ffmpeg.probe(file_name)
+        probed = ffmpeg.probe(file_name, show_entries='stream', select_streams='v:0')
+        try:
+            # Some MKV files do not have stream duration, but include it in a language tag.
+            h,m,s = (probed['streams'][0]['tags']['DURATION-eng']).split(':')
+            duration = float(h) * 3600.0 + float(m) * 60.0 + float(s)
+            return duration
+        except:
+            pass
 
         if "streams" in probed and len(probed["streams"]) and "duration" in probed["streams"][0]:
             return float(probed["streams"][0]["duration"])

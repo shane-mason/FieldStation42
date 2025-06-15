@@ -442,67 +442,41 @@ class ShowCatalog:
             raise NoFillerContentFound(f"Can't find filler content in {com_tag} - please add commercials.")
         return self.find_candidate(com_tag, seconds, when)
 
-    # makes blocks of reels in bump-commercial-commercial-bump format
-    def make_reel_block(self, when, bumpers=True, target_duration=120, commercial_dir=None, bump_dir=None):
-        reels = []
-        remaining = target_duration
-        start_candidate = None
-        end_candidate = None
-
-        if bumpers:
-            start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
-            end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir)
-
-            remaining -= start_candidate.duration
-            remaining -= end_candidate.duration
-
-        # aim for lower and should average close over time since the returned can be larger
-        while remaining > (target_duration * 0.1):
-            if not self.config["commercial_free"]:
-                candidate = self.find_commercial(target_duration, when, commercial_dir)
-            else:
-                candidate = self.find_bump(target_duration, when, None, bump_dir)
-            remaining -= candidate.duration
-            reels.append(candidate)
-
-        return ReelBlock(start_candidate, reels, end_candidate)
-
-    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None):
+    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, break_points=None):
         remaining = length
-        blocks = []
-        while remaining:
-            block = self.make_reel_block(
-                when, use_bumpers, self.config["break_duration"], commercial_dir=commercial_dir, bump_dir=bump_dir
-            )
+        num_blocks = 0
+        if break_points:
+            num_blocks = len(break_points)
+        else:
+            num_blocks = round(length / self.config["break_duration"])
 
-            if (remaining - block.duration) > 0:
+        blocks = [ReelBlock(None,[],None) for i in range(num_blocks)]
+
+        target_duration = length / num_blocks
+
+        if use_bumpers:
+            for block in blocks:
+                block.start_bump = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
+                block.end_bump = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir)
                 remaining -= block.duration
-                blocks.append(block)
-            else:
-                # discard that block and fill using the tightest technique possible
-                keep_going = True
-                additional_reels = []
-                while remaining and keep_going:
-                    candidate = None
 
-                    try:
-                        if not self.config["commercial_free"]:
-                            candidate = self.find_commercial(seconds=remaining, when=when, commercial_dir=commercial_dir)
-                        else:
-                            candidate = self.find_bump(remaining, when, "fill")
-                    except MatchingContentNotFound as e:
-                        if remaining > self.min_gap:
-                            self._l.warning(f"Could not find matching content for {remaining} seconds - will have a schedule gap")
-                            #self._l.exception(e)
+        assert remaining >= 0.0
 
-                    if candidate is not None:
-                        additional_reels.append(candidate)
-                        remaining -= candidate.duration
-                    else:
-                        keep_going = False
-                        remaining = 0
+        while remaining > 0.0:
+            try:
+                if not self.config["commercial_free"]:
+                    candidate = self.find_commercial(min(target_duration, remaining), when, commercial_dir)
+                else:
+                    candidate = self.find_bump(min(target_duration, remaining), when, None, bump_dir)
+            except MatchingContentNotFound as e:
+                if remaining > self.config["break_duration"] * 0.1:
+                    raise e
+                else:
+                    break
 
-                blocks.append(ReelBlock(None, additional_reels, None))
+            block = min(blocks, key=lambda x: x.duration)
+            block.comms.append(candidate)
+            remaining -= candidate.duration
 
         return blocks
 
