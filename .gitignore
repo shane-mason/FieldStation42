@@ -176,3 +176,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+#page stream needs to ignore saved stream files 
+hls/
+.fuse_hidden*
+web_urls/
+
+.fuse_hidden*
