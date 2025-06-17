@@ -7,12 +7,13 @@ import json
 
 uart = serial.Serial("/dev/ttyAMA0", baudrate=9600, timeout=10)
 
+
 def old_loop():
     while True:
         time.sleep(0.1)
-        if (uart.in_waiting > 0):
+        if uart.in_waiting > 0:
             message = uart.readline()
-            command = message.decode('ascii')
+            command = message.decode("ascii")
             print("Got Message: ", command)
             if command.startswith("change"):
                 timestamp = datetime.datetime.now()
@@ -34,19 +35,18 @@ def new_loop():
     last_stat = ""
     while True:
         time.sleep(0.1)
-        if (uart.in_waiting > 0):
-
+        if uart.in_waiting > 0:
             try:
                 message = uart.readline()
-                command = message.decode('ascii')
+                command = message.decode("ascii")
                 print("Got Message: ", command)
                 as_json = json.loads(command)
 
-                if as_json['channel'] == 99:
+                if as_json["channel"] == 99:
                     os.system("pkill -9 -f field_player.py")
                     os.system("killall mpv")
                     sys.exit(-1)
-                elif as_json['channel'] == 98:
+                elif as_json["channel"] == 98:
                     os.system("pkill -9 -f field_player.py")
                     os.system("killall mpv")
                     os.system("sudo halt")
@@ -60,16 +60,14 @@ def new_loop():
         else:
             with open("runtime/play_status.socket") as fp:
                 as_str = fp.read()
-                
+
                 if as_str != last_stat:
                     print("Status changed:")
                     last_stat = as_str
                     stat = json.loads(as_str)
-                    uart.write(f"{stat['channel_number']}\n".encode('utf-8'))
-                    #uart.flush()
-                    
+                    uart.write(f"{stat['channel_number']}\n".encode("utf-8"))
+                    # uart.flush()
 
-            
 
 if __name__ == "__main__":
     new_loop()

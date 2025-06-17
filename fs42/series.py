@@ -1,25 +1,29 @@
 import math
 
-class SequenceEntry:
 
+class SequenceEntry:
     def __init__(self, fpath, scheduled=[], last_played=None):
         self.fpath = str(fpath)
         self.next_scheduled = scheduled
         self.last_played = last_played
 
-class SeriesIndex:
 
-    def __init__(self, tag_path, start_point=0, end_point=1 ):
+class SeriesIndex:
+    def __init__(self, tag_path, start_point=0, end_point=1):
         self.tag_path = tag_path
         self._episodes: list[SequenceEntry] = []
         self._index = -1
         if start_point < 0 or start_point > 1 or start_point > end_point:
-            raise ValueError(f"Sequence start point for {tag_path} must be more than 0, less than 1 and less than sequence end. Check your configuration.")
+            raise ValueError(
+                f"Sequence start point for {tag_path} must be more than 0, less than 1 and less than sequence end. Check your configuration."
+            )
         if end_point < 0 or end_point > 1:
-            raise ValueError(f"Sequence end point for {tag_path} must be greater than zero and less than 1. Check your configuration.")
+            raise ValueError(
+                f"Sequence end point for {tag_path} must be greater than zero and less than 1. Check your configuration."
+            )
         self._start_perc = start_point
         self._end_perc = end_point
-        self.__defaults() 
+        self.__defaults()
 
     @staticmethod
     def make_key(series_name, sequence_name):
@@ -30,40 +34,38 @@ class SeriesIndex:
             entry = SequenceEntry(file)
             self._episodes.append(entry)
 
-        #explicitely sort them by file path for alpha-numeric ordering:
+        # explicitely sort them by file path for alpha-numeric ordering:
         self._episodes = sorted(self._episodes, key=lambda entry: entry.fpath)
         self.__defaults()
-        self._index =  self._start_index
-
+        self._index = self._start_index
 
     def get_series_length(self):
         return len(self._episodes)
-    
+
     def __defaults(self):
-        if not hasattr(self, '_start_perc'):
+        if not hasattr(self, "_start_perc"):
             self._start_perc = 0
-        if not hasattr(self, '_end_perc'):
+        if not hasattr(self, "_end_perc"):
             self._end_perc = 1
-            
-        #handle previous catalog versions
-        self._start_index = math.floor(self._start_perc * (len(self._episodes))) 
-        self._end_index = math.floor(self._end_perc * (len(self._episodes))) 
-            
-        
+
+        # handle previous catalog versions
+        self._start_index = math.floor(self._start_perc * (len(self._episodes)))
+        self._end_index = math.floor(self._end_perc * (len(self._episodes)))
+
     def get_next(self):
-        self.__defaults()    
+        self.__defaults()
         to_return = None
         if self._index < 0 or self._index >= self._end_index:
             self._index = self._start_index
             to_return = self._episodes[self._index].fpath
         else:
             to_return = self._episodes[self._index].fpath
-            self._index+=1
+            self._index += 1
             if self._index >= self._end_index:
                 self._index = self._start_index
-        
+
         return to_return
-    
+
     def get_current(self):
         return self._episodes[self._index].fpath
 
@@ -72,15 +74,13 @@ class SeriesIndex:
             if self._episodes[i].fpath == fpath:
                 self._index = i
                 break
-        
-        #now, we want to go one episode earlier, so that this is the next episode
+
+        # now, we want to go one episode earlier, so that this is the next episode
         self._index -= 1
-        #wrap back to the end if we went negative
-        self._index = (len(self._episodes)-1) if self._index < 0 else self._index
-        
+        # wrap back to the end if we went negative
+        self._index = (len(self._episodes) - 1) if self._index < 0 else self._index
 
     def _by_fpath(self, fpath):
         for episode in self._episodes:
             if episode.fpath == fpath:
                 return fpath
-            

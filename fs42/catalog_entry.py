@@ -1,15 +1,18 @@
 import os
 
+
 class MatchingContentNotFound(Exception):
     pass
+
 
 class NoFillerContentFound(Exception):
     pass
 
+
 class CatalogEntry:
     def __init__(self, path, duration, tag, hints=[]):
         self.path = path
-        #get the show name from the path
+        # get the show name from the path
         self.title = os.path.splitext(os.path.basename(path))[0]
         self.duration = duration
         self.tag = tag
