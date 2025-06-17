@@ -1,4 +1,4 @@
-#this runs on the pico component - not the pi
+# this runs on the pico component - not the pi
 
 import board
 import busio
@@ -12,8 +12,8 @@ i2cOLED = busio.I2C(board.GP19, board.GP18)
 oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2cOLED)
 
 oled.fill(0)
-oled.text('Hello', 0, 0, 1)
-oled.text('World', 0, 10, 1)
+oled.text("Hello", 0, 0, 1)
+oled.text("World", 0, 10, 1)
 oled.show()
 
 led = digitalio.DigitalInOut(board.LED)
@@ -33,7 +33,6 @@ exit_btn.pull = digitalio.Pull.UP
 halt_btn = digitalio.DigitalInOut(board.GP27)
 halt_btn.direction = digitalio.Direction.INPUT
 halt_btn.pull = digitalio.Pull.UP
-
 
 
 pixel_pin = board.GP16
@@ -70,32 +69,34 @@ PURPLE = (180, 0, 255)
 
 def show_waiting():
     oled.fill(0)
-    oled.text('Waiting...', 0, 10, 1)
+    oled.text("Waiting...", 0, 10, 1)
     oled.show()
+
 
 def show_command(cmd):
     oled.fill(0)
-    oled.text(f"CMD: {cmd}" , 0, 0, 1)
+    oled.text(f"CMD: {cmd}", 0, 0, 1)
     oled.show()
+
 
 def show_ambient():
     pixels.fill(YELLOW)
     pixels.show()
 
+
 show_waiting()
 show_ambient()
 
 while True:
-
-    #led.value = not led.value
+    # led.value = not led.value
     if not chan_btn.value:
         uart.write(b"change\n")
         print("Pressed")
         oled.fill(0)
-        oled.text('Command: change', 0, 0, 1)
+        oled.text("Command: change", 0, 0, 1)
         oled.show()
-        rainbow_cycle(.015)
-        rainbow_cycle(.015)
+        rainbow_cycle(0.015)
+        rainbow_cycle(0.015)
 
         show_waiting()
         show_ambient()
@@ -117,4 +118,3 @@ while True:
         time.sleep(5)
         show_waiting()
         show_ambient()
-
