@@ -3,6 +3,8 @@ import copy
 
 import random
 from fs42 import timings
+import logging
+
 
 
 class SlotReader:
@@ -58,8 +60,9 @@ class SlotReader:
 
     @staticmethod
     def smooth_tags(conf):
-        # this function smooths tags through slot boundaries - so if not specified
+        # this function smooths tags through slot boundaries - so if not specified will use previous slots tag.
         last_tag = None
+        logging.getLogger("smooth_tags").debug(f"{conf}")
         smoothed = copy.deepcopy(conf)
         for day_index in timings.DAYS:
             for slot_index in timings.OPERATING_HOURS:

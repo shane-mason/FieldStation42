@@ -9,6 +9,7 @@ from fs42 import timings
 class StationManager(object):
     # the borg singleton pattern
     __we_are_all_one = {}
+    _initialized = False
 
     # private-ish
     __overwatch = {
@@ -34,29 +35,32 @@ class StationManager(object):
         return obj
 
     def __init__(self):
-        if not len(self.stations):
-            self.server_conf = {
-                "channel_socket": "runtime/channel.socket",
-                "status_socket": "runtime/play_status.socket",
-                "day_parts": {
-                    "morning": range(6, 10),
-                    "daytime": range(10, 18),
-                    "prime": range(18, 23),
-                    "late": [23, 0, 1, 2],
-                    "overnight": range(2, 6),
-                },
-                "time_format": "%H:%M",
-                "date_time_format": "%Y-%m-%dT%H:%M:%S",
-            }
-            self._number_index = {}
-            self._name_index = {}
-            self.load_main_config()
-            self.load_json_stations()
+        self.__dict__ = self.__we_are_all_one
+        if not self._initialized:
+            self._initialized = True
+            if not len(self.stations):
+                self.server_conf = {
+                    "channel_socket": "runtime/channel.socket",
+                    "status_socket": "runtime/play_status.socket",
+                    "day_parts": {
+                        "morning": range(6, 10),
+                        "daytime": range(10, 18),
+                        "prime": range(18, 23),
+                        "late": [23, 0, 1, 2],
+                        "overnight": range(2, 6),
+                    },
+                    "time_format": "%H:%M",
+                    "date_time_format": "%Y-%m-%dT%H:%M:%S",
+                }
+                self._number_index = {}
+                self._name_index = {}
+                self.load_main_config()
+                self.load_json_stations()
 
-        for i in range(len(self.stations)):
-            station = self.stations[i]
-            if station["network_type"] == "standard":
-                self.stations[i] = SlotReader.smooth_tags(station)
+            for i in range(len(self.stations)):
+                station = self.stations[i]
+                if station["network_type"] == "standard":
+                    self.stations[i] = SlotReader.smooth_tags(station)
 
     def station_by_name(self, name):
         if name in self._name_index:

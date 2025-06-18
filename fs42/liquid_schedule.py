@@ -125,7 +125,9 @@ class LiquidSchedule:
                 if "commercial_dir" in slot_config:
                     break_info["commercial_dir"] = slot_config["commercial_dir"]
                 else:
-                    break_info["commercial_dir"] = self.conf["commercial_dir"] if "commercial_dir" in self.conf else None
+                    break_info["commercial_dir"] = (
+                        self.conf["commercial_dir"] if "commercial_dir" in self.conf else None
+                    )
 
                 seq_key = None
 
