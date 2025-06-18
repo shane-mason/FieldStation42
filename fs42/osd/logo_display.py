@@ -41,6 +41,7 @@ class LogoDisplayConfig(BaseModel):
     display_time: float = 5.0
     default_show_logo: bool = True 
     default_logo_permanent: bool = False
+    default_logo_alpha: float = 1.0
 
 class LogoDisplay(object):
     def __init__(self, window, config: LogoDisplayConfig):
@@ -124,6 +125,7 @@ class LogoDisplay(object):
                 if new_network != current_network:
                     self.current_channel_info = status
                     self.time_since_change = 0
+                    self.available_logos = []
                     self.load_logo_for_channel(status)
                     # Update content type when title changes
                     self.current_content_type = classify_current_content()
@@ -215,7 +217,6 @@ class LogoDisplay(object):
         logo_path = None
         self.channel_config = {}
         self.is_displaying_osd_default_logo = False 
-
         network_name = channel_info.get("network_name")
         station_wants_to_show_logo = True
 
@@ -360,8 +361,15 @@ class LogoDisplay(object):
         self.draw_logo_quad(x, y, logo_width_ndc, logo_height_ndc)
 
     def draw_logo_quad(self, x, y, w, h):
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
+        alpha = self.config.default_logo_alpha
+        if not self.is_displaying_osd_default_logo and self.channel_config:
+            alpha = float(self.channel_config.get("logo_alpha", alpha))
+        
+        glColor4f(1, 1, 1, alpha)
         glBegin(GL_QUADS)
-        glColor4f(1, 1, 1, 1)
         glTexCoord2f(0, 1); glVertex2f(x, y)
         glTexCoord2f(1, 1); glVertex2f(x + w, y)
         glTexCoord2f(1, 0); glVertex2f(x + w, y + h)
