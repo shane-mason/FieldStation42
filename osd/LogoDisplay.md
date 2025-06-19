@@ -29,6 +29,7 @@ Stores the default and global settings related to Logo Display including:
         "display_time": 5.0,
         "always_show": false,
         "default_logo": "fs42/osd/FS42.png",
+        "default_logo_alpha": 1.0,
         "default_show_logo": true,
         "default_logo_permanent": false
     }
@@ -47,6 +48,7 @@ Stores the default and global settings related to Logo Display including:
 *   **`display_time`** (float): **Optional**. Default number of seconds logo is shown after channel change or return to "FEATURE" content
 *   **`always_show`** (boolean): **Optional**. Default that if true, logo will ignore the `display_time`, but still is only displayed during "FEATURE" content
 *   **`default_logo`** (string | null): **Optional**. Path to a global default logo file.
+*   **`default_logo_alpha`** (float): **Optional**. Sets the default alpha (transparency) applied to logos (ex: 0.8 - 80% opacity).
 *   **`default_show_logo`** (boolean): **Optional**. Controls whether the `default_logo` is ever displayed.
 *   **`default_logo_permanent`** (boolean): **Optional**. If true, the `default_logo` will ignore `display_time` and remain visible as long as "FEATURE" content is playing.
 
@@ -80,7 +82,8 @@ Configuration at each station level that defines station logos, behavior, and ov
         "logo_width": 0.1,
         "logo_height": 0.12,
         "logo_x_margin": 0.03,
-        "logo_y_margin": 0.03
+        "logo_y_margin": 0.03,
+        "logo_alpha": 0.75
 
     // ... other station configurations ...
     }
@@ -104,3 +107,4 @@ Configuration at each station level that defines station logos, behavior, and ov
 *   **`logo_height`** (float): **Optional**. Overrides `height` from `osd.json`
 *   **`logo_x_margin`** (float): **Optional**. Overrides `x_margin` from `osd.json`
 *   **`logo_y_margin`** (float): **Optional**. Overrides `y_margin` from `osd.json`
+*   **`logo_alpha`** (float): **Optional**. Overrides `default_logo_alpha` from `osd.json`.
