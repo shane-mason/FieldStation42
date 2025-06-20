@@ -135,7 +135,8 @@ while not glfw.window_should_close(window):
     for obj in objects:
         obj.update(delta_time)
 
-    for obj in objects:
+    # Draw objects with StatusDisplay on top
+    for obj in sorted(objects, key=lambda x: isinstance(x, StatusDisplay)):
         obj.draw()
 
     glfw.swap_buffers(window)
