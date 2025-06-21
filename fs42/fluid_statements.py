@@ -2,6 +2,7 @@ import logging
 import sqlite3
 import datetime
 import os
+import json
 from fs42.media_processor import MediaProcessor
 from fs42.fluid_objects import FileRepoEntry
 
@@ -113,6 +114,35 @@ class FluidStatements:
         connection.commit()
 
     @staticmethod
+    def add_break_points(connection: sqlite3.Connection, path: str, points: dict):
+        """Add or update the break points for this file"""
+        cursor = connection.cursor()
+        now = datetime.datetime.now()
+        json_points = json.dumps(points)
+        cursor.execute("REPLACE INTO break_points VALUES(?, ?, ?)", (path, json_points, now))
+        cursor.close()
+        connection.commit()
+
+    @staticmethod
+    def get_break_points(connection: sqlite3.Connection, path: str) -> dict:
+        """Get the break points for this file"""
+        cursor = connection.cursor()
+        cursor.execute("SELECT points FROM break_points WHERE path=?", (path,))
+        row = cursor.fetchone()
+        result = {}
+        if row:
+            result = json.loads(row[0])
+        cursor.close()
+        return result
+    
+    def delete_break_points(connection: sqlite3.Connection, path: str):
+        """Delete any break points for this file"""
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM break_points WHERE path=?", (path,))
+        cursor.close()
+        connection.commit()
+
+    @staticmethod
     def init_db(connection: sqlite3.Connection):
         cursor = connection.cursor()
         cursor.execute("""CREATE TABLE IF NOT EXISTS file_meta ( 
@@ -126,5 +156,12 @@ class FluidStatements:
                             meta TEXT
                             )
                             """)
+        
+        cursor.execute("""CREATE TABLE IF NOT EXISTS break_points (
+                            path TEXT REFERENCES file_meta(path) PRIMARY KEY,
+                            points TEXT,
+                            last_updated TIMESTAMP
+                            )
+                       """)
 
         cursor.close()

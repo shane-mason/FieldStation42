@@ -22,6 +22,7 @@ class Station42:
         self.get_text_listing = self.catalog.get_text_listing
         self.check_catalog = self.catalog.check_catalog
 
+
 def main():
 
     execution_start_time = datetime.datetime.now()
@@ -33,6 +34,7 @@ def main():
     parser.add_argument('-p', '--printcat', help='Print the catalog for the specified network name and exit')
     parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Rebuild catalogs and schedules')
     parser.add_argument('-q', '--rebuild_sequences', action='store_true', help='Restarts all sequences - will take effect in next schedule build.')
+    parser.add_argument('-b', '--break_detect', help='Scan for points break insertion point in media files in the provided directory.')
     parser.add_argument('-a', '--scan_sequences', action='store_true', help='Scan for new sequences that have been added to configurations for next schedule build.')
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )
@@ -78,6 +80,11 @@ def main():
 
     if args.print_schedule:
         LiquidManager().print_schedule(args.print_schedule, args.verbose)
+        return
+
+    if args.break_detect:
+        logging.getLogger().info("Scanning for break detection points in media files...")
+        FluidBuilder().scan_breaks(args.break_detect)
         return
 
     sm = StationManager()

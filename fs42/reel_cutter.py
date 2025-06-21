@@ -3,7 +3,7 @@ from fs42.block_plan import BlockPlanEntry
 
 class ReelCutter:
     @staticmethod
-    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump):
+    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump, break_points=None):
         entries = []
         break_count = 0
 

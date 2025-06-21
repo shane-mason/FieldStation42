@@ -1,7 +1,9 @@
 import datetime
 
+from fs42 import timings
 from fs42.reel_cutter import ReelCutter
 from fs42.block_plan import BlockPlanEntry
+from fs42.fluid_builder import FluidBuilder
 
 
 class LiquidBlock:
@@ -39,10 +41,43 @@ class LiquidBlock:
     def buffer_duration(self):
         return self.playback_duration() - self.content_duration()
 
+    @staticmethod
+    def clip_break_points(break_points, max_breaks):
+        # then remove the ones with the shortest durations until we have fewer than max_breaks
+        sorted_breaks = sorted(break_points, key=lambda k: k['duration'], reverse=True)
+        clipped_breaks = sorted_breaks[:int(max_breaks)]
+        # and put it back in place
+        break_points = sorted(clipped_breaks, key=lambda k: k['start'])
+        return break_points
+
     def make_plan(self, catalog):
+
         # first, collect any reels (commercials and bumps) we might need to buffer to the requested duration
         diff = self.playback_duration() - self.content_duration()
 
+        _fluid = FluidBuilder()
+        break_points = _fluid.get_breaks(self.content.path)
+        strict_count = None
+        if break_points:
+            print("___________________FOUND POINTS!______________________")
+            print(self.content.path)
+            print("Starting break points: ", len(break_points))
+
+            # remove anything that's too close to the beginning or end of the block
+            break_points = [x for x in break_points if x["start"] > timings.MIN_1]
+            break_points = [x for x in break_points if x["start"] < self.playback_duration() - timings.MIN_1]
+            print("After trimming ends: ", len(break_points))
+            # the maximum number of breaks points should be no more than every 2 minutes 
+            max_breaks = self.playback_duration() / timings.MIN_2
+            # or the max breaks points should make them last at least one minute each
+            #max_breaks = diff/timings.MIN_1
+
+            if len(break_points) > max_breaks:
+                break_points = self.clip_break_points(break_points, max_breaks)
+
+            print("Remaining Break Points: ", len(break_points))
+            strict_count = len(break_points)
+        
         # is there a start bump?
         if self.start_bump:
             diff -= self.start_bump.duration
@@ -58,21 +93,38 @@ class LiquidBlock:
 
         if diff > 2:
             self.reel_blocks = catalog.make_reel_fill(
-                self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override
+                self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override, strict_count=strict_count
             )
+                
         else:
             self.reel_blocks = []
 
+        if strict_count:
+            print("Total Reel Block count: ", len(self.reel_blocks))
+            print("Total Break Point count: ", len(break_points))
+            if len(break_points)-1 == len(self.reel_blocks):
+                print("Perfect case")
+            elif(len(break_points) >= len(self.reel_blocks)):
+                print("Too many breaks")
+                break_points = self.clip_break_points(break_points, len(self.reel_blocks)-1)
+                print("Clipped Break Points: ", len(break_points))
+            else:
+                # do nothing for now, they will play at end
+                pass
+                
+
         self.plan = ReelCutter.cut_reels_into_base(
-            self.content,
-            self.reel_blocks,
-            0,
-            self.content_duration(),
-            self.break_strategy,
-            self.start_bump,
-            self.end_bump,
+            base_clip=self.content,
+            reel_blocks=self.reel_blocks,
+            base_offset=0,
+            base_duration=self.content_duration(),
+            break_stratgy=self.break_strategy,
+            start_bump=self.start_bump,
+            end_bump=self.end_bump,
+            break_points=break_points
         )
 
+    
 
 class LiquidClipBlock(LiquidBlock):
     def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", bump_info=None):

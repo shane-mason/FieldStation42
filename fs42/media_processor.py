@@ -200,3 +200,64 @@ class MediaProcessor:
             if not found:
                 fill.append(bump)
         return (pre, fill, post)
+
+    @staticmethod
+    def black_detect(fname, black_min_duration=0.1, black_pixel_tresh=0.1, black_ratio_thresh=0.95):
+        _l = logging.getLogger("MEDIA")
+        _l.info(f"Detecting black frames in {fname}")
+        
+        try:
+            # Build the ffmpeg command with blackdetect filter
+            filter_complex = (
+                ffmpeg
+                .input(fname)
+                .filter('blackdetect', 
+                        d=black_min_duration, 
+                        pix_th=black_pixel_tresh, 
+                        pic_th=black_ratio_thresh)
+                .output('pipe:', format='null')
+            )
+            
+            # Actually run the command and capture its output
+            stdout, stderr = filter_complex.run(capture_stdout=True, capture_stderr=True)
+            
+            # Decode and parse
+            black_frames = []
+            for line in stderr.decode('utf-8').split('\n'):
+                if 'blackdetect' in line:
+                    try:
+                        parts = line.split(']')[1].strip().split(' ')
+                        info = {}
+                        for part in parts:
+                            if ':' in part:
+                                key, value = part.split(':')
+                                info[key] = float(value)
+                        if info:
+                            if "black_start" not in info or "black_end" not in info or "black_duration" not in info:
+                                # then not a good line
+                                continue
+                                
+                            #remap names
+                            remap = {"black_start": "start", "black_end": "end", "black_duration": "duration"}
+                            remapped = {}
+                            for old_key, new_key in remap.items():
+                                if old_key in info:
+                                    remapped[new_key] = info[old_key]
+                            black_frames.append(remapped)
+
+                    except IndexError:
+                        _l.debug(f"Skipping malformed line: {line}")
+                        pass
+                    except ValueError:
+                        _l.info(f"Skipping invalid data in line: {line}")
+                        pass
+                    except Exception as e:
+                        _l.info(f"An unexpected error occurred while parsing line: {line}. Error: {e}")
+            _l.info(f"Found {len(black_frames)} black segments in {fname}")
+            return black_frames
+        
+        except ffmpeg.Error as e:
+            _l.error(f"FFmpeg hit an error detecting black frames in {fname}")
+            _l.exception(e)
+        
+        return None

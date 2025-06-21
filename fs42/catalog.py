@@ -467,47 +467,62 @@ class ShowCatalog:
 
         return ReelBlock(start_candidate, reels, end_candidate)
 
-    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None):
+    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None):
+        target_break_duration = self.config["break_duration"]
+        
+        if strict_count:
+            target_break_duration = length / strict_count
+            print(f"Strict reel count requested - setting break duration to {target_break_duration}")
+        
         remaining = length
         blocks = []
-        while remaining:
+        keep_going = True
+        while remaining and keep_going:
             block = self.make_reel_block(
-                when, use_bumpers, self.config["break_duration"], commercial_dir=commercial_dir, bump_dir=bump_dir
+                when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir
             )
 
             if (remaining - block.duration) > 0:
                 remaining -= block.duration
                 blocks.append(block)
+
+                if strict_count and len(blocks) >= strict_count:
+                    keep_going = False
+                    
+            else: 
+                keep_going = False
+        
+
+        keep_going = True
+        if strict_count:
+            print(f"Block count : {len(blocks)}")
+
+        # discard that block and fill using the tightest technique possible
+        additional_reels = []
+        while remaining and keep_going:
+            candidate = None
+
+            try:
+                if not self.config["commercial_free"]:
+                    candidate = self.find_commercial(
+                        seconds=remaining, when=when, commercial_dir=commercial_dir
+                    )
+                else:
+                    candidate = self.find_bump(remaining, when, "fill")
+            except MatchingContentNotFound:
+                if remaining > self.min_gap:
+                    self._l.warning(f"Could not find matching content for {remaining} seconds")
+
+            if candidate is not None:
+                additional_reels.append(candidate)
+                remaining -= candidate.duration
             else:
-                # discard that block and fill using the tightest technique possible
-                keep_going = True
-                additional_reels = []
-                while remaining and keep_going:
-                    candidate = None
-
-                    try:
-                        if not self.config["commercial_free"]:
-                            candidate = self.find_commercial(
-                                seconds=remaining, when=when, commercial_dir=commercial_dir
-                            )
-                        else:
-                            candidate = self.find_bump(remaining, when, "fill")
-                    except MatchingContentNotFound:
-                        if remaining > self.min_gap:
-                            self._l.warning(
-                                f"Could not find matching content for {remaining} seconds - will have a schedule gap"
-                            )
-                            # self._l.exception(e)
-
-                    if candidate is not None:
-                        additional_reels.append(candidate)
-                        remaining -= candidate.duration
-                    else:
-                        keep_going = False
-                        remaining = 0
-
-                blocks.append(ReelBlock(None, additional_reels, None))
-
+                keep_going = False
+                remaining = 0
+            #if strict_count:
+            #    print(f"appending additional: {additional_reels}")
+        blocks.append(ReelBlock(None, additional_reels, None))
+                
         return blocks
 
     def gather_clip_content(self, tag, duration, when):
