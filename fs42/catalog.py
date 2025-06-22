@@ -472,7 +472,6 @@ class ShowCatalog:
         
         if strict_count:
             target_break_duration = length / strict_count
-            print(f"Strict reel count requested - setting break duration to {target_break_duration}")
         
         remaining = length
         blocks = []
@@ -494,14 +493,12 @@ class ShowCatalog:
         
 
         keep_going = True
-        if strict_count:
-            print(f"Block count : {len(blocks)}")
 
         # discard that block and fill using the tightest technique possible
         additional_reels = []
+
         while remaining and keep_going:
             candidate = None
-
             try:
                 if not self.config["commercial_free"]:
                     candidate = self.find_commercial(
@@ -513,14 +510,16 @@ class ShowCatalog:
                 if remaining > self.min_gap:
                     self._l.warning(f"Could not find matching content for {remaining} seconds")
 
-            if candidate is not None:
+            if candidate:
                 additional_reels.append(candidate)
                 remaining -= candidate.duration
             else:
+                if strict_count:
+                    print("Found end with remaining: ", remaining)
                 keep_going = False
                 remaining = 0
-            #if strict_count:
-            #    print(f"appending additional: {additional_reels}")
+
+            
         blocks.append(ReelBlock(None, additional_reels, None))
                 
         return blocks

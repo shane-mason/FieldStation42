@@ -3,6 +3,7 @@ import os
 import glob
 import ffmpeg
 from fs42.fluid_objects import FileRepoEntry
+from fs42 import timings
 
 try:
     # try to import from version > 2.0
@@ -202,7 +203,31 @@ class MediaProcessor:
         return (pre, fill, post)
 
     @staticmethod
-    def black_detect(fname, black_min_duration=0.1, black_pixel_tresh=0.1, black_ratio_thresh=0.95):
+    def calc_black_segments(break_points, content_duration):
+        #ensure start ordering
+        break_points = sorted(break_points, key=lambda k: k["black_start"])
+        for i in range(len(break_points)):
+            if i < len(break_points)-1:
+                break_points[i]["segment_duration"] = break_points[i+1]["black_start"] - break_points[i]["black_start"]
+            else:
+                break_points[i]["segment_duration"] = content_duration - break_points[i]["black_start"]  
+
+        return break_points
+
+    @staticmethod
+    def black_detect(fname, base_duration, black_min_duration=0.1, black_pixel_tresh=0.1, black_ratio_thresh=0.95):
+
+
+        
+        def min_segment(break_points):
+            spx = sorted(break_points, key=lambda x:x['segment_duration'])
+            return spx[0]['segment_duration']
+        
+        def remove_min(break_points):
+            spx = sorted(break_points,key=lambda x:x['segment_duration'])
+            del(spx[0])
+            return spx
+
         _l = logging.getLogger("MEDIA")
         _l.info(f"Detecting black frames in {fname}")
         
@@ -235,15 +260,10 @@ class MediaProcessor:
                         if info:
                             if "black_start" not in info or "black_end" not in info or "black_duration" not in info:
                                 # then not a good line
+                                print("Bad line: ", info)
                                 continue
                                 
-                            #remap names
-                            remap = {"black_start": "start", "black_end": "end", "black_duration": "duration"}
-                            remapped = {}
-                            for old_key, new_key in remap.items():
-                                if old_key in info:
-                                    remapped[new_key] = info[old_key]
-                            black_frames.append(remapped)
+                            black_frames.append(info)
 
                     except IndexError:
                         _l.debug(f"Skipping malformed line: {line}")
@@ -254,9 +274,22 @@ class MediaProcessor:
                     except Exception as e:
                         _l.info(f"An unexpected error occurred while parsing line: {line}. Error: {e}")
             _l.info(f"Found {len(black_frames)} black segments in {fname}")
-            return black_frames
+
+            trimmed = []
+            # trim any near start and end times
+            for point in black_frames:
+                if point["black_start"] > timings.MIN_1 and point["black_start"] < base_duration-timings.MIN_1:
+                    trimmed.append(point)
+
+            segmented = MediaProcessor.calc_black_segments(trimmed, base_duration)
+
+            while(min_segment(segmented) < timings.MIN_1 and len(segmented)>1):
+                segmented = remove_min(segmented)
+                segmented = MediaProcessor.calc_black_segments(segmented, base_duration)
+
+            return segmented
         
-        except ffmpeg.Error as e:
+        except Exception as e:
             _l.error(f"FFmpeg hit an error detecting black frames in {fname}")
             _l.exception(e)
         

@@ -45,16 +45,20 @@ class FluidBuilder:
             _l.info(f"Scanning directory {dir_path} for breaks")
             if not os.path.isdir(dir_path):
                 raise FileNotFoundError(f"Directory does not exist {dir_path}")
-            dir_path = os.path.abspath(dir_path)
+            dir_path = os.path.realpath(dir_path)
             file_list = MediaProcessor._rfind_media(dir_path)
             for file in file_list:
-                breaks = MediaProcessor.black_detect(file)
-                abs_path = os.path.abspath(file)
-                FluidStatements.add_break_points(connection, abs_path, breaks)
+                rfp = os.path.realpath(file)
+                cached = self.check_file_cache(rfp)
+                if cached:
+                    breaks = MediaProcessor.black_detect(rfp, cached.duration)
+                    FluidStatements.add_break_points(connection, rfp, breaks)
+                else:
+                    _l.warning(f"{rfp} is not in fluid cache - not adding break points.")
             connection.commit()
 
     def get_breaks(self, fname):
-        fname = os.path.abspath(fname)
+        fname = os.path.realpath(fname)
         with sqlite3.connect(self.db_path) as connection:
             results = FluidStatements.get_break_points(connection, fname)
         return results

@@ -1,11 +1,15 @@
 from fs42.block_plan import BlockPlanEntry
-
+from fs42.media_processor import MediaProcessor
 
 class ReelCutter:
     @staticmethod
     def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump, break_points=None):
         entries = []
         break_count = 0
+        
+        if break_points:
+            break_points = MediaProcessor.calc_black_segments(break_points, base_clip.duration)
+            [print(x) for x in break_points]
 
         if start_bump:
             entries.append(BlockPlanEntry(start_bump.path, 0, start_bump.duration))
@@ -23,15 +27,44 @@ class ReelCutter:
             segment_duration = base_clip.duration / break_count
             offset = base_offset
 
-            for i in range(break_count):
-                entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
-                entries += reel_blocks[i].make_plan()
-                offset += segment_duration
+            if not break_points:
+                for i in range(break_count):
+                    entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
+                    entries += reel_blocks[i].make_plan()
+                    offset += segment_duration
+            else:
+
+                keep_going = True
+                
+                if len(break_points):
+                    # deal with the first one segment, since the rest work off points
+                    segment_duration = break_points[0]["black_end"] - (break_points[0]["black_duration"]/2)
+                    entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
+                    offset += segment_duration
+
+                while keep_going:
+
+                    if len(reel_blocks):
+                        reel_block = reel_blocks.pop(0)
+                        entries += reel_block.make_plan()
+
+                    if len(break_points):
+                        this_bp = break_points.pop(0)
+                        # break in the middle of the black
+                        segment_duration = this_bp["segment_duration"] + (this_bp["black_duration"]/2)
+                        e = BlockPlanEntry(base_clip.path, offset, segment_duration)
+                        entries.append(e)
+                        offset += segment_duration
+                    
+                        
+                    if not len(break_points) and not len(reel_blocks):
+                        keep_going = False
 
         if end_bump:
             entries.append(BlockPlanEntry(end_bump.path, 0, end_bump.duration))
 
         return entries
+
 
     @staticmethod
     def cut_reels_into_clips(clips, reel_blocks, break_stategy, start_bump, end_bump):
