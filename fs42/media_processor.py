@@ -30,7 +30,6 @@ class MediaProcessor:
                 full_path = os.path.realpath(fname)
                 cached = fluid.check_file_cache(full_path)
                 if cached:
-                    _l.info(f"Using cache version of {fname}")
                     duration = cached.duration
 
             if not duration:
@@ -204,65 +203,59 @@ class MediaProcessor:
 
     @staticmethod
     def calc_black_segments(break_points, content_duration):
-        #ensure start ordering
+        # ensure start ordering
         break_points = sorted(break_points, key=lambda k: k["black_start"])
         for i in range(len(break_points)):
-            if i < len(break_points)-1:
-                break_points[i]["segment_duration"] = break_points[i+1]["black_start"] - break_points[i]["black_start"]
+            if i < len(break_points) - 1:
+                break_points[i]["segment_duration"] = (
+                    break_points[i + 1]["black_start"] - break_points[i]["black_start"]
+                )
             else:
-                break_points[i]["segment_duration"] = content_duration - break_points[i]["black_start"]  
+                break_points[i]["segment_duration"] = content_duration - break_points[i]["black_start"]
 
         return break_points
 
     @staticmethod
     def black_detect(fname, base_duration, black_min_duration=0.1, black_pixel_tresh=0.1, black_ratio_thresh=0.95):
-
-
-        
         def min_segment(break_points):
-            spx = sorted(break_points, key=lambda x:x['segment_duration'])
-            return spx[0]['segment_duration']
-        
+            spx = sorted(break_points, key=lambda x: x["segment_duration"])
+            return spx[0]["segment_duration"]
+
         def remove_min(break_points):
-            spx = sorted(break_points,key=lambda x:x['segment_duration'])
-            del(spx[0])
+            spx = sorted(break_points, key=lambda x: x["segment_duration"])
+            del spx[0]
             return spx
 
         _l = logging.getLogger("MEDIA")
         _l.info(f"Detecting black frames in {fname}")
-        
+
         try:
             # Build the ffmpeg command with blackdetect filter
             filter_complex = (
-                ffmpeg
-                .input(fname)
-                .filter('blackdetect', 
-                        d=black_min_duration, 
-                        pix_th=black_pixel_tresh, 
-                        pic_th=black_ratio_thresh)
-                .output('pipe:', format='null')
+                ffmpeg.input(fname)
+                .filter("blackdetect", d=black_min_duration, pix_th=black_pixel_tresh, pic_th=black_ratio_thresh)
+                .output("pipe:", format="null")
             )
-            
+
             # Actually run the command and capture its output
             stdout, stderr = filter_complex.run(capture_stdout=True, capture_stderr=True)
-            
+
             # Decode and parse
             black_frames = []
-            for line in stderr.decode('utf-8').split('\n'):
-                if 'blackdetect' in line:
+            for line in stderr.decode("utf-8").split("\n"):
+                if "blackdetect" in line:
                     try:
-                        parts = line.split(']')[1].strip().split(' ')
+                        parts = line.split("]")[1].strip().split(" ")
                         info = {}
                         for part in parts:
-                            if ':' in part:
-                                key, value = part.split(':')
+                            if ":" in part:
+                                key, value = part.split(":")
                                 info[key] = float(value)
                         if info:
                             if "black_start" not in info or "black_end" not in info or "black_duration" not in info:
                                 # then not a good line
-                                print("Bad line: ", info)
                                 continue
-                                
+
                             black_frames.append(info)
 
                     except IndexError:
@@ -278,19 +271,19 @@ class MediaProcessor:
             trimmed = []
             # trim any near start and end times
             for point in black_frames:
-                if point["black_start"] > timings.MIN_1 and point["black_start"] < base_duration-timings.MIN_1:
+                if point["black_start"] > timings.MIN_1 and point["black_start"] < base_duration - timings.MIN_1:
                     trimmed.append(point)
 
             segmented = MediaProcessor.calc_black_segments(trimmed, base_duration)
 
-            while(min_segment(segmented) < timings.MIN_1 and len(segmented)>1):
+            while min_segment(segmented) < timings.MIN_1 and len(segmented) > 1:
                 segmented = remove_min(segmented)
                 segmented = MediaProcessor.calc_black_segments(segmented, base_duration)
 
             return segmented
-        
+
         except Exception as e:
             _l.error(f"FFmpeg hit an error detecting black frames in {fname}")
             _l.exception(e)
-        
+
         return None

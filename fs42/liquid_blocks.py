@@ -6,6 +6,7 @@ from fs42.block_plan import BlockPlanEntry
 from fs42.fluid_builder import FluidBuilder
 from fs42.media_processor import MediaProcessor
 
+
 class LiquidBlock:
     def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
         self.content = content
@@ -49,19 +50,18 @@ class LiquidBlock:
         # and put it back in place
         break_points = sorted(clipped_breaks, key=lambda k: k["black_start"])
         return break_points
-    
+
     @staticmethod
     def clip_break_points(break_points, max_breaks, content_duration):
-        #ensure start ordering
-        break_points = MediaProcessor.calc_black_segments(break_points, content_duration) 
-  
+        # ensure start ordering
+        break_points = MediaProcessor.calc_black_segments(break_points, content_duration)
+
         # then remove the ones with the shortest segment duration until we have fewer than max_breaks
         sorted_breaks = sorted(break_points, key=lambda k: k["segment_duration"], reverse=True)
-        clipped_breaks = sorted_breaks[:int(max_breaks)]
+        clipped_breaks = sorted_breaks[: int(max_breaks)]
         # and put it back in place
         break_points = sorted(clipped_breaks, key=lambda k: k["black_start"])
         return break_points
-    
 
     def make_plan(self, catalog):
         # first, collect any reels (commercials and bumps) we might need to buffer to the requested duration
@@ -71,7 +71,6 @@ class LiquidBlock:
         break_points = _fluid.get_breaks(self.content.path)
         strict_count = None
         if break_points:
-
             # the maximum number of breaks points should be no more than every 2 minutes
             max_breaks = self.playback_duration() / timings.MIN_2
             # or the max breaks points should make them last at least one minute each
@@ -80,7 +79,7 @@ class LiquidBlock:
             if len(break_points) > max_breaks:
                 break_points = self.clip_break_points(break_points, max_breaks, self.content_duration())
 
-            strict_count = len(break_points)+1
+            strict_count = len(break_points) + 1
 
         # is there a start bump?
         if self.start_bump:
@@ -107,29 +106,18 @@ class LiquidBlock:
         else:
             self.reel_blocks = []
 
-
-
         if strict_count:
             rec = 0
             for reel in self.reel_blocks:
-                rec += reel.duration 
-            
-            print("Total Reel Duration: ", rec)
-            print("Total Reel Block count: ", len(self.reel_blocks))
-            print("Total Break Point count: ", len(break_points))
-            
+                rec += reel.duration
+
             if strict_count == len(self.reel_blocks):
-                print("Perfect case")
+                pass
             elif strict_count > len(self.reel_blocks):
-                print("Too many breaks")
                 break_points = self.clip_break_points(break_points, len(self.reel_blocks), self.content_duration())
-                print("Clipped Break Points: ", len(break_points))
             else:
                 # do nothing for now, they will play at end
-                print("Not enough breaks")
                 pass
-
-            
 
         self.plan = ReelCutter.cut_reels_into_base(
             base_clip=self.content,
