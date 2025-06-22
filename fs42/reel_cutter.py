@@ -9,7 +9,7 @@ class ReelCutter:
         
         if break_points:
             break_points = MediaProcessor.calc_black_segments(break_points, base_clip.duration)
-            [print(x) for x in break_points]
+            #[print(x) for x in break_points]
 
         if start_bump:
             entries.append(BlockPlanEntry(start_bump.path, 0, start_bump.duration))
