@@ -38,7 +38,7 @@ class ReelCutter:
                 
                 if len(break_points):
                     # deal with the first one segment, since the rest work off points
-                    segment_duration = break_points[0]["black_end"] - (break_points[0]["black_duration"]/2)
+                    segment_duration = break_points[0]["black_start"] + (break_points[0]["black_duration"]/2)
                     entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
                     offset += segment_duration
 
@@ -51,7 +51,7 @@ class ReelCutter:
                     if len(break_points):
                         this_bp = break_points.pop(0)
                         # break in the middle of the black
-                        segment_duration = this_bp["segment_duration"] + (this_bp["black_duration"]/2)
+                        segment_duration = this_bp["segment_duration"] 
                         e = BlockPlanEntry(base_clip.path, offset, segment_duration)
                         entries.append(e)
                         offset += segment_duration
