@@ -51,8 +51,11 @@ class FluidBuilder:
                 rfp = os.path.realpath(file)
                 cached = self.check_file_cache(rfp)
                 if cached:
-                    breaks = MediaProcessor.black_detect(rfp, cached.duration)
-                    FluidStatements.add_break_points(connection, rfp, breaks)
+                    if FluidStatements.get_break_points(connection, rfp): 
+                        _l.info(f"Breaks already exists for {rfp}")
+                    else:
+                        breaks = MediaProcessor.black_detect(rfp, cached.duration)
+                        FluidStatements.add_break_points(connection, rfp, breaks)
                 else:
                     _l.warning(f"{rfp} is not in fluid cache - not adding break points.")
             connection.commit()

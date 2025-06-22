@@ -71,10 +71,6 @@ class LiquidBlock:
         break_points = _fluid.get_breaks(self.content.path)
         strict_count = None
         if break_points:
-            print("___________________FOUND POINTS!______________________")
-            print(self.content.path)
-            print("Diff: ", diff)
-            print("Starting break points: ", len(break_points))
 
             # the maximum number of breaks points should be no more than every 2 minutes
             max_breaks = self.playback_duration() / timings.MIN_2
@@ -84,7 +80,6 @@ class LiquidBlock:
             if len(break_points) > max_breaks:
                 break_points = self.clip_break_points(break_points, max_breaks, self.content_duration())
 
-            print("Remaining Break Points: ", len(break_points))
             strict_count = len(break_points)+1
 
         # is there a start bump?
