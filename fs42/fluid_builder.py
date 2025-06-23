@@ -10,8 +10,8 @@ from fs42.media_processor import MediaProcessor
 
 
 class FluidBuilder:
-    def __init__(self):
-        self.db_path = "runtime/fs42_fluid.db"
+    def __init__(self, db_path="runtime/fs42_fluid.db"):
+        self.db_path = db_path
         with sqlite3.connect(self.db_path) as connection:
             FluidStatements.init_db(connection)
 
@@ -44,17 +44,26 @@ class FluidBuilder:
                 raise FileNotFoundError(f"Directory does not exist {dir_path}")
             dir_path = os.path.realpath(dir_path)
             file_list = MediaProcessor._rfind_media(dir_path)
+
+            # Check the cache because we require the duration to prococess.
+            file_paths = [os.path.realpath(file) for file in file_list]
+            cached_files = {}
+            for path in file_paths:
+                cached = FluidStatements.check_file_cache(connection, path)
+                if cached:
+                    cached_files[path] = cached
+
             for file in file_list:
                 rfp = os.path.realpath(file)
-                cached = self.check_file_cache(rfp)
-                if cached:
+                if rfp in cached_files:
+                    cached = cached_files[rfp]
                     if FluidStatements.get_break_points(connection, rfp):
                         _l.info(f"Breaks already exists for {rfp}")
                     else:
                         breaks = MediaProcessor.black_detect(rfp, cached.duration)
                         FluidStatements.add_break_points(connection, rfp, breaks)
                 else:
-                    _l.warning(f"{rfp} is not in fluid cache - not adding break points.")
+                    _l.warning(f"{rfp} is not in catalog cache - not adding break points.")
             connection.commit()
 
     def get_breaks(self, fname):

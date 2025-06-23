@@ -3,7 +3,7 @@ from fs42.media_processor import MediaProcessor
 
 class ReelCutter:
     @staticmethod
-    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_stratgy, start_bump, end_bump, break_points=None):
+    def cut_reels_into_base(base_clip, reel_blocks, base_offset, base_duration, break_strategy, start_bump, end_bump, break_points=None):
         entries = []
         break_count = 0
         
@@ -17,13 +17,14 @@ class ReelCutter:
         if reel_blocks:
             break_count = len(reel_blocks)
 
-        if break_count <= 1 or break_stratgy == "end":
+        if break_count <= 1 or break_strategy == "end":
             # then don't cut the base at all
             entries.append(BlockPlanEntry(base_clip.path, base_offset, base_duration))
             for _block in reel_blocks:
                 # and put the reel at the end if there is one
                 entries += _block.make_plan()
         else:
+            # we know break count is greater than 1
             segment_duration = base_clip.duration / break_count
             offset = base_offset
 

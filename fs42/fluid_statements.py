@@ -99,7 +99,7 @@ class FluidStatements:
 
         entry.first_added = now
         entry.last_checked = now
-        entry.last_upates = now
+        entry.last_updates = now
 
         processed = MediaProcessor.process_one(entry.path, "processing", [])
         if not processed:

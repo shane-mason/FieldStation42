@@ -124,7 +124,7 @@ class LiquidBlock:
             reel_blocks=self.reel_blocks,
             base_offset=0,
             base_duration=self.content_duration(),
-            break_stratgy=self.break_strategy,
+            break_strategy=self.break_strategy,
             start_bump=self.start_bump,
             end_bump=self.end_bump,
             break_points=break_points,
