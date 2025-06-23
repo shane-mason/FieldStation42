@@ -492,8 +492,7 @@ class ShowCatalog:
 
         # discard that block and fill using the tightest technique possible
         additional_reels = []
-        gap_count = 0
-        total_gap = 0
+
         while remaining and keep_going:
             candidate = None
             try:
@@ -503,10 +502,8 @@ class ShowCatalog:
                     candidate = self.find_bump(remaining, when, "fill")
             except MatchingContentNotFound:
                 if remaining > self.min_gap:
-                    #self._l.warning(f"Could not find matching content for {remaining} seconds")
-                    gap_count += 1
-                    total_gap += remaining
-
+                    self._l.debug(f"Could not find matching content for {remaining} seconds")
+                    pass
             if candidate:
                 additional_reels.append(candidate)
                 remaining -= candidate.duration
@@ -514,9 +511,6 @@ class ShowCatalog:
                 keep_going = False
                 remaining = 0
 
-        if gap_count:
-            avg_gap = round(total_gap / gap_count, 3)
-            self._l.warning(f"Gaps at end of {gap_count} slots - average {avg_gap} seconds long.")
 
         blocks.append(ReelBlock(None, additional_reels, None))
 
