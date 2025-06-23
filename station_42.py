@@ -34,7 +34,7 @@ def main():
     parser.add_argument('-p', '--printcat', help='Print the catalog for the specified network name and exit')
     parser.add_argument('-r', '--rebuild_catalog', action='store_true', help='Rebuild catalogs and schedules')
     parser.add_argument('-q', '--rebuild_sequences', action='store_true', help='Restarts all sequences - will take effect in next schedule build.')
-    parser.add_argument('-b', '--break_detect', help='Scan for points break insertion point in media files in the provided directory.')
+    parser.add_argument('-b', '--break_detect', help='Scan for points break insertion point in media files in the provided directory. (VERY experimental)')
     parser.add_argument('-a', '--scan_sequences', action='store_true', help='Scan for new sequences that have been added to configurations for next schedule build.')
     parser.add_argument('-w', '--add_week', action='store_true', help='Add one week to all schedules' )
     parser.add_argument('-m', '--add_month', action='store_true', help='Add one month to all schedules' )

@@ -12,18 +12,19 @@ from fs42.media_processor import MediaProcessor
 class FluidBuilder:
     def __init__(self, db_path="runtime/fs42_fluid.db"):
         self.db_path = db_path
+        self._l = logging.getLogger("FLUID")
         with sqlite3.connect(self.db_path) as connection:
             FluidStatements.init_db(connection)
 
     def scan_file_cache(self, content_dir):
         with sqlite3.connect(self.db_path) as connection:
             # read all the files in the content dir
-            logging.getLogger().info(f"Fluid file cache scan - reading {content_dir}")
+            self._l.info(f"Fluid file cache scan - reading {content_dir}")
             file_list = MediaProcessor.rich_find_media(content_dir)
-            logging.getLogger().info(f"Comparing cache against {len(file_list)} files")
+            self._l.info(f"Comparing cache against {len(file_list)} files")
             # add any that aren't there yet
             FluidStatements.iterate_file_entries(connection, file_list)
-            logging.getLogger("FLUID").info("Checking file meta for stale entries.")
+            self._l.info("Checking file meta for stale entries.")
 
     def check_file_cache(self, full_path):
         with sqlite3.connect(self.db_path) as connection:
@@ -33,13 +34,13 @@ class FluidBuilder:
 
     def trim_file_cache(self, from_time):
         with sqlite3.connect(self.db_path) as connection:
-            logging.getLogger().info("Trimming fluid file cache")
+            self._l.info("Trimming fluid file cache")
             FluidStatements.trim_file_entries(connection, from_time)
 
     def scan_breaks(self, dir_path):
         with sqlite3.connect(self.db_path) as connection:
-            _l = logging.getLogger("break_builder")
-            _l.info(f"Scanning directory {dir_path} for breaks")
+            
+            self._l.info(f"Scanning directory {dir_path} for breaks")
             if not os.path.isdir(dir_path):
                 raise FileNotFoundError(f"Directory does not exist {dir_path}")
             dir_path = os.path.realpath(dir_path)
@@ -58,12 +59,12 @@ class FluidBuilder:
                 if rfp in cached_files:
                     cached = cached_files[rfp]
                     if FluidStatements.get_break_points(connection, rfp):
-                        _l.info(f"Breaks already exists for {rfp}")
+                        self._l.info(f"Breaks already exists for {rfp}")
                     else:
                         breaks = MediaProcessor.black_detect(rfp, cached.duration)
                         FluidStatements.add_break_points(connection, rfp, breaks)
                 else:
-                    _l.warning(f"{rfp} is not in catalog cache - not adding break points.")
+                    self._l.warning(f"{rfp} is not in catalog cache - not adding break points.")
             connection.commit()
 
     def get_breaks(self, fname):
