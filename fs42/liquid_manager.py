@@ -29,16 +29,14 @@ class PlayPoint:
 
 class LiquidManager(object):
     __we_are_all_one = {}
+    _initialized = False
     station_configs = []
 
     # NOTE: This is the borg singleton pattern - __we_are_all_one
-    def __new__(cls, *args, **kwargs):
-        obj = super(LiquidManager, cls).__new__(cls, *args, **kwargs)
-        obj.__dict__ = cls.__we_are_all_one
-        return obj
-
     def __init__(self):
-        if not len(self.station_configs):
+        self.__dict__ = self.__we_are_all_one
+        if not self._initialized:
+            self._initialized = True
             self.reload_schedules()
 
     def reload_schedules(self):

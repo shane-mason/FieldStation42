@@ -78,11 +78,8 @@ class ShowCatalog:
                     self.sequences = {}
                 self._build_tags()
             except AttributeError:
-                # print error message in red
-                print(
-                    "\033[91m" + "Error loading catalogs - this means you probably need to update your catalog format"
-                )
-                print("Please rebuild catalogs by running station_42.py --rebuild_catalog" + "\033[0m")
+                self._l.error("Error loading catalogs - this means you probably need to update your catalog format")
+                self._l.error("Please rebuild catalogs by running station_42.py --rebuild_catalog")
                 sys.exit(-1)
 
             self._l.debug("Catalog read read from file " + c_path)
@@ -116,7 +113,7 @@ class ShowCatalog:
         self._l.info(f"Checking for media in {self.config['content_dir']} for single directory")
         file_list = MediaProcessor._find_media(self.config["content_dir"])
         self.clip_index[tag] = MediaProcessor._process_media(file_list, tag)
-        self._l.info(f"Building complete - processed {len(self.config['content_dir'])} files")
+        self._l.info(f"Building complete - processed {len(file_list)} files")
         self._write_catalog()
 
     def _build_tags(self):
@@ -172,7 +169,7 @@ class ShowCatalog:
         for fp in end_bumps:
             path = f"{self.config['content_dir']}/{fp}"
             eb = MediaProcessor._process_media([path], "end_bumps", fluid=self.__fluid_builder)
-            if len(sb) == 1:
+            if len(eb) == 1:
                 self.clip_index["end_bumps"][fp] = eb[0]
             else:
                 self._l.error("Start bump specified but not found {fp}")
@@ -467,46 +464,61 @@ class ShowCatalog:
 
         return ReelBlock(start_candidate, reels, end_candidate)
 
-    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None):
+    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None):
+        target_break_duration = self.config["break_duration"]
+
+        if strict_count:
+            target_break_duration = length / strict_count
+
         remaining = length
         blocks = []
-        while remaining:
+        keep_going = True
+        while remaining and keep_going:
             block = self.make_reel_block(
-                when, use_bumpers, self.config["break_duration"], commercial_dir=commercial_dir, bump_dir=bump_dir
+                when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir
             )
 
             if (remaining - block.duration) > 0:
                 remaining -= block.duration
                 blocks.append(block)
+
+                if strict_count and len(blocks) >= strict_count:
+                    keep_going = False
+
             else:
-                # discard that block and fill using the tightest technique possible
-                keep_going = True
-                additional_reels = []
-                while remaining and keep_going:
-                    candidate = None
+                keep_going = False
 
-                    try:
-                        if not self.config["commercial_free"]:
-                            candidate = self.find_commercial(
-                                seconds=remaining, when=when, commercial_dir=commercial_dir
-                            )
-                        else:
-                            candidate = self.find_bump(remaining, when, "fill")
-                    except MatchingContentNotFound:
-                        if remaining > self.min_gap:
-                            self._l.warning(
-                                f"Could not find matching content for {remaining} seconds - will have a schedule gap"
-                            )
-                            # self._l.exception(e)
+        keep_going = True
 
-                    if candidate is not None:
-                        additional_reels.append(candidate)
-                        remaining -= candidate.duration
-                    else:
-                        keep_going = False
-                        remaining = 0
+        # discard that block and fill using the tightest technique possible
+        additional_reels = []
+        gap_count = 0
+        total_gap = 0
+        while remaining and keep_going:
+            candidate = None
+            try:
+                if not self.config["commercial_free"]:
+                    candidate = self.find_commercial(seconds=remaining, when=when, commercial_dir=commercial_dir)
+                else:
+                    candidate = self.find_bump(remaining, when, "fill")
+            except MatchingContentNotFound:
+                if remaining > self.min_gap:
+                    #self._l.warning(f"Could not find matching content for {remaining} seconds")
+                    gap_count += 1
+                    total_gap += remaining
 
-                blocks.append(ReelBlock(None, additional_reels, None))
+            if candidate:
+                additional_reels.append(candidate)
+                remaining -= candidate.duration
+            else:
+                keep_going = False
+                remaining = 0
+
+        if gap_count:
+            avg_gap = round(total_gap / gap_count, 3)
+            self._l.warning(f"Gaps at end of {gap_count} slots - average {avg_gap} seconds long.")
+
+        blocks.append(ReelBlock(None, additional_reels, None))
 
         return blocks
 

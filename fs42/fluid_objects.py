@@ -10,7 +10,7 @@ class FileRepoEntry:
             self.first_added: datetime.datetime = None
             self.last_mod: datetime.datetime = None
             self.last_checked: datetime.datetime = None
-            self.last_upates: datetime.datetime = None
+            self.last_updates: datetime.datetime = None
             self.meta = ""
         else:
             self.from_db_row(db_row)
@@ -29,7 +29,7 @@ class FileRepoEntry:
             self.first_added,
             self.last_mod,
             self.last_checked,
-            self.last_upates,
+            self.last_updates,
             self.meta,
         ) = row
 
@@ -41,7 +41,7 @@ class FileRepoEntry:
             self.first_added,
             self.last_mod,
             self.last_checked,
-            self.last_upates,
+            self.last_updates,
             self.meta,
         )
 
