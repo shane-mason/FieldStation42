@@ -21,7 +21,7 @@ class StationManager(object):
         "break_duration": 120,
     }
 
-    __filechecks = ["sign_off_video", "off_air_video", "standby_image"]
+    __filechecks = ["sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
 
     # public visible - be careful
     stations = []

@@ -47,7 +47,7 @@ class ShowCatalog:
         self.tags = []
 
         self.__fluid_builder = None
-        self.min_gap = 10
+        self.min_gap = 3
         if rebuild_catalog:
             self.build_catalog()
         elif load:
@@ -502,15 +502,20 @@ class ShowCatalog:
                     candidate = self.find_bump(remaining, when, "fill")
             except MatchingContentNotFound:
                 if remaining > self.min_gap:
-                    self._l.debug(f"Could not find matching content for {remaining} seconds")
+                    self._l.debug(
+                        f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
+                    )
                     pass
             if candidate:
                 additional_reels.append(candidate)
                 remaining -= candidate.duration
             else:
+                # If BRB is enabled, we'll use that to fill the remaining gap
+                if remaining > self.min_gap and "be_right_back_media" in self.config:
+                    brb = CatalogEntry(self.config["be_right_back_media"], duration=remaining, tag="brb")
+                    additional_reels.append(brb)
                 keep_going = False
                 remaining = 0
-
 
         blocks.append(ReelBlock(None, additional_reels, None))
 

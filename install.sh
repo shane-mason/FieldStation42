@@ -63,6 +63,7 @@ fi
 echo Setting up runtime directory
 cp docs/static.mp4 runtime
 cp docs/standby.png runtime
+cp docs/brb.png runtime
 cp docs/off_air_pattern.mp4 runtime
 cp docs/signoff.mp4 runtime
 
