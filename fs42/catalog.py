@@ -474,11 +474,16 @@ class ShowCatalog:
         blocks = []
         keep_going = True
         while remaining and keep_going:
-            block = self.make_reel_block(
-                when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir
-            )
+            try:
+                block = self.make_reel_block(
+                    when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir
+                )
+            except MatchingContentNotFound:
+                self._l.debug(
+                    f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
+                )                
 
-            if (remaining - block.duration) > 0:
+            if block and (remaining - block.duration) > 0:
                 remaining -= block.duration
                 blocks.append(block)
 
@@ -505,7 +510,7 @@ class ShowCatalog:
                     self._l.debug(
                         f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
                     )
-                    pass
+                   
             if candidate:
                 additional_reels.append(candidate)
                 remaining -= candidate.duration
