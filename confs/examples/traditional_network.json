@@ -19,6 +19,7 @@
     "sign_off_video": "runtime/signoff.mp4",
     "off_air_video": "runtime/off_air_pattern.mp4",
     "standby_image": "runtime/standby.png",
+    "be_right_back_media" : "runtime/brb.png",
 
     "monday": {
         "7": {"tags": "morning"},
