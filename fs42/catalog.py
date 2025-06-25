@@ -313,7 +313,8 @@ class ShowCatalog:
         for tag in self.clip_index:
             if tag not in ["sign_off", "off_air"]:
                 for item in self.clip_index[tag]:
-                    if item.duration < 1:
+                    
+                    if hasattr(item, 'duration') and item.duration < 1:
                         too_short.append(item)
 
         if len(too_short):
@@ -474,6 +475,7 @@ class ShowCatalog:
         blocks = []
         keep_going = True
         while remaining and keep_going:
+            block = None
             try:
                 block = self.make_reel_block(
                     when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir
