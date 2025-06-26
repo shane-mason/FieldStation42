@@ -51,7 +51,7 @@ class WelcomeScreen(Screen):
             network_name = station["network_name"]
             text += f"## Network: {network_name} - Channel #{station['channel_number']} ({station['network_type']})\n"
 
-            if "catalog_path" in station and station["network_type"] not in StationManager().no_catalogs:
+            if "catalog_path" in station and station["network_type"] not in StationManager().no_catalog:
                 catalog_exists = False
                 try:
                     cat = ShowCatalog(station, False)
@@ -75,7 +75,7 @@ class WelcomeScreen(Screen):
                     else:
                         text += "* Schedule not found. After building the catalog, click 'Manage Schedules' to generate schedules."
             else:
-                if station["network_type"] in StationManager().no_catalogs:
+                if station["network_type"] in StationManager().no_catalog:
                     text += f"* {station['network_type']} channels do not have catalogs or schedules\n"
                 else:
                     text += "* Catalog not configured or missing - check channel configuration."
