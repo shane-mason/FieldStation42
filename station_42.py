@@ -46,7 +46,6 @@ def print_outcome(success_messages, failure_messages, console):
 
 
 def build_parser():
-
     parser = argparse.ArgumentParser(
         description="FieldStation42 Catalog and Liquid-Schedule Generation"
     )
@@ -136,6 +135,7 @@ def build_parser():
     )
     return parser
 
+
 def main():
     _l = logging.getLogger("Station42")
     success_messages = []
@@ -155,7 +155,6 @@ def main():
                 else:
                     raise ValueError(f"Can't find station by name: {arg}")
         return _rebuild_list
-
 
     execution_start_time = datetime.datetime.now()
     parser = build_parser()
@@ -196,7 +195,9 @@ def main():
             try:
                 _l.info(f"Printing catalog for {conf['network_name']}")
                 print(Station42(conf, False).get_text_listing())
-                success_messages.append(f"I printed the catalog for {conf['network_name']}")
+                success_messages.append(
+                    f"I printed the catalog for {conf['network_name']}"
+                )
             except Exception as e:
                 console.print(
                     f"[red]Error printing catalog for {conf['network_name']}: {e}[/red]"
@@ -207,7 +208,9 @@ def main():
                 )
         else:
             _l.error(f"Can't find station by name: {args.printcat}")
-            failure_messages.append(f"Can't find station by name to print catalog: {args.printcat}")
+            failure_messages.append(
+                f"Can't find station by name to print catalog: {args.printcat}"
+            )
         print_outcome(success_messages, failure_messages, console)
         return
     elif args.print_schedule:

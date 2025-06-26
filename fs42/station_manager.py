@@ -25,7 +25,8 @@ class StationManager(object):
 
     # public visible - be careful
     stations = []
-    no_catalogs = {"guide", "streaming"}
+    no_catalog = {"guide", "streaming"}
+    no_schedule = {"guide", "streaming"}
     main_config = "confs/main_config.json"
 
     # NOTE: This is the borg singleton pattern - __we_are_all_one
@@ -61,6 +62,21 @@ class StationManager(object):
                 station = self.stations[i]
                 if station["network_type"] == "standard":
                     self.stations[i] = SlotReader.smooth_tags(station)
+
+                if station["network_type"] == "guide":
+                    logging.getLogger().info("Loading and checking guide channel")
+                    from fs42.guide_tk import GuideWindowConf
+
+                    gconf = GuideWindowConf()
+                    errors = gconf.check_config(station)
+                    if len(errors):
+                        logging.getLogger().error("Errors found in Guide Channel configuration:")
+                        for err in errors:
+                            logging.getLogger().error(err)
+                        logging.getLogger().error("Please check your configuration and try agian.")
+                        exit(-1)
+                    else:
+                        logging.getLogger().info("Guide channel checks completed.")
 
     def station_by_name(self, name):
         if name in self._name_index:
@@ -198,6 +214,18 @@ class StationManager(object):
                             clip_dict[clip_tag] = {"tags": clip_tag, "duration": target_seconds}
 
                         d["station_conf"]["clip_shows"] = clip_dict
+
+                        # add some metadata that we can use later
+                        if d["station_conf"]["network_type"] in self.no_catalog:
+                            d["station_conf"]["_has_catalog"] = False
+                        else:
+                            d["station_conf"]["_has_catalog"] = True
+
+                        if d["station_conf"]["network_type"] in self.no_schedule:
+                            d["station_conf"]["_has_schedule"] = False
+                        else:
+                            d["station_conf"]["_has_schedule"] = True
+
                         station_buffer.append(d["station_conf"])
 
                     except Exception as e:

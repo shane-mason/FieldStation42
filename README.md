@@ -17,6 +17,8 @@ Cable and broadcast TV simulator intended to provide an authentic experience of 
 * Per-station configuration of station sign-off video and off-air loops
 * User interface to manage catalogs and schedules
 * Optional hardware connections to change the channel
+* Built in web-based remote control
+* On-Screen display with channel name, time, and date and customizable icons
 * Looping channels - useful for community bulletin channels
 * Preview/guide channel with embedded video and configurable messages
     * This is a new feature - documentation in progress in the [FieldStation42 Guide](https://github.com/shane-mason/FieldStation42/wiki)

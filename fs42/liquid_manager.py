@@ -2,6 +2,7 @@ import os
 import pickle
 import datetime
 import sys
+import logging
 
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
@@ -51,11 +52,11 @@ class LiquidManager(object):
                         try:
                             self.schedules[_id] = pickle.load(f)
                         except ModuleNotFoundError:
-                            print(
+                            logging.getLogger("liquid").error(
                                 "\033[91m"
                                 + "Error loading schedule - this means you probably need to update your schedule format"
                             )
-                            print(
+                            logging.getLogger("liquid").error(
                                 "Please update your schedules by running station_42.py -x and then regenerating. Cheers!"
                                 + "\033[0m"
                             )
@@ -71,13 +72,22 @@ class LiquidManager(object):
 
     def reset_all_schedules(self):
         for station_config in self.station_configs:
-            if station_config["network_type"] != "guide" and station_config["network_type"] != "streaming":
+            if station_config["_has_schedule"]:
+                logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
                 self.reset_sequences(station_config)
                 if os.path.exists(station_config["schedule_path"]):
                     os.unlink(station_config["schedule_path"])
         self.reload_schedules()
 
+    def reset_schedule(self, station_config):
+        if station_config["_has_schedule"]:
+            logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
+            self.reset_sequences(station_config)
+            if os.path.exists(station_config["schedule_path"]):
+                os.unlink(station_config["schedule_path"])
+
     def reset_sequences(self, station_config):
+        logging.getLogger("liquid").info(f"Resetting sequences for {station_config['network_name']}")
         # get the catalog
         catalog = ShowCatalog(station_config)
 
@@ -97,7 +107,6 @@ class LiquidManager(object):
                         # get the sequence
                         _sequence: series.SeriesIndex = catalog.sequences[_block.sequence_key]
                         # if its a sequence, then content is a catalog entry with a path
-                        print(f"resetting {_block.sequence_key}")
                         _sequence.reset_by_fpath(_block.content.path)
 
         catalog._write_catalog()
