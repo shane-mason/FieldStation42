@@ -52,7 +52,8 @@ class CatalogScreen(Screen):
                         for tag in catalog.clip_index:
                             if tag not in ["sign_off", "off_air"]:
                                 for item in catalog.clip_index[tag]:
-                                    self.dt.add_row(item.title, item.tag, item.duration, ",".join(map(str, item.hints)))
+                                    if not isinstance(item, str):
+                                        self.dt.add_row(item.title, item.tag, item.duration, ",".join(map(str, item.hints)))
                     except FileNotFoundError:
                         self.dt.clear(True)
                         self.dt.add_column("Catalog not found.")
