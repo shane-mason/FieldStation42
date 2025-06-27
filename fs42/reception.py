@@ -94,6 +94,6 @@ class ColorInvertedScrambledVideoFilter(ScrambledVideoFilter):
         
         if random.random() > .95:
             self.chaos = random.randint(8,12)
-        print("here")
+
         return f"lavfi=[geq='if(mod(floor(Y/{self.chaos}),2),255-p(X,Y),p(X,Y))']"
 
