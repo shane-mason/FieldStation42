@@ -57,7 +57,6 @@ class PlayStatus(Enum):
     SUCCESS = 3
     CHANNEL_CHANGE = 4
 
-
 class PlayerOutcome:
     def __init__(self, status=PlayStatus.SUCCESS, payload=None):
         self.status = status
@@ -65,6 +64,19 @@ class PlayerOutcome:
 
 
 class StationPlayer:
+
+    scramble_effects = {
+        "horizontal_line" : "lavfi=[geq='if(mod(floor(Y/4),2),p(X,Y+20*sin(2*PI*X/50)),p(X,Y))']",
+        "diagonal_lines" : "lavfi=[geq='p(X+10*sin(2*PI*Y/30),Y)']",
+        "static_overlay" : "lavfi=[geq='if(gt(random(X+Y*W),0.85),128+127*random(X*Y),if(mod(floor(Y/4),2),p(X+20,Y),p(X,Y)))']", 
+        "pixel_block" : "lavfi=[scale=160:120,scale=640:480:flags=neighbor,geq='if(gt(random(floor(X/40)*floor(Y/30)),0.7),128,p(X,Y))']",
+        "color_inversion" : "lavfi=[geq='if(mod(floor(Y/16),2),255-p(X,Y),p(X,Y))']", 
+        "severe_noise" : "lavfi=[geq='if(gt(random(X*Y),0.7),random(255),p(X,Y))']",
+        "wavy" : "lavfi=[geq='p(X+15*sin(2*PI*Y/40),Y+10*cos(2*PI*X/60))']",
+        "random_block" : "lavfi=[geq='if(gt(random(floor(X/20)*floor(Y/20)),0.6),p(X+random(100)-20,Y+random(70)-20),p(X,Y))']"
+    }
+
+
     def __init__(self, station_config, mpv=None):
         self._l = logging.getLogger("FieldPlayer")
 
@@ -90,6 +102,7 @@ class StationPlayer:
         self.index = 0
         self.reception = ReceptionStatus()
         self.current_playing_file_path = None
+        self.skip_reception_check = False
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
@@ -152,6 +165,17 @@ class StationPlayer:
                 else:
                     self.mpv.keepaspect = True
 
+                if "video_scramble_fx" in self.station_config:
+                    if self.station_config["video_scramble_fx"] in self.scramble_effects:
+                        self.mpv.vf = self.scramble_effects[self.station_config["video_scramble_fx"]]
+                        self.skip_reception_check = True  
+                    else:
+                        self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
+                else:                
+                    self.skip_reception_check = False
+                    self.mpv.vf = ""
+
+                    # self.mpv.vf = "lavfi=[]"  
                 self._l.info(f"playing {file_path}")
                 self.mpv.play(file_path)
                 self.mpv.wait_for_property("duration")
@@ -262,7 +286,8 @@ class StationPlayer:
                     keep_waiting = True
                     stop_time = datetime.datetime.now() + datetime.timedelta(seconds=entry.duration - initial_skip)
                     while keep_waiting:
-                        self.update_reception()
+                        if not self.skip_reception_check:
+                            self.update_reception()
                         now = datetime.datetime.now()
 
                         if now >= stop_time:
