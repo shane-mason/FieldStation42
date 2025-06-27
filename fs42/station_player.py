@@ -113,12 +113,12 @@ class StationPlayer:
     def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False):
         try:
             if os.path.exists(file_path) or is_stream:
-                self._l.info(f"%%%Attempting to play {file_path}")
+                self._l.debug(f"%%%Attempting to play {file_path}")
                 self.current_playing_file_path = file_path
                 basename = os.path.basename(file_path)
                 title, _ = os.path.splitext(basename)
                 if self.station_config:
-                    self._l.info("%%%Got station config, updating status socket")
+                    self._l.debug("Got station config, updating status socket")
                     if "date_time_format" in StationManager().server_conf:
                         ts_format = StationManager().server_conf["date_time_format"]
                     else:
