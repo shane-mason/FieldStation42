@@ -67,9 +67,33 @@ class HLScrambledVideoFilter(ScrambledVideoFilter):
     def update_filter(self):
         
         if random.random() > .95:
-            self.chaos = random.randint(30,80)
+            self.chaos = random.randint(40,70)
         if random.random() > .9:
             self.chaos = random.randint(10,30)
         return f"lavfi=[geq='if(mod(floor(Y/4),2),p(X,Y+{self.thrust}*sin(2*PI*X/{self.chaos})),p(X,Y))']"
 
+class DiagonalScrambledVideoFilter(ScrambledVideoFilter):
+    def __init__(self):
+        self.chaos = 50
+        self.thrust = 20
+
+    def update_filter(self):
+        
+        if random.random() > .95:
+            self.chaos = random.randint(5,15)
+        if random.random() > .9:
+            self.chaos = random.randint(20,40)
+        return f"lavfi=[geq='p(X+{self.chaos}*sin(2*PI*Y/{self.thrust}),Y)']"
+
+class ColorInvertedScrambledVideoFilter(ScrambledVideoFilter):
+    def __init__(self):
+        self.chaos = 50
+        self.thrust = 20
+
+    def update_filter(self):
+        
+        if random.random() > .95:
+            self.chaos = random.randint(8,12)
+        print("here")
+        return f"lavfi=[geq='if(mod(floor(Y/{self.chaos}),2),255-p(X,Y),p(X,Y))']"
 

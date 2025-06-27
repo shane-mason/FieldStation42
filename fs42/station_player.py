@@ -10,7 +10,7 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
-from fs42.reception import ReceptionStatus, HLScrambledVideoFilter
+from fs42.reception import ReceptionStatus, HLScrambledVideoFilter, DiagonalScrambledVideoFilter, ColorInvertedScrambledVideoFilter
 from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, ScheduleQueryNotInBounds
 
 from fs42.liquid_schedule import LiquidSchedule
@@ -172,6 +172,10 @@ class StationPlayer:
                         self.skip_reception_check = True  
                         if self.station_config["video_scramble_fx"] == "horizontal_line":
                             self.scrambler = HLScrambledVideoFilter()
+                        elif self.station_config["video_scramble_fx"] == "diagonal_lines":
+                            self.scrambler = DiagonalScrambledVideoFilter()
+                        elif self.station_config["video_scramble_fx"] == "color_inversion":
+                            self.scrambler = ColorInvertedScrambledVideoFilter()
                     else:
                         self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
                 else:                
