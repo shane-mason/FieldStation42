@@ -144,6 +144,14 @@ class StationPlayer:
 
                 if "panscan" in self.station_config:
                     self.mpv.panscan = self.station_config["panscan"]
+                else:
+                    self.mpv.panscan = 0.0
+
+                if "video_keepaspect" in self.station_config:
+                    self.mpv.keepaspect = self.station_config["video_keepaspect"]
+                else:
+                    self.mpv.keepaspect = True
+
                 self._l.info(f"playing {file_path}")
                 self.mpv.play(file_path)
                 self.mpv.wait_for_property("duration")

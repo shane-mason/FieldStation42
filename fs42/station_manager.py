@@ -23,11 +23,12 @@ class StationManager(object):
 
     __filechecks = ["sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
 
+    __main_config_path = "confs/main_config.json"
+
     # public visible - be careful
     stations = []
     no_catalog = {"guide", "streaming"}
     no_schedule = {"guide", "streaming"}
-    main_config = "confs/main_config.json"
 
     # NOTE: This is the borg singleton pattern - __we_are_all_one
     def __new__(cls, *args, **kwargs):
@@ -52,6 +53,8 @@ class StationManager(object):
                     },
                     "time_format": "%H:%M",
                     "date_time_format": "%Y-%m-%dT%H:%M:%S",
+                    "db_path": "runtime/fs42_fluid.db",
+                    "start_mpv": True
                 }
                 self._number_index = {}
                 self._name_index = {}
@@ -101,14 +104,16 @@ class StationManager(object):
 
     def load_main_config(self):
         _l = logging.getLogger("STATIONMANAGER")
-        if os.path.exists(StationManager.main_config):
-            with open(StationManager.main_config) as f:
+        if os.path.exists(StationManager.__main_config_path):
+            with open(StationManager.__main_config_path) as f:
                 try:
+                    to_check = ["channel_socket", "status_socket", "time_format", "start_mpv", "db_path"]
                     d = json.load(f)
-                    if "channel_socket" in d:
-                        self.server_conf["channel_socket"] = d["channel_socket"]
-                    if "status_socket" in d:
-                        self.server_conf["status_socket"] = d["status_socket"]
+
+                    for key in to_check:
+                        if key in d:
+                            self.server_conf[key] = d[key]
+
                     if "day_parts" in d:
                         new_parts = {}
                         for key in d["day_parts"]:
@@ -129,25 +134,17 @@ class StationManager(object):
                                     hour += 1
                                 new_parts[key] = hours
                         self.server_conf["day_parts"] = new_parts
+
                     if "date_time_format" not in d:
                         # check the environment variable or set default then
                         self.server_conf["date_time_format"] = os.environ.get("FS42_TS", "%Y-%m-%dT%H:%M:%S")
                     else:
                         self.server_conf["date_time_format"] = d["date_time_format"]
-                    if "time_format" in d:
-                        self.server_conf["time_format"] = d["time_format"]
-                    else:
-                        self.server_conf["time_format"] = "%H:%M"
-
-                    if "start_mpv" in d:
-                        self.server_conf["start_mpv"] = d["start_mpv"]
-                    else:
-                        self.server_conf["start_mpv"] = True
 
                 except Exception as e:
                     print(e)
                     _l.exception(e)
-                    _l.error(f"Error loading main config overrides from {StationManager.main_config}")
+                    _l.error(f"Error loading main config overrides from {StationManager.__main_config_path}")
                     exit(-1)
         # else skip, no over rides
 
@@ -156,7 +153,7 @@ class StationManager(object):
         cfiles = glob.glob("confs/*.json")
         station_buffer = []
         for fname in cfiles:
-            if fname != StationManager.main_config:
+            if fname != StationManager.__main_config_path:
                 with open(fname) as f:
                     try:
                         d = json.load(f)

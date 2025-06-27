@@ -7,11 +7,13 @@ sys.path.append(os.getcwd())
 
 from fs42.fluid_statements import FluidStatements
 from fs42.media_processor import MediaProcessor
-
+from fs42.station_manager import StationManager
 
 class FluidBuilder:
-    def __init__(self, db_path="runtime/fs42_fluid.db"):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        if db_path is None:
+            self.db_path = StationManager().server_conf["db_path"]
+
         self._l = logging.getLogger("FLUID")
         with sqlite3.connect(self.db_path) as connection:
             FluidStatements.init_db(connection)
