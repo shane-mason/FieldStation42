@@ -1,3 +1,4 @@
+import random
 class ReceptionStatus(object):
     __we_are_all_one = {}
     chaos = 0
@@ -50,3 +51,25 @@ class ReceptionStatus(object):
             return f"lavfi=[noise=alls={noise}:allf=t+u, scroll=h=0:v={v_scroll}]"
         else:
             return ""
+
+class ScrambledVideoFilter(object):
+    def __init__(self):
+        pass
+    
+    def update_filter(self):
+        return ""
+
+class HLScrambledVideoFilter(ScrambledVideoFilter):
+    def __init__(self):
+        self.chaos = 50
+        self.thrust = 20
+
+    def update_filter(self):
+        
+        if random.random() > .95:
+            self.chaos = random.randint(30,80)
+        if random.random() > .9:
+            self.chaos = random.randint(10,30)
+        return f"lavfi=[geq='if(mod(floor(Y/4),2),p(X,Y+{self.thrust}*sin(2*PI*X/{self.chaos})),p(X,Y))']"
+
+

@@ -10,7 +10,7 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
-from fs42.reception import ReceptionStatus
+from fs42.reception import ReceptionStatus, HLScrambledVideoFilter
 from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, ScheduleQueryNotInBounds
 
 from fs42.liquid_schedule import LiquidSchedule
@@ -103,6 +103,7 @@ class StationPlayer:
         self.reception = ReceptionStatus()
         self.current_playing_file_path = None
         self.skip_reception_check = False
+        self.scrambler = None
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
@@ -169,11 +170,14 @@ class StationPlayer:
                     if self.station_config["video_scramble_fx"] in self.scramble_effects:
                         self.mpv.vf = self.scramble_effects[self.station_config["video_scramble_fx"]]
                         self.skip_reception_check = True  
+                        if self.station_config["video_scramble_fx"] == "horizontal_line":
+                            self.scrambler = HLScrambledVideoFilter()
                     else:
                         self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
                 else:                
                     self.skip_reception_check = False
                     self.mpv.vf = ""
+                    self.scrambler = None
 
                     # self.mpv.vf = "lavfi=[]"  
                 self._l.info(f"playing {file_path}")
@@ -288,6 +292,10 @@ class StationPlayer:
                     while keep_waiting:
                         if not self.skip_reception_check:
                             self.update_reception()
+                        else:
+                            if self.scrambler:
+                                self.mpv.vf = self.scrambler.update_filter()
+                                
                         now = datetime.datetime.now()
 
                         if now >= stop_time:
