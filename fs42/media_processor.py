@@ -17,7 +17,7 @@ from fs42.catalog_entry import CatalogEntry
 
 
 class MediaProcessor:
-    supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v"]
+    supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v", "webm", "wmv"]
 
     def process_one(fname, tag, hints, fluid=None) -> CatalogEntry:
         _l = logging.getLogger("MEDIA")
