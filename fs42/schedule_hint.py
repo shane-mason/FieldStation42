@@ -33,6 +33,12 @@ class DayPartHint:
 
     def __str__(self):
         return f"{self.part_name}"
+    
+    def toJSON(self):
+        return {"type": "day_part", "part": self.part_name}
+    
+    def fromJSON(json_data):
+        return DayPartHint(json_data["part"])
 
 
 class BumpHint:
@@ -52,6 +58,12 @@ class BumpHint:
 
     def __str__(self):
         return f"bump:{self.where}"
+    
+    def toJSON(self):
+        return {"type": "bump", "where": self.where}
+    
+    def fromJSON(json_data):
+        return BumpHint(json_data["where"])
 
 
 class MonthHint:
@@ -69,7 +81,12 @@ class MonthHint:
 
     def __str__(self):
         return self.month_name
+    
+    def toJSON(self):
+        return {"type": "month", "month": self.month_name}
 
+    def fromJSON(json_data):
+        return MonthHint(json_data["month"])
 
 class QuarterHint:
     pattern = re.compile("^[q|Q][1-4]$")
@@ -95,6 +112,12 @@ class QuarterHint:
 
     def __str__(self):
         return self.quarter_name
+    
+    def toJSON(self):
+        return {"type": "quarter", "quarter": self.quarter_name}
+    
+    def fromJSON(json_data):
+        return QuarterHint(json_data["quarter"])
 
 
 class RangeHint:
@@ -107,6 +130,7 @@ class RangeHint:
     def __init__(self, range_string):
         self.start_date = None
         self.end_date = None
+        self.range_string = range_string
         if RangeHint.test_pattern(range_string):
             m = RangeHint.pattern.match(range_string)
             try:
@@ -165,3 +189,12 @@ class RangeHint:
 
     def __str__(self):
         return "range_hint"
+
+    def toJSON(self):
+        return {
+            "type": "range",
+            "range_string": self.start_date.strftime("%B %d"),
+        }
+    
+    def fromJSON(json_data):
+        return RangeHint(f"{json_data['range_string']}")

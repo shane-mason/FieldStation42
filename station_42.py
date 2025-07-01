@@ -9,6 +9,7 @@ from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.fluid_builder import FluidBuilder
+from fs42.sequence_api import SequenceAPI
 
 FF_USE_FLUID_FILE_CACHE = True
 
@@ -335,7 +336,7 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Scanning for new sequences for {station['network_name']}")
                 try:
-                    Station42(station, False).catalog.scan_sequences(False)
+                    SequenceAPI.scan_sequences(station)
                     success_messages.append(
                         f"Successfully scanned for new sequences for {station['network_name']}"
                     )
@@ -347,7 +348,7 @@ def main():
                     failure_messages.append(
                         f"Failed to scan for new sequences for {station['network_name']} - check logs."
                     )
-                Station42(station, False).catalog.scan_sequences(True)
+                
 
     if args.rebuild_sequences is not None:
         _rebuild_list = []
@@ -364,7 +365,7 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Rebuilding sequences for {station['network_name']}")
                 try:
-                    Station42(station, False).catalog.rebuild_sequences(False)
+                    SequenceAPI.rebuild_sequences(station)
                     success_messages.append(
                         f"Successfully rebuilt sequences for {station['network_name']}"
                     )
@@ -376,7 +377,6 @@ def main():
                     failure_messages.append(
                         f"Failed to rebuild sequences for {station['network_name']} - check logs."
                     )
-                Station42(station, False).catalog.rebuild_sequences(True)
 
     if args.break_detect_dir is not None:
         _l.info("Scanning for break detection points in media files...")

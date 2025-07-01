@@ -1,12 +1,11 @@
 import math
 
-
 class SequenceEntry:
-    def __init__(self, fpath, scheduled=[], last_played=None):
+    def __init__(self, fpath):
         self.fpath = str(fpath)
-        self.next_scheduled = scheduled
-        self.last_played = last_played
 
+    def __str__(self):
+        return f"SequenceEntry(fpath={self.fpath})"
 
 class SeriesIndex:
     def __init__(self, tag_path, start_point=0, end_point=1):
@@ -24,6 +23,12 @@ class SeriesIndex:
         self._start_perc = start_point
         self._end_perc = end_point
         self.__defaults()
+
+    def __str__(self):
+        a =  f"SeriesIndex({self.tag_path}, {self._start_perc}, {self._end_perc}) self._episodes={len(self._episodes)}, index={self._index})\n"
+        for episode in self._episodes:
+            a += f"  {episode}\n"
+        return a
 
     @staticmethod
     def make_key(series_name, sequence_name):
