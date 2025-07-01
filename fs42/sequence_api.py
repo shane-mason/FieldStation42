@@ -6,8 +6,6 @@ from fs42.sequence import NamedSequence, SequenceEntry
 
 class SequenceAPI:
 
-    
-
     @staticmethod
     def get_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
         _l = logging.getLogger("SEQUENCE")
@@ -42,9 +40,8 @@ class SequenceAPI:
     def rebuild_sequences(station_config):
         _l = logging.getLogger("SEQUENCE")
         _l.debug(f"Rebuilding sequences for {station_config['network_name']}")
-        sio = SequenceIO()
-        sio.delete_sequences_for_station(station_config["network_name"])
-        sio.scan_sequences(station_config)
+        SequenceAPI.delete_sequences(station_config)
+        SequenceAPI.scan_sequences(station_config)
         _l.debug(f"Rebuilt sequences for {station_config['network_name']}")
     
     @staticmethod
