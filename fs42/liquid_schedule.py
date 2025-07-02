@@ -144,6 +144,9 @@ class LiquidSchedule:
                         if next_seq:
                             candidate = self.catalog.entry_by_fpath(next_seq.fpath)
                         
+                        seq_key = SequenceAPI.make_sequence_key(
+                            self.conf, seq_name, tag_str
+                        )
                     else:
                         candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
 
