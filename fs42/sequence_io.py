@@ -36,6 +36,7 @@ class SequenceIO:
                                 FOREIGN KEY(named_sequence_id) REFERENCES named_sequence(id)
                             )""")
             cursor.close()
+            connection.commit()
 
     def put_sequence(self,  station_name: str, named_sequence):
         """
@@ -81,6 +82,7 @@ class SequenceIO:
                            (named_sequence_id,))
             file_paths = [row[0] for row in cursor.fetchall()]
             
+
             ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths)
  
             return ns
@@ -101,13 +103,12 @@ class SequenceIO:
     # make a function to update the current index of a sequence
     def update_current_index(self, station_name: str, sequence_name: str, tag_path: str, new_index: int):
         with sqlite3.connect(self.db_path) as connection:
-            print("Updating current index for sequence:", sequence_name, "at tag path:", tag_path, "to new index:", new_index)
             cursor = connection.cursor()
-            ret = cursor.execute("""UPDATE named_sequence 
+            cursor.execute("""UPDATE named_sequence 
                               SET current_index = ? 
                               WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
                            (new_index, station_name, sequence_name, tag_path))
-            print("Rows affected:", ret.rowcount)
+            cursor.close()
             connection.commit()
 
     

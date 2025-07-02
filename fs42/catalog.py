@@ -200,7 +200,6 @@ class ShowCatalog:
             total_count += 1
 
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
-        print(self.clip_index)
         self._build_tags()
         self._write_catalog()
 

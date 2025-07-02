@@ -17,8 +17,6 @@ class NamedSequence:
         self.current_index = current_index
         self.episodes = []  # Initialize episodes as an empty list
         self.populate(file_list)  # Populate episodes with the provided file list
-        self.start_index = math.floor(self.start_perc * (len(self.episodes)))
-        self.end_index = math.floor(self.end_perc * (len(self.episodes)))
         
     def __str__(self):
         return f"NamedSequence(station={self.station_name}, sequence={self.sequence_name}, tag={self.tag_path}, start={self.start_perc}, end={self.end_perc}, index={self.current_index})"
@@ -33,7 +31,6 @@ class NamedSequence:
         self.episodes = sorted(self.episodes, key=lambda entry: entry.fpath)
         self.start_index = math.floor(self.start_perc * (len(self.episodes)))
         self.end_index = math.floor(self.end_perc * (len(self.episodes)))
-        self.current_index = self.start_index
         
     def get_series_length(self):
         return len(self._episodes)

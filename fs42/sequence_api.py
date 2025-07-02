@@ -25,7 +25,6 @@ class SequenceAPI:
 
     @staticmethod
     def get_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
-        print(f"Getting next in sequence {sequence_name} for {station_config['network_name']} at {tag_path}")
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()
         seq = sio.get_sequence(station_config["network_name"], sequence_name, tag_path)
@@ -36,15 +35,12 @@ class SequenceAPI:
             return None
 
         if seq.current_index < seq.start_index or seq.current_index >= seq.end_index:
-            _l.info(f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}.")
+            _l.debug(f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}.")
             seq.current_index = seq.start_index
         
-        print(f"Current index for sequence {sequence_name} is {seq.current_index} of {len(seq.episodes)} episodes.")
         next_entry = seq.episodes[seq.current_index]
         seq.current_index += 1
-        print(f"Next entry in sequence {sequence_name} is {next_entry.fpath} at index {seq.current_index}.")
         sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
-        # sio.put_sequence(station_config["network_name"], seq)
         
         return next_entry
 
