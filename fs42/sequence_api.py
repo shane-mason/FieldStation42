@@ -4,12 +4,11 @@ from fs42.sequence_io import SequenceIO
 from fs42.media_processor import MediaProcessor
 from fs42.sequence import NamedSequence, SequenceEntry
 
-class SequenceAPI:
 
+class SequenceAPI:
     @staticmethod
     def make_sequence_key(station_config, sequence_name, tag_path) -> dict:
         return {"station_name": station_config["network_name"], "sequence_name": sequence_name, "tag_path": tag_path}
-
 
     @staticmethod
     def get_sequence(station_config, sequence_name, tag_path) -> NamedSequence:
@@ -20,7 +19,7 @@ class SequenceAPI:
         if not seq:
             _l.debug(f"Sequence {sequence_name} for {station_config['network_name']} not found.")
             return None
-        
+
         return seq
 
     @staticmethod
@@ -35,15 +34,16 @@ class SequenceAPI:
             return None
 
         if seq.current_index < seq.start_index or seq.current_index >= seq.end_index:
-            _l.debug(f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}.")
+            _l.debug(
+                f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}."
+            )
             seq.current_index = seq.start_index
-        
+
         next_entry = seq.episodes[seq.current_index]
         seq.current_index += 1
         sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
-        
-        return next_entry
 
+        return next_entry
 
     @staticmethod
     def reset_by_episode_path(station_config, sequence_name, tag_path, episode_path):
@@ -61,7 +61,7 @@ class SequenceAPI:
                 sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
                 _l.info(f"Reset sequence {sequence_name} to episode {episode_path} at index {index}.")
                 return True
-        
+
         _l.error(f"Episode path {episode_path} not found in sequence {sequence_name}.")
         return False
 
@@ -80,7 +80,7 @@ class SequenceAPI:
         SequenceAPI.delete_sequences(station_config)
         SequenceAPI.scan_sequences(station_config)
         _l.debug(f"Rebuilt sequences for {station_config['network_name']}")
-    
+
     @staticmethod
     def scan_sequences(station_config):
         for day in DAYS:
@@ -101,14 +101,11 @@ class SequenceAPI:
         seq_tag = this_tag
         seq_name = slot["sequence"]
 
-
         if seq_tag in station_config["clip_shows"]:
             _l.error(
                 f"Schedule logic error in {station_config['network_name']}: Clip shows are not currently supported as sequences"
             )
-            _l.error(
-                f"{seq_tag} is in the clip shows list, but is declared as a sequence on {this_tag} as {seq_name}"
-            )
+            _l.error(f"{seq_tag} is in the clip shows list, but is declared as a sequence on {this_tag} as {seq_name}")
             raise ValueError(
                 f"Schedule logic error in {station_config['network_name']}: Clip shows are not currently supported as sequences"
             )
@@ -125,11 +122,7 @@ class SequenceAPI:
             if "sequence_end" in slot:
                 seq_end = slot["sequence_end"]
 
-
             file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{seq_tag}")
-            
-            ns = NamedSequence(
-                station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list
-            )
+
+            ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list)
             SequenceIO().put_sequence(station_config["network_name"], ns)
-            

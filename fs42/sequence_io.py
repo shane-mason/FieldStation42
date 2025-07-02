@@ -1,13 +1,13 @@
-import sqlite3  
+import sqlite3
 
 from fs42.station_manager import StationManager
 from fs42.sequence import NamedSequence, SequenceEntry
+
 
 class SequenceIO:
     def __init__(self):
         self.db_path = StationManager().server_conf["db_path"]
         self._init_sequence_table()
-
 
     def _init_sequence_table(self):
         """
@@ -26,7 +26,7 @@ class SequenceIO:
                                 current_index INTEGER NOT NULL,
                                 UNIQUE(station, sequence_name, tag_path)
                             )""")
-            
+
             # now make a table to hold sequence entries
             cursor.execute("""CREATE TABLE IF NOT EXISTS sequence_entries (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,53 +38,64 @@ class SequenceIO:
             cursor.close()
             connection.commit()
 
-    def put_sequence(self,  station_name: str, named_sequence):
+    def put_sequence(self, station_name: str, named_sequence):
         """
         Store a SeriesIndex in the database.
         """
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
             # Insert or update the named sequence
-            cursor.execute("""INSERT OR REPLACE INTO named_sequence 
+            cursor.execute(
+                """INSERT OR REPLACE INTO named_sequence 
                               (station, sequence_name, tag_path, start_perc, end_perc, current_index) 
                               VALUES (?, ?, ?, ?, ?, ?)""",
-                           (station_name, named_sequence.sequence_name, named_sequence.tag_path,
-                            named_sequence.start_perc, named_sequence.end_perc, named_sequence.current_index))
+                (
+                    station_name,
+                    named_sequence.sequence_name,
+                    named_sequence.tag_path,
+                    named_sequence.start_perc,
+                    named_sequence.end_perc,
+                    named_sequence.current_index,
+                ),
+            )
             named_sequence_id = cursor.lastrowid
-            
+
             # Now insert the sequence entries
             for index, entry in enumerate(named_sequence.episodes):
-                cursor.execute("""INSERT INTO sequence_entries (fpath, sequence_index, named_sequence_id) 
+                cursor.execute(
+                    """INSERT INTO sequence_entries (fpath, sequence_index, named_sequence_id) 
                                   VALUES (?, ?, ?)""",
-                               (entry.fpath, index, named_sequence_id))
-            
+                    (entry.fpath, index, named_sequence_id),
+                )
+
             connection.commit()
 
-
     def get_sequence(self, station_name: str, sequence_name: str, tag_path: str) -> NamedSequence:
-
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
-            cursor.execute("""SELECT id, start_perc, end_perc, current_index 
+            cursor.execute(
+                """SELECT id, start_perc, end_perc, current_index 
                               FROM named_sequence 
                               WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
-                           (station_name, sequence_name, tag_path))
+                (station_name, sequence_name, tag_path),
+            )
             row = cursor.fetchone()
-            
+
             if row is None:
                 return None
-            
+
             named_sequence_id, start_perc, end_perc, current_index = row
-            
+
             # Now retrieve the sequence entries
-            cursor.execute("""SELECT fpath FROM sequence_entries 
+            cursor.execute(
+                """SELECT fpath FROM sequence_entries 
                               WHERE named_sequence_id = ? ORDER BY sequence_index""",
-                           (named_sequence_id,))
+                (named_sequence_id,),
+            )
             file_paths = [row[0] for row in cursor.fetchall()]
-            
 
             ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths)
- 
+
             return ns
 
     # a function to delete all sequences for a station
@@ -92,10 +103,12 @@ class SequenceIO:
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
             # Delete all sequence entries for the station
-            cursor.execute("""DELETE FROM sequence_entries 
+            cursor.execute(
+                """DELETE FROM sequence_entries 
                               WHERE named_sequence_id IN 
                               (SELECT id FROM named_sequence WHERE station = ?)""",
-                           (station_name,))
+                (station_name,),
+            )
             # Delete the named sequences for the station
             cursor.execute("""DELETE FROM named_sequence WHERE station = ?""", (station_name,))
             connection.commit()
@@ -104,11 +117,11 @@ class SequenceIO:
     def update_current_index(self, station_name: str, sequence_name: str, tag_path: str, new_index: int):
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
-            cursor.execute("""UPDATE named_sequence 
+            cursor.execute(
+                """UPDATE named_sequence 
                               SET current_index = ? 
                               WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
-                           (new_index, station_name, sequence_name, tag_path))
+                (new_index, station_name, sequence_name, tag_path),
+            )
             cursor.close()
             connection.commit()
-
-    

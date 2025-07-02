@@ -20,6 +20,7 @@ except ImportError:
 FF_USE_FLUID_FILE_CACHE = True
 FF_USE_CATAGLOG_DB = True
 
+
 class bcolors:
     HEADER = "\033[95m"
     OKBLUE = "\033[94m"
@@ -54,14 +55,11 @@ class ShowCatalog:
             self.load_catalog()
 
     def _write_catalog(self):
-
         # use the CatalogIO class to write to the database
         cat_io = CatalogIO()
-        cat_io.put_catalog_clip_list(self.config["network_name"], self.clip_index )
-
+        cat_io.put_catalog_clip_list(self.config["network_name"], self.clip_index)
 
     def load_catalog(self):
-
         if self.config["network_type"] == "streaming":
             return
 
@@ -233,8 +231,6 @@ class ShowCatalog:
                 count_added += len(self.clip_index[tag])
         return count_added
 
-
-
     def get_text_listing(self):
         content = "TITLE                | TAG        | Duration  | Hints\n"
         for tag in self.clip_index:
@@ -248,8 +244,7 @@ class ShowCatalog:
         for tag in self.clip_index:
             if tag not in ["sign_off", "off_air"]:
                 for item in self.clip_index[tag]:
-                    
-                    if hasattr(item, 'duration') and item.duration < 1:
+                    if hasattr(item, "duration") and item.duration < 1:
                         too_short.append(item)
 
         if len(too_short):
@@ -281,9 +276,8 @@ class ShowCatalog:
             return self.clip_index["end_bumps"][fp]
         return None
 
-
     def entry_by_fpath(self, fpath):
-        results =  CatalogIO().get_entry_by_path(self.config["network_name"], fpath)
+        results = CatalogIO().get_entry_by_path(self.config["network_name"], fpath)
         return results
 
     def _lowest_count(self, candidates):
@@ -402,7 +396,7 @@ class ShowCatalog:
             except MatchingContentNotFound:
                 self._l.debug(
                     f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
-                )                
+                )
 
             if block and (remaining - block.duration) > 0:
                 remaining -= block.duration
@@ -431,7 +425,7 @@ class ShowCatalog:
                     self._l.debug(
                         f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
                     )
-                   
+
             if candidate:
                 additional_reels.append(candidate)
                 remaining -= candidate.duration

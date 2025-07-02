@@ -3,6 +3,7 @@ import json
 
 from fs42 import schedule_hint
 
+
 class MatchingContentNotFound(Exception):
     pass
 
@@ -25,42 +26,37 @@ class CatalogEntry:
     def __str__(self):
         hints = list(map(str, self.hints))
         return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {hints} | {self.path}"
-    
+
     @staticmethod
     def from_db_row(row):
-
         (path, title, duration, tag, count, hints_str) = row
-
 
         entry = CatalogEntry(path, duration, tag, None)
         entry.count = count
 
-
         hints = []
         # Load hints from JSON
         if hints_str:
-
             try:
                 # Parse the JSON string back to list
                 loaded_hints = json.loads(hints_str)
-                
+
                 if not isinstance(loaded_hints, list):
                     loaded_hints = []
 
                 for hint_str in loaded_hints:
                     hint = json.loads(hint_str)
                     # Convert each hint JSON back to its object
-                    if isinstance(hint, dict) and 'type' in hint:
-
-                        if hint['type'] == 'day_part':
-                            hints.append(schedule_hint.DayPartHint(hint['part']))
-                        elif hint['type'] == 'bump':
-                            hints.append(schedule_hint.BumpHint(hint['where']))
-                        elif hint['type'] == 'range':
+                    if isinstance(hint, dict) and "type" in hint:
+                        if hint["type"] == "day_part":
+                            hints.append(schedule_hint.DayPartHint(hint["part"]))
+                        elif hint["type"] == "bump":
+                            hints.append(schedule_hint.BumpHint(hint["where"]))
+                        elif hint["type"] == "range":
                             hints.append(schedule_hint.RangeHint(hint["range_string"]))
-                        elif hint['type'] == 'quarter':
+                        elif hint["type"] == "quarter":
                             hints.append(schedule_hint.QuarterHint(hint["range_string"]))
-                        elif hint['type'] == 'month':
+                        elif hint["type"] == "month":
                             hints.append(schedule_hint.MonthHint(hint["month"]))
                         else:
                             print(f"Warning: Unknown hint type {hint['type']}. Skipping.")
