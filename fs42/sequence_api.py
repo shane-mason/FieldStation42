@@ -7,7 +7,25 @@ from fs42.sequence import NamedSequence, SequenceEntry
 class SequenceAPI:
 
     @staticmethod
+    def make_sequence_key(station_config, sequence_name, tag_path) -> dict:
+        return {"station_name": station_config["network_name"], "sequence_name": sequence_name, "tag_path": tag_path}
+
+
+    @staticmethod
+    def get_sequence(station_config, sequence_name, tag_path) -> NamedSequence:
+        _l = logging.getLogger("SEQUENCE")
+        sio = SequenceIO()
+        seq = sio.get_sequence(station_config["network_name"], sequence_name, tag_path)
+
+        if not seq:
+            _l.debug(f"Sequence {sequence_name} for {station_config['network_name']} not found.")
+            return None
+        
+        return seq
+
+    @staticmethod
     def get_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
+        print(f"Getting next in sequence {sequence_name} for {station_config['network_name']} at {tag_path}")
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()
         seq = sio.get_sequence(station_config["network_name"], sequence_name, tag_path)
@@ -18,15 +36,38 @@ class SequenceAPI:
             return None
 
         if seq.current_index < seq.start_index or seq.current_index >= seq.end_index:
-            _l.info(f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start.")
+            _l.info(f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}.")
             seq.current_index = seq.start_index
         
+        print(f"Current index for sequence {sequence_name} is {seq.current_index} of {len(seq.episodes)} episodes.")
         next_entry = seq.episodes[seq.current_index]
         seq.current_index += 1
-        
-        sio.put_sequence(station_config["network_name"], seq)
+        print(f"Next entry in sequence {sequence_name} is {next_entry.fpath} at index {seq.current_index}.")
+        sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
+        # sio.put_sequence(station_config["network_name"], seq)
         
         return next_entry
+
+
+    @staticmethod
+    def reset_by_episode_path(station_config, sequence_name, tag_path, episode_path):
+        _l = logging.getLogger("SEQUENCE")
+        sio = SequenceIO()
+        seq = sio.get_sequence(station_config["network_name"], sequence_name, tag_path)
+
+        if not seq:
+            _l.error(f"Sequence {sequence_name} for {station_config['network_name']} not found.")
+            return False
+
+        for index, entry in enumerate(seq.episodes):
+            if entry.fpath == episode_path:
+                seq.current_index = index
+                sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
+                _l.info(f"Reset sequence {sequence_name} to episode {episode_path} at index {index}.")
+                return True
+        
+        _l.error(f"Episode path {episode_path} not found in sequence {sequence_name}.")
+        return False
 
     @staticmethod
     def delete_sequences(station_config):
@@ -88,11 +129,11 @@ class SequenceAPI:
             if "sequence_end" in slot:
                 seq_end = slot["sequence_end"]
 
-            ns = NamedSequence(
-                station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0
-            )
 
             file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{seq_tag}")
-            ns.populate(file_list)
+            
+            ns = NamedSequence(
+                station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list
+            )
             SequenceIO().put_sequence(station_config["network_name"], ns)
             
