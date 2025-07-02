@@ -7,7 +7,7 @@ import logging
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
 from fs42.catalog import ShowCatalog
-from fs42 import series
+from fs42.sequence_api import SequenceAPI
 
 
 class ScheduleQueryNotInBounds(Exception):
@@ -92,6 +92,7 @@ class LiquidManager(object):
         catalog = ShowCatalog(station_config)
 
         _blocks: list[LiquidBlock] = self.schedules[station_config["network_name"]]
+
         now = datetime.datetime.now()
         _reaped = {}
 
@@ -99,15 +100,24 @@ class LiquidManager(object):
             # are we to now yet?
             if _block.start_time > now:
                 # does it have a sequence and is that sequence in the catalog?
-                if _block.sequence_key and _block.sequence_key in catalog.sequences:
+
+                if _block.sequence_key:
+                    # make sure its in the store
+                    seq = SequenceAPI.get_sequence(
+                        station_config, _block.sequence_key["sequence_name"], _block.sequence_key["tag_path"]
+                    )
                     # have we found it before?
-                    if _block.sequence_key not in _reaped:
+                    if seq and str(_block.sequence_key) not in _reaped:
                         # register that we found it
-                        _reaped[_block.sequence_key] = _block
-                        # get the sequence
-                        _sequence: series.SeriesIndex = catalog.sequences[_block.sequence_key]
-                        # if its a sequence, then content is a catalog entry with a path
-                        _sequence.reset_by_fpath(_block.content.path)
+                        _reaped[str(_block.sequence_key)] = _block
+
+                        
+                        SequenceAPI.reset_by_episode_path(
+                            station_config,
+                            _block.sequence_key["sequence_name"],
+                            _block.sequence_key["tag_path"],
+                            _block.content.path
+                        )
 
         catalog._write_catalog()
 
