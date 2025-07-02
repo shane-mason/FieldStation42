@@ -44,23 +44,6 @@ class CatalogIO():
             
             cursor.close()
     
-    def put_catalog_clip_list(self, station_name:str, clip_list):
-        flat_list = []
-
-        for tag in clip_list:
-            
-            try:
-                for entry in clip_list[tag]:
-                    if isinstance(entry, CatalogEntry):
-                        flat_list.append(entry)
-                    else:
-                        print(f"Warning: Entry {entry} on {tag} is not a CatalogEntry instance. Skipping.")
-                        
-            except Exception as e:
-                print(f"Error processing tag '{tag}': {e}")
-
-
-        self.put_catalog_entries(station_name, flat_list)
 
     def put_catalog_entries(self, station_name:str, catalog_entries:list[CatalogEntry]):
 
@@ -117,19 +100,7 @@ class CatalogIO():
             
             return catalog_entries
         
-    def get_catalog_clip_list(self, station_name: str):
-
-        catalog_entries = self.get_catalog_entries(station_name)
-        clip_list = {}
-        
-        for entry in catalog_entries:
-            if entry.tag not in clip_list:
-                clip_list[entry.tag] = []
-            clip_list[entry.tag].append(entry)
-        
-        return clip_list
-
-
+ 
     def delete_all_entries_for_station(self, station_name: str):
 
         with sqlite3.connect(self.db_path) as connection:

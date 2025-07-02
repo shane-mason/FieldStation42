@@ -2,7 +2,7 @@ import logging
 import sys
 import random
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
-from fs42.catalog_io import CatalogIO
+from fs42.catalog_api import CatalogAPI
 from fs42.timings import MIN_5, DAYS
 from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
@@ -55,16 +55,37 @@ class ShowCatalog:
             self.load_catalog()
 
     def _write_catalog(self):
-        # use the CatalogIO class to write to the database
-        cat_io = CatalogIO()
-        cat_io.put_catalog_clip_list(self.config["network_name"], self.clip_index)
+        # first, make them into a flat list
+        flat_list = []
+
+        for tag in self.clip_index:
+            try:
+                for entry in self.clip_index[tag]:
+                    if isinstance(entry, CatalogEntry):
+                        flat_list.append(entry)
+                    else:
+                        print(f"Warning: Entry {entry} on {tag} is not a CatalogEntry instance. Skipping.")
+                        
+            except Exception as e:
+                print(f"Error processing tag '{tag}': {e}")
+
+        CatalogAPI.set_entries(self.config, flat_list)
 
     def load_catalog(self):
         if self.config["network_type"] == "streaming":
             return
 
-        cat_io = CatalogIO()
-        self.clip_index = cat_io.get_catalog_clip_list(self.config["network_name"])
+        
+        catalog_entries = CatalogAPI.get_entries(self.config)
+        
+        self.clip_index = {}
+        
+        for entry in catalog_entries:
+            if entry.tag not in self.clip_index:
+                self.clip_index[entry.tag] = []
+            self.clip_index[entry.tag].append(entry)
+        
+        
 
     def build_catalog(self):
         self._l.info(f"Starting catalog build for {self.config['network_name']}")
@@ -260,7 +281,7 @@ class ShowCatalog:
         return None
 
     def get_offair(self):
-        all_offair = CatalogIO().get_by_tag(self.config["network_name"], "off_air")
+        all_offair = CatalogAPI.get_by_tag(self.config, "off_air")
         candidate = None
         if all_offair and len(all_offair):
             candidate = all_offair[0]
@@ -277,7 +298,7 @@ class ShowCatalog:
         return None
 
     def entry_by_fpath(self, fpath):
-        results = CatalogIO().get_entry_by_path(self.config["network_name"], fpath)
+        results = CatalogAPI.get_by_path(self.config, fpath)
         return results
 
     def _lowest_count(self, candidates):

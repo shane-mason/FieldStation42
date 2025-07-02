@@ -1,7 +1,7 @@
 import sqlite3
 
 from fs42.station_manager import StationManager
-from fs42.sequence import NamedSequence, SequenceEntry
+from fs42.sequence import NamedSequence
 
 
 class SequenceIO:
