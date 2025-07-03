@@ -12,7 +12,7 @@ from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
 from fs42.sequence_api import SequenceAPI
-
+from fs42.catalog_api import CatalogAPI
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -61,7 +61,7 @@ class LiquidSchedule:
             self._blocks = []
 
     def _save_blocks(self):
-        # save blocks to disk
+        # save blocks to disk for the player (for now)
         with open(self.conf["schedule_path"], "wb") as f:
             pickle.dump(self._blocks, f)
 
@@ -137,16 +137,12 @@ class LiquidSchedule:
                     # see if this is a series with a sequence defined
                     if "sequence" in slot_config:
                         seq_name = slot_config["sequence"]
-                        
-                        next_seq = SequenceAPI.get_next_in_sequence(
-                            self.conf, seq_name, tag_str
-                        )
+
+                        next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
                         if next_seq:
                             candidate = self.catalog.entry_by_fpath(next_seq.fpath)
-                        
-                        seq_key = SequenceAPI.make_sequence_key(
-                            self.conf, seq_name, tag_str
-                        )
+
+                        seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
                     else:
                         candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
 
@@ -155,7 +151,7 @@ class LiquidSchedule:
                         raise MatchingContentNotFound(
                             f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
                         )
-                        
+
                     else:
                         target_duration = self._calc_target_duration(candidate.duration)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
@@ -204,10 +200,16 @@ class LiquidSchedule:
             current_mark = next_mark
         self._l.info("Content and reel schedules are completed")
 
-        # now, make plans for all the blocks
+        # now, make plans for all the blocks and make list to update play counts
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
+        play_counts = []
         for block in new_blocks:
             block.make_plan(self.catalog)
+            if block.content:
+                # if the block has content, then we need to increment the play count
+                play_counts.append(block.content)
+
+        CatalogAPI.update_play_counts(self.conf, play_counts)
 
         self._blocks = self._blocks + new_blocks
         self._l.info("Saving blocks to disk")

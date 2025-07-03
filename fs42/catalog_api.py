@@ -28,3 +28,16 @@ class CatalogAPI:
     def get_by_path(station_config, path):
         return CatalogIO().get_entry_by_path(station_config["network_name"], path)
  
+    @staticmethod
+    def update_play_counts(station_config, entries: list[CatalogEntry]):
+        # flatten the entries list
+        flat = []
+        for entry in entries:
+            if isinstance(entry, list):
+                flat.extend(entry)
+            else:
+                flat.append(entry)
+        CatalogIO().batch_increment_counts(
+            station_config["network_name"],
+            flat
+        )

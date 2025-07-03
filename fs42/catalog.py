@@ -65,7 +65,7 @@ class ShowCatalog:
                         flat_list.append(entry)
                     else:
                         print(f"Warning: Entry {entry} on {tag} is not a CatalogEntry instance. Skipping.")
-                        
+
             except Exception as e:
                 print(f"Error processing tag '{tag}': {e}")
 
@@ -75,17 +75,14 @@ class ShowCatalog:
         if self.config["network_type"] == "streaming":
             return
 
-        
         catalog_entries = CatalogAPI.get_entries(self.config)
-        
+
         self.clip_index = {}
-        
+
         for entry in catalog_entries:
             if entry.tag not in self.clip_index:
                 self.clip_index[entry.tag] = []
             self.clip_index[entry.tag].append(entry)
-        
-        
 
     def build_catalog(self):
         self._l.info(f"Starting catalog build for {self.config['network_name']}")
@@ -336,7 +333,9 @@ class ShowCatalog:
                 err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
                 raise (MatchingContentNotFound(err))
             result = self._lowest_count(matches)
+            # note, this has been migrated
             result.count += 1
+            # CatalogAPI.set_play_count(self.config, result.path, result.count)
             return result
 
     def find_filler(self, seconds, when):
