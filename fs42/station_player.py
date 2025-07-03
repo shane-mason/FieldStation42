@@ -15,7 +15,7 @@ from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, Sche
 
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.station_manager import StationManager
-
+from fs42.slot_reader import SlotReader
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
 
@@ -166,22 +166,7 @@ class StationPlayer:
                 else:
                     self.mpv.keepaspect = True
 
-                if "video_scramble_fx" in self.station_config:
-                    if self.station_config["video_scramble_fx"] in self.scramble_effects:
-                        self.mpv.vf = self.scramble_effects[self.station_config["video_scramble_fx"]]
-                        self.skip_reception_check = True  
-                        if self.station_config["video_scramble_fx"] == "horizontal_line":
-                            self.scrambler = HLScrambledVideoFilter()
-                        elif self.station_config["video_scramble_fx"] == "diagonal_lines":
-                            self.scrambler = DiagonalScrambledVideoFilter()
-                        elif self.station_config["video_scramble_fx"] == "color_inversion":
-                            self.scrambler = ColorInvertedScrambledVideoFilter()
-                    else:
-                        self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
-                else:                
-                    self.skip_reception_check = False
-                    self.mpv.vf = ""
-                    self.scrambler = None
+                self._apply_vfx(datetime.datetime.now())
 
                     # self.mpv.vf = "lavfi=[]"  
                 self._l.info(f"playing {file_path}")
@@ -201,6 +186,37 @@ class StationPlayer:
                 f"Encountered unknown error attempting to play {file_path} - please check your configurations."
             )
             return False
+
+    def _apply_vfx(self, current_time):
+        vfx = None
+        if "video_scramble_fx" in self.station_config:
+            vfx = self.station_config["video_scramble_fx"]
+        
+        # check if one is set on the slot and override if so
+        slot = SlotReader.get_slot(self.station_config, current_time)
+        if slot and "video_scramble_fx" in slot:
+            if slot["video_scramble_fx"] in self.scramble_effects:
+                vfx = slot["video_scramble_fx"]
+            else:
+                vfx = None
+
+        
+        if vfx:
+            if vfx in self.scramble_effects:
+                self.mpv.vf = self.scramble_effects[vfx]
+                self.skip_reception_check = True  
+                if vfx == "horizontal_line":
+                    self.scrambler = HLScrambledVideoFilter()
+                elif vfx == "diagonal_lines":
+                    self.scrambler = DiagonalScrambledVideoFilter()
+                elif vfx == "color_inversion":
+                    self.scrambler = ColorInvertedScrambledVideoFilter()
+            else:
+                self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
+        else:                
+            self.skip_reception_check = False
+            self.mpv.vf = ""
+            self.scrambler = None
 
     def play_image(self, duration):
         pass
