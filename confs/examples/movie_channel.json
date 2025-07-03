@@ -17,6 +17,12 @@
     "be_right_back_media" : "runtime/brb.png",
 
     "monday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -34,15 +40,16 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
+
     },
     "tuesday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -60,15 +67,16 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
+
     },
     "wednesday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -86,15 +94,15 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
     },
     "thursday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -112,15 +120,15 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
     },
     "friday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -138,15 +146,15 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
     },
     "saturday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -164,15 +172,15 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
     },
     "sunday": {
+        "0": {"tags" : "90s-bmovie"},
+        "1": {"tags" : "blue-movie"},
+        "2": {"tags" : "blue-movie"},
+        "3": {"tags" : "blue-movie"},
+        "4": {"tags" : "80s-prime"},
+        "5": {"tags" : "80s-prime"},
         "6":  {"tags": "kids"},
         "7":  {"tags": "kids"},
         "8":  {"tags": "kids"},
@@ -190,13 +198,7 @@
         "20": {"tags" : "90s-prime"},
         "21": {"tags" : "90s-prime"},
         "22": {"tags" : "90s-prime"},
-        "23": {"tags" : "90s-prime"},
-        "0": {"tags" : "90s-bmovie"},
-        "1": {"tags" : "blue-movie"},
-        "2": {"tags" : "blue-movie"},
-        "3": {"tags" : "blue-movie"},
-        "4": {"tags" : "80s-prime"},
-        "5": {"tags" : "80s-prime"}
+        "23": {"tags" : "90s-prime"}
     }
 }
 }

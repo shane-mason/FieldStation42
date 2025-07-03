@@ -21,6 +21,10 @@
     "be_right_back_media" : "runtime/brb.png",
 
     "monday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -37,12 +41,14 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
+
     },
     "tuesday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -59,12 +65,13 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     },
     "wednesday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -81,12 +88,13 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     },
     "thursday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -103,12 +111,13 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     },
     "friday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -125,12 +134,13 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     },
     "saturday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -147,12 +157,13 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     },
     "sunday": {
+        "0": {"tags" : "general"},
+        "1": {"tags" : "general"},
+        "2": {"event" : "signoff"},
+
         "7": {"tags": "kids"},
         "8": {"tags": "kids"},
         "9": {"tags": "kids"},
@@ -169,9 +180,6 @@
         "20": {"tags" : "prime"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "general"},
-        "1": {"tags" : "general"},
-        "2": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     }
 }}

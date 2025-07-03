@@ -20,6 +20,13 @@
     "be_right_back_media" : "runtime/brb.png",
 
     "monday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -36,13 +43,17 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
+
     },
     "tuesday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -59,13 +70,16 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
     },
     "wednesday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -82,13 +96,16 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
     },
     "thursday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -105,13 +122,16 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
     },
     "friday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -128,13 +148,16 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
     },
     "saturday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -151,13 +174,16 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
     },
     "sunday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late"},
+        "2": {"tags" : "late"},
+        "3": {"tags" : "paid_program"},
+        "4": {"tags" : "paid_program"},
+        "5": {"tags" : "paid_program"},
+        "6": {"tags" : "paid_program"},
         "7":  {"tags": ["cartoon", "sitcom"]},
         "8":  {"tags": "cartoon"},
         "9":  {"tags": "sitcom"},
@@ -174,11 +200,7 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "movie"},
-        "23": {"tags" : "movie"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late"},
-        "2": {"tags" : "late"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "movie"}
     }
 }
 }

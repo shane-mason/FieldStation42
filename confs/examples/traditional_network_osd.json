@@ -28,6 +28,11 @@
     "multi_logo": "multi",
 
     "monday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late-late"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+
         "7": {"tags": "morning"},
         "8": {"tags": "morning"},
         "9": {"tags": "cartoon"},
@@ -44,13 +49,14 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "news"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late-late"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "news"}
     },
     "tuesday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late-late"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+        
         "7": {"tags": "morning"},
         "8": {"tags": "morning"},
         "9": {"tags": "cartoon"},
@@ -67,13 +73,14 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "news"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late-late"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "news"}
     },
     "wednesday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late-late"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+        
         "7": {"tags": "morning"},
         "8": {"tags": "morning"},
         "9": {"tags": "cartoon"},
@@ -90,13 +97,14 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "news"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late-late"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "news"}
     },
     "thursday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late-late"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+        
         "7": {"tags": "morning"},
         "8": {"tags": "morning"},
         "9": {"tags": "cartoon"},
@@ -113,13 +121,14 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "news"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late-late"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "news"}
     },
     "friday": {
+        "0": {"tags" : "late"},
+        "1": {"tags" : "late-late"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+        
         "7": {"tags": "morning"},
         "8": {"tags": "morning"},
         "9": {"tags": "cartoon"},
@@ -136,13 +145,14 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "prime"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "news"},
-        "0": {"tags" : "late"},
-        "1": {"tags" : "late-late"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "news"}
     },
     "saturday": {
+        "0": {"tags" : "snl"},
+        "1": {"tags" : "snl"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+
         "7": {"tags": "cartoon"},
         "8": {"tags": "cartoon"},
         "9": {"tags": "cartoon"},
@@ -159,13 +169,14 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "sitcom"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "news"},
-        "0": {"tags" : "snl"},
-        "1": {"tags" : "snl"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "news"}
     },
     "sunday": {
+        "0": {"tags" : "classic"},
+        "1": {"tags" : "classic"},
+        "2": {"tags" : "classic"},
+        "3": {"event" : "signoff"},
+
         "7": {"tags": "cartoon"},
         "8": {"tags": "cartoon"},
         "9": {"tags": "classic"},
@@ -182,11 +193,7 @@
         "20": {"tags" : "sitcom"},
         "21": {"tags" : "real_people"},
         "22": {"tags" : "prime"},
-        "23": {"tags" : "prime"},
-        "0": {"tags" : "classic"},
-        "1": {"tags" : "classic"},
-        "2": {"tags" : "classic"},
-        "3": {"event" : "signoff"}
+        "23": {"tags" : "prime"}
     }
 }
 }
