@@ -51,7 +51,7 @@ class GuideWindowConf:
         self.schedule_row_count = 3
 
         self.play_sound = False
-        self.sound_to_play = "runtime/guide/easy.mp3"
+        self.sound_to_play = None
         self.normalize_title = True
 
         self._calc_internals()
@@ -77,7 +77,8 @@ class GuideWindowConf:
         """Note: this should only be called from the startup checker since it merges the conf again"""
         self.merge_config(merge_conf)
         to_check = self.images
-        to_check.append(self.sound_to_play)
+        if self.play_sound:
+            to_check.append(self.sound_to_play) 
         errors = []
         for fp in to_check:
             if not os.path.exists(fp):
