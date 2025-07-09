@@ -1,13 +1,11 @@
-import os
-import pickle
 import datetime
-import sys
 import logging
 
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
 from fs42.catalog import ShowCatalog
 from fs42.sequence_api import SequenceAPI
+from fs42.liquid_api import LiquidAPI
 
 
 class ScheduleQueryNotInBounds(Exception):
@@ -46,23 +44,7 @@ class LiquidManager(object):
         for station in self.station_configs:
             if station["network_type"] != "guide" and station["network_type"] != "streaming":
                 _id = station["network_name"]
-                _path = station["schedule_path"]
-                if os.path.isfile(_path):
-                    with open(_path, "rb") as f:
-                        try:
-                            self.schedules[_id] = pickle.load(f)
-                        except ModuleNotFoundError:
-                            logging.getLogger("liquid").error(
-                                "\033[91m"
-                                + "Error loading schedule - this means you probably need to update your schedule format"
-                            )
-                            logging.getLogger("liquid").error(
-                                "Please update your schedules by running station_42.py -x and then regenerating. Cheers!"
-                                + "\033[0m"
-                            )
-                            sys.exit(-1)
-                else:
-                    self.schedules[_id] = []
+                self.schedules[_id] = LiquidAPI.get_blocks(station)
 
     def get_schedule_by_name(self, network_name):
         if network_name in self.schedules:
@@ -75,16 +57,15 @@ class LiquidManager(object):
             if station_config["_has_schedule"]:
                 logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
                 self.reset_sequences(station_config)
-                if os.path.exists(station_config["schedule_path"]):
-                    os.unlink(station_config["schedule_path"])
+                LiquidAPI.delete_blocks(station_config)
         self.reload_schedules()
 
     def reset_schedule(self, station_config):
         if station_config["_has_schedule"]:
             logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
             self.reset_sequences(station_config)
-            if os.path.exists(station_config["schedule_path"]):
-                os.unlink(station_config["schedule_path"])
+            LiquidAPI.delete_blocks(station_config)
+        self.reload_schedules()
 
     def reset_sequences(self, station_config):
         logging.getLogger("liquid").info(f"Resetting sequences for {station_config['network_name']}")
@@ -111,12 +92,11 @@ class LiquidManager(object):
                         # register that we found it
                         _reaped[str(_block.sequence_key)] = _block
 
-                        
                         SequenceAPI.reset_by_episode_path(
                             station_config,
                             _block.sequence_key["sequence_name"],
                             _block.sequence_key["tag_path"],
-                            _block.content.path
+                            _block.content.path,
                         )
 
         catalog._write_catalog()

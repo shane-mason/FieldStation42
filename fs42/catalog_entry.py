@@ -27,6 +27,30 @@ class CatalogEntry:
         hints = list(map(str, self.hints))
         return f"{self.title:<20.20} | {self.tag:<10.10} | {self.duration:<8.1f} | {hints} | {self.path}"
 
+    def toJSON(self):
+        # Convert the entry to a JSON serializable dictionary
+        return {
+            "path": self.path,
+            "title": self.title,
+            "duration": self.duration,
+            "tag": self.tag,
+            "count": self.count,
+            "hints": [hint.toJSON() for hint in self.hints],  # Convert each hint to JSON
+        }
+
+    @staticmethod
+    def from_json_dict(json_data):
+        # Create an entry from a JSON serializable dictionary
+        tup = (
+            json_data["path"],
+            json_data["title"],
+            json_data["duration"],
+            json_data["tag"],
+            json_data["count"],
+            json_data["hints"],
+        )
+        return CatalogEntry.from_db_row(tup)
+
     @staticmethod
     def from_db_row(row):
         (path, title, duration, tag, count, hints_str) = row

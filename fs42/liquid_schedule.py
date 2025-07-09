@@ -3,7 +3,6 @@ import sys
 
 sys.path.append(os.getcwd())
 import logging
-import pickle
 import datetime
 import math
 
@@ -13,6 +12,7 @@ from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
 from fs42.sequence_api import SequenceAPI
 from fs42.catalog_api import CatalogAPI
+from fs42.liquid_api import LiquidAPI
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -40,30 +40,10 @@ class LiquidSchedule:
         return multiple * math.floor(mark / multiple)
 
     def _load_blocks(self):
-        # load all the blocks from disk
-        s_path = self.conf["schedule_path"]
-        if os.path.isfile(s_path):
-            with open(s_path, "rb") as f:
-                try:
-                    self._blocks = pickle.load(f)
-                except ModuleNotFoundError:
-                    # print error message in red
-                    print(
-                        "\033[91m"
-                        + "Error loading schedule - this means you probably need to update your schedule format"
-                    )
-                    print(
-                        "Please update your schedules by running station_42.py -x and then regenerating. Cheers!"
-                        + "\033[0m"
-                    )
-                    sys.exit(-1)
-        else:
-            self._blocks = []
+        self._blocks = LiquidAPI.get_blocks(self.conf)
 
     def _save_blocks(self):
-        # save blocks to disk for the player (for now)
-        with open(self.conf["schedule_path"], "wb") as f:
-            pickle.dump(self._blocks, f)
+        LiquidAPI.set_blocks(self.conf, self._blocks)
 
     def _end_time(self):
         # get the lastest time in the schedule
