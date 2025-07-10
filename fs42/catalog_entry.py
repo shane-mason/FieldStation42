@@ -22,6 +22,10 @@ class CatalogEntry:
         self.tag = tag
         self.count = count
         self.hints = hints
+        self.station = None
+        self.dbid = None
+        self.created_at = None
+        self.updated_at = None
 
     def __str__(self):
         hints = list(map(str, self.hints))
@@ -30,33 +34,44 @@ class CatalogEntry:
     def toJSON(self):
         # Convert the entry to a JSON serializable dictionary
         return {
+            "dbid": self.dbid,
             "path": self.path,
             "title": self.title,
             "duration": self.duration,
             "tag": self.tag,
             "count": self.count,
             "hints": [hint.toJSON() for hint in self.hints],  # Convert each hint to JSON
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
     @staticmethod
     def from_json_dict(json_data):
         # Create an entry from a JSON serializable dictionary
         tup = (
+            json_data["dbid"], 
+            json_data["station"],
             json_data["path"],
             json_data["title"],
             json_data["duration"],
             json_data["tag"],
             json_data["count"],
             json_data["hints"],
+            json_data.get("created_at", None),
+            json_data.get("updated_at", None),
         )
         return CatalogEntry.from_db_row(tup)
 
     @staticmethod
     def from_db_row(row):
-        (path, title, duration, tag, count, hints_str) = row
+        (dbid, station, path, title, duration, tag, count, hints_str, created, updated) = row
 
         entry = CatalogEntry(path, duration, tag, None)
         entry.count = count
+        entry.dbid = dbid
+        entry.station = station
+        entry.created_at = created
+        entry.updated_at = updated
 
         hints = []
         # Load hints from JSON

@@ -194,7 +194,7 @@ class RangeHint:
     def toJSON(self):
         return {
             "type": "range",
-            "range_string": self.start_date.strftime("%B %d"),
+            "range_string": self.range_string,
         }
 
     def fromJSON(json_data):

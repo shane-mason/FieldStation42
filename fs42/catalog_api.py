@@ -34,3 +34,7 @@ class CatalogAPI:
             else:
                 flat.append(entry)
         CatalogIO().batch_increment_counts(station_config["network_name"], flat)
+
+    @staticmethod
+    def get_entry_by_id(entry_id):
+        return CatalogIO().entry_by_id(entry_id)

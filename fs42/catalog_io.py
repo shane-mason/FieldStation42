@@ -44,6 +44,22 @@ class CatalogIO:
 
             cursor.close()
 
+    def entry_by_id(self, entry_id: int):
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """SELECT * FROM catalog_entries 
+                              WHERE id = ?""",
+                (entry_id,),
+            )
+            row = cursor.fetchone()
+            cursor.close()
+
+            if row:
+                return CatalogEntry.from_db_row(row)
+
+            return None
+
     def put_catalog_entries(self, station_name: str, catalog_entries: list[CatalogEntry]):
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
@@ -75,10 +91,10 @@ class CatalogIO:
             cursor = connection.cursor()
 
             cursor.execute(
-                """SELECT path, title, duration, tag, count, hints 
-                             FROM catalog_entries 
-                             WHERE station = ?
-                             ORDER BY tag, title""",
+                """SELECT * 
+                    FROM catalog_entries 
+                    WHERE station = ?
+                    ORDER BY tag, title""",
                 (station_name,),
             )
 
@@ -112,8 +128,8 @@ class CatalogIO:
             cursor.close()
 
             if row:
-                (_id, station, path, title, duration, tag, count, hints_str, created_at, updated_at) = row
-                return CatalogEntry(path, duration, tag, json.loads(hints_str) if hints_str else [], count=count)
+                # (_id, station, path, title, duration, tag, count, hints_str, created_at, updated_at) = row
+                return CatalogEntry.from_db_row(row)
 
             return None
 
@@ -130,10 +146,7 @@ class CatalogIO:
 
             catalog_entries = []
             for row in rows:
-                (_id, station, path, title, duration, tag, count, hints_str, created_at, updated_at) = row
-                catalog_entries.append(
-                    CatalogEntry(path, duration, tag, json.loads(hints_str) if hints_str else [], count=count)
-                )
+                catalog_entries.append(CatalogEntry.from_db_row(row))
 
             return catalog_entries
 

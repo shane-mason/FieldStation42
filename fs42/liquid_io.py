@@ -4,7 +4,7 @@ from datetime import datetime
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, LiquidLoopBlock, LiquidClipBlock, LiquidOffAirBlock
 from fs42.block_plan import BlockPlanEntry
-from fs42.catalog_entry import CatalogEntry
+from fs42.catalog_api import CatalogAPI
 
 
 class LiquidIO:
@@ -64,9 +64,10 @@ class LiquidIO:
 
             for block in liquid_blocks:
                 if block.content and not isinstance(block.content, list):
-                    content_json = json.dumps(block.content.toJSON())
+                    content_json = json.dumps(block.content.dbid)
+
                 elif block.content:
-                    content_json = json.dumps([c.toJSON() for c in block.content])
+                    content_json = json.dumps([c.dbid for c in block.content])
                 else:
                     content_json = None
 
@@ -113,12 +114,14 @@ class LiquidIO:
         if content_json:
             if isinstance(content_json, dict):
                 # If the content is a single LiquidBlock
-                content_obj = CatalogEntry.from_json_dict(content_json)
+                # content_obj = CatalogEntry.from_json_dict(content_json)
+                content_obj = CatalogAPI.get_entry_by_id(int(content_json))
             elif isinstance(content_json, list):
                 # or if its a list of blocks
                 content_obj = []
                 for entry in content_json:
-                    content_obj.append(CatalogEntry.from_json_dict(entry))
+                    # content_obj.append(CatalogEntry.from_json_dict(entry))
+                    content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))
 
         plan_json = json.loads(row[9]) if row[9] else None
         break_info = json.loads(row[7]) if row[7] else None
