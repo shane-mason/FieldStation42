@@ -37,7 +37,7 @@ class ShowCatalog:
     prebump = "prebump"
     postbump = "postbump"
 
-    def __init__(self, config, rebuild_catalog=False, load=True, debug=False):
+    def __init__(self, config, rebuild_catalog=False, load=True, debug=False, force=False):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
 
@@ -50,6 +50,9 @@ class ShowCatalog:
         self.__fluid_builder = None
         self.min_gap = 3
         if rebuild_catalog:
+            if force:
+                self._l.info("Rebuilding catalog with force flag - will delete existing catalog")
+                CatalogAPI.delete_catalog(self.config)
             self.build_catalog()
         elif load:
             self.load_catalog()

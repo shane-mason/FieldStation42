@@ -60,10 +60,12 @@ class LiquidManager(object):
                 LiquidAPI.delete_blocks(station_config)
         self.reload_schedules()
 
-    def reset_schedule(self, station_config):
+    def reset_schedule(self, station_config, force=False):
+        print(f"Resetting schedule for {station_config['network_name']} with force={force}")
         if station_config["_has_schedule"]:
             logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
-            self.reset_sequences(station_config)
+            if not force:
+               self.reset_sequences(station_config)
             LiquidAPI.delete_blocks(station_config)
         self.reload_schedules()
 
