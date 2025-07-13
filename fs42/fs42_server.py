@@ -109,4 +109,4 @@ async def get_schedule(network_name: str, start: str = None, end: str = None):
 # Method 1: Basic uvicorn.run()
 if __name__ == "__main__":
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
-    uvicorn.run(fapi, host="0.0.0.0", port=8000)
+    uvicorn.run(fapi, host="0.0.0.0", port=8080)
