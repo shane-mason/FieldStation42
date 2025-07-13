@@ -22,8 +22,6 @@ class LiquidBlock:
         self.plan = None
         self.break_strategy = break_strategy
 
-        self.sequence_key = None
-
         self.break_info = break_info if break_info else {}
 
         if break_info:

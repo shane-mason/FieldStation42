@@ -55,6 +55,23 @@ class LiquidIO:
 
             return liquid_blocks
 
+    def query_liquid_blocks(self, station_name: str, start: str, end: str) -> list[LiquidBlock]:
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT * FROM liquid_blocks WHERE station = ? AND start_time >= ? AND end_time <= ?",
+                (station_name, start, end),
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+            liquid_blocks = []
+            for row in rows:
+                block = LiquidIO._build_block_from_row(row)
+                liquid_blocks.append(block)
+
+            return liquid_blocks
+
     def put_liquid_blocks(self, station_name: str, liquid_blocks: list[LiquidBlock]):
         """
         Store liquid blocks in the database.
@@ -63,13 +80,16 @@ class LiquidIO:
             cursor = connection.cursor()
 
             for block in liquid_blocks:
-                if block.content and not isinstance(block.content, list):
-                    content_json = json.dumps(block.content.dbid)
+                try:
+                    if block.content and not isinstance(block.content, list):
+                        content_json = json.dumps(block.content.dbid)
 
-                elif block.content:
-                    content_json = json.dumps([c.dbid for c in block.content])
-                else:
-                    content_json = None
+                    elif block.content:
+                        content_json = json.dumps([c.dbid for c in block.content])
+                    else:
+                        content_json = None
+                except AttributeError:
+                    print(block)
 
                 # plan_json = json.dumps(block.plan.toJSON()) if block.plan else None
                 plan_json = json.dumps([p.toJSON() for p in block.plan])

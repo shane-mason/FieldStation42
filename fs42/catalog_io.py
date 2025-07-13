@@ -44,6 +44,8 @@ class CatalogIO:
 
             cursor.close()
 
+    
+
     def entry_by_id(self, entry_id: int):
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
@@ -106,6 +108,24 @@ class CatalogIO:
                 # Create CatalogEntry object
                 entry = CatalogEntry.from_db_row(row)
                 catalog_entries.append(entry)
+
+            return catalog_entries
+
+    def search_catalog_entries(self, station_name: str, query: str):
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """SELECT * FROM catalog_entries 
+                              WHERE station = ? AND (title LIKE ? OR tag LIKE ? OR path LIKE ?)
+                              ORDER BY tag, title""",
+                (station_name, f"%{query}%", f"%{query}%", f"%{query}%"),
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+            catalog_entries = []
+            for row in rows:
+                catalog_entries.append(CatalogEntry.from_db_row(row))
 
             return catalog_entries
 

@@ -4,6 +4,16 @@ from fs42.catalog_entry import CatalogEntry
 
 class CatalogAPI:
     @staticmethod
+    def get_summary(station_config):
+        entries = CatalogIO().get_catalog_entries(station_config["network_name"])
+        duration = sum(entry.duration for entry in entries if entry.duration)
+        return {
+            "network_name": station_config["network_name"],
+            "entry_count": len(entries),
+            "total_duration": duration
+        }
+    
+    @staticmethod
     def delete_catalog(station_config):
         CatalogIO().delete_all_entries_for_station(station_config["network_name"])
 
@@ -11,6 +21,10 @@ class CatalogAPI:
     def set_entries(station_config, entries: list[CatalogEntry]):
         CatalogAPI.delete_catalog(station_config)
         CatalogIO().put_catalog_entries(station_config["network_name"], entries)
+
+    @staticmethod
+    def search_entries(station_config, query: str):
+        return CatalogIO().search_catalog_entries(station_config["network_name"], query)
 
     @staticmethod
     def get_entries(station_config):

@@ -121,6 +121,18 @@ class LiquidManager(object):
 
         return summary
 
+    def get_summary_json(self, network_name=None):
+        if network_name:
+            (s, e) = self.get_extents(network_name)
+            return {"network_id": network_name, "start": s.isoformat() if s else None, "end": e.isoformat() if e else None}
+
+        summaries = []
+        for _id in self.schedules:
+            (s, e) = self.get_extents(_id)
+            summaries.append({"network_id": _id, "start": s.isoformat() if s else None, "end": e.isoformat() if e else None})
+
+        return summaries
+
     def get_programming_block(self, network_name, when):
         (start, end) = self.get_extents(network_name)
 
