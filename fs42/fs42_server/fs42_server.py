@@ -6,8 +6,10 @@ from datetime import datetime
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-
-sys.path.append(os.getcwd())
+cwd = os.getcwd()
+parent = os.path.abspath(os.path.join(cwd, os.pardir))
+sys.path.append(cwd)
+sys.path.append(parent)
 from fs42.station_manager import StationManager
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
@@ -105,8 +107,11 @@ async def get_schedule(network_name: str, start: str = None, end: str = None):
     schedule_blocks = LiquidAPI.get_blocks(conf, sdt, edt)
     return {"network_name": network_name, "schedule_blocks": schedule_blocks}
 
+def mount_fs42_api():
+    fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
+    uvicorn.run(fapi, host="0.0.0.0", port=8080)
+
 
 # Method 1: Basic uvicorn.run()
 if __name__ == "__main__":
-    fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
-    uvicorn.run(fapi, host="0.0.0.0", port=8080)
+    mount_fs42_api()
