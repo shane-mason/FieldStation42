@@ -114,7 +114,7 @@ def build_parser():
         help="Add one day to to the specified stations, or all stations if none are specified.",
     )
     parser.add_argument(
-        "-s",
+        "-e",
         "--schedule",
         action="store_true",
         help="View schedule summary information for all stations.",
@@ -141,6 +141,11 @@ def build_parser():
         "--verbose",
         action="store_true",
         help="Set logging verbosity level to very chatty",
+    )
+    parser.add_argument(
+        "-s", "--server",
+        action="store_true",
+        help="Run the FieldStation42 web API server after other actions.",
     )
     return parser
 
@@ -481,6 +486,15 @@ def main():
                     failure_messages.append(
                         f"Failed to add a month to {station['network_name']} - check logs."
                     )
+
+    if args.server:
+        try:
+            from fs42.fs42_server.fs42_server import mount_fs42_api
+        except ImportError:
+            console.print("[red]Could not import mount_fs42_api from fs42_server.py[/red]")
+            sys.exit(-1)
+        mount_fs42_api()
+        return
 
     print_outcome(success_messages, failure_messages, console)
 
