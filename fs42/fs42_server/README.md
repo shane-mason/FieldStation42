@@ -158,3 +158,5 @@ The following endpoints are planned to be implemented in the playtime API
 ### Shutdown FS42
 - Safely close all FS42 apps, but leave the device powered on
 
+## Consolidating Interfaces
+The OSD and WebRemote will be exposed under this API moving forward.
