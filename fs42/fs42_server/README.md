@@ -1,8 +1,19 @@
-# FieldStation42 API Reference
+# FieldStation42 Server Reference
 
-This document describes the REST API endpoints provided by the FieldStation42 server (`fs42_server.py`). All endpoints return JSON responses. Example URLs assume the server is running on `http://localhost:8080`.
+This document describes the REST API endpoints provided by the FieldStation42 server (`fs42_server.py`). All endpoints return JSON responses. Example URLs assume the server is running on `http://localhost:4242`.
 
-## Endpoints
+The endpoints are broken into two main themes: buildtime and playtime.
+- Buildtime: these are the functions available in station_42.py and are generally system administration functions you use to set your system up.
+- Playtime: these are functions that you would use when the system is already running.
+
+General server configurations are available in `main_config.json`:
+
+```json
+"server_host": "0.0.0.0",
+"server_port": 4242
+```
+
+## Endpoints - Buildtime
 
 ### 1. Root
 - **GET /**
@@ -34,7 +45,7 @@ This document describes the REST API endpoints provided by the FieldStation42 se
     - `http://localhost:8080/summary/stations`
   - **Response:**
     ```json
-    { "network_names": ["PublicDomain", "NBC", ...] }
+    { "network_names": ["PublicDomain", "PBS", ...] }
     ```
 
 ### 4. Schedule Summaries
@@ -110,3 +121,40 @@ This document describes the REST API endpoints provided by the FieldStation42 se
 - Date/time parameters should be in ISO format: `YYYY-MM-DDTHH:MM:SS`.
 - Catalog and schedule data structures may contain nested objects and lists.
 - For more details, see the source code in `fs42_server.py` and related modules.
+
+## Next Up - Build-Time Actions
+The following endpoints are planned to be implemented in the buildtime API
+
+### (Re)Build Catalog
+- Will rebuild the catalog for specified or all channels
+
+### (Re)Build Schedule
+- Will add the specified time period to the schedule
+
+### (Re)Build Sequences
+- Will build or rebuild sequences
+
+### (Re)Build Breakpoints
+- Will build or rebuild breakpoints
+
+## Next Up - Play-Time Actions
+The following endpoints are planned to be implemented in the playtime API
+
+### OSD Display Text
+- Will display supplied text on the OSD based - positioning based on OSD configuration.
+
+### Play Status
+- Same as the current play_status.socket
+
+### Channel Command
+- Same as current channel.socket, only through web API
+
+### Volume Command
+- Change the system volume
+
+### Halt Command
+- Safely halt the system - (sudo halt)
+
+### Shutdown FS42
+- Safely close all FS42 apps, but leave the device powered on
+
