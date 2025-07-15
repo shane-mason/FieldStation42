@@ -55,6 +55,8 @@ class StationManager(object):
                     "date_time_format": "%Y-%m-%dT%H:%M:%S",
                     "db_path": "runtime/fs42_fluid.db",
                     "start_mpv": True,
+                    "server_host": "0.0.0.0",
+                    "server_port": 4242,
                 }
                 self._number_index = {}
                 self._name_index = {}

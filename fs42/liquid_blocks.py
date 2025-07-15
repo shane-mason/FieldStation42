@@ -23,6 +23,8 @@ class LiquidBlock:
         self.break_strategy = break_strategy
 
         self.break_info = break_info if break_info else {}
+        
+        self.sequence_key = None
 
         if break_info:
             self.start_bump = break_info["start_bump"] if "start_bump" in break_info else None
