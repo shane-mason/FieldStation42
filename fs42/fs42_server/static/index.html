@@ -59,9 +59,10 @@
                     return;
                 }
                 let html = '<table class="pure-table pure-table-horizontal" style="width:100%;margin-top:1em;">';
-                html += '<thead><tr><th>Network</th><th>Catalog Entries</th><th>Total Duration</th><th>Schedule Start</th><th>Schedule End</th></tr></thead><tbody>';
+                html += '<thead><tr><th>Network</th><th>Channel</th><th>Catalog Entries</th><th>Total Duration</th><th>Schedule Start</th><th>Schedule End</th></tr></thead><tbody>';
                 for (const station of stations) {
                     const name = station.network_name || 'N/A';
+                    const channel = station.channel_number || 'N/A';
                     const entryCount = station.catalog_summary?.entry_count ?? 'N/A';
                     let totalDuration = station.catalog_summary?.total_duration ?? 'N/A';
                     // Convert totalDuration from seconds to hours (rounded to 2 decimals)
@@ -74,8 +75,12 @@
                     // Format start/end if they look like ISO strings
                     if (typeof start === 'string' && start.length > 10) start = start.replace('T', ' ');
                     if (typeof end === 'string' && end.length > 10) end = end.replace('T', ' ');
+                    // Remove last ':00' from start/end if present
+                    if (typeof start === 'string' && start.match(/:\d{2}$/)) start = start.replace(/:\d{2}$/, '');
+                    if (typeof end === 'string' && end.match(/:\d{2}$/)) end = end.replace(/:\d{2}$/, '');
                     html += `<tr>
                         <td data-label='Network'><strong>${name}</strong></td>
+                        <td data-label='Channel'>${channel}</td>
                         <td data-label='Catalog Entries'>${entryCount}</td>
                         <td data-label='Total Duration'>${totalDuration}</td>
                         <td data-label='Schedule Start'>${start}</td>
