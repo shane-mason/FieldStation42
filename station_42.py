@@ -9,6 +9,9 @@ from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.fluid_builder import FluidBuilder
+from fs42.sequence_api import SequenceAPI
+from fs42.liquid_api import LiquidAPI
+from fs42.catalog_api import CatalogAPI
 
 FF_USE_FLUID_FILE_CACHE = True
 
@@ -16,12 +19,12 @@ logging.basicConfig(format="%(levelname)s:%(name)s:%(message)s", level=logging.I
 
 
 class Station42:
-    def __init__(self, config, rebuild_catalog=False):
+    def __init__(self, config, rebuild_catalog=False, force=False):
         # station configuration
         self.config = config
         self._l = logging.getLogger(self.config["network_name"])
         self.catalog: ShowCatalog = ShowCatalog(
-            self.config, rebuild_catalog=rebuild_catalog
+            self.config, rebuild_catalog=rebuild_catalog, force=force
         )
         self.get_text_listing = self.catalog.get_text_listing
         self.check_catalog = self.catalog.check_catalog
@@ -111,7 +114,7 @@ def build_parser():
         help="Add one day to to the specified stations, or all stations if none are specified.",
     )
     parser.add_argument(
-        "-s",
+        "-e",
         "--schedule",
         action="store_true",
         help="View schedule summary information for all stations.",
@@ -128,10 +131,21 @@ def build_parser():
         help="Delete the schedule for the specified network names or all networks if no parameter given",
     )
     parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="With -r or -x will force deletion of schedules and catalogs if they are failing. Wont reset sequences, file cache or breakpoints",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Set logging verbosity level to very chatty",
+    )
+    parser.add_argument(
+        "-s", "--server",
+        action="store_true",
+        help="Run the FieldStation42 web API server after other actions.",
     )
     return parser
 
@@ -238,7 +252,7 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Checking catalog for {station['network_name']}")
                 try:
-                    Station42(station, False).check_catalog()
+                    Station42(station, False, False).check_catalog()
                     success_messages.append(
                         f"Successfully checked catalog for {station['network_name']}"
                     )
@@ -268,8 +282,12 @@ def main():
         for station in _rebuild_list:
             if station["_has_schedule"]:
                 _l.info(f"Deleting schedule for {station['network_name']}")
+
                 try:
-                    LiquidManager().reset_schedule(station)
+                    if args.force:
+                        LiquidAPI.delete_blocks(station)
+                    else:
+                        LiquidManager().reset_schedule(station, args.force)
                     success_messages.append(
                         f"Successfully deleted schedule for {station['network_name']}"
                     )
@@ -298,7 +316,7 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Building catalog for {station['network_name']}")
                 try:
-                    Station42(station, True)
+                    Station42(station, True, args.force)
                     success_messages.append(
                         f"Successfully built catalog for {station['network_name']}"
                     )
@@ -335,7 +353,7 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Scanning for new sequences for {station['network_name']}")
                 try:
-                    Station42(station, False).catalog.scan_sequences(False)
+                    SequenceAPI.scan_sequences(station)
                     success_messages.append(
                         f"Successfully scanned for new sequences for {station['network_name']}"
                     )
@@ -347,7 +365,7 @@ def main():
                     failure_messages.append(
                         f"Failed to scan for new sequences for {station['network_name']} - check logs."
                     )
-                Station42(station, False).catalog.scan_sequences(True)
+                
 
     if args.rebuild_sequences is not None:
         _rebuild_list = []
@@ -364,7 +382,7 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Rebuilding sequences for {station['network_name']}")
                 try:
-                    Station42(station, False).catalog.rebuild_sequences(False)
+                    SequenceAPI.rebuild_sequences(station)
                     success_messages.append(
                         f"Successfully rebuilt sequences for {station['network_name']}"
                     )
@@ -376,7 +394,6 @@ def main():
                     failure_messages.append(
                         f"Failed to rebuild sequences for {station['network_name']} - check logs."
                     )
-                Station42(station, False).catalog.rebuild_sequences(True)
 
     if args.break_detect_dir is not None:
         _l.info("Scanning for break detection points in media files...")
@@ -469,6 +486,15 @@ def main():
                     failure_messages.append(
                         f"Failed to add a month to {station['network_name']} - check logs."
                     )
+
+    if args.server:
+        try:
+            from fs42.fs42_server.fs42_server import mount_fs42_api
+        except ImportError:
+            console.print("[red]Could not import mount_fs42_api from fs42_server.py[/red]")
+            sys.exit(-1)
+        mount_fs42_api()
+        return
 
     print_outcome(success_messages, failure_messages, console)
 

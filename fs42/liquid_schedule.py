@@ -3,15 +3,16 @@ import sys
 
 sys.path.append(os.getcwd())
 import logging
-import pickle
 import datetime
 import math
 
-from fs42.catalog import ShowCatalog
+from fs42.catalog import ShowCatalog, MatchingContentNotFound
 from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
-from fs42.series import SeriesIndex
+from fs42.sequence_api import SequenceAPI
+from fs42.catalog_api import CatalogAPI
+from fs42.liquid_api import LiquidAPI
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -39,30 +40,10 @@ class LiquidSchedule:
         return multiple * math.floor(mark / multiple)
 
     def _load_blocks(self):
-        # load all the blocks from disk
-        s_path = self.conf["schedule_path"]
-        if os.path.isfile(s_path):
-            with open(s_path, "rb") as f:
-                try:
-                    self._blocks = pickle.load(f)
-                except ModuleNotFoundError:
-                    # print error message in red
-                    print(
-                        "\033[91m"
-                        + "Error loading schedule - this means you probably need to update your schedule format"
-                    )
-                    print(
-                        "Please update your schedules by running station_42.py -x and then regenerating. Cheers!"
-                        + "\033[0m"
-                    )
-                    sys.exit(-1)
-        else:
-            self._blocks = []
+        self._blocks = LiquidAPI.get_blocks(self.conf)
 
     def _save_blocks(self):
-        # save blocks to disk
-        with open(self.conf["schedule_path"], "wb") as f:
-            pickle.dump(self._blocks, f)
+        LiquidAPI.set_blocks(self.conf, self._blocks)
 
     def _end_time(self):
         # get the lastest time in the schedule
@@ -136,18 +117,21 @@ class LiquidSchedule:
                     # see if this is a series with a sequence defined
                     if "sequence" in slot_config:
                         seq_name = slot_config["sequence"]
-                        seq_key = SeriesIndex.make_key(tag_str, seq_name)
-                        candidate = self.catalog.get_next_in_sequence(seq_key)
 
+                        next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
+                        if next_seq:
+                            candidate = self.catalog.entry_by_fpath(next_seq.fpath)
+
+                        seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
                     else:
                         candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
 
                     if candidate is None:
                         # this should only happen on an error (have a tag, but no candidate)
-                        self._l.error(
+                        raise MatchingContentNotFound(
                             f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
                         )
-                        sys.exit(-1)
+
                     else:
                         target_duration = self._calc_target_duration(candidate.duration)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
@@ -165,10 +149,9 @@ class LiquidSchedule:
                     )
                     if len(clip_content) == 0:
                         # this should only happen on an error (have a tag, but no candidate)
-                        self._l.error(
+                        raise MatchingContentNotFound(
                             f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
                         )
-                        sys.exit(-1)
                     else:
                         clip_block = LiquidClipBlock(
                             clip_content, current_mark, timings.HOUR, tag_str, self.conf["break_strategy"], break_info
@@ -182,7 +165,7 @@ class LiquidSchedule:
                 # then we are offair - get offair video
                 candidate = self.catalog.get_offair()
                 if candidate is None:
-                    self._l.error(f"Schedule logic error: no schedule hints for {current_mark}")
+                    self._l.error(f"Schedule logic error: no time slots configured for {current_mark}")
                     self._l.error("This indicates that the station is offair, but offair content is not configured")
                     self._l.error(f"Configure 'off_air_video' or 'off_air_image' for {self.conf['network_name']}")
                     sys.exit(-1)
@@ -197,10 +180,16 @@ class LiquidSchedule:
             current_mark = next_mark
         self._l.info("Content and reel schedules are completed")
 
-        # now, make plans for all the blocks
+        # now, make plans for all the blocks and make list to update play counts
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
+        play_counts = []
         for block in new_blocks:
             block.make_plan(self.catalog)
+            if block.content:
+                # if the block has content, then we need to increment the play count
+                play_counts.append(block.content)
+
+        CatalogAPI.update_play_counts(self.conf, play_counts)
 
         self._blocks = self._blocks + new_blocks
         self._l.info("Saving blocks to disk")
