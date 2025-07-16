@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
+    <link rel="stylesheet" href="/static/default.css">
+</head>
+<body>
+    <div class="pure-menu pure-menu-horizontal custom-menu" id="mainMenu">
+        <a href="#" class="pure-menu-heading">FieldStation42</a>
+        <span class="menu-toggle" onclick="window.fs42Common.toggleMenu()">&#9776;</span>
+        <ul class="pure-menu-list">
+            <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
+            <li class="pure-menu-item"><a href="/static/catalog.html" class="pure-menu-link">Catalog</a></li>
+            <li class="pure-menu-item"><a href="/static/schedule.html" class="pure-menu-link">Schedule</a></li>
+            <li class="pure-menu-item"><a href="#" class="pure-menu-link">About</a></li>
+        </ul>
+    </div>
+    <div class="pure-g">
+        <div class="pure-u-1">
+            <h1>Schedule Viewer</h1>
+            <div id="station-select-frame" class="pure-u-1">
+                <label for="station-select" style="font-weight:bold; color:#ff00cc;">Select Station:</label>
+                <select id="station-select" class="pure-input-1" style="max-width:300px;margin:1em 0;"></select>
+            </div>
+            <div id="station-summary" class="pure-u-1">
+                <h2>Station Summary</h2>
+                <div id="station-summary-table"></div>
+            </div>
+            <div id="schedule-controls" class="pure-u-1">
+                <h2>Schedule Query</h2>
+                <label for="start-date">Start:</label>
+                <input type="datetime-local" id="start-date" style="margin-right:1em;">
+                <label for="end-date">End:</label>
+                <input type="datetime-local" id="end-date" style="margin-right:1em;">
+                <button id="get-schedule" class="pure-button pure-button-primary">Get Schedule</button>
+            </div>
+            <div id="schedule-table-frame" class="pure-u-1">
+                <h2>Schedule Blocks</h2>
+                <div id="schedule-table"></div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/fs42_client.js"></script>
+    <script src="/static/common.js"></script>
+    <script>
+        let stations = [];
+        let selectedStation = null;
+        let scheduleExtents = {start: null, end: null};
+
+        async function loadStationsAndSummary() {
+            stations = await window.fs42Common.fetchStationSummary();
+            const select = document.getElementById('station-select');
+            select.innerHTML = '';
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = 'Select Station';
+            select.appendChild(defaultOpt);
+            stations.forEach(station => {
+                const opt = document.createElement('option');
+                opt.value = station.network_name;
+                opt.textContent = station.network_name;
+                select.appendChild(opt);
+            });
+            selectedStation = null;
+            select.value = '';
+            document.getElementById('station-summary-table').innerHTML = '';
+            document.getElementById('schedule-table').innerHTML = '';
+        }
+
+        function updateStationSummary(networkName) {
+            if (!networkName) {
+                document.getElementById('station-summary-table').innerHTML = '';
+                document.getElementById('schedule-table').innerHTML = '';
+                return;
+            }
+            const station = stations.find(s => s.network_name === networkName);
+            if (station) {
+                document.getElementById('station-summary-table').innerHTML = window.fs42Common.renderSummaryTable([station]);
+            } else {
+                document.getElementById('station-summary-table').innerHTML = '<p>No summary found.</p>';
+            }
+        }
+
+        async function loadScheduleExtents(networkName) {
+            // Fetch schedule summary for extents
+            const summary = await window.fs42Common.fetchScheduleSummary(networkName);
+            if (summary && summary.extents) {
+                scheduleExtents = summary.extents;
+                document.getElementById('start-date').value = summary.extents.start.replace(' ', 'T');
+                document.getElementById('end-date').value = summary.extents.end.replace(' ', 'T');
+            }
+        }
+
+        async function getScheduleBlocks() {
+            const start = document.getElementById('start-date').value;
+            const end = document.getElementById('end-date').value;
+            let blocks;
+            if (!selectedStation) return;
+            if (start && end) {
+                blocks = await window.fs42Common.fetchSchedule(selectedStation, start, end);
+            } else {
+                blocks = await window.fs42Common.fetchSchedule(selectedStation);
+            }
+            document.getElementById('schedule-table').innerHTML = window.fs42Common.renderScheduleTable(blocks);
+        }
+
+        document.getElementById('station-select').addEventListener('change', async function(e) {
+            selectedStation = e.target.value || null;
+            updateStationSummary(selectedStation);
+            document.getElementById('schedule-table').innerHTML = '';
+            if (selectedStation) {
+                await loadScheduleExtents(selectedStation);
+            } else {
+                document.getElementById('start-date').value = '';
+                document.getElementById('end-date').value = '';
+            }
+        });
+
+        document.getElementById('get-schedule').addEventListener('click', getScheduleBlocks);
+
+        loadStationsAndSummary();
+    </script>
+</body>
+</html>

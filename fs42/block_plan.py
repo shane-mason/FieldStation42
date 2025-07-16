@@ -5,5 +5,8 @@ class BlockPlanEntry:
         self.duration = duration
         self.is_stream = is_stream
 
+    def toJSON(self):
+        return {"path": self.path, "skip": self.skip, "duration": self.duration, "is_stream": self.is_stream}
+
     def __str__(self):
         return f"PlanEntry: {self.path} skip={self.skip} duration={self.duration}"

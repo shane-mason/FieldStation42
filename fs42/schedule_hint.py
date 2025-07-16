@@ -21,18 +21,24 @@ class TemporalHint:
 
 class DayPartHint:
     def __init__(self, part_name):
-        self.part = station_manager.StationManager().get_day_parts()[part_name]
         self.part_name = part_name
+        self.type = "day_part"
 
     @staticmethod
     def test_pattern(to_test):
         return to_test in station_manager.StationManager().get_day_parts().keys()
 
     def hint(self, when):
-        return when.hour in self.part
+        return when.hour in station_manager.StationManager().get_day_parts()[self.part_name]
 
     def __str__(self):
         return f"{self.part_name}"
+
+    def toJSON(self):
+        return {"type": self.type, "part": self.part_name}
+
+    def fromJSON(json_data):
+        return DayPartHint(json_data["part"])
 
 
 class BumpHint:
@@ -41,6 +47,7 @@ class BumpHint:
 
     def __init__(self, where="pre"):
         self.where = where
+        self.type = "bump"
 
     @staticmethod
     def test_pattern(to_test):
@@ -53,11 +60,18 @@ class BumpHint:
     def __str__(self):
         return f"bump:{self.where}"
 
+    def toJSON(self):
+        return {"type": self.type, "where": self.where}
+
+    def fromJSON(json_data):
+        return BumpHint(json_data["where"])
+
 
 class MonthHint:
     def __init__(self, month_name):
         self.month_name = month_name
         self.month_number = datetime.strptime(self.month_name, "%B").month
+        self.type = "month"
 
     @staticmethod
     def test_pattern(to_test):
@@ -69,6 +83,12 @@ class MonthHint:
 
     def __str__(self):
         return self.month_name
+
+    def toJSON(self):
+        return {"type": self.type, "month": self.month_name}
+
+    def fromJSON(json_data):
+        return MonthHint(json_data["month"])
 
 
 class QuarterHint:
@@ -82,6 +102,7 @@ class QuarterHint:
         else:
             # this should be a runtime error
             raise ValueError("Quarter name not valid: {quarter_name}- should be one of Q1-Q4 or q1-q4")
+        self.type = "quarter"
 
     @staticmethod
     def test_pattern(to_test):
@@ -96,6 +117,12 @@ class QuarterHint:
     def __str__(self):
         return self.quarter_name
 
+    def toJSON(self):
+        return {"type": self.type, "quarter": self.quarter_name}
+
+    def fromJSON(json_data):
+        return QuarterHint(json_data["quarter"])
+
 
 class RangeHint:
     # matches patterns like: December 1 - December 25
@@ -107,6 +134,7 @@ class RangeHint:
     def __init__(self, range_string):
         self.start_date = None
         self.end_date = None
+        self.range_string = range_string
         if RangeHint.test_pattern(range_string):
             m = RangeHint.pattern.match(range_string)
             try:
@@ -115,6 +143,7 @@ class RangeHint:
             except ValueError:
                 # this should be a runtime error
                 raise ValueError("Date range not valid - should be of form: December 1 - December 25")
+        self.type = "range"
 
     @staticmethod
     def _scrape_dates(m):
@@ -165,3 +194,12 @@ class RangeHint:
 
     def __str__(self):
         return "range_hint"
+
+    def toJSON(self):
+        return {
+            "type": self.type,
+            "range_string": self.range_string,
+        }
+
+    def fromJSON(json_data):
+        return RangeHint(f"{json_data['range_string']}")

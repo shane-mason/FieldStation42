@@ -22,6 +22,8 @@ class LiquidBlock:
         self.plan = None
         self.break_strategy = break_strategy
 
+        self.break_info = break_info if break_info else {}
+        
         self.sequence_key = None
 
         if break_info:
@@ -177,7 +179,7 @@ class LiquidClipBlock(LiquidBlock):
 
 
 class LiquidOffAirBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", bump_info=None):
         super().__init__(content, start_time, end_time, title)
 
     def make_plan(self, catalog):
@@ -197,7 +199,7 @@ class LiquidOffAirBlock(LiquidBlock):
 
 
 class LiquidLoopBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", bump_info=None):
         super().__init__(content, start_time, end_time, title)
 
     def make_plan(self, catalog):
