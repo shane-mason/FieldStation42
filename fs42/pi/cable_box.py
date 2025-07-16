@@ -125,7 +125,7 @@ class CableBox:
                     try:
                         as_num = int(last_pressed + key_pressed)
                         last_pressed = key_pressed
-                        self.tm.show(f"  {as_num:02d}")
+                        self.tm.show(f" {as_num:03d}")
                     except:
                         pass
 
