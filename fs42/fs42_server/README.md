@@ -15,14 +15,15 @@ General server configurations are available in `main_config.json`, with the defa
 
 ## Endpoints - Buildtime
 
+This section describes the endpoints that are currently implemented in the Buildtime. Endpoints planned for the future are described at the end of this document.
 
-### 1. Root
+### Console: Root
 - **GET /**
   - Returns the main web UI (`index.html`).
   - **Response:**
     - HTML file
 
-### 2. Station Summary
+### API: Station Summary
 - **GET /summary/**
   - Returns a summary of all stations, including catalog and schedule info.
   - **Example:**
@@ -50,7 +51,7 @@ General server configurations are available in `main_config.json`, with the defa
     ```
     
     
-### 3. Station List
+### API: Station List
 - **GET /summary/stations**
   - Returns a list of all station network names.
   - **Example:**
@@ -62,7 +63,7 @@ General server configurations are available in `main_config.json`, with the defa
     { "network_names": ["PublicDomain", "PBS"] }
     ```
 
-### 4. Schedule Summaries
+### API: Schedule Summaries
 - **GET /summary/schedules**
   - Returns schedule summaries for all stations.
   - **Example:**
@@ -85,7 +86,7 @@ General server configurations are available in `main_config.json`, with the defa
     { "schedule_summary": { "network_name": "PublicDomain", "start": "2025-07-13T00:00:00", "end": "2025-07-14T00:00:00" } }
     ```
 
-### 5. Catalog Summaries
+### API: Catalog Summaries
 - **GET /summary/catalogs**
   - Returns catalog entry counts for all stations.
   - **Example:**
@@ -97,7 +98,7 @@ General server configurations are available in `main_config.json`, with the defa
     { "catalog_summaries": [ { "network_name": "PublicDomain", "entry_count": 42 } ] }
     ```
 
-### 6. Station Config
+### API: Station Config
 - **GET /stations/{network_name}**
   - Returns configuration for a specific station.
   - **Example:**
@@ -132,7 +133,7 @@ General server configurations are available in `main_config.json`, with the defa
     { "network_name": "PublicDomain", "query": "foo", "catalog_entries": [ { "path": "catalog/public_domain/quickstop/Designfo1956_512kb.mp4", "title": "Designfo1956_512kb", "duration": 556.79, ... } ] }
     ```
 
-### 8. Schedule Blocks
+### API: Schedule Blocks
 - **GET /schedules/{network_name}?start=YYYY-MM-DDTHH:MM:SS&end=YYYY-MM-DDTHH:MM:SS**
   - Returns schedule blocks for a station, optionally filtered by start/end ISO datetime.
   - **Example:**
@@ -164,7 +165,7 @@ General server configurations are available in `main_config.json`, with the defa
 - For more details, see the source code in `fs42_server.py` and related modules.
 
 ## Next Up - Build-Time Actions
-The following endpoints are planned to be implemented in the buildtime API
+The following endpoints are planned to be implemented in the buildtime API.
 
 ### (Re)Build Catalog
 - Will rebuild the catalog for specified or all channels
@@ -182,7 +183,7 @@ The following endpoints are planned to be implemented in the buildtime API
 The following endpoints are planned to be implemented in the playtime API
 
 ### OSD Display Text
-- Will display supplied text on the OSD based - positioning based on OSD configuration.
+- Will display supplied text on the OSD based - positioning based on OSD configuration - along with an audio file if specified.
 
 ### Play Status
 - Same as the current play_status.socket
