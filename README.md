@@ -47,8 +47,8 @@ For a full guide, see the [FieldStation42 Guide](https://github.com/shane-mason/
 - `field_player.py` — Main TV interface/player
 - `fs42/` — Core Python modules (catalog, schedule, API, etc.)
 - `confs/` — Station and system configuration files
-- `catalog/` — Your video content, organized by channel
-- `runtime/` — Runtime files, sockets, and status
+- `catalog/` — Your video content, organized by channel (created by installer)
+- `runtime/` — Runtime files, sockets, and status (created by installer)
 - `fs42/fs42_server/static/` — Web UI static files (HTML, JS, CSS)
 - `docs/` — Images and documentation
 
@@ -111,19 +111,6 @@ Use this to create catalogs and generate schedules. Catalogs are used to store m
 ### field_player.py
 This is the main TV interface. On startup, it will read the schedule and open the correct video file and skip to the correct position based on the current time. It will re-perform this step each time the channel is changed. If you tune back to a previous channel, it will pick up the current time and start playing as though it had been playing the whole time.
 
-The player monitors the plain text file `runtime/channel.socket` for commands to change the channel and will change to the next station configured in `main_config` in `confs/fieldStation42_conf.py` if any content is found there - or you can use the following command to cause the player to change to channel 3:
-
-`echo {\"command\": \"direct\", \"channel\": 3} > runtime/channel.socket`
-
-You can also open `runtime/channel.socket` in a text editor and enter the following json snippet (change 3 to whatever number you want to change to)
-
-`{"command": "direct", "channel": 3}`
-
-The following command will cause the player to tune up or down respectively
-
-`{"command": "up", "channel": -1}`
-`{"command": "down", "channel": -1}`
-
 The player writes its status and current channel to `runtime/play_status.socket` - this can be monitored by an external program if needed. See [this page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`.
 
 ### command_input.py
@@ -138,18 +125,6 @@ The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage 
 ## Connecting a remote control or other device
 Since the player can recieve external commands and publishes its status as described above, it's easy to connect external devices of all kinds. See [this wiki page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`. For a detailed guide on setting up a Bluetooth remote control, [see this page in the discussion boards](https://github.com/shane-mason/FieldStation42/discussions/47).
 
-![Fritzing diagram for the system](docs/retro-tv-setup_bb.png?raw=true "Fritzing Diagram")
-
-## Raspberry Pico Setup
-
-This is only required if you are building the channel change detector component (not required).
-
-* Install Circuit Python per their instructions and install dependencies for Neopixels.
-* Add the contents of `aerial_listener.py` to `code.py` on the device so that it starts at boot.
-
-The fritzing diagram shows how to connect the components together to enable channel changes.
-
----
 
 ## 🤝 How to Contribute
 
