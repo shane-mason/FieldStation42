@@ -79,7 +79,7 @@ class LiquidSchedule:
         # this is the core of the scheduler.
         new_blocks = []
         current_mark = start_time
-
+        
         if current_mark is None:
             current_mark = datetime.datetime.now()
 
@@ -208,6 +208,10 @@ class LiquidSchedule:
             # then there is no schedule, so start with today (but at midnight)
             now = datetime.datetime.now()
             start_building = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if "schedule_offset" in self.conf:
+            # then we have an offset to apply
+            start_building += datetime.timedelta(minutes=self.conf["schedule_offset"])
 
         match how_much:
             case "day":
