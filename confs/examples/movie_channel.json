@@ -7,12 +7,9 @@
     "break_strategy": "end",
     "commercial_free": true, 
 
-    "catalog_path" : "catalog/movie_catalog.bin",
     "content_dir" : "catalog/movie_content",
     "bump_dir" : "bump",
 
-    "runtime_dir" : "runtime/movie",
-    "schedule_path": "runtime/indie42_schedule.bin",
     "standby_image": "runtime/standby.png",
     "be_right_back_media" : "runtime/brb.png",
 

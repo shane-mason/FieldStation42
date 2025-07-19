@@ -6,14 +6,11 @@
     "break_strategy": "end",
     "commercial_free": true, 
 
-    "catalog_path" : "catalog/indie42_catalog.bin",
     "content_dir" : "catalog/indie42_catalog",
     "commercial_dir" : "commercial",
     "bump_dir" : "bump",
     "clip_shows" : [""],
 
-    "runtime_dir" : "runtime/indie42",
-    "schedule_path": "runtime/indie42_schedule.bin",
     "sign_off_video": "runtime/signoff.mp4",
     "off_air_video": "runtime/off_air_pattern.mp4",
     "standby_image": "runtime/standby.png",

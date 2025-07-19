@@ -11,7 +11,7 @@ from fs42.liquid_schedule import LiquidSchedule
 from fs42.fluid_builder import FluidBuilder
 from fs42.sequence_api import SequenceAPI
 from fs42.liquid_api import LiquidAPI
-from fs42.catalog_api import CatalogAPI
+from fs42.fs42_server.fs42_server import mount_fs42_api
 
 FF_USE_FLUID_FILE_CACHE = True
 
@@ -488,11 +488,6 @@ def main():
                     )
 
     if args.server:
-        try:
-            from fs42.fs42_server.fs42_server import mount_fs42_api
-        except ImportError:
-            console.print("[red]Could not import mount_fs42_api from fs42_server.py[/red]")
-            sys.exit(-1)
         mount_fs42_api()
         return
 

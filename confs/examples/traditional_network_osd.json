@@ -8,14 +8,11 @@
     "commercial_free": false, 
     "break_duration": 120,
 
-    "catalog_path" : "catalog/nbc_catalog.bin",
     "content_dir" : "catalog/nbc_catalog",
     "commercial_dir" : "commercial",
     "bump_dir" : "bump",
     "clip_shows" : ["real_people", "snl"],
 
-    "runtime_dir" : "runtime/nbc",
-    "schedule_path": "runtime/nbc_schedule.bin",
     "sign_off_video": "runtime/signoff.mp4",
     "off_air_video": "runtime/off_air_pattern.mp4",
     "standby_image": "runtime/standby.png",

@@ -7,14 +7,11 @@
     "break_strategy": "end",
     "commercial_free": true, 
 
-    "catalog_path" : "catalog/pbs_catalog.bin",
     "content_dir" : "catalog/pbs_catalog",
     "commercial_dir" : "commercials",
     "bump_dir" : "bumps",
     "clip_shows" : [],
 
-    "runtime_dir" : "runtime/pbs",
-    "schedule_path": "runtime/pbs_schedule.bin",
     "sign_off_video": "runtime/signoff.mp4",
     "off_air_video": "runtime/off_air_pattern.mp4",
     "standby_image": "runtime/standby.png",
