@@ -146,8 +146,8 @@ class AdFrame(tk.Frame):
                     self.image_index = 0
             except Exception as e:
                 print(e)
-                print("Error while loading images to guide channel.")
-                print("Do you have images specified in the guide configuration that don't exist on disk?")
+                print("Error while loading files from guide configuration.")
+                print("Do you have files specified in the guide configuration that don't exist on disk?")
                 # exit(-1)
         self.after(self.conf._message_rotation_rate, self.rotate_message)
 
