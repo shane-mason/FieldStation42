@@ -1,4 +1,46 @@
 import random
+import time
+
+debounce_fragment = 0.1
+
+def none_change_effect(player, reception):
+    print("No change effect applied.")
+    pass
+
+
+def short_change_effect(player, reception):
+    print("Applying short change effect.")
+    prev = reception.improve_amount
+    reception.improve_amount = 0
+
+    while not reception.is_degraded():
+        reception.degrade(0.2)
+        player.update_filters()
+        time.sleep(debounce_fragment)
+
+    reception.improve_amount = prev
+
+
+def long_change_effect(player, reception):
+    print("Applying long change effect.")
+    # add noise to current channel
+    while not reception.is_degraded():
+        reception.degrade()
+        player.update_filters()
+        time.sleep(debounce_fragment)
+
+    # reception.improve(1)
+    player.play_file("runtime/static.mp4")
+    while not reception.is_perfect():
+        reception.improve()
+        player.update_filters()
+        time.sleep(debounce_fragment)
+    # time.sleep(1)
+    while not reception.is_degraded():
+        reception.degrade()
+        player.update_filters()
+        time.sleep(debounce_fragment)
+
 class ReceptionStatus(object):
     __we_are_all_one = {}
     chaos = 0

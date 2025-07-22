@@ -1,8 +1,10 @@
+import asyncio
 import uvicorn
 from fastapi import FastAPI
 import os
 import sys
 from datetime import datetime
+import json
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -108,6 +110,61 @@ async def get_schedule(network_name: str, start: str = None, end: str = None):
 
     schedule_blocks = LiquidAPI.get_blocks(conf, sdt, edt)
     return {"network_name": network_name, "schedule_blocks": schedule_blocks}
+
+
+@fapi.get("/player/status")
+async def get_player_status():
+    status_socket = StationManager().server_conf["status_socket"]
+    if status_socket:
+        try:
+            with open(status_socket, 'r') as f:
+                status = f.read().strip()
+            return {"status": status}
+        except FileNotFoundError:
+            return {"error": "Status socket file not found."}
+    else:   
+        return {"error": "Status socket is not configured."}
+    
+@fapi.get("/player/channels/{channel}")
+async def player_channel(channel: str):
+    command =  {"command": "direct", "channel": -1}
+    if channel.isnumeric():
+        command["channel"] = int(channel)
+    elif channel == "up":
+        command["command"] = "up"
+    elif channel == "down":
+        command["command"] = "down"
+    else:
+        return {"error": "Invalid channel command. Use a number, 'up', or 'down'."}
+
+    cs = StationManager().server_conf["channel_socket"]
+    with open(cs, 'w') as f:
+        f.write(json.dumps(command))
+    return {"command": command} 
+
+
+def run_with_shutdown_queue(shutdown_queue):
+    """
+    Run the FastAPI server and monitor the shutdown_queue for a shutdown message.
+    """
+    def start_shutdown_monitor():
+        async def shutdown_monitor():
+            while True:
+                await asyncio.sleep(1)
+                try:
+                    msg = shutdown_queue.get_nowait()
+                    if msg == "shutdown":
+                        import os
+                        os._exit(0)
+                except Exception:
+                    pass
+        loop = asyncio.get_event_loop()
+        loop.create_task(shutdown_monitor())
+
+    fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
+    fapi.add_event_handler("startup", start_shutdown_monitor)
+    conf = StationManager().server_conf
+    uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
 
 def mount_fs42_api():
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")

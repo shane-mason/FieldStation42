@@ -1,3 +1,5 @@
+import multiprocessing
+
 import argparse
 import time
 import datetime
@@ -13,16 +15,16 @@ from fs42.station_player import (
     check_channel_socket,
     update_status_socket,
 )
-from fs42.reception import ReceptionStatus
+from fs42.reception import ReceptionStatus, long_change_effect, short_change_effect, none_change_effect
+
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
 )
 
-debounce_fragment = 0.1
 
+def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
-def main_loop(transition_fn):
     manager = StationManager()
     reception = ReceptionStatus()
     logger = logging.getLogger("MainLoop")
@@ -51,11 +53,17 @@ def main_loop(transition_fn):
     reception.degrade()
     player.update_filters()
 
+
     def sigint_handler(sig, frame):
         logger.critical("Received sig-int signal, attempting to exit gracefully...")
         player.shutdown()
 
         update_status_socket("stopped", "", -1)
+        # Signal API server to shutdown if running
+        if shutdown_queue is not None:
+            shutdown_queue.put("shutdown")
+        if api_proc is not None:
+            api_proc.join(timeout=5)
         logger.info("Shutdown completed as expected - exiting application")
         exit(0)
 
@@ -85,12 +93,9 @@ def main_loop(transition_fn):
                 f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} "
             )
 
-
             outcome = player.play_slot(
                 channel_conf["network_name"], datetime.datetime.now()
             )
-
-
 
         logger.debug(f"Got player outcome:{outcome.status}")
 
@@ -184,41 +189,9 @@ def main_loop(transition_fn):
             stuck_timer = 0
 
 
-def none_change_effect(player, reception):
-    pass
-
-
-def short_change_effect(player, reception):
-    prev = reception.improve_amount
-    reception.improve_amount = 0
-
-    while not reception.is_degraded():
-        reception.degrade(0.2)
-        player.update_filters()
-        time.sleep(debounce_fragment)
-
-    reception.improve_amount = prev
-
-
-def long_change_effect(player, reception):
-    # add noise to current channel
-    while not reception.is_degraded():
-        reception.degrade()
-        player.update_filters()
-        time.sleep(debounce_fragment)
-
-    # reception.improve(1)
-    player.play_file("runtime/static.mp4")
-    while not reception.is_perfect():
-        reception.improve()
-        player.update_filters()
-        time.sleep(debounce_fragment)
-    # time.sleep(1)
-    while not reception.is_degraded():
-        reception.degrade()
-        player.update_filters()
-        time.sleep(debounce_fragment)
-
+def start_api_server_with_shutdown_queue(shutdown_queue):
+    from fs42.fs42_server import fs42_server
+    fs42_server.run_with_shutdown_queue(shutdown_queue)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="FieldStation42 Player")
@@ -236,6 +209,12 @@ if __name__ == "__main__":
         "--verbose",
         action="store_true",
         help="Set logging verbosity level to very chatty",
+    )
+
+    parser.add_argument(
+        "--no_server",
+        action="store_true",
+        help="Do not start the web API server process."
     )
     args = parser.parse_args()
 
@@ -258,4 +237,23 @@ if __name__ == "__main__":
             trans_fn = none_change_effect
         # else keep short change as default
 
-    main_loop(trans_fn)
+    if not args.no_server:
+        # Set up shutdown queue and start API server as a background process
+        shutdown_queue = multiprocessing.Queue()
+        api_proc = multiprocessing.Process(
+            target=start_api_server_with_shutdown_queue,
+            args=(shutdown_queue,),
+            daemon=True
+        )
+        api_proc.start()
+    else:
+        shutdown_queue = None
+        api_proc = None
+
+    try:
+        main_loop(trans_fn, shutdown_queue=shutdown_queue, api_proc=api_proc)
+    finally:
+        if shutdown_queue is not None:
+            shutdown_queue.put("shutdown")
+        if api_proc is not None:
+            api_proc.join(timeout=5)
