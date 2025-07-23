@@ -170,6 +170,47 @@ def main():
                     raise ValueError(f"Can't find station by name: {arg}")
         return _rebuild_list
 
+    def delete_schedules(_rebuild_list):
+        nonlocal success_messages, failure_messages, _l
+        _l.info("Starting schedule rebuild.")
+        for station in _rebuild_list:
+            if station["_has_schedule"]:
+                _l.info(f"Rebuilding schedule for {station['network_name']}")
+                try:
+                    LiquidManager().reset_schedule(station, args.force)
+                    success_messages.append(
+                        f"Successfully rebuilt schedule for {station['network_name']}"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"[red]Error rebuilding schedule for {station['network_name']}: {e}[/red]"
+                    )
+                    _l.exception(e)
+                    failure_messages.append(
+                        f"Failed to rebuild schedule for {station['network_name']} - check logs."
+                    )
+
+    def rebuild_catalogs(_rebuild_list):
+        nonlocal success_messages, failure_messages, _l
+        _l.info("Starting catalog rebuild.")
+        for station in _rebuild_list:
+            if station["_has_catalog"]:
+                _l.info(f"Rebuilding catalog for {station['network_name']}")
+                try:
+                    Station42(station, True, args.force)
+                    success_messages.append(
+                        f"Successfully rebuilt catalog for {station['network_name']}"
+                    )
+                except Exception as e:
+                    console.print(
+                        f"[red]Error rebuilding catalog for {station['network_name']}: {e}[/red]"
+                    )
+                    _l.exception(e)
+                    failure_messages.append(
+                        f"Failed to rebuild catalog for {station['network_name']} - check logs."
+                    )
+
+
     execution_start_time = datetime.datetime.now()
     parser = build_parser()
     args = parser.parse_args()
@@ -267,6 +308,7 @@ def main():
         print_outcome(success_messages, failure_messages, console)
         return
 
+
     if args.delete_schedules is not None:
         _l.info("Starting schedule deletions")
         _rebuild_list = []
@@ -279,26 +321,7 @@ def main():
                 "Failed to get list of stations to delete schedules - check your arguments."
             )
 
-        for station in _rebuild_list:
-            if station["_has_schedule"]:
-                _l.info(f"Deleting schedule for {station['network_name']}")
-
-                try:
-                    if args.force:
-                        LiquidAPI.delete_blocks(station)
-                    else:
-                        LiquidManager().reset_schedule(station, args.force)
-                    success_messages.append(
-                        f"Successfully deleted schedule for {station['network_name']}"
-                    )
-                except Exception as e:
-                    console.print(
-                        f"[red]Error deleting schedule for {station['network_name']}: {e}[/red]"
-                    )
-                    _l.exception(e)
-                    failure_messages.append(
-                        f"Failed to delete schedule for {station['network_name']} - check logs."
-                    )
+        delete_schedules(_rebuild_list)
 
     if args.rebuild_catalog is not None:
         _rebuild_list = []
@@ -311,23 +334,8 @@ def main():
             failure_messages.append(
                 "Failed to get list of stations to rebuild - check your arguments."
             )
-
-        for station in _rebuild_list:
-            if station["_has_catalog"]:
-                _l.info(f"Building catalog for {station['network_name']}")
-                try:
-                    Station42(station, True, args.force)
-                    success_messages.append(
-                        f"Successfully built catalog for {station['network_name']}"
-                    )
-                except Exception as e:
-                    console.print(
-                        f"[red]Error building catalog for {station['network_name']}: {e}[/red]"
-                    )
-                    _l.exception(e)
-                    failure_messages.append(
-                        f"Failed to build catalog for {station['network_name']} - check logs."
-                    )
+        delete_schedules(_rebuild_list)
+        rebuild_catalogs(_rebuild_list)
 
         if FF_USE_FLUID_FILE_CACHE:
             try:
