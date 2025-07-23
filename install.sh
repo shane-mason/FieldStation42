@@ -49,7 +49,7 @@ fi
 
 
 echo Installing python modules
-pip install -r requirements.txt
+pip install -r install/requirements.txt
 
 echo Creating folders
 
