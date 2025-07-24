@@ -139,3 +139,9 @@ class ColorInvertedScrambledVideoFilter(ScrambledVideoFilter):
 
         return f"lavfi=[geq='if(mod(floor(Y/{self.chaos}),2),255-p(X,Y),p(X,Y))']"
 
+class ChunkyScrambledVideoFilter(ScrambledVideoFilter):
+    def __init__(self):
+        pass
+
+    def update_filter(self):
+        return "lavfi=[scale=320:240,split[base][aux];[aux]geq=r='p(X+floor((random(1000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)':g='p(X+floor((random(2000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)':b='p(X+floor((random(3000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)'[warped];[base][warped]overlay,scale=640:480]"

@@ -10,7 +10,7 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
-from fs42.reception import ReceptionStatus, HLScrambledVideoFilter, DiagonalScrambledVideoFilter, ColorInvertedScrambledVideoFilter
+from fs42.reception import ReceptionStatus, HLScrambledVideoFilter, DiagonalScrambledVideoFilter, ColorInvertedScrambledVideoFilter, ChunkyScrambledVideoFilter
 from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, ScheduleQueryNotInBounds
 
 from fs42.liquid_schedule import LiquidSchedule
@@ -73,7 +73,8 @@ class StationPlayer:
         "color_inversion" : "lavfi=[geq='if(mod(floor(Y/16),2),255-p(X,Y),p(X,Y))']", 
         "severe_noise" : "lavfi=[geq='if(gt(random(X*Y),0.7),random(255),p(X,Y))']",
         "wavy" : "lavfi=[geq='p(X+15*sin(2*PI*Y/40),Y+10*cos(2*PI*X/60))']",
-        "random_block" : "lavfi=[geq='if(gt(random(floor(X/20)*floor(Y/20)),0.6),p(X+random(100)-20,Y+random(70)-20),p(X,Y))']"
+        "random_block" : "lavfi=[geq='if(gt(random(floor(X/20)*floor(Y/20)),0.6),p(X+random(100)-20,Y+random(70)-20),p(X,Y))']",
+        "chunky_scramble": "lavfi=[scale=320:240,split[base][aux];[aux]geq=r='p(X+floor((random(1000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)':g='p(X+floor((random(2000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)':b='p(X+floor((random(3000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)'[warped];[base][warped]overlay,scale=640:480]",
     }
 
 
@@ -211,6 +212,8 @@ class StationPlayer:
                     self.scrambler = DiagonalScrambledVideoFilter()
                 elif vfx == "color_inversion":
                     self.scrambler = ColorInvertedScrambledVideoFilter()
+                elif vfx == "chunky_scramble":
+                    self.scrambler = ChunkyScrambledVideoFilter()
             else:
                 self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
         else:                
