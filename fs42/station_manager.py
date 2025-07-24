@@ -205,6 +205,7 @@ class StationManager(object):
 
                             fill_target = 1.0
                             # determine how much to fill with clips based on break strategy
+                            # 0.73 is the calculated average for content vs breaks
                             if d["station_conf"]["schedule_increment"]:
                                 fill_target = 0.95 if d["station_conf"]["schedule_increment"] else 0.73
 

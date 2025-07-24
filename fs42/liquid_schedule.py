@@ -25,19 +25,14 @@ class LiquidSchedule:
         self.catalog = ShowCatalog(conf)
         self._load_blocks()
 
-    def _calc_target_duration(self, duration):
+    def _calc_target_duration(self, duration, increment=None):
         # get the target duration for the show based on the shedule increment
-        multiple = self.conf["schedule_increment"] * 60
+        if increment is None:
+            increment = self.conf["schedule_increment"]
+        multiple = increment * 60
         if multiple == 0:
             return duration
         return multiple * math.ceil(duration / multiple)
-
-    def _calc_target_start(self, mark):
-        # determine when the block was supposed to start based on the schedule increment
-        multiple = self.conf["schedule_increment"] * 60
-        if multiple == 0:
-            return mark
-        return multiple * math.floor(mark / multiple)
 
     def _load_blocks(self):
         self._blocks = LiquidAPI.get_blocks(self.conf)
@@ -133,7 +128,9 @@ class LiquidSchedule:
                         )
 
                     else:
-                        target_duration = self._calc_target_duration(candidate.duration)
+                        _increment = slot_config.get("slot_increment", self.conf["schedule_increment"])
+                        
+                        target_duration = self._calc_target_duration(candidate.duration, _increment)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
 
                         new_block = LiquidBlock(
