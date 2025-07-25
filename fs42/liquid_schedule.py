@@ -128,7 +128,7 @@ class LiquidSchedule:
                         )
 
                     else:
-                        _increment = slot_config.get("slot_increment", self.conf["schedule_increment"])
+                        _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
                         
                         target_duration = self._calc_target_duration(candidate.duration, _increment)
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
