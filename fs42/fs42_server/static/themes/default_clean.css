@@ -1,0 +1,271 @@
+/* Clean minimalist theme with dark background and light blue accents */
+.fs42-terminal {
+    background: #1a1a1a;
+    color: #61afef;
+    font-family: 'Fira Mono', 'Consolas', monospace;
+    font-size: 0.95em;
+    border-radius: 4px;
+    border: 1px solid #61afef;
+    padding: 1em;
+    min-height: 120px;
+    line-height: 1.4;
+    margin-bottom: 1em;
+    white-space: pre-wrap;
+}
+
+body {
+    background: #0d1117;
+    min-height: 100vh;
+    color: #e6e6e6;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, p, a, li {
+    color: #e6e6e6;
+}
+
+.custom-menu {
+    background: #161b22;
+    color: #e6e6e6;
+    border-bottom: 1px solid #30363d;
+}
+
+.custom-menu .pure-menu-heading {
+    color: #61afef;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.custom-menu .pure-menu-link {
+    color: #e6e6e6;
+    font-weight: 400;
+    transition: color 0.2s;
+}
+
+.custom-menu .pure-menu-link:hover {
+    color: #61afef;
+    background: none;
+}
+
+@media (max-width: 48em) {
+    .pure-menu-list {
+        display: none;
+        flex-direction: column;
+        margin: 0;
+        padding: 0;
+    }
+
+    .pure-menu.pure-menu-active .pure-menu-list {
+        display: flex;
+        background: #161b22;
+        position: absolute;
+        top: 3.5em;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        border-bottom: 1px solid #30363d;
+    }
+
+    .pure-menu-item {
+        width: 100%;
+        text-align: left;
+    }
+
+    .menu-toggle {
+        display: inline-block;
+        cursor: pointer;
+        color: #61afef;
+        padding: 1em;
+        font-size: 1.2em;
+    }
+}
+
+@media (min-width: 48em) {
+    .menu-toggle {
+        display: none;
+    }
+
+    .pure-menu-list {
+        display: flex !important;
+        position: static;
+        background: none;
+        width: auto;
+        flex-direction: row;
+    }
+}
+
+.pure-g {
+    margin: 2em auto;
+    max-width: 1000px;
+    padding: 2em;
+    background: #161b22;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+#station-summary {
+    margin-bottom: 2em;
+}
+
+h1, h2 {
+    margin-top: 0;
+    color: #61afef;
+    font-weight: 500;
+}
+
+/* Table styles */
+.pure-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95em;
+    background: #1a1a1a;
+    color: #e6e6e6;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.pure-table th {
+    background: #161b22;
+    color: #61afef;
+    font-weight: 500;
+    padding: 0.8em 0.5em;
+    border-bottom: 1px solid #30363d;
+    text-align: left;
+}
+
+.pure-table td {
+    padding: 0.7em 0.5em;
+    text-align: left;
+    word-break: break-word;
+    border-bottom: 1px solid #30363d;
+}
+
+.pure-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Mobile-optimized table styles */
+@media (max-width: 600px) {
+    .pure-table, .pure-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .pure-table thead {
+        display: none;  /* Hide headers on mobile */
+    }
+
+    .pure-table tr {
+        display: block;
+        margin-bottom: 1em;
+        background: #1f242c;
+        border-radius: 4px;
+        border: 1px solid #30363d;
+    }
+
+    .pure-table td {
+        display: block;
+        padding: 0.6em;
+        border: none;
+        border-bottom: 1px solid #30363d;
+    }
+
+    .pure-table td:last-child {
+        border-bottom: none;
+    }
+
+    /* Add header labels on mobile */
+    .pure-table td:before {
+        content: attr(data-label);
+        display: block;
+        color: #61afef;
+        font-size: 0.85em;
+        margin-bottom: 0.3em;
+    }
+
+    /* Special styling for schedule blocks */
+    #schedule-table .pure-table td {
+        white-space: normal;  /* Allow text to wrap */
+        font-size: 0.9em;
+    }
+
+    /* Special styling for catalog entries */
+    #catalog-table .pure-table td {
+        white-space: normal;
+        font-size: 0.9em;
+    }
+}
+
+/* Button styles */
+.pure-button {
+    background: #1f242c;
+    color: #61afef;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 0.5em 1em;
+    font-size: 0.9em;
+    transition: all 0.2s;
+}
+
+.pure-button:hover {
+    background: #2c313a;
+    border-color: #61afef;
+}
+
+.pure-button-primary {
+    background: #61afef;
+    color: #0d1117;
+    border: none;
+}
+
+.pure-button-primary:hover {
+    background: #4b8cc7;
+    border: none;
+}
+
+/* Form elements */
+select, input {
+    background: #1f242c;
+    color: #e6e6e6;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 0.5em;
+}
+
+select:focus, input:focus {
+    border-color: #61afef;
+    outline: none;
+}
+
+@media (max-width: 600px) {
+    .pure-g {
+        padding: 1em;
+        margin: 1em;
+    }
+
+    .pure-button {
+        margin: 0.5em 0;
+    }
+
+    .fs42-terminal {
+        font-size: 0.85em;
+        padding: 0.8em;
+    }
+
+    /* Improve spacing in mobile view */
+    #station-select-frame {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #station-select-frame select,
+    #station-select-frame button {
+        margin: 0.5em 0;
+        width: 100%;
+        max-width: none;
+    }
+
+    #station-select-frame label {
+        margin-bottom: 0.5em;
+    }
+}

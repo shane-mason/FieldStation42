@@ -1,7 +1,6 @@
 from fs42.catalog_io import CatalogIO
 from fs42.catalog_entry import CatalogEntry
 
-
 class CatalogAPI:
     @staticmethod
     def get_summary(station_config):
@@ -52,3 +51,4 @@ class CatalogAPI:
     @staticmethod
     def get_entry_by_id(entry_id):
         return CatalogIO().entry_by_id(entry_id)
+    

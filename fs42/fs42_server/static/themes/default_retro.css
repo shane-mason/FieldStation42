@@ -1,0 +1,223 @@
+/* default_retro.css - A more subtle retro TV theme for FieldStation42 */
+
+:root {
+    /* Retro TV colors - softer, more usable palette */
+    --retro-bg: #1a1c2a;
+    --retro-text: #d4d4d4;
+    --retro-accent: #3dd8ff;  /* Bright TV blue */
+    --retro-secondary: #ff6464;
+    --retro-surface: #262837;
+    --retro-border: #363847;
+    --retro-header: #4cc7ff;
+    --retro-hover: #364157;
+}
+
+body {
+    background: var(--retro-bg);
+    color: var(--retro-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+}
+
+/* Menu styling */
+.custom-menu {
+    background: var(--retro-surface);
+    border-bottom: 2px solid var(--retro-accent);
+    padding: 0.5rem 0;
+}
+
+.pure-menu-heading {
+    color: var(--retro-header) !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.pure-menu-link {
+    color: var(--retro-text) !important;
+    transition: all 0.2s ease;
+}
+
+.pure-menu-link:hover {
+    background: var(--retro-hover) !important;
+    color: var(--retro-accent) !important;
+}
+
+/* Button styling */
+.pure-button {
+    background: var(--retro-surface);
+    border: 1px solid var(--retro-border);
+    color: var(--retro-text);
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.pure-button:hover {
+    background: var(--retro-hover);
+    border-color: var(--retro-accent);
+    color: var(--retro-accent);
+}
+
+/* Table styling */
+.pure-table {
+    background: var(--retro-surface);
+    border: 1px solid var(--retro-border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.pure-table thead {
+    background: var(--retro-hover);
+    color: var(--retro-header);
+}
+
+.pure-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.9em;
+}
+
+.pure-table td {
+    background: var(--retro-surface);
+    border-bottom: 1px solid var(--retro-border);
+}
+
+.pure-table tr:hover td {
+    background: var(--retro-hover);
+}
+
+/* Form elements */
+select, input, .pure-input-1 {
+    background: var(--retro-surface) !important;
+    border: 1px solid var(--retro-border) !important;
+    color: var(--retro-text) !important;
+    border-radius: 4px;
+    padding: 0.5em;
+    transition: all 0.2s ease;
+}
+
+select:focus, input:focus, .pure-input-1:focus {
+    border-color: var(--retro-accent) !important;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(61, 216, 255, 0.2);
+}
+
+/* Terminal output styling */
+.fs42-terminal {
+    background: var(--retro-surface);
+    border: 1px solid var(--retro-border);
+    border-radius: 6px;
+    padding: 1rem;
+    color: var(--retro-text);
+    font-family: "Consolas", "Monaco", monospace;
+    line-height: 1.4;
+    margin: 1rem 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--retro-header);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Main container styling */
+.pure-g > div {
+    padding: 1.5rem;
+}
+
+/* Labels */
+label {
+    color: var(--retro-accent) !important;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Mobile menu toggle */
+.menu-toggle {
+    color: var(--retro-header);
+    cursor: pointer;
+    display: none;
+    font-size: 1.5rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: block;
+        float: right;
+    }
+
+    .pure-menu-horizontal .pure-menu-list {
+        display: none;
+    }
+
+    .pure-menu-horizontal.pure-menu-active .pure-menu-list {
+        display: block;
+        background: var(--retro-surface);
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        border-bottom: 2px solid var(--retro-accent);
+    }
+
+    .pure-menu-horizontal.pure-menu-active .pure-menu-item {
+        display: block;
+        border-bottom: 1px solid var(--retro-border);
+    }
+
+    .pure-menu-horizontal.pure-menu-active .pure-menu-link {
+        padding: 1rem;
+    }
+
+    /* Mobile table styles */
+    .pure-table {
+        border: 0;
+    }
+
+    .pure-table thead {
+        display: none;
+    }
+
+    .pure-table tr {
+        margin-bottom: 1rem;
+        display: block;
+        border: 1px solid var(--retro-border);
+        border-radius: 4px;
+        background: var(--retro-surface);
+    }
+
+    .pure-table td {
+        display: block;
+        text-align: right;
+        padding: 0.5rem 1rem;
+        position: relative;
+    }
+
+    .pure-table td::before {
+        content: attr(data-label);
+        float: left;
+        font-weight: 600;
+        color: var(--retro-accent);
+    }
+
+    .pure-table td:last-child {
+        border-bottom: 0;
+    }
+
+    /* Improved spacing for mobile forms */
+    .pure-form .pure-input-1 {
+        margin-bottom: 1rem;
+    }
+}

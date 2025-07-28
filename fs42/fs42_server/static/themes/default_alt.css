@@ -1,7 +1,24 @@
+/* Clean Dark Retro Theme - Alt Color Scheme */
+.fs42-terminal {
+    background: #181825;
+    color: #e0e0e0;
+    font-family: 'IBM Plex Mono', 'VT323', 'Courier New', monospace;
+    font-size: 1.05em;
+    border-radius: 8px;
+    border: 2px solid #00ffd0;
+    box-shadow: 0 0 12px #00ffd044;
+    padding: 1em;
+    min-height: 120px;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+    margin-bottom: 1em;
+    white-space: pre-wrap;
+}
+
 body {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    background: linear-gradient(135deg, #181825 0%, #232347 100%);
     min-height: 100vh;
-    color: #f8f8f2;
+    color: #e0e0e0;
     font-family: 'IBM Plex Mono', 'VT323', 'Courier New', monospace;
 }
 
@@ -14,35 +31,35 @@ h6,
 p,
 a,
 li {
-    color: #f8f8f2;
-    text-shadow: 0 1px 0 #000, 0 0 8px #00fff7;
+    color: #e0e0e0;
+    text-shadow: 0 1px 0 #000, 0 0 8px #00ffd0;
 }
 
 .custom-menu {
-    background: #222;
-    color: #fff;
-    border-bottom: 2px solid #00fff7;
-    box-shadow: 0 2px 8px #00fff744;
+    background: #232347;
+    color: #e0e0e0;
+    border-bottom: 2px solid #00ffd0;
+    box-shadow: 0 2px 8px #00ffd044;
 }
 
 .custom-menu .pure-menu-heading {
-    color: #ff00cc;
+    color: #00ffd0;
     font-weight: bold;
     letter-spacing: 2px;
     font-family: 'Press Start 2P', 'IBM Plex Mono', monospace;
-    text-shadow: 0 0 8px #ff00cc88;
+    text-shadow: 0 0 8px #00ffd088;
 }
 
 .custom-menu .pure-menu-link {
-    color: #00fff7;
+    color: #e0e0e0;
     font-weight: bold;
     transition: color 0.2s;
     font-family: 'IBM Plex Mono', 'VT323', monospace;
 }
 
 .custom-menu .pure-menu-link:hover {
-    color: #ff00cc;
-    text-shadow: 0 0 8px #ff00cc88;
+    color: #00ffd0;
+    text-shadow: 0 0 8px #00ffd088;
 }
 
 @media (max-width: 48em) {
@@ -55,7 +72,7 @@ li {
 
     .pure-menu.pure-menu-active .pure-menu-list {
         display: flex;
-        background: #222;
+        background: #232347;
         position: absolute;
         top: 3.5em;
         left: 0;
@@ -71,10 +88,10 @@ li {
     .menu-toggle {
         display: inline-block;
         cursor: pointer;
-        color: #ff00cc;
+        color: #00ffd0;
         padding: 1em;
         font-size: 1.5em;
-        text-shadow: 0 0 8px #ff00cc88;
+        text-shadow: 0 0 8px #00ffd088;
     }
 }
 
@@ -92,14 +109,13 @@ li {
     }
 }
 
-/* Better margins for the content frame */
 .pure-g {
     margin: 2em auto;
     max-width: 900px;
     padding: 2em;
-    background: rgba(34, 34, 34, 0.92);
+    background: #232347;
     border-radius: 16px;
-    box-shadow: 0 2px 24px #00fff744;
+    box-shadow: 0 2px 24px #00ffd044;
 }
 
 #station-summary {
@@ -110,40 +126,39 @@ h1,
 h2 {
     margin-top: 0;
     text-align: center;
-    color: #ff00cc;
-    text-shadow: 0 2px 5px #00fff7, 0 0 5px #ff00cc88;
+    color: #00ffd0;
+    text-shadow: 0 2px 5px #000, 0 0 5px #00ffd088;
     font-family: 'Press Start 2P', 'IBM Plex Mono', monospace;
 }
 
-/* Responsive table styles */
 .pure-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 1em;
-    background: #181a1b;
-    color: #f8f8f2;
+    background: #181825;
+    color: #e0e0e0;
     border-radius: 8px;
     overflow: hidden;
     font-family: 'IBM Plex Mono', 'VT323', monospace;
-    box-shadow: 0 2px 16px #00fff744;
+    box-shadow: 0 2px 16px #00ffd044;
 }
 
 .pure-table th {
-    background: #222;
-    color: #00fff7;
+    background: #232347;
+    color: #00ffd0;
     font-weight: bold;
     padding: 0.7em 0.3em;
-    border-bottom: 2px solid #ff00cc;
+    border-bottom: 2px solid #00ffd0;
     font-family: 'Press Start 2P', 'IBM Plex Mono', monospace;
-    text-shadow: 0 0 8px #00fff788;
+    text-shadow: 0 0 8px #00ffd088;
 }
 
 .pure-table td {
     padding: 0.5em 0.3em;
     text-align: left;
     word-break: break-word;
-    border-bottom: 1px solid #393e5c;
-    color: #f8f8f2;
+    border-bottom: 1px solid #232347;
+    color: #e0e0e0;
     font-family: 'IBM Plex Mono', 'VT323', monospace;
 }
 
@@ -179,9 +194,9 @@ h2 {
 
     .pure-table tr {
         margin-bottom: 1.5em;
-        background: #222;
+        background: #232347;
         border-radius: 12px;
-        box-shadow: 0 1px 8px #ff00cc44;
+        box-shadow: 0 1px 8px #00ffd044;
         width: 90%;
         border: none !important;
         display: block;
@@ -194,7 +209,7 @@ h2 {
         position: relative;
         width: 100%;
         border: none !important;
-        color: #f8f8f2;
+        color: #e0e0e0;
     }
 
     .pure-table td:before {
@@ -202,10 +217,9 @@ h2 {
         font-weight: bold;
         display: block;
         margin-bottom: 0.2em;
-        color: #00fff7;
-        text-shadow: 0 0 8px #00fff788;
+        color: #00ffd0;
+        text-shadow: 0 0 8px #00ffd044;
     }
 }
 
-/* Retro font imports */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Press+Start+2P&family=VT323&display=swap');

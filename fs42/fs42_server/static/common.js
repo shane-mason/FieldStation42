@@ -1,5 +1,21 @@
 // common.js
 
+// Theme management
+function initTheme() {
+    const savedTheme = localStorage.getItem('fs42-theme') || 'default';
+    setTheme(savedTheme);
+    if (document.getElementById('theme-select')) {
+        document.getElementById('theme-select').value = savedTheme;
+    }
+}
+
+function setTheme(themeName) {
+    const themeLink = document.getElementById('theme-css');
+    themeLink.href = `/static/themes/${themeName}.css`;
+    localStorage.setItem('fs42-theme', themeName);
+}
+
+// Menu management
 function toggleMenu() {
     var menu = document.getElementById('mainMenu');
     menu.classList.toggle('pure-menu-active');
@@ -11,6 +27,63 @@ window.addEventListener('resize', function () {
         if (menu) menu.classList.remove('pure-menu-active');
     }
 });
+
+// Layout components
+function createMainMenu() {
+    return `
+        <div class="pure-menu pure-menu-horizontal custom-menu" id="mainMenu">
+            <a href="#" class="pure-menu-heading">FieldStation42</a>
+            <span class="menu-toggle" onclick="window.fs42Common.toggleMenu()">&#9776;</span>
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
+                <li class="pure-menu-item"><a href="/static/catalog.html" class="pure-menu-link">Catalog</a></li>
+                <li class="pure-menu-item"><a href="/static/schedule.html" class="pure-menu-link">Schedule</a></li>
+                <li class="pure-menu-item"><a href="/static/about.html" class="pure-menu-link">About</a></li>
+            </ul>
+        </div>
+    `;
+}
+
+function createPageLayout(title, content) {
+    return `
+        ${createMainMenu()}
+        <div class="pure-g">
+            <div class="pure-u-1">
+                <h1>${title}</h1>
+                ${content}
+            </div>
+        </div>
+    `;
+}
+
+function createStationSelector() {
+    return `
+        <div id="station-select-frame" class="station-select-container">
+            <label for="station-select">Select Station:</label>
+            <select id="station-select" class="pure-input-1"></select>
+        </div>
+    `;
+}
+
+function createActionButtons(buttons) {
+    const buttonHtml = buttons.map(btn => 
+        `<button id="${btn.id}" class="pure-button ${btn.classes || ''}">${btn.text}</button>`
+    ).join('');
+    
+    return `<div class="action-buttons">${buttonHtml}</div>`;
+}
+
+function createLogDisplay() {
+    return `
+        <div id="log-frame" class="log-container" style="display:none;">
+            <div class="log-header">
+                <h2 id="log-header-text">Log</h2>
+                <button id="log-dismiss" class="pure-button">Dismiss</button>
+            </div>
+            <pre id="log-content" class="fs42-terminal"></pre>
+        </div>
+    `;
+}
 
 // Fetch and display summary from /summary API
 async function fetchStationSummary() {
@@ -141,7 +214,17 @@ function formatDateTime(dtStr) {
 }
 
 window.fs42Common = {
+    // Theme management
+    initTheme,
+    setTheme,
+    // Menu and layout
     toggleMenu,
+    createMainMenu,
+    createPageLayout,
+    createStationSelector,
+    createActionButtons,
+    createLogDisplay,
+    // API functions
     fetchStationSummary,
     fetchCatalog,
     renderSummaryTable,

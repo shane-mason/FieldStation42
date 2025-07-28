@@ -1,128 +1,376 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schedule - FieldStation42</title>
     <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
     <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
-    <link rel="stylesheet" href="/static/default.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
 </head>
+
 <body>
-    <div class="pure-menu pure-menu-horizontal custom-menu" id="mainMenu">
-        <a href="#" class="pure-menu-heading">FieldStation42</a>
-        <span class="menu-toggle" onclick="window.fs42Common.toggleMenu()">&#9776;</span>
-        <ul class="pure-menu-list">
-            <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
-            <li class="pure-menu-item"><a href="/static/catalog.html" class="pure-menu-link">Catalog</a></li>
-            <li class="pure-menu-item"><a href="/static/schedule.html" class="pure-menu-link">Schedule</a></li>
-            <li class="pure-menu-item"><a href="#" class="pure-menu-link">About</a></li>
-        </ul>
-    </div>
-    <div class="pure-g">
-        <div class="pure-u-1">
-            <h1>Schedule Viewer</h1>
-            <div id="station-select-frame" class="pure-u-1">
-                <label for="station-select" style="font-weight:bold; color:#ff00cc;">Select Station:</label>
-                <select id="station-select" class="pure-input-1" style="max-width:300px;margin:1em 0;"></select>
-            </div>
-            <div id="station-summary" class="pure-u-1">
-                <h2>Station Summary</h2>
-                <div id="station-summary-table"></div>
-            </div>
-            <div id="schedule-controls" class="pure-u-1">
-                <h2>Schedule Query</h2>
-                <label for="start-date">Start:</label>
-                <input type="datetime-local" id="start-date" style="margin-right:1em;">
-                <label for="end-date">End:</label>
-                <input type="datetime-local" id="end-date" style="margin-right:1em;">
-                <button id="get-schedule" class="pure-button pure-button-primary">Get Schedule</button>
-            </div>
-            <div id="schedule-table-frame" class="pure-u-1">
-                <h2>Schedule Blocks</h2>
-                <div id="schedule-table"></div>
-            </div>
-        </div>
-    </div>
     <script src="/static/fs42_client.js"></script>
     <script src="/static/common.js"></script>
     <script>
+        // Declare variables in global scope
         let stations = [];
         let selectedStation = null;
-        let scheduleExtents = {start: null, end: null};
+        let scheduleExtents = { start: null, end: null };
+        let addTimePollInterval = null;
+        let addTimeType = null;
 
-        async function loadStationsAndSummary() {
-            stations = await window.fs42Common.fetchStationSummary();
-            const select = document.getElementById('station-select');
-            select.innerHTML = '';
-            const defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.textContent = 'Select Station';
-            select.appendChild(defaultOpt);
-            stations.forEach(station => {
-                const opt = document.createElement('option');
-                opt.value = station.network_name;
-                opt.textContent = station.network_name;
-                select.appendChild(opt);
-            });
-            selectedStation = null;
-            select.value = '';
-            document.getElementById('station-summary-table').innerHTML = '';
-            document.getElementById('schedule-table').innerHTML = '';
-        }
+        // Initialize page layout
+        document.addEventListener('DOMContentLoaded', function () {
+            window.fs42Common.initTheme();
 
-        function updateStationSummary(networkName) {
-            if (!networkName) {
-                document.getElementById('station-summary-table').innerHTML = '';
-                document.getElementById('schedule-table').innerHTML = '';
-                return;
-            }
-            const station = stations.find(s => s.network_name === networkName);
-            if (station) {
-                document.getElementById('station-summary-table').innerHTML = window.fs42Common.renderSummaryTable([station]);
-            } else {
-                document.getElementById('station-summary-table').innerHTML = '<p>No summary found.</p>';
-            }
-        }
+            const actionButtons = window.fs42Common.createActionButtons([
+                { id: 'add-month-btn', text: 'Add Month' },
+                { id: 'add-week-btn', text: 'Add Week' },
+                { id: 'add-day-btn', text: 'Add Day' },
+                { id: 'reset-schedules-btn', text: 'Reset Schedules', classes: 'danger' }
+            ]);
+            const stationSelector = window.fs42Common.createStationSelector();
+            const logDisplay = window.fs42Common.createLogDisplay();
 
-        async function loadScheduleExtents(networkName) {
-            // Fetch schedule summary for extents
-            const summary = await window.fs42Common.fetchScheduleSummary(networkName);
-            if (summary && summary.extents) {
-                scheduleExtents = summary.extents;
-                document.getElementById('start-date').value = summary.extents.start.replace(' ', 'T');
-                document.getElementById('end-date').value = summary.extents.end.replace(' ', 'T');
-            }
-        }
+            const content = `
+                <div class="pure-u-1" id="all-stations-buttons">
+                    <h3 style="margin-bottom: 0.5em; color: #ff00cc;">All Stations Actions:</h3>
+                    ${actionButtons}
+                    <div style="margin-top: 2em; margin-bottom: 1em;">
+                        ${stationSelector}
+                    </div>
+                    <div id="station-summary" class="pure-u-1">
+                        <h2 id="station-summary-header" style="display:none;">Station Summary</h2>
+                        <div id="station-summary-table"></div>
+                    </div>
+                    ${logDisplay.replace('log-frame', 'add-time-log-frame').replace('log-header-text', 'add-time-log-header').replace('log-dismiss', 'add-time-log-dismiss').replace('log-content', 'add-time-log')}
+                    <div id="schedule-controls" class="pure-u-1" style="display:none;">
+                        <h2 id="schedule-query-header" style="display:none;">Schedule Query</h2>
+                        <label for="start-date" id="start-date-label" style="display:none;">Start:</label>
+                        <input type="datetime-local" id="start-date" style="margin-right:1em; display:none;">
+                        <label for="end-date" id="end-date-label" style="display:none;">End:</label>
+                        <input type="datetime-local" id="end-date" style="margin-right:1em; display:none;">
+                        <button id="get-schedule" class="pure-button pure-button-primary" style="display:none;">Get Schedule</button>
+                    </div>
+                    <div id="schedule-table-frame" class="pure-u-1">
+                        <h2 id="schedule-blocks-header" style="display:none;">Schedule Blocks</h2>
+                        <div id="schedule-table"></div>
+                    </div>
+                </div>
+            `;
 
-        async function getScheduleBlocks() {
-            const start = document.getElementById('start-date').value;
-            const end = document.getElementById('end-date').value;
-            let blocks;
-            if (!selectedStation) return;
-            if (start && end) {
-                blocks = await window.fs42Common.fetchSchedule(selectedStation, start, end);
-            } else {
-                blocks = await window.fs42Common.fetchSchedule(selectedStation);
-            }
-            document.getElementById('schedule-table').innerHTML = window.fs42Common.renderScheduleTable(blocks);
-        }
+            document.body.innerHTML = window.fs42Common.createPageLayout('Schedule Manager', content);
 
-        document.getElementById('station-select').addEventListener('change', async function(e) {
-            selectedStation = e.target.value || null;
-            updateStationSummary(selectedStation);
-            document.getElementById('schedule-table').innerHTML = '';
-            if (selectedStation) {
-                await loadScheduleExtents(selectedStation);
-            } else {
-                document.getElementById('start-date').value = '';
-                document.getElementById('end-date').value = '';
-            }
+            // Initialize functionality after DOM is created
+            initializeSchedulePage();
         });
 
-        document.getElementById('get-schedule').addEventListener('click', getScheduleBlocks);
+        function initializeSchedulePage() {
+            async function loadStationsAndSummary() {
+                stations = await window.fs42Common.fetchStationSummary();
+                const select = document.getElementById('station-select');
+                select.innerHTML = '';
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = 'Select Station';
+                select.appendChild(defaultOpt);
+                stations.forEach(station => {
+                    const opt = document.createElement('option');
+                    opt.value = station.network_name;
+                    opt.textContent = station.network_name;
+                    select.appendChild(opt);
+                });
+                selectedStation = null;
+                select.value = '';
+                document.getElementById('station-summary-table').innerHTML = '';
+                document.getElementById('station-summary-header').style.display = 'none';
+                document.getElementById('schedule-controls').style.display = 'none';
+                document.getElementById('schedule-query-header').style.display = 'none';
+                document.getElementById('start-date-label').style.display = 'none';
+                document.getElementById('start-date').style.display = 'none';
+                document.getElementById('end-date-label').style.display = 'none';
+                document.getElementById('end-date').style.display = 'none';
+                document.getElementById('get-schedule').style.display = 'none';
+                document.getElementById('schedule-blocks-header').style.display = 'none';
+                document.getElementById('schedule-table').innerHTML = '';
+                document.getElementById('add-time-log').textContent = '';
+            }
 
-        loadStationsAndSummary();
+            function updateStationSummary(networkName) {
+                if (!networkName) {
+                    document.getElementById('station-summary-table').innerHTML = '';
+                    document.getElementById('station-summary-header').style.display = 'none';
+                    document.getElementById('schedule-controls').style.display = 'none';
+                    document.getElementById('schedule-query-header').style.display = 'none';
+                    document.getElementById('start-date-label').style.display = 'none';
+                    document.getElementById('start-date').style.display = 'none';
+                    document.getElementById('end-date-label').style.display = 'none';
+                    document.getElementById('end-date').style.display = 'none';
+                    document.getElementById('get-schedule').style.display = 'none';
+                    document.getElementById('schedule-blocks-header').style.display = 'none';
+                    document.getElementById('schedule-table').innerHTML = '';
+                    return;
+                }
+                const station = stations.find(s => s.network_name === networkName);
+                if (station) {
+                    document.getElementById('station-summary-table').innerHTML = window.fs42Common.renderSummaryTable([station]);
+                    document.getElementById('station-summary-header').style.display = '';
+                    document.getElementById('schedule-controls').style.display = '';
+                    document.getElementById('schedule-query-header').style.display = '';
+                    document.getElementById('start-date-label').style.display = '';
+                    document.getElementById('start-date').style.display = '';
+                    document.getElementById('end-date-label').style.display = '';
+                    document.getElementById('end-date').style.display = '';
+                    document.getElementById('get-schedule').style.display = '';
+                } else {
+                    document.getElementById('station-summary-table').innerHTML = '<p>No summary found.</p>';
+                    document.getElementById('station-summary-header').style.display = 'none';
+                    document.getElementById('schedule-controls').style.display = 'none';
+                    document.getElementById('schedule-query-header').style.display = 'none';
+                    document.getElementById('start-date-label').style.display = 'none';
+                    document.getElementById('start-date').style.display = 'none';
+                    document.getElementById('end-date-label').style.display = 'none';
+                    document.getElementById('end-date').style.display = 'none';
+                    document.getElementById('get-schedule').style.display = 'none';
+                }
+            }
+
+            function pollAddTimeStatus(taskId, afterDoneCallback) {
+                if (addTimePollInterval) {
+                    clearInterval(addTimePollInterval);
+                }
+                const logElem = document.getElementById('add-time-log');
+                const header = document.getElementById('add-time-log-header');
+                const frame = document.getElementById('add-time-log-frame');
+                const dismissBtn = document.getElementById('add-time-log-dismiss');
+                logElem.textContent = 'Polling add time status...';
+                header.style.display = '';
+                frame.style.display = '';
+                dismissBtn.style.display = '';
+                addTimePollInterval = setInterval(async () => {
+                    try {
+                        const resp = await fetch(`/build/schedule/add_time/status/${taskId}`);
+                        const data = await resp.json();
+                        if (data.error) {
+                            logElem.textContent = data.error;
+                            header.style.display = '';
+                            frame.style.display = '';
+                            dismissBtn.style.display = '';
+                            clearInterval(addTimePollInterval);
+                            return;
+                        }
+                        logElem.textContent = data.log || '';
+                        if (data.log && data.log.length > 0) {
+                            header.style.display = '';
+                            frame.style.display = '';
+                            dismissBtn.style.display = '';
+                        } else {
+                            header.style.display = 'none';
+                            frame.style.display = 'none';
+                            dismissBtn.style.display = 'none';
+                        }
+                        if (data.status === 'done' || data.status === 'error') {
+                            clearInterval(addTimePollInterval);
+                            if (typeof afterDoneCallback === 'function') {
+                                afterDoneCallback();
+                            }
+                        }
+                    } catch (e) {
+                        logElem.textContent = 'Error polling status.';
+                        header.style.display = '';
+                        frame.style.display = '';
+                        dismissBtn.style.display = '';
+                        clearInterval(addTimePollInterval);
+                    }
+                }, 2000);
+            }
+
+            async function loadScheduleExtents(networkName) {
+                const summary = await window.fs42Common.fetchScheduleSummary(networkName);
+                if (summary && summary.extents) {
+                    scheduleExtents = summary.extents;
+                    document.getElementById('start-date').value = summary.extents.start.replace(' ', 'T');
+                    document.getElementById('end-date').value = summary.extents.end.replace(' ', 'T');
+                }
+            }
+
+            async function getScheduleBlocks() {
+                const start = document.getElementById('start-date').value;
+                const end = document.getElementById('end-date').value;
+                let blocks;
+                if (!selectedStation) return;
+                if (start && end) {
+                    blocks = await window.fs42Common.fetchSchedule(selectedStation, start, end);
+                } else {
+                    blocks = await window.fs42Common.fetchSchedule(selectedStation);
+                }
+                if (blocks && blocks.length > 0) {
+                    document.getElementById('schedule-blocks-header').style.display = '';
+                } else {
+                    document.getElementById('schedule-blocks-header').style.display = 'none';
+                }
+                document.getElementById('schedule-table').innerHTML = window.fs42Common.renderScheduleTable(blocks);
+            }
+
+            // Event listeners
+            document.getElementById('station-select').addEventListener('change', async function (e) {
+                selectedStation = e.target.value || null;
+                updateStationSummary(selectedStation);
+                document.getElementById('schedule-table').innerHTML = '';
+                document.getElementById('schedule-blocks-header').style.display = 'none';
+                document.getElementById('add-time-log').textContent = '';
+                document.getElementById('add-time-log-header').style.display = 'none';
+                document.getElementById('add-time-log-frame').style.display = 'none';
+                document.getElementById('add-time-log-dismiss').style.display = 'none';
+                if (selectedStation) {
+                    await loadScheduleExtents(selectedStation);
+                    if (scheduleExtents && scheduleExtents.start && scheduleExtents.end) {
+                        document.getElementById('start-date').value = scheduleExtents.start.replace(' ', 'T');
+                        document.getElementById('end-date').value = scheduleExtents.end.replace(' ', 'T');
+                    }
+                } else {
+                    document.getElementById('start-date').value = '';
+                    document.getElementById('end-date').value = '';
+                }
+            });
+
+            document.getElementById('add-time-log-dismiss').addEventListener('click', function () {
+                document.getElementById('add-time-log-frame').style.display = 'none';
+                document.getElementById('add-time-log-dismiss').style.display = 'none';
+            });
+
+            document.getElementById('add-month-btn').addEventListener('click', async function () {
+                addTimeType = 'month';
+                document.getElementById('add-time-log').textContent = 'Starting add month for all stations...';
+                document.getElementById('add-time-log-header').style.display = '';
+                document.getElementById('add-time-log-frame').style.display = '';
+                document.getElementById('add-time-log-dismiss').style.display = '';
+                try {
+                    const resp = await fetch(`/build/schedule/add_time/month`, {
+                        method: 'POST'
+                    });
+                    const data = await resp.json();
+                    let taskId = data.task_id;
+                    function pollStatus() {
+                        if (addTimePollInterval) clearInterval(addTimePollInterval);
+                        addTimePollInterval = setInterval(async () => {
+                            const resp = await fetch(`/build/schedule/add_time/status/${taskId}`);
+                            const data = await resp.json();
+                            document.getElementById('add-time-log').textContent = data.log || '';
+                            if (data.status === 'done' || data.status === 'error') {
+                                clearInterval(addTimePollInterval);
+                                await getScheduleBlocks();
+                            }
+                        }, 2000);
+                    }
+                    pollStatus();
+                } catch (e) {
+                    document.getElementById('add-time-log').textContent = 'Error starting add month.';
+                }
+            });
+
+            document.getElementById('add-week-btn').addEventListener('click', async function () {
+                addTimeType = 'week';
+                document.getElementById('add-time-log').textContent = 'Starting add week for all stations...';
+                document.getElementById('add-time-log-header').style.display = '';
+                document.getElementById('add-time-log-frame').style.display = '';
+                document.getElementById('add-time-log-dismiss').style.display = '';
+                try {
+                    const resp = await fetch(`/build/schedule/add_time/week`, {
+                        method: 'POST'
+                    });
+                    const data = await resp.json();
+                    let taskId = data.task_id;
+                    function pollStatus() {
+                        if (addTimePollInterval) clearInterval(addTimePollInterval);
+                        addTimePollInterval = setInterval(async () => {
+                            const resp = await fetch(`/build/schedule/add_time/status/${taskId}`);
+                            const data = await resp.json();
+                            document.getElementById('add-time-log').textContent = data.log || '';
+                            if (data.status === 'done' || data.status === 'error') {
+                                clearInterval(addTimePollInterval);
+                                await getScheduleBlocks();
+                            }
+                        }, 2000);
+                    }
+                    pollStatus();
+                } catch (e) {
+                    document.getElementById('add-time-log').textContent = 'Error starting add week.';
+                }
+            });
+
+            document.getElementById('add-day-btn').addEventListener('click', async function () {
+                addTimeType = 'day';
+                document.getElementById('add-time-log').textContent = 'Starting add day for all stations...';
+                document.getElementById('add-time-log-header').style.display = '';
+                document.getElementById('add-time-log-frame').style.display = '';
+                document.getElementById('add-time-log-dismiss').style.display = '';
+                try {
+                    const resp = await fetch(`/build/schedule/add_time/day`, {
+                        method: 'POST'
+                    });
+                    const data = await resp.json();
+                    let taskId = data.task_id;
+                    function pollStatus() {
+                        if (addTimePollInterval) clearInterval(addTimePollInterval);
+                        addTimePollInterval = setInterval(async () => {
+                            const resp = await fetch(`/build/schedule/add_time/status/${taskId}`);
+                            const data = await resp.json();
+                            document.getElementById('add-time-log').textContent = data.log || '';
+                            if (data.status === 'done' || data.status === 'error') {
+                                clearInterval(addTimePollInterval);
+                                await getScheduleBlocks();
+                            }
+                        }, 2000);
+                    }
+                    pollStatus();
+                } catch (e) {
+                    document.getElementById('add-time-log').textContent = 'Error starting add day.';
+                }
+            });
+
+            document.getElementById('reset-schedules-btn').addEventListener('click', async function () {
+                document.getElementById('add-time-log').textContent = 'Resetting schedules for all stations...';
+                document.getElementById('add-time-log-header').style.display = '';
+                document.getElementById('add-time-log-frame').style.display = '';
+                document.getElementById('add-time-log-dismiss').style.display = '';
+                try {
+                    let promises = stations.map(station => fetch(`/build/catalog/${encodeURIComponent(station.network_name)}`).then(r => r.json()));
+                    let results = await Promise.all(promises);
+                    let taskIds = results.map(r => r.task_id).filter(Boolean);
+                    let logs = [];
+                    let completed = 0;
+                    function pollAll() {
+                        if (addTimePollInterval) clearInterval(addTimePollInterval);
+                        addTimePollInterval = setInterval(async () => {
+                            logs = [];
+                            completed = 0;
+                            for (let i = 0; i < taskIds.length; i++) {
+                                const resp = await fetch(`/build/catalog/status/${taskIds[i]}`);
+                                const data = await resp.json();
+                                logs.push(`Station: ${stations[i].network_name}\n${data.log || ''}`);
+                                if (data.status === 'done' || data.status === 'error') completed++;
+                            }
+                            document.getElementById('add-time-log').textContent = logs.join('\n---------------------\n');
+                            if (completed === taskIds.length) {
+                                clearInterval(addTimePollInterval);
+                                await getScheduleBlocks();
+                            }
+                        }, 2000);
+                    }
+                    pollAll();
+                } catch (e) {
+                    document.getElementById('add-time-log').textContent = 'Error resetting schedules.';
+                }
+            });
+
+            document.getElementById('get-schedule').addEventListener('click', getScheduleBlocks);
+
+            loadStationsAndSummary();
+        }
     </script>
 </body>
+
 </html>
