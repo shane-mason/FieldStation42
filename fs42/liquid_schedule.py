@@ -239,6 +239,9 @@ class LiquidSchedule:
     def add_month(self):
         self._increment("month")
 
+    def add_amount(self, amount):
+        self._increment(amount)
+
     def print_schedule(self):
         for block in self._blocks:
             print("here: " + block)

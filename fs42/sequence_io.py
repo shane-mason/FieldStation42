@@ -125,3 +125,20 @@ class SequenceIO:
             )
             cursor.close()
             connection.commit()
+
+    def clean_sequences(self):
+        """
+        Clean up sequences by removing entries that are no longer valid.
+        This can be used to remove entries that have been deleted from the filesystem.
+        """
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """DELETE FROM sequence_entries
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM named_sequence
+                            WHERE named_sequence.id = sequence_entries.named_sequence_id
+                        );"""
+            )
+            connection.commit()
+            cursor.close()
