@@ -337,30 +337,24 @@
                 document.getElementById('add-time-log-frame').style.display = '';
                 document.getElementById('add-time-log-dismiss').style.display = '';
                 try {
-                    let promises = stations.map(station => fetch(`/build/catalog/${encodeURIComponent(station.network_name)}`).then(r => r.json()));
-                    let results = await Promise.all(promises);
-                    let taskIds = results.map(r => r.task_id).filter(Boolean);
-                    let logs = [];
-                    let completed = 0;
-                    function pollAll() {
+                    const resp = await fetch(`/build/schedule/reset/all`, {
+                        method: 'POST'
+                    });
+                    const data = await resp.json();
+                    let taskId = data.task_id;
+                    function pollStatus() {
                         if (addTimePollInterval) clearInterval(addTimePollInterval);
                         addTimePollInterval = setInterval(async () => {
-                            logs = [];
-                            completed = 0;
-                            for (let i = 0; i < taskIds.length; i++) {
-                                const resp = await fetch(`/build/catalog/status/${taskIds[i]}`);
-                                const data = await resp.json();
-                                logs.push(`Station: ${stations[i].network_name}\n${data.log || ''}`);
-                                if (data.status === 'done' || data.status === 'error') completed++;
-                            }
-                            document.getElementById('add-time-log').textContent = logs.join('\n---------------------\n');
-                            if (completed === taskIds.length) {
+                            const resp = await fetch(`/build/schedule/reset/status/${taskId}`);
+                            const data = await resp.json();
+                            document.getElementById('add-time-log').textContent = data.log || '';
+                            if (data.status === 'done' || data.status === 'error') {
                                 clearInterval(addTimePollInterval);
                                 await getScheduleBlocks();
                             }
                         }, 2000);
                     }
-                    pollAll();
+                    pollStatus();
                 } catch (e) {
                     document.getElementById('add-time-log').textContent = 'Error resetting schedules.';
                 }

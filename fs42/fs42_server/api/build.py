@@ -104,3 +104,47 @@ async def add_time_to_schedule_status(task_id: str):
         if not task:
             return {"error": "Task ID not found."}
         return {"status": task["status"], "log": task["log"]}
+
+@router.post("/schedule/reset/{network_name}")
+async def rebuild_schedule(network_name: str):
+    task_id = str(uuid.uuid4())
+    with rebuild_tasks_lock:
+        rebuild_tasks[task_id] = {"status": "starting", "log": ""}
+
+    def rebuild_schedule_worker():
+        try:
+            with rebuild_tasks_lock:
+                rebuild_tasks[task_id]["status"] = "running"
+                rebuild_tasks[task_id]["log"] += f"Starting schedule rebuild for {network_name}\n"
+
+            to_rebuild = []
+            if not network_name or network_name == "all":
+                to_rebuild = StationManager().stations
+            else:
+                to_rebuild = [StationManager().station_by_name(network_name)]
+
+            for station in to_rebuild:
+                if station["_has_schedule"]:
+                    LiquidManager().reset_schedule(station, True)
+                    with rebuild_tasks_lock:
+                        rebuild_tasks[task_id]["log"] += f"Rebuilt schedule for {station['network_name']}\n"
+
+            with rebuild_tasks_lock:
+                rebuild_tasks[task_id]["status"] = "done"
+                rebuild_tasks[task_id]["log"] += "Schedule rebuild complete.\n"
+        except Exception as e:
+            with rebuild_tasks_lock:
+                rebuild_tasks[task_id]["status"] = "error"
+                rebuild_tasks[task_id]["log"] += f"Error: {e}\n"
+
+    thread = threading.Thread(target=rebuild_schedule_worker, daemon=True)
+    thread.start()
+    return {"task_id": task_id}
+
+@router.get("/schedule/reset/status/{task_id}")
+async def rebuild_schedule_status(task_id: str):
+    with rebuild_tasks_lock:
+        task = rebuild_tasks.get(task_id)
+        if not task:
+            return {"error": "Task ID not found."}
+        return {"status": task["status"], "log": task["log"]}

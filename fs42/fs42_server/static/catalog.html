@@ -8,18 +8,18 @@
     <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
     <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
     <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
-    </head>
+</head>
 
-    <body>
-        <script src="/static/common.js"></script>
-        <script>
-            // Initialize page layout
-            document.addEventListener('DOMContentLoaded', function() {
-                window.fs42Common.initTheme();
-                
-                const logDisplay = window.fs42Common.createLogDisplay();
-                
-                const content = `
+<body>
+    <script src="/static/common.js"></script>
+    <script>
+        // Initialize page layout
+        document.addEventListener('DOMContentLoaded', function () {
+            window.fs42Common.initTheme();
+
+            const logDisplay = window.fs42Common.createLogDisplay();
+
+            const content = `
                     <div class="station-select-container">
                         <label for="station-select">Select Station:</label>
                         <select id="station-select" class="pure-input-1"></select>
@@ -38,23 +38,23 @@
                         <div id="catalog-table"></div>
                     </div>
                 `;
-                
-                document.body.innerHTML = window.fs42Common.createPageLayout('Catalog Manager', content);
-                
-                // Set initial button state
-                document.getElementById('rebuild-selected-btn').style.display = 'none';
-            });
-        </script>
-        <script src="/static/fs42_client.js"></script>
-        <script src="/static/common.js"></script>
-        <script>
-            // Declare variables in global scope
-            let stations = [];
-            let selectedStation = null;
-            let rebuildPollInterval = null;
 
-            // Wait for DOM to be ready before adding event listeners
-            document.addEventListener('DOMContentLoaded', function() {
+            document.body.innerHTML = window.fs42Common.createPageLayout('Catalog Manager', content);
+
+            // Set initial button state
+            document.getElementById('rebuild-selected-btn').style.display = 'none';
+        });
+    </script>
+    <script src="/static/fs42_client.js"></script>
+    <script src="/static/common.js"></script>
+    <script>
+        // Declare variables in global scope
+        let stations = [];
+        let selectedStation = null;
+        let rebuildPollInterval = null;
+
+        // Wait for DOM to be ready before adding event listeners
+        document.addEventListener('DOMContentLoaded', function () {
 
             async function loadStationsAndSummary() {
                 stations = await window.fs42Common.fetchStationSummary();
@@ -235,8 +235,8 @@
             });
 
             loadStationsAndSummary();
-            }); // Close DOMContentLoaded event handler
-        </script>
-    </body>
+        }); // Close DOMContentLoaded event handler
+    </script>
+</body>
 
-    </html>
+</html>
