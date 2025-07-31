@@ -37,8 +37,10 @@ class SequenceAPI:
             _l.debug(
                 f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}."
             )
-            seq.current_index = seq.start_index
-
+            # this should always loop back to 0, regardless of start and end
+            #seq.current_index = seq.start_index
+            seq.current_index = 0
+            
         next_entry = seq.episodes[seq.current_index]
         seq.current_index += 1
         sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
