@@ -17,12 +17,20 @@ class ReelCutter:
         if reel_blocks:
             break_count = len(reel_blocks)
 
-        if break_count <= 1 or break_strategy == "end":
-            # then don't cut the base at all
-            entries.append(BlockPlanEntry(base_clip.path, base_offset, base_duration))
+        if break_count <= 1 or break_strategy == "end" or break_strategy == "center":
+            if break_strategy == "center":
+                h_dur = base_duration/2
+                h1 = BlockPlanEntry(base_clip.path, base_offset, h_dur)
+                h2 = BlockPlanEntry(base_clip.path, base_offset+h_dur, h_dur)
+                entries.append(h1)
+            else:
+                # then don't cut the base at all
+                entries.append(BlockPlanEntry(base_clip.path, base_offset, base_duration))
             for _block in reel_blocks:
                 # and put the reel at the end if there is one
                 entries += _block.make_plan()
+            if break_strategy == "center":
+                entries.append(h2)
         else:
             # we know break count is greater than 1
             segment_duration = base_clip.duration / break_count
