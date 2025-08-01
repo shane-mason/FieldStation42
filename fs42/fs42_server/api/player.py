@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 import json
 from fs42.station_manager import StationManager
 
@@ -33,3 +33,11 @@ async def player_channel(channel: str):
     with open(cs, "w") as f:
         f.write(json.dumps(command))
     return {"command": command}
+
+@router.get("/commands/stop")
+async def player_stop(request: Request):
+    command_queue = request.app.state.player_command_queue
+    print("command q: ", command_queue)
+    command_queue.put("exit")
+    # Use command_queue here
+    return {"status": "stopped"}

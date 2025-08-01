@@ -1,5 +1,5 @@
 import multiprocessing
-
+from queue import Empty
 import argparse
 import time
 import datetime
@@ -7,12 +7,13 @@ import json
 import signal
 import logging
 
+
 from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import (
     StationPlayer,
     PlayStatus,
-    check_channel_socket,
+    PlayerOutcome,
     update_status_socket,
 )
 from fs42.reception import ReceptionStatus, long_change_effect, short_change_effect, none_change_effect
@@ -21,6 +22,25 @@ from fs42.reception import ReceptionStatus, long_change_effect, short_change_eff
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
 )
+api_commands_queue: multiprocessing.Queue = None
+
+def input_check():
+    if api_commands_queue:
+        command = None
+        try:
+            command = api_commands_queue.get(block=False)
+        except Empty: 
+            pass   
+        if command == "exit":
+            return PlayerOutcome(PlayStatus.EXIT_COMMAND)
+    channel_socket = StationManager().server_conf["channel_socket"]
+    with open(channel_socket, "r") as r_sock:
+        contents = r_sock.read()
+    if len(contents):
+        with open(channel_socket, "w"):
+            pass
+        return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
+    return None
 
 
 def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
@@ -49,7 +69,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         )
         return
 
-    player = StationPlayer(manager.stations[channel_index])
+    player = StationPlayer(manager.stations[channel_index], input_check)
     reception.degrade()
     player.update_filters()
 
@@ -177,7 +197,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             )
 
             # check for channel change so it doesn't stay stuck on a broken channel
-            new_outcome = check_channel_socket()
+            new_outcome = input_check()
             if new_outcome is not None:
                 outcome = new_outcome
                 # set skip play so outcome isn't overwritten
@@ -185,13 +205,15 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                 skip_play = True
         elif outcome.status == PlayStatus.SUCCESS:
             stuck_timer = 0
+        elif outcome.status == PlayStatus.EXIT_COMMAND:
+            sigint_handler(None, None)
         else:
             stuck_timer = 0
 
 
-def start_api_server_with_shutdown_queue(shutdown_queue):
+def start_api_server_with_shutdown_queue(shutdown_queue, command_q):
     from fs42.fs42_server import fs42_server
-    fs42_server.run_with_shutdown_queue(shutdown_queue)
+    fs42_server.run_with_shutdown_queue(shutdown_queue, command_q)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="FieldStation42 Player")
@@ -240,14 +262,16 @@ if __name__ == "__main__":
     if not args.no_server:
         # Set up shutdown queue and start API server as a background process
         shutdown_queue = multiprocessing.Queue()
+        api_commands_queue = multiprocessing.Queue()
         api_proc = multiprocessing.Process(
             target=start_api_server_with_shutdown_queue,
-            args=(shutdown_queue,),
+            args=(shutdown_queue, api_commands_queue,),
             daemon=True
         )
         api_proc.start()
     else:
         shutdown_queue = None
+        api_commands_queue = None
         api_proc = None
 
     try:

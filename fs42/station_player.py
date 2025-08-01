@@ -19,15 +19,6 @@ from fs42.slot_reader import SlotReader
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
 
-def check_channel_socket():
-    channel_socket = StationManager().server_conf["channel_socket"]
-    with open(channel_socket, "r") as r_sock:
-        contents = r_sock.read()
-    if len(contents):
-        with open(channel_socket, "w"):
-            pass
-        return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
-    return None
 
 
 def update_status_socket(
@@ -56,6 +47,7 @@ class PlayStatus(Enum):
     EXITED = 2
     SUCCESS = 3
     CHANNEL_CHANGE = 4
+    EXIT_COMMAND = 5
 
 class PlayerOutcome:
     def __init__(self, status=PlayStatus.SUCCESS, payload=None):
@@ -78,7 +70,7 @@ class StationPlayer:
     }
 
 
-    def __init__(self, station_config, mpv=None):
+    def __init__(self, station_config, input_check_fn, mpv=None):
         self._l = logging.getLogger("FieldPlayer")
 
         start_it = True
@@ -100,6 +92,7 @@ class StationPlayer:
             )
         self.station_config = station_config
         # self.playlist = self.read_json(runtime_filepath)
+        self.input_check_fn = input_check_fn
         self.index = 0
         self.reception = ReceptionStatus()
         self.current_playing_file_path = None
@@ -248,7 +241,7 @@ class StationPlayer:
         keep_going = True
         while keep_going:
             time.sleep(0.05)
-            response = check_channel_socket()
+            response = self.input_check_fn()
             if response:
                 self._l.info("Sending the guide channel shutdown command")
                 queue.put(GuideCommands.hide_window)
@@ -326,7 +319,7 @@ class StationPlayer:
                         else:
                             # debounce time
                             time.sleep(0.05)
-                            response = check_channel_socket()
+                            response = self.input_check_fn()
                             if response:
                                 return response
                 else:

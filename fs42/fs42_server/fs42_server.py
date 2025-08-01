@@ -17,7 +17,7 @@ from .api import routers
 
 # Create FastAPI app
 fapi = FastAPI(title="FieldStation42 API")
-
+player_command_queue = None
 
 @fapi.get("/")
 async def root():
@@ -28,7 +28,11 @@ for router in routers:
     fapi.include_router(router)
 
 
-def run_with_shutdown_queue(shutdown_queue):
+def run_with_shutdown_queue(shutdown_queue, command_queue):
+    global player_command_queue
+    player_command_queue = command_queue
+    fapi.state.player_command_queue = command_queue 
+
     def start_shutdown_monitor():
         async def shutdown_monitor():
             while True:
@@ -37,7 +41,6 @@ def run_with_shutdown_queue(shutdown_queue):
                     msg = shutdown_queue.get_nowait()
                     if msg == "shutdown":
                         import os
-
                         os._exit(0)
                 except Exception:
                     pass
