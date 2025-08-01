@@ -20,17 +20,19 @@ class LiquidBlock:
             self.title = title
         self.reel_blocks = None
         self.plan = None
-        self.break_strategy = break_strategy
+        
 
         self.break_info = break_info if break_info else {}
         
         self.sequence_key = None
 
         if break_info:
-            self.start_bump = break_info["start_bump"] if "start_bump" in break_info else None
-            self.end_bump = break_info["end_bump"] if "end_bump" in break_info else None
-            self.bump_override = break_info["bump_dir"] if "bump_dir" in break_info else None
-            self.commercial_override = break_info["commercial_dir"] if "commercial_dir" in break_info else None
+            self.start_bump = break_info.get("start_bump", None)
+            self.end_bump = break_info.get("end_bump", None)
+            self.bump_override = break_info.get("bump_dir", None)
+            self.commercial_override = break_info.get("commercial_dir", None)
+        
+        self.break_strategy = break_strategy
 
     def __str__(self):
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
@@ -134,9 +136,9 @@ class LiquidBlock:
 
 
 class LiquidClipBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", bump_info=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
         if type(content) is list:
-            super().__init__(content, start_time, end_time, title, break_strategy, bump_info)
+            super().__init__(content, start_time, end_time, title, break_strategy, break_info)
         else:
             raise (TypeError(f"LiquidClipBlock required content of type list. Got {type(content)} instead"))
 

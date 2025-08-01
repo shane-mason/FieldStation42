@@ -93,6 +93,23 @@ class ReelCutter:
             for _block in reel_blocks:
                 # and put the reel at the end if there is one
                 entries += _block.make_plan()
+        elif break_stategy == "center":
+            # half clips, then all reels, then second half clips
+            half_point = len(clips) // 2
+            
+            # First half of clips
+            for i in range(half_point):
+                clip = clips[i]
+                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
+            
+            # All reels
+            for _block in reel_blocks:
+                entries += _block.make_plan()
+            
+            # Second half of clips
+            for i in range(half_point, len(clips)):
+                clip = clips[i]
+                entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
         else:
             clips_per_segment = 1
             if len(clips) > break_count:

@@ -85,7 +85,7 @@ class LiquidSchedule:
 
             new_block = None
             if tag_str is not None:
-                break_info = {"start_bump": None, "end_bump": None, "bump_dir": None, "commercial_dir": None}
+                break_info = {"start_bump": None, "end_bump": None, "bump_dir": None, "commercial_dir": None, "break_strategy": None}
 
                 # does this slot have a start bump?
                 if "start_bump" in slot_config:
@@ -93,18 +93,11 @@ class LiquidSchedule:
                 if "end_bump" in slot_config:
                     break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
 
-                if "bump_dir" in slot_config:
-                    break_info["bump_dir"] = slot_config["bump_dir"]
-                else:
-                    break_info["bump_dir"] = self.conf["bump_dir"]
+                break_info["bump_dir"] = slot_config.get("bump_dir", self.conf.get("bump_dir", None))
+                break_info["commercial_dir"] = slot_config.get("commercial_dir", self.conf.get("commercial_dir", None))
 
-                if "commercial_dir" in slot_config:
-                    break_info["commercial_dir"] = slot_config["commercial_dir"]
-                else:
-                    break_info["commercial_dir"] = (
-                        self.conf["commercial_dir"] if "commercial_dir" in self.conf else None
-                    )
-
+                break_strategy = slot_config.get("break_strategy", self.conf["break_strategy"])
+                    
                 seq_key = None
 
                 if tag_str not in self.conf["clip_shows"]:
@@ -134,7 +127,7 @@ class LiquidSchedule:
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
 
                         new_block = LiquidBlock(
-                            candidate, current_mark, next_mark, candidate.title, self.conf["break_strategy"], break_info
+                            candidate, current_mark, next_mark, candidate.title, break_strategy, break_info
                         )
                         # add sequence information
                         if seq_key:
@@ -151,7 +144,7 @@ class LiquidSchedule:
                         )
                     else:
                         clip_block = LiquidClipBlock(
-                            clip_content, current_mark, timings.HOUR, tag_str, self.conf["break_strategy"], break_info
+                            clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info
                         )
                         target_duration = self._calc_target_duration(clip_block.content_duration())
                         next_mark = current_mark + datetime.timedelta(seconds=target_duration)
