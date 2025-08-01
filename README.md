@@ -113,9 +113,6 @@ This is the main TV interface. On startup, it will read the schedule and open th
 
 The player writes its status and current channel to `runtime/play_status.socket` - this can be monitored by an external program if needed. See [this page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`.
 
-### command_input.py
-This is provided as an example component to show how to connect an external device or program to invoke a channel changes and pass status information. This script listens for incoming commands on the pi's UART connection and then writes channel change commands to `runtime/channel.socket` 
-
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
 
