@@ -35,6 +35,7 @@ async def player_channel(channel: str):
     return {"command": command}
 
 @router.get("/commands/stop")
+@router.post("/commands/stop")
 async def player_stop(request: Request):
     command_queue = request.app.state.player_command_queue
     print("command q: ", command_queue)
