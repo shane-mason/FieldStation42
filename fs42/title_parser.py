@@ -23,7 +23,7 @@ class TitleParser():
             (r'^\[.+?\]' + sep + r'(.+?)' + sep + r'\d+.*$', 1),
             
             # Title + separators + season/episode pattern + optional extra
-            (r'^(.+?)' + sep + r'(?:[sS]\d+[eE]\d+|\d+[xX]\d+)(?:' + sep + r'.*)?$', 1),
+            (r'^(.+?)' + sep + r'(?:[sS]\d+' + sep + r'?[eE]\d+|[sS]\d+[eE]\d+|\d+[xX]\d+)(?:' + sep + r'.*)?$', 1),
             
             # Title + version/volume format (show_title_V1-0003) - before simple episode
             (r'^(.+?)[\s._-]+V\d+[\s._-]+\d+$', 1),
@@ -50,3 +50,4 @@ class TitleParser():
         cleaned = re.sub(r'[._-]', ' ', filename)
         cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         return ' '.join(word.capitalize() for word in cleaned.split())
+
