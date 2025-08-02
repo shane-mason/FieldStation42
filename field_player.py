@@ -37,7 +37,7 @@ def input_check():
             command = api_commands_queue.get(block=False)
         except Empty:
             pass
-        if command.get("command", None) == "exit":
+        if command and command.get("command", None) == "exit":
             return PlayerOutcome(PlayerState.EXIT_COMMAND)
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:

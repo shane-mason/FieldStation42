@@ -41,7 +41,7 @@ async def player_channel(channel: str):
 @router.post("/commands/stop")
 async def player_stop(request: Request):
     command_queue = request.app.state.player_command_queue
-    print("command q: ", command_queue)
-    command_queue.put("exit")
+    
+    command_queue.put({"command": "exit"})
     # Use command_queue here
     return {"status": "stopped"}
