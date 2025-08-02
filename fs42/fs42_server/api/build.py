@@ -53,6 +53,8 @@ async def rebuild_catalog(network_name: str, request: Request):
                 command_queue = request.app.state.player_command_queue
                 if command_queue:
                     command_queue.put({"command": "reload_data"})
+                else:
+                    LiquidManager().reload_schedules()
             
         except Exception as e:
             with rebuild_tasks_lock:
@@ -97,6 +99,8 @@ async def add_time_to_schedule(amount: str, request: Request):
                 command_queue = request.app.state.player_command_queue
                 if command_queue:
                     command_queue.put({"command": "reload_data"})
+                else:
+                    LiquidManager().reload_schedules()
         except Exception as e:
             with add_time_tasks_lock:
                 add_time_tasks[task_id]["status"] = "error"
@@ -145,6 +149,8 @@ async def rebuild_schedule(network_name: str, request: Request):
                 command_queue = request.app.state.player_command_queue
                 if command_queue:
                     command_queue.put({"command": "reload_data"})
+                else:
+                    LiquidManager().reload_schedules()
         except Exception as e:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "error"
