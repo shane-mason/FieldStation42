@@ -1,6 +1,6 @@
 import threading
 import uuid
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fs42.station_manager import StationManager
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_manager import LiquidManager
@@ -16,7 +16,7 @@ add_time_tasks = {}
 add_time_tasks_lock = threading.Lock()
 
 @router.post("/catalog/{network_name}")
-async def rebuild_catalog(network_name: str):
+async def rebuild_catalog(network_name: str, request: Request):
     task_id = str(uuid.uuid4())
     with rebuild_tasks_lock:
         rebuild_tasks[task_id] = {"status": "starting", "log": ""}
@@ -49,6 +49,10 @@ async def rebuild_catalog(network_name: str):
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "done"
                 rebuild_tasks[task_id]["log"] += "Catalog rebuild complete.\n"
+                rebuild_tasks[task_id]["log"] += "Reloading data and state.\n"
+                command_queue = request.app.state.player_command_queue
+                command_queue.put({"command": "reload_data"})
+            
         except Exception as e:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "error"
@@ -67,7 +71,7 @@ async def rebuild_catalog_status(task_id: str):
         return {"status": task["status"], "log": task["log"]}
 
 @router.post("/schedule/add_time/{amount}")
-async def add_time_to_schedule(amount: str):
+async def add_time_to_schedule(amount: str, request: Request):
     task_id = str(uuid.uuid4())
     with add_time_tasks_lock:
         add_time_tasks[task_id] = {"status": "starting", "log": ""}
@@ -88,6 +92,9 @@ async def add_time_to_schedule(amount: str):
             with add_time_tasks_lock:
                 add_time_tasks[task_id]["status"] = "done"
                 add_time_tasks[task_id]["log"] += "Add time to schedule complete.\n"
+                add_time_tasks[task_id]["log"] += "Reloading data and state.\n"
+                command_queue = request.app.state.player_command_queue
+                command_queue.put({"command": "reload_data"})
         except Exception as e:
             with add_time_tasks_lock:
                 add_time_tasks[task_id]["status"] = "error"
@@ -106,7 +113,7 @@ async def add_time_to_schedule_status(task_id: str):
         return {"status": task["status"], "log": task["log"]}
 
 @router.post("/schedule/reset/{network_name}")
-async def rebuild_schedule(network_name: str):
+async def rebuild_schedule(network_name: str, request: Request):
     task_id = str(uuid.uuid4())
     with rebuild_tasks_lock:
         rebuild_tasks[task_id] = {"status": "starting", "log": ""}
@@ -132,6 +139,9 @@ async def rebuild_schedule(network_name: str):
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "done"
                 rebuild_tasks[task_id]["log"] += "Schedule rebuild complete.\n"
+                rebuild_tasks[task_id]["log"] += "Reloading data and state.\n"
+                command_queue = request.app.state.player_command_queue
+                command_queue.put({"command": "reload_data"})
         except Exception as e:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "error"

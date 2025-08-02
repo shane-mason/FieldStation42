@@ -7,7 +7,7 @@ import json
 import signal
 import logging
 
-
+from fs42.liquid_manager import LiquidManager
 from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import (
@@ -39,6 +39,8 @@ def input_check():
             pass
         if command and command.get("command", None) == "exit":
             return PlayerOutcome(PlayerState.EXIT_COMMAND)
+        elif command and command.get("command", None) == "reload_data":
+            LiquidManager().reload_schedules()
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:
         contents = r_sock.read()
@@ -201,9 +203,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             )
 
             # check for channel change so it doesn't stay stuck on a broken channel
-            new_outcome = input_check()
-            if new_outcome is not None:
-                player_state = new_outcome
+            new_state = input_check()
+            if new_state is not None:
+                player_state = new_state
                 # set skip play so outcome isn't overwritten
                 # and the channel change can be processed next loop
                 skip_play = True
