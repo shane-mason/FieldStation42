@@ -37,7 +37,7 @@ def input_check():
             command = api_commands_queue.get(block=False)
         except Empty:
             pass
-        if command == "exit":
+        if command.get("command", None) == "exit":
             return PlayerOutcome(PlayerState.EXIT_COMMAND)
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:
@@ -96,7 +96,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     channel_conf = manager.stations[channel_index]
 
     # this is actually the main loop
-    outcome = None
+    player_state = None
     skip_play = False
     stuck_timer = 0
 
@@ -105,7 +105,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
         if channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
-            outcome = player.show_guide(channel_conf)
+            player_state = player.show_guide(channel_conf)
         elif not skip_play:
             now = datetime.datetime.now()
 
@@ -117,22 +117,22 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                 f"Starting station {channel_conf['network_name']} at: {week_day} {hour} skipping={skip} "
             )
 
-            outcome = player.play_slot(
+            player_state = player.play_slot(
                 channel_conf["network_name"], datetime.datetime.now()
             )
 
-        logger.debug(f"Got player outcome:{outcome.status}")
+        logger.debug(f"Got player outcome:{player_state.status}")
 
         # reset skip
         skip_play = False
 
-        if outcome.status == PlayerState.CHANNEL_CHANGE:
+        if player_state.status == PlayerState.CHANNEL_CHANGE:
             stuck_timer = 0
             tune_up = True
             # get the json payload
-            if outcome.payload:
+            if player_state.payload:
                 try:
-                    as_obj = json.loads(outcome.payload)
+                    as_obj = json.loads(player_state.payload)
                     if "command" in as_obj:
                         if as_obj["command"] == "direct":
                             tune_up = False
@@ -181,7 +181,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             # long_change_effect(player, reception)
             transition_fn(player, reception)
 
-        elif outcome.status == PlayerState.FAILED:
+        elif player_state.status == PlayerState.FAILED:
             stuck_timer += 1
 
             # only put it up once after 2 seconds of being stuck
@@ -203,13 +203,13 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             # check for channel change so it doesn't stay stuck on a broken channel
             new_outcome = input_check()
             if new_outcome is not None:
-                outcome = new_outcome
+                player_state = new_outcome
                 # set skip play so outcome isn't overwritten
                 # and the channel change can be processed next loop
                 skip_play = True
-        elif outcome.status == PlayerState.SUCCESS:
+        elif player_state.status == PlayerState.SUCCESS:
             stuck_timer = 0
-        elif outcome.status == PlayerState.EXIT_COMMAND:
+        elif player_state.status == PlayerState.EXIT_COMMAND:
             sigint_handler(None, None)
         else:
             stuck_timer = 0
