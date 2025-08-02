@@ -2,21 +2,15 @@ import sys
 import os
 import json
 import datetime
-import re
 
 sys.path.append(os.getcwd())
 from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_blocks import LiquidBlock
-
+from fs42.title_parser import TitleParser
 
 def normalize_video_title(title):
-    if "_V1" in title:
-        (title, episode_id) = title.split("_V1")
-
-    spaced = re.sub("[^a-zA-Z0-9]", " ", title)
-    titled = spaced.title()
-    return titled
+    return TitleParser.parse_title(title)
 
 
 class PreviewBlock:
