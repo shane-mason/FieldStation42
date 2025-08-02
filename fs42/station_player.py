@@ -10,15 +10,20 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
-from fs42.reception import ReceptionStatus, HLScrambledVideoFilter, DiagonalScrambledVideoFilter, ColorInvertedScrambledVideoFilter, ChunkyScrambledVideoFilter
+from fs42.reception import (
+    ReceptionStatus,
+    HLScrambledVideoFilter,
+    DiagonalScrambledVideoFilter,
+    ColorInvertedScrambledVideoFilter,
+    ChunkyScrambledVideoFilter,
+)
 from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, ScheduleQueryNotInBounds
 
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.station_manager import StationManager
 from fs42.slot_reader import SlotReader
+
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
-
-
 
 
 def update_status_socket(
@@ -42,33 +47,32 @@ def update_status_socket(
         fp.write(as_str)
 
 
-class PlayStatus(Enum):
+class PlayerState(Enum):
     FAILED = 1
     EXITED = 2
     SUCCESS = 3
     CHANNEL_CHANGE = 4
     EXIT_COMMAND = 5
 
+
 class PlayerOutcome:
-    def __init__(self, status=PlayStatus.SUCCESS, payload=None):
+    def __init__(self, status=PlayerState.SUCCESS, payload=None):
         self.status = status
         self.payload = payload
 
 
 class StationPlayer:
-
     scramble_effects = {
-        "horizontal_line" : "lavfi=[geq='if(mod(floor(Y/4),2),p(X,Y+20*sin(2*PI*X/50)),p(X,Y))']",
-        "diagonal_lines" : "lavfi=[geq='p(X+10*sin(2*PI*Y/30),Y)']",
-        "static_overlay" : "lavfi=[geq='if(gt(random(X+Y*W),0.85),128+127*random(X*Y),if(mod(floor(Y/4),2),p(X+20,Y),p(X,Y)))']", 
-        "pixel_block" : "lavfi=[scale=160:120,scale=640:480:flags=neighbor,geq='if(gt(random(floor(X/40)*floor(Y/30)),0.7),128,p(X,Y))']",
-        "color_inversion" : "lavfi=[geq='if(mod(floor(Y/16),2),255-p(X,Y),p(X,Y))']", 
-        "severe_noise" : "lavfi=[geq='if(gt(random(X*Y),0.7),random(255),p(X,Y))']",
-        "wavy" : "lavfi=[geq='p(X+15*sin(2*PI*Y/40),Y+10*cos(2*PI*X/60))']",
-        "random_block" : "lavfi=[geq='if(gt(random(floor(X/20)*floor(Y/20)),0.6),p(X+random(100)-20,Y+random(70)-20),p(X,Y))']",
+        "horizontal_line": "lavfi=[geq='if(mod(floor(Y/4),2),p(X,Y+20*sin(2*PI*X/50)),p(X,Y))']",
+        "diagonal_lines": "lavfi=[geq='p(X+10*sin(2*PI*Y/30),Y)']",
+        "static_overlay": "lavfi=[geq='if(gt(random(X+Y*W),0.85),128+127*random(X*Y),if(mod(floor(Y/4),2),p(X+20,Y),p(X,Y)))']",
+        "pixel_block": "lavfi=[scale=160:120,scale=640:480:flags=neighbor,geq='if(gt(random(floor(X/40)*floor(Y/30)),0.7),128,p(X,Y))']",
+        "color_inversion": "lavfi=[geq='if(mod(floor(Y/16),2),255-p(X,Y),p(X,Y))']",
+        "severe_noise": "lavfi=[geq='if(gt(random(X*Y),0.7),random(255),p(X,Y))']",
+        "wavy": "lavfi=[geq='p(X+15*sin(2*PI*Y/40),Y+10*cos(2*PI*X/60))']",
+        "random_block": "lavfi=[geq='if(gt(random(floor(X/20)*floor(Y/20)),0.6),p(X+random(100)-20,Y+random(70)-20),p(X,Y))']",
         "chunky_scramble": "lavfi=[scale=320:240,split[base][aux];[aux]geq=r='p(X+floor((random(1000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)':g='p(X+floor((random(2000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)':b='p(X+floor((random(3000+floor(N*0.05)+floor(Y/16))-0.5)*W*0.4),Y)'[warped];[base][warped]overlay,scale=640:480]",
     }
-
 
     def __init__(self, station_config, input_check_fn, mpv=None):
         self._l = logging.getLogger("FieldPlayer")
@@ -162,7 +166,7 @@ class StationPlayer:
 
                 self._apply_vfx(datetime.datetime.now())
 
-                    # self.mpv.vf = "lavfi=[]"  
+                # self.mpv.vf = "lavfi=[]"
                 self._l.info(f"playing {file_path}")
                 self.mpv.play(file_path)
                 self.mpv.wait_for_property("duration")
@@ -185,7 +189,7 @@ class StationPlayer:
         vfx = None
         if "video_scramble_fx" in self.station_config:
             vfx = self.station_config["video_scramble_fx"]
-        
+
         # check if one is set on the slot and override if so
         slot = SlotReader.get_slot(self.station_config, current_time)
         if slot and "video_scramble_fx" in slot:
@@ -194,11 +198,10 @@ class StationPlayer:
             else:
                 vfx = None
 
-        
         if vfx:
             if vfx in self.scramble_effects:
                 self.mpv.vf = self.scramble_effects[vfx]
-                self.skip_reception_check = True  
+                self.skip_reception_check = True
                 if vfx == "horizontal_line":
                     self.scrambler = HLScrambledVideoFilter()
                 elif vfx == "diagonal_lines":
@@ -208,8 +211,8 @@ class StationPlayer:
                 elif vfx == "chunky_scramble":
                     self.scrambler = ChunkyScrambledVideoFilter()
             else:
-                self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")  
-        else:                
+                self._l.warning(f"Scrambler effect '{self.station_config['video_scramble_fx']}' does not exist.")
+        else:
             self.skip_reception_check = False
             self.mpv.vf = ""
             self.scrambler = None
@@ -238,6 +241,15 @@ class StationPlayer:
         else:
             self.mpv.stop()
             self.current_playing_file_path = None
+
+        # update status
+        update_status_socket(
+            "playing",
+            self.station_config["network_name"],
+            self.station_config["channel_number"],
+            self.station_config["network_name"],
+            timestamp=StationManager().server_conf["date_time_format"],
+        )
         keep_going = True
         while keep_going:
             time.sleep(0.05)
@@ -248,7 +260,7 @@ class StationPlayer:
                 guide_process.join()
                 return response
 
-        return PlayerOutcome(PlayStatus.SUCCESS)
+        return PlayerOutcome(PlayerState.SUCCESS)
 
     def schedule_panic(self, network_name):
         self._l.critical("*********************Schedule Panic*********************")
@@ -266,11 +278,11 @@ class StationPlayer:
             self.schedule_panic(network_name)
             self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
             # fail so we can return and try again
-            return PlayerOutcome(PlayStatus.FAILED)
+            return PlayerOutcome(PlayerState.FAILED)
 
         if play_point is None:
             self.current_playing_file_path = None
-            return PlayerOutcome(PlayStatus.FAILED)
+            return PlayerOutcome(PlayerState.FAILED)
         return self._play_from_point(play_point)
 
     # returns true if play is interrupted
@@ -295,7 +307,7 @@ class StationPlayer:
                     self.mpv.seek(total_skip)
                 except Exception:
                     self._l.error(f"Failed seeking on {entry.path}")
-                    return PlayerOutcome(PlayStatus.FAILED)
+                    return PlayerOutcome(PlayerState.FAILED)
 
                 self._l.info(f"Seeking for: {total_skip}")
 
@@ -311,7 +323,7 @@ class StationPlayer:
                         else:
                             if self.scrambler:
                                 self.mpv.vf = self.scrambler.update_filter()
-                                
+
                         now = datetime.datetime.now()
 
                         if now >= stop_time:
@@ -323,15 +335,15 @@ class StationPlayer:
                             if response:
                                 return response
                 else:
-                    return PlayerOutcome(PlayStatus.FAILED)
+                    return PlayerOutcome(PlayerState.FAILED)
 
                 initial_skip = 0
 
             self._l.info("Done playing block")
-            return PlayerOutcome(PlayStatus.SUCCESS)
+            return PlayerOutcome(PlayerState.SUCCESS)
         else:
             self.current_playing_file_path = None
-            return PlayerOutcome(PlayStatus.FAILED, "Failure getting index...")
+            return PlayerOutcome(PlayerState.FAILED, "Failure getting index...")
 
     def get_current_title(self):
         if self.current_playing_file_path:

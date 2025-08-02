@@ -12,11 +12,16 @@ from fs42.station_manager import StationManager
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import (
     StationPlayer,
-    PlayStatus,
+    PlayerState,
     PlayerOutcome,
     update_status_socket,
 )
-from fs42.reception import ReceptionStatus, long_change_effect, short_change_effect, none_change_effect
+from fs42.reception import (
+    ReceptionStatus,
+    long_change_effect,
+    short_change_effect,
+    none_change_effect,
+)
 
 
 logging.basicConfig(
@@ -24,27 +29,27 @@ logging.basicConfig(
 )
 api_commands_queue: multiprocessing.Queue = None
 
+
 def input_check():
     if api_commands_queue:
         command = None
         try:
             command = api_commands_queue.get(block=False)
-        except Empty: 
-            pass   
+        except Empty:
+            pass
         if command == "exit":
-            return PlayerOutcome(PlayStatus.EXIT_COMMAND)
+            return PlayerOutcome(PlayerState.EXIT_COMMAND)
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:
         contents = r_sock.read()
     if len(contents):
         with open(channel_socket, "w"):
             pass
-        return PlayerOutcome(PlayStatus.CHANNEL_CHANGE, contents)
+        return PlayerOutcome(PlayerState.CHANNEL_CHANGE, contents)
     return None
 
 
 def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
-
     manager = StationManager()
     reception = ReceptionStatus()
     logger = logging.getLogger("MainLoop")
@@ -72,7 +77,6 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     player = StationPlayer(manager.stations[channel_index], input_check)
     reception.degrade()
     player.update_filters()
-
 
     def sigint_handler(sig, frame):
         logger.critical("Received sig-int signal, attempting to exit gracefully...")
@@ -122,7 +126,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         # reset skip
         skip_play = False
 
-        if outcome.status == PlayStatus.CHANNEL_CHANGE:
+        if outcome.status == PlayerState.CHANNEL_CHANGE:
             stuck_timer = 0
             tune_up = True
             # get the json payload
@@ -177,7 +181,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             # long_change_effect(player, reception)
             transition_fn(player, reception)
 
-        elif outcome.status == PlayStatus.FAILED:
+        elif outcome.status == PlayerState.FAILED:
             stuck_timer += 1
 
             # only put it up once after 2 seconds of being stuck
@@ -203,9 +207,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                 # set skip play so outcome isn't overwritten
                 # and the channel change can be processed next loop
                 skip_play = True
-        elif outcome.status == PlayStatus.SUCCESS:
+        elif outcome.status == PlayerState.SUCCESS:
             stuck_timer = 0
-        elif outcome.status == PlayStatus.EXIT_COMMAND:
+        elif outcome.status == PlayerState.EXIT_COMMAND:
             sigint_handler(None, None)
         else:
             stuck_timer = 0
@@ -213,7 +217,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
 def start_api_server_with_shutdown_queue(shutdown_queue, command_q):
     from fs42.fs42_server import fs42_server
+
     fs42_server.run_with_shutdown_queue(shutdown_queue, command_q)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="FieldStation42 Player")
@@ -236,7 +242,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no_server",
         action="store_true",
-        help="Do not start the web API server process."
+        help="Do not start the web API server process.",
     )
     args = parser.parse_args()
 
@@ -265,8 +271,11 @@ if __name__ == "__main__":
         api_commands_queue = multiprocessing.Queue()
         api_proc = multiprocessing.Process(
             target=start_api_server_with_shutdown_queue,
-            args=(shutdown_queue, api_commands_queue,),
-            daemon=True
+            args=(
+                shutdown_queue,
+                api_commands_queue,
+            ),
+            daemon=True,
         )
         api_proc.start()
     else:

@@ -4,6 +4,7 @@ from fs42.station_manager import StationManager
 
 router = APIRouter(prefix="/player", tags=["player"])
 
+
 @router.get("/status")
 async def get_player_status():
     status_socket = StationManager().server_conf["status_socket"]
@@ -16,6 +17,7 @@ async def get_player_status():
             return {"error": "Status socket file not found."}
     else:
         return {"error": "Status socket is not configured."}
+
 
 @router.get("/channels/{channel}")
 async def player_channel(channel: str):
@@ -33,6 +35,7 @@ async def player_channel(channel: str):
     with open(cs, "w") as f:
         f.write(json.dumps(command))
     return {"command": command}
+
 
 @router.get("/commands/stop")
 @router.post("/commands/stop")
