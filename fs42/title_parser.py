@@ -12,7 +12,7 @@ class TitleParser():
         
         filename = in_str.strip()
         
-        # Remove file extension using pathlib
+        # Remove file extension
         filename = Path(filename).stem
         
         # Define separator pattern - spaces, dots, underscores, dashes
