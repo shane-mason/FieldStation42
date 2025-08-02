@@ -51,7 +51,8 @@ async def rebuild_catalog(network_name: str, request: Request):
                 rebuild_tasks[task_id]["log"] += "Catalog rebuild complete.\n"
                 rebuild_tasks[task_id]["log"] += "Reloading data and state.\n"
                 command_queue = request.app.state.player_command_queue
-                command_queue.put({"command": "reload_data"})
+                if command_queue:
+                    command_queue.put({"command": "reload_data"})
             
         except Exception as e:
             with rebuild_tasks_lock:
@@ -79,10 +80,10 @@ async def add_time_to_schedule(amount: str, request: Request):
     def add_time_worker():
         try:
             stations = StationManager().stations
+            with add_time_tasks_lock:
+                add_time_tasks[task_id]["status"] = "running"
+            
             for station in stations:
-                with add_time_tasks_lock:
-                    add_time_tasks[task_id]["status"] = "running"
-                    add_time_tasks[task_id]["log"] += f"Adding {amount} to schedule for {station['network_name']}\n"
                 if station["_has_schedule"]:
                     with add_time_tasks_lock:
                         add_time_tasks[task_id]["log"] += f"Adding {amount} to schedule for {station['network_name']}\n"
@@ -94,7 +95,8 @@ async def add_time_to_schedule(amount: str, request: Request):
                 add_time_tasks[task_id]["log"] += "Add time to schedule complete.\n"
                 add_time_tasks[task_id]["log"] += "Reloading data and state.\n"
                 command_queue = request.app.state.player_command_queue
-                command_queue.put({"command": "reload_data"})
+                if command_queue:
+                    command_queue.put({"command": "reload_data"})
         except Exception as e:
             with add_time_tasks_lock:
                 add_time_tasks[task_id]["status"] = "error"
@@ -141,7 +143,8 @@ async def rebuild_schedule(network_name: str, request: Request):
                 rebuild_tasks[task_id]["log"] += "Schedule rebuild complete.\n"
                 rebuild_tasks[task_id]["log"] += "Reloading data and state.\n"
                 command_queue = request.app.state.player_command_queue
-                command_queue.put({"command": "reload_data"})
+                if command_queue:
+                    command_queue.put({"command": "reload_data"})
         except Exception as e:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "error"

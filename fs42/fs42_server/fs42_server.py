@@ -23,6 +23,10 @@ player_command_queue = None
 async def root():
     return FileResponse("fs42/fs42_server/static/index.html")
 
+@fapi.get("/remote")
+async def remote():
+    return FileResponse("fs42/fs42_server/static/remote.html")
+
 # Include routers from the api package
 for router in routers:
     fapi.include_router(router)
@@ -55,6 +59,7 @@ def run_with_shutdown_queue(shutdown_queue, command_queue):
 
 
 def mount_fs42_api():
+    fapi.state.player_command_queue = None
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
     conf = StationManager().server_conf
     uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
