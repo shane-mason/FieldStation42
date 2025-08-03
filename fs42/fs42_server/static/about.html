@@ -44,72 +44,63 @@
             localStorage.setItem('fs42-theme', themeName);
         }
 
-        // Initialize theme when page loads
-        document.addEventListener('DOMContentLoaded', initTheme);
+        // Initialize page layout
+        document.addEventListener('DOMContentLoaded', async function () {
+            initTheme();
+
+            const content = `
+                <div class="pure-u-1 pure-u-md-1-2">
+                    <h2>Application Settings</h2>
+                    <div class="settings-section">
+                        <h3>Theme Selection</h3>
+                        <p>Choose your preferred visual theme for FieldStation42:</p>
+                        <div class="theme-selector">
+                            <select id="theme-select" class="pure-input-1-2" onchange="setTheme(this.value)">
+                                <option>Loading themes...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pure-u-1" style="margin-top: 2em;">
+                    <h2>About FieldStation42</h2>
+                    <p>FieldStation42 is a modern TV station management system designed for managing multiple channels,
+                        catalogs, and schedules.</p>
+
+                    <h3>Features</h3>
+                    <ul>
+                        <li>Multi-channel management</li>
+                        <li>Content cataloging and organization</li>
+                        <li>Schedule planning and automation</li>
+                        <li>Real-time monitoring and control</li>
+                    </ul>
+
+                    <h3>System Information</h3>
+                    <table class="pure-table pure-table-horizontal">
+                        <tbody>
+                            <tr>
+                                <td><strong>Version</strong></td>
+                                <td>0.1.0</td>
+                            </tr>
+                            <tr>
+                                <td><strong>License</strong></td>
+                                <td>Mozilla Public License</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Author</strong></td>
+                                <td>Shane Mason</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.body.innerHTML = await window.fs42Common.createPageLayout('About FieldStation42', content);
+        });
     </script>
 </head>
 
 <body>
-    <div class="pure-menu pure-menu-horizontal custom-menu" id="mainMenu">
-        <a href="#" class="pure-menu-heading">FieldStation42</a>
-        <span class="menu-toggle" onclick="window.fs42Common.toggleMenu()">&#9776;</span>
-        <ul class="pure-menu-list">
-            <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
-            <li class="pure-menu-item"><a href="/static/catalog.html" class="pure-menu-link">Catalog</a></li>
-            <li class="pure-menu-item"><a href="/static/schedule.html" class="pure-menu-link">Schedule</a></li>
-            <li class="pure-menu-item"><a href="/static/about.html" class="pure-menu-link">About</a></li>
-        </ul>
-    </div>
-    <div class="pure-g">
-        <div class="pure-u-1">
-            <h1>About FieldStation42</h1>
-
-            <div class="pure-u-1 pure-u-md-1-2">
-                <h2>Application Settings</h2>
-                <div class="settings-section">
-                    <h3>Theme Selection</h3>
-                    <p>Choose your preferred visual theme for FieldStation42:</p>
-                    <div class="theme-selector">
-                        <select id="theme-select" class="pure-input-1-2" onchange="setTheme(this.value)">
-                            <option>Loading themes...</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pure-u-1" style="margin-top: 2em;">
-                <h2>About FieldStation42</h2>
-                <p>FieldStation42 is a modern TV station management system designed for managing multiple channels,
-                    catalogs, and schedules.</p>
-
-                <h3>Features</h3>
-                <ul>
-                    <li>Multi-channel management</li>
-                    <li>Content cataloging and organization</li>
-                    <li>Schedule planning and automation</li>
-                    <li>Real-time monitoring and control</li>
-                </ul>
-
-                <h3>System Information</h3>
-                <table class="pure-table pure-table-horizontal">
-                    <tbody>
-                        <tr>
-                            <td><strong>Version</strong></td>
-                            <td>0.1.0</td>
-                        </tr>
-                        <tr>
-                            <td><strong>License</strong></td>
-                            <td>Mozilla Public License</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Author</strong></td>
-                            <td>Shane Mason</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
     <script src="/static/fs42_client.js"></script>
     <script src="/static/common.js"></script>
 </body>

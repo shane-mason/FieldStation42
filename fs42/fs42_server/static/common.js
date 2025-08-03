@@ -29,7 +29,19 @@ window.addEventListener('resize', function () {
 });
 
 // Layout components
-function createMainMenu() {
+async function createMainMenu() {
+    // Check if player queue is connected
+    let playerMenuItems = '';
+    try {
+        const response = await window.fs42Api.get('player/status/queue_connected');
+        if (response.queue_connected) {
+            playerMenuItems = '<li class="pure-menu-item"><a href="/static/remote.html" class="pure-menu-link">Remote</a></li>';
+        }
+    } catch (error) {
+        console.log('Could not check player queue status:', error);
+        // Don't show player menu if we can't connect
+    }
+
     return `
         <div class="pure-menu pure-menu-horizontal custom-menu" id="mainMenu">
             <a href="#" class="pure-menu-heading">FieldStation42</a>
@@ -38,15 +50,17 @@ function createMainMenu() {
                 <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
                 <li class="pure-menu-item"><a href="/static/catalog.html" class="pure-menu-link">Catalog</a></li>
                 <li class="pure-menu-item"><a href="/static/schedule.html" class="pure-menu-link">Schedule</a></li>
+                ${playerMenuItems}
                 <li class="pure-menu-item"><a href="/static/about.html" class="pure-menu-link">About</a></li>
             </ul>
         </div>
     `;
 }
 
-function createPageLayout(title, content) {
+async function createPageLayout(title, content) {
+    const menu = await createMainMenu();
     return `
-        ${createMainMenu()}
+        ${menu}
         <div class="pure-g">
             <div class="pure-u-1">
                 <h1>${title}</h1>

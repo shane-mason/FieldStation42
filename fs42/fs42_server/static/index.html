@@ -14,7 +14,7 @@
     <script src="static/common.js"></script>
     <script>
         // Initialize page layout
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
             window.fs42Common.initTheme();
 
             const content = `
@@ -30,7 +30,7 @@
                 </div>
             `;
 
-            document.body.innerHTML = window.fs42Common.createPageLayout('Welcome to FieldStation42', content);
+            document.body.innerHTML = await window.fs42Common.createPageLayout('Welcome to FieldStation42', content);
         });
     </script>
     <script src="static/fs42_client.js"></script>

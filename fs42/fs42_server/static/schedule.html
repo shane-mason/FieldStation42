@@ -22,7 +22,7 @@
         let addTimeType = null;
 
         // Initialize page layout
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
             window.fs42Common.initTheme();
 
             const actionButtons = window.fs42Common.createActionButtons([
@@ -61,7 +61,7 @@
                 </div>
             `;
 
-            document.body.innerHTML = window.fs42Common.createPageLayout('Schedule Manager', content);
+            document.body.innerHTML = await window.fs42Common.createPageLayout('Schedule Manager', content);
 
             // Initialize functionality after DOM is created
             initializeSchedulePage();

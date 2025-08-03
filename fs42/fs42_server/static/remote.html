@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Control - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+</head>
+
+<body>
+    <script src="/static/common.js"></script>
+    <script src="/static/fs42_client.js"></script>
+    <script>
+        // Initialize theme
+        document.addEventListener('DOMContentLoaded', function () {
+            window.fs42Common.initTheme();
+        });
+    </script>
+    <div class="remote-container">
+        <div class="remote-brand">FieldStation42</div>
+        
+        <div class="remote-screen" id="remote-display">
+            Ready
+        </div>
+
+        <!-- Power Button -->
+        <div class="button-grid power-section">
+            <button class="remote-btn power-btn" data-key="power">STOP</button>
+        </div>
+
+        <!-- Number Pad -->
+        <div class="button-grid number-pad">
+            <button class="remote-btn number-btn" data-key="1">1</button>
+            <button class="remote-btn number-btn" data-key="2">2</button>
+            <button class="remote-btn number-btn" data-key="3">3</button>
+            <button class="remote-btn number-btn" data-key="4">4</button>
+            <button class="remote-btn number-btn" data-key="5">5</button>
+            <button class="remote-btn number-btn" data-key="6">6</button>
+            <button class="remote-btn number-btn" data-key="7">7</button>
+            <button class="remote-btn number-btn" data-key="8">8</button>
+            <button class="remote-btn number-btn" data-key="9">9</button>
+            <button class="remote-btn number-btn zero-btn" data-key="0">0</button>
+        </div>
+
+        <!-- Volume and Channel Controls in Vertical Columns -->
+        <div class="button-grid volume-channel-section">
+            <button class="remote-btn volume-btn" data-key="vol_up">VOL +</button>
+            <button class="remote-btn channel-btn" data-key="ch_up">CH ▲</button>
+            <button class="remote-btn volume-btn" data-key="vol_down">VOL -</button>
+            <button class="remote-btn channel-btn" data-key="ch_down">CH ▼</button>
+        </div>
+
+        <!-- Currently Playing Display -->
+        <div class="now-playing">
+            <div class="now-playing-label">NOW PLAYING</div>
+            <div class="now-playing-network" id="now-playing-network">No network</div>
+            <div class="now-playing-status" id="now-playing-status">Stopped</div>
+            <div class="now-playing-title" id="now-playing-title">No program selected</div>
+        </div>
+
+        <!-- Function Buttons -->
+        <div class="button-grid function-section">
+            <button class="remote-btn function-btn" data-key="guide">GUIDE</button>
+            <button class="remote-btn function-btn" data-key="exit">EXIT</button>
+            <button class="remote-btn function-btn" data-key="mute">MUTE</button>
+            <button class="remote-btn function-btn" data-key="info">INFO</button>
+        </div>
+    </div>
+
+    <script>
+        // Basic remote control functionality
+        const display = document.getElementById('remote-display');
+        const nowPlayingNetwork = document.getElementById('now-playing-network');
+        const nowPlayingStatus = document.getElementById('now-playing-status');
+        const nowPlayingTitle = document.getElementById('now-playing-title');
+        let currentChannel = '001';
+        let volume = 50;
+        let muted = false;
+        let statusPollInterval = null;
+        let channelInput = '';
+        let channelInputTimeout = null;
+        let isInputtingChannel = false;
+        let volumeDisplayTimeout = null;
+        let isShowingVolume = false;
+        let isShowingInfo = false;
+        let infoMode = 'playing'; // 'playing' or 'system'
+
+        // Sample program data (could be fetched from API later)
+        const programData = {
+            '001': { title: 'Morning News', info: 'Local and world news updates' },
+            '002': { title: 'Classic Movies', info: 'The Maltese Falcon (1941)' },
+            '003': { title: 'Nature Documentary', info: 'Wildlife of the Amazon' },
+            '004': { title: 'Cooking Show', info: 'Italian Pasta Masterclass' },
+            '005': { title: 'Sitcom Reruns', info: 'Comedy Hour Marathon' },
+        };
+
+        function updateNowPlaying(channel) {
+            const program = programData[channel];
+            if (program) {
+                nowPlayingTitle.textContent = program.title;
+                nowPlayingInfo.textContent = program.info;
+            } else {
+                nowPlayingTitle.textContent = `Channel ${channel}`;
+                nowPlayingInfo.textContent = 'Program information unavailable';
+            }
+        }
+
+        function updateNowPlayingFromStatus(status) {
+            if (infoMode === 'playing') {
+                if (status.status === 'playing') {
+                    // Top line: "Playing"
+                    nowPlayingNetwork.textContent = 'Playing';
+                    // Second line: network_name
+                    nowPlayingStatus.textContent = status.network_name || '';
+                    // Third line: title
+                    nowPlayingTitle.textContent = status.title || '';
+                    
+                    // Update channel display and current channel to match actual channel
+                    // BUT only if we're not currently inputting a channel number or showing volume
+                    if (status.channel_number && status.channel_number > 0) {
+                        currentChannel = String(status.channel_number).padStart(3, '0');
+                        if (!isInputtingChannel && !isShowingVolume) {
+                            display.textContent = `CH ${currentChannel}`;
+                        }
+                    }
+                } else if (status.status === 'stopped') {
+                    nowPlayingNetwork.textContent = 'Stopped';
+                    nowPlayingStatus.textContent = '';
+                    nowPlayingTitle.textContent = '';
+                    if (!isInputtingChannel && !isShowingVolume) {
+                        display.textContent = 'STOPPED';
+                    }
+                } else {
+                    nowPlayingNetwork.textContent = status.status || 'Unknown';
+                    nowPlayingStatus.textContent = '';
+                    nowPlayingTitle.textContent = '';
+                    if (!isInputtingChannel && !isShowingVolume) {
+                        display.textContent = 'ERROR';
+                    }
+                }
+            }
+            // If in system info mode, don't update the display from player status
+        }
+        
+        function showVolumeDisplay(volumeText) {
+            console.log('showVolumeDisplay called with:', volumeText);
+            
+            // Clear any existing volume timeout
+            if (volumeDisplayTimeout) {
+                clearTimeout(volumeDisplayTimeout);
+            }
+            
+            // Set volume display mode
+            isShowingVolume = true;
+            display.textContent = volumeText;
+            console.log('Display set to:', display.textContent);
+            
+            // Clear volume display after 3 seconds
+            volumeDisplayTimeout = setTimeout(() => {
+                console.log('Volume display timeout - returning to normal');
+                isShowingVolume = false;
+                volumeDisplayTimeout = null;
+                // Return to normal display (will be updated by next status poll)
+                if (!isInputtingChannel) {
+                    display.textContent = `CH ${currentChannel}`;
+                }
+            }, 3000);
+        }
+        
+        function toggleInfoMode() {
+            if (infoMode === 'playing') {
+                infoMode = 'system';
+                display.textContent = 'SYSTEM INFO';
+                console.log('Switched to system info mode');
+            } else {
+                infoMode = 'playing';
+                display.textContent = 'NOW PLAYING';
+                console.log('Switched to now playing mode');
+            }
+            
+            // Immediately poll for the new mode
+            pollPlayerStatus();
+        }
+        
+        function updateSystemInfo(info) {
+            // Prioritize: CPU temp, CPU load percent, memory used percent
+            console.log('System info received:', info);
+            
+            // Top line: CPU Temperature  
+            if (info.temperature_c !== undefined) {
+                nowPlayingNetwork.textContent = `CPU ${info.temperature_c}°C (${info.temperature_f}°F)`;
+            } else if (info.temperature_f !== undefined) {
+                nowPlayingNetwork.textContent = `CPU ${info.temperature_f}°F`;
+            } else if (info.temperature === "unavailable") {
+                // WSL/virtualized environment - show system type instead
+                const systemType = info.system?.platform || 'Unknown';
+                const arch = info.system?.architecture || '';
+                nowPlayingNetwork.textContent = `${systemType} ${arch}`.trim();
+            } else {
+                nowPlayingNetwork.textContent = 'CPU Temp N/A';
+            }
+            
+            // Second line: CPU Load
+            if (info.cpu && info.cpu.load_percent !== undefined) {
+                nowPlayingStatus.textContent = `CPU Load ${info.cpu.load_percent}%`;
+            } else if (info.cpu && info.cpu.load_1min !== undefined) {
+                nowPlayingStatus.textContent = `Load ${info.cpu.load_1min}`;
+            } else {
+                nowPlayingStatus.textContent = 'CPU Load N/A';
+            }
+            
+            // Third line: Memory Usage
+            if (info.memory && info.memory.used_percent !== undefined) {
+                nowPlayingTitle.textContent = `Memory ${info.memory.used_percent}% (${info.memory.used_gb}/${info.memory.total_gb}GB)`;
+            } else {
+                nowPlayingTitle.textContent = 'Memory N/A';
+            }
+        }
+
+        async function pollPlayerStatus() {
+            try {
+                if (infoMode === 'playing') {
+                    const status = await window.fs42Api.get('player/status');
+                    console.log('Player status response:', status);
+                    updateNowPlayingFromStatus(status);
+                } else if (infoMode === 'system') {
+                    const info = await window.fs42Api.get('player/info');
+                    console.log('System info response:', info);
+                    updateSystemInfo(info);
+                }
+            } catch (error) {
+                console.error('Failed to get status/info:', error);
+                if (infoMode === 'playing') {
+                    nowPlayingNetwork.textContent = 'Unknown';
+                    nowPlayingStatus.textContent = '';
+                    nowPlayingTitle.textContent = '';
+                } else {
+                    nowPlayingNetwork.textContent = 'System';
+                    nowPlayingStatus.textContent = 'Error';
+                    nowPlayingTitle.textContent = 'Unable to get info';
+                }
+            }
+        }
+
+        function startStatusPolling() {
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+            }
+            statusPollInterval = setInterval(pollPlayerStatus, 1000);
+            // Get initial status immediately
+            pollPlayerStatus();
+        }
+
+        function stopStatusPolling() {
+            if (statusPollInterval) {
+                clearInterval(statusPollInterval);
+                statusPollInterval = null;
+            }
+        }
+
+        function handleNumberInput(digit) {
+            // Set input mode
+            isInputtingChannel = true;
+            
+            // Clear any existing timeout
+            if (channelInputTimeout) {
+                clearTimeout(channelInputTimeout);
+                channelInputTimeout = null;
+            }
+            
+            // Add digit to input
+            channelInput += digit;
+            
+            // Display the accumulated input
+            display.textContent = channelInput;
+            
+            // If we have 3 digits, send immediately
+            if (channelInput.length >= 3) {
+                sendChannelChange();
+            } else {
+                // Set timeout for 1 second
+                channelInputTimeout = setTimeout(sendChannelChange, 1000);
+            }
+        }
+        
+        async function sendChannelChange() {
+            if (channelInputTimeout) {
+                clearTimeout(channelInputTimeout);
+                channelInputTimeout = null;
+            }
+            
+            if (channelInput) {
+                try {
+                    const channelNumber = parseInt(channelInput);
+                    console.log(`Sending channel change to ${channelNumber}`);
+                    await window.fs42Api.get(`player/channels/${channelNumber}`);
+                    console.log(`Changed to channel ${channelNumber}`);
+                    // The status polling will update the display with actual channel info
+                } catch (error) {
+                    console.error('Channel change failed:', error);
+                    display.textContent = 'ERROR';
+                    setTimeout(() => {
+                        isInputtingChannel = false;
+                        display.textContent = `CH ${currentChannel}`;
+                    }, 2000);
+                    return;
+                }
+            }
+            
+            // Clear the input and exit input mode
+            channelInput = '';
+            isInputtingChannel = false;
+        }
+
+        // Button press handler
+        document.querySelectorAll('.remote-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const key = this.getAttribute('data-key');
+                handleRemoteCommand(key);
+                
+                // Visual feedback
+                this.style.transform = 'translateY(2px)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 100);
+            });
+        });
+
+        async function handleRemoteCommand(key) {
+            switch(key) {
+                case 'power':
+                    try {
+                        await window.fs42Api.get('player/commands/stop');
+                        display.textContent = 'STOPPING';
+                        console.log('Player stop command sent');
+                    } catch (error) {
+                        console.error('Power/stop command failed:', error);
+                        display.textContent = 'ERROR';
+                    }
+                    break;
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    handleNumberInput(key);
+                    break;
+                case 'ch_up':
+                    display.textContent = 'CHANNEL UP';
+                    try {
+                        await window.fs42Api.get('player/channels/up');
+                        console.log('Channel up command sent');
+                        // The status polling will update the display with actual channel
+                    } catch (error) {
+                        console.error('Channel up failed:', error);
+                        display.textContent = 'ERROR';
+                        // Return to previous display after 2 seconds
+                        setTimeout(() => {
+                            display.textContent = `CH ${currentChannel}`;
+                        }, 2000);
+                    }
+                    break;
+                case 'ch_down':
+                    display.textContent = 'CHANNEL DOWN';
+                    try {
+                        await window.fs42Api.get('player/channels/down');
+                        console.log('Channel down command sent');
+                        // The status polling will update the display with actual channel
+                    } catch (error) {
+                        console.error('Channel down failed:', error);
+                        display.textContent = 'ERROR';
+                        // Return to previous display after 2 seconds
+                        setTimeout(() => {
+                            display.textContent = `CH ${currentChannel}`;
+                        }, 2000);
+                    }
+                    break;
+                case 'vol_up':
+                    try {
+                        const response = await window.fs42Api.get('player/volume/up');
+                        showVolumeDisplay(response.volume || 'VOL +');
+                        console.log('Volume up command sent:', response);
+                    } catch (error) {
+                        console.error('Volume up failed:', error);
+                        showVolumeDisplay('ERROR');
+                    }
+                    break;
+                case 'vol_down':
+                    try {
+                        const response = await window.fs42Api.get('player/volume/down');
+                        showVolumeDisplay(response.volume || 'VOL -');
+                        console.log('Volume down command sent:', response);
+                    } catch (error) {
+                        console.error('Volume down failed:', error);
+                        showVolumeDisplay('ERROR');
+                    }
+                    break;
+                case 'mute':
+                    try {
+                        const response = await window.fs42Api.get('player/volume/mute');
+                        showVolumeDisplay('MUTE');
+                        console.log('Mute toggle command sent:', response);
+                    } catch (error) {
+                        console.error('Mute failed:', error);
+                        showVolumeDisplay('ERROR');
+                    }
+                    break;
+                case 'guide':
+                    try {
+                        await window.fs42Api.post('player/channels/guide');
+                        display.textContent = 'GUIDE';
+                        console.log('Guide command sent');
+                    } catch (error) {
+                        console.error('Guide command failed:', error);
+                        display.textContent = 'ERROR';
+                    }
+                    break;
+                case 'exit':
+                    display.textContent = 'EXIT';
+                    window.location.href = '/';
+                    break;
+                case 'info':
+                    toggleInfoMode();
+                    break;
+                default:
+                    display.textContent = key.toUpperCase();
+            }
+
+            // Reset display after 2 seconds for non-persistent states
+            if (!['power', 'mute'].includes(key)) {
+                setTimeout(() => {
+                    if (display.textContent !== 'OFF') {
+                        display.textContent = muted ? 'MUTED' : `CH ${currentChannel}`;
+                    }
+                }, 2000);
+            }
+        }
+
+        // Initialize display and start polling
+        display.textContent = `CH ${currentChannel}`;
+        // Don't show sample data, let the polling populate it
+        nowPlayingNetwork.textContent = 'Loading...';
+        nowPlayingStatus.textContent = '';
+        nowPlayingTitle.textContent = '';
+        startStatusPolling();
+
+        // Clean up polling when page is unloaded
+        window.addEventListener('beforeunload', stopStatusPolling);
+    </script>
+</body>
+
+</html>

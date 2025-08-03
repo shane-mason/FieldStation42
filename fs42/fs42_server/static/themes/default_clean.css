@@ -220,3 +220,268 @@ label {
         margin-bottom: 1rem;
     }
 }
+
+/* Remote Control Styles */
+.remote-container {
+    max-width: 320px;
+    margin: 0 auto;
+    background: linear-gradient(145deg, var(--retro-surface), var(--retro-bg));
+    border-radius: 25px;
+    padding: 30px 20px;
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.3),
+        inset 0 2px 5px rgba(255, 255, 255, 0.1),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--retro-border);
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.remote-brand {
+    text-align: center;
+    color: var(--retro-accent);
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(61, 216, 255, 0.3);
+}
+
+.remote-screen {
+    background: #0a0a0a;
+    border: 2px inset var(--retro-border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 25px;
+    text-align: center;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.button-grid {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+}
+
+.power-section {
+    grid-template-columns: 1fr;
+    margin-bottom: 15px;
+}
+
+.number-pad {
+    grid-template-columns: repeat(3, 1fr);
+    margin-bottom: 15px;
+}
+
+.volume-channel-section {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    margin-bottom: 15px;
+    gap: 12px;
+}
+
+.function-section {
+    grid-template-columns: repeat(2, 1fr);
+    margin-bottom: 15px;
+}
+
+.now-playing {
+    background: var(--retro-surface);
+    border: 2px inset var(--retro-border);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.now-playing-label {
+    color: var(--retro-accent);
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    text-shadow: 0 0 8px rgba(61, 216, 255, 0.3);
+}
+
+.now-playing-network {
+    color: var(--retro-accent);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    min-height: 15px;
+    text-shadow: 0 0 5px rgba(61, 216, 255, 0.3);
+}
+
+.now-playing-status {
+    color: #ffff00;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    min-height: 13px;
+    text-shadow: 0 0 5px rgba(255, 255, 0, 0.3);
+}
+
+.now-playing-title {
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    margin-bottom: 0;
+    min-height: 12px;
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+.remote-btn {
+    background: linear-gradient(145deg, var(--retro-hover), var(--retro-surface));
+    border: 2px outset var(--retro-border);
+    border-radius: 8px;
+    color: var(--retro-text);
+    font-size: 12px;
+    font-weight: bold;
+    padding: 12px 8px;
+    min-height: 45px;
+    min-width: 60px;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 
+        0 3px 6px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+    user-select: none;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remote-btn:active {
+    background: linear-gradient(145deg, var(--retro-surface), var(--retro-hover));
+    border: 2px inset var(--retro-border);
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        0 1px 2px rgba(0, 0, 0, 0.3);
+    transform: translateY(1px);
+}
+
+.remote-btn:hover {
+    background: linear-gradient(145deg, #4a4a4a, #343434);
+    border-color: var(--retro-accent);
+}
+
+.power-btn {
+    background: linear-gradient(145deg, var(--retro-secondary), #aa0000);
+    color: #ffcccc;
+    font-size: 14px;
+    width: 80px;
+    height: 50px;
+}
+
+.power-btn:hover {
+    background: linear-gradient(145deg, #ff8080, var(--retro-secondary));
+}
+
+.number-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 16px;
+    border-radius: 50%;
+}
+
+.zero-btn {
+    grid-column: 2;
+}
+
+.channel-btn, .volume-btn {
+    width: 80px;
+    height: 50px;
+}
+
+.function-btn {
+    width: 120px;
+    height: 35px;
+    font-size: 10px;
+}
+
+/* Remote Control Mobile optimizations */
+@media (max-width: 480px) {
+    .remote-container {
+        max-width: 100%;
+        padding: 20px 15px;
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .button-grid {
+        max-width: 280px;
+        width: 100%;
+    }
+
+    .remote-btn {
+        min-height: 40px;
+        min-width: 50px;
+        font-size: 11px;
+        padding: 10px 6px;
+    }
+
+    .number-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 14px;
+    }
+
+    .channel-btn, .volume-btn {
+        width: 70px;
+        height: 45px;
+    }
+
+    .function-btn {
+        width: 100px;
+        height: 30px;
+        font-size: 9px;
+    }
+
+    .power-btn {
+        width: 70px;
+        height: 45px;
+        font-size: 12px;
+    }
+
+    .now-playing {
+        max-width: 280px;
+        width: 100%;
+        min-width: 280px;
+        margin: 15px auto;
+    }
+}
+
+/* Remote Control Extra small screens */
+@media (max-width: 320px) {
+    .remote-container {
+        max-width: 100%;
+        padding: 15px 10px;
+    }
+
+    .button-grid {
+        gap: 6px;
+    }
+
+    .now-playing {
+        max-width: 280px;
+        width: 100%;
+        min-width: 260px;
+        margin: 10px auto;
+        padding: 12px;
+    }
+}

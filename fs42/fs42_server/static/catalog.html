@@ -14,7 +14,7 @@
     <script src="/static/common.js"></script>
     <script>
         // Initialize page layout
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
             window.fs42Common.initTheme();
 
             const logDisplay = window.fs42Common.createLogDisplay();
@@ -39,7 +39,7 @@
                     </div>
                 `;
 
-            document.body.innerHTML = window.fs42Common.createPageLayout('Catalog Manager', content);
+            document.body.innerHTML = await window.fs42Common.createPageLayout('Catalog Manager', content);
 
             // Set initial button state
             document.getElementById('rebuild-selected-btn').style.display = 'none';
@@ -54,7 +54,18 @@
         let rebuildPollInterval = null;
 
         // Wait for DOM to be ready before adding event listeners
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Wait for the page layout to be created first
+            await new Promise(resolve => {
+                const checkElements = () => {
+                    if (document.getElementById('station-select')) {
+                        resolve();
+                    } else {
+                        setTimeout(checkElements, 10);
+                    }
+                };
+                checkElements();
+            });
 
             async function loadStationsAndSummary() {
                 stations = await window.fs42Common.fetchStationSummary();

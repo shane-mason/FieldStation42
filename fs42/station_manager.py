@@ -62,13 +62,14 @@ class StationManager(object):
                 self._name_index = {}
                 self.load_main_config()
                 self.load_json_stations()
-
+            self.guide_config = None
             for i in range(len(self.stations)):
                 station = self.stations[i]
                 if station["network_type"] == "standard":
                     self.stations[i] = SlotReader.smooth_tags(station)
 
                 if station["network_type"] == "guide":
+                    self.guide_config = station
                     logging.getLogger().info("Loading and checking guide channel")
                     from fs42.guide_tk import GuideWindowConf
 

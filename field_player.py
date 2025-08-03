@@ -37,10 +37,17 @@ def input_check():
             command = api_commands_queue.get(block=False)
         except Empty:
             pass
-        if command and command.get("command", None) == "exit":
-            return PlayerOutcome(PlayerState.EXIT_COMMAND)
-        elif command and command.get("command", None) == "reload_data":
-            LiquidManager().reload_schedules()
+        if command:
+            if command.get("command", None) == "exit":
+                return PlayerOutcome(PlayerState.EXIT_COMMAND)
+            elif command.get("command", None) == "reload_data":
+                LiquidManager().reload_schedules()
+            elif command.get("command", None) == "guide":
+                if StationManager().guide_config:
+                    c_number = StationManager().guide_config["channel_number"]
+                    change_request = {"command": "direct", "channel": c_number}
+                    return PlayerOutcome(PlayerState.CHANNEL_CHANGE, json.dumps(change_request))
+
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:
         contents = r_sock.read()
