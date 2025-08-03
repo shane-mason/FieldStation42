@@ -424,18 +424,21 @@ h2 {
 @media (max-width: 480px) {
     .remote-container {
         max-width: 100%;
-        padding: 20px 15px;
+        padding: 15px 10px;
         margin: 0;
         border-radius: 0;
         border: none;
         display: flex;
         flex-direction: column;
         align-items: center;
+        min-height: auto;
     }
     
     .button-grid {
         max-width: 280px;
         width: 100%;
+        gap: 8px;
+        margin-bottom: 8px;
     }
 
     .remote-btn {
@@ -472,13 +475,14 @@ h2 {
         max-width: 280px;
         width: 100%;
         min-width: 280px;
-        margin: 15px auto;
+        margin: 8px auto;
+        padding: 10px;
     }
 
     .remote-header {
         max-width: 280px;
         width: 100%;
-        margin: 0 auto 15px auto;
+        margin: 0 auto 8px auto;
     }
 
     .power-btn {
@@ -486,6 +490,16 @@ h2 {
         height: 35px;
         font-size: 10px;
         padding: 8px 12px;
+    }
+
+    .remote-screen {
+        padding: 8px;
+        margin-bottom: 15px;
+        font-size: 14px;
+        min-height: 25px;
+        max-width: 280px;
+        width: 100%;
+        margin: 0 auto 15px auto;
     }
 }
 
