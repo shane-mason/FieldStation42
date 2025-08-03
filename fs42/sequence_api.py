@@ -33,12 +33,14 @@ class SequenceAPI:
             _l.error(f"Sequence {sequence_name} for {station_config['network_name']} not found.")
             return None
 
-        if seq.current_index < seq.start_index or seq.current_index >= seq.end_index:
+        # Handle first run - if current_index is 0 and less than start_index, start at start_index
+        if seq.current_index == 0 and seq.start_index > 0:
+            seq.current_index = seq.start_index
+        # Handle end of sequence - reset to 0 to loop back to beginning    
+        elif seq.current_index >= seq.end_index:
             _l.debug(
-                f"Current index {seq.current_index} is out of bounds for sequence {sequence_name}. Resetting to start {seq.start_index} - {seq.end_index}."
+                f"Current index {seq.current_index} reached end of sequence {sequence_name}. Looping back to 0."
             )
-            # this should always loop back to 0, regardless of start and end
-            #seq.current_index = seq.start_index
             seq.current_index = 0
             
         next_entry = seq.episodes[seq.current_index]
@@ -123,8 +125,8 @@ class SequenceAPI:
                 seq_start = slot["sequence_start"]
             if "sequence_end" in slot:
                 seq_end = slot["sequence_end"]
-
+            
             file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{seq_tag}")
-
+            
             ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list)
             SequenceIO().put_sequence(station_config["network_name"], ns)
