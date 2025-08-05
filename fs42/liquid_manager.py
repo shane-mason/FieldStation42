@@ -79,6 +79,14 @@ class LiquidManager(object):
         now = datetime.datetime.now()
         _reaped = {}
 
+        # make a sequence cache index
+        all_seq_list = SequenceAPI.get_sequences_for_station(station_config)
+        seq_index = {}
+        for this_seq in all_seq_list:
+            key = (this_seq.sequence_name, this_seq.tag_path)
+            if key not in seq_index:
+                seq_index[key] = this_seq
+
         for _block in _blocks:
             # are we to now yet?
             if _block.start_time > now:
@@ -86,13 +94,18 @@ class LiquidManager(object):
 
                 if _block.sequence_key:
                     # make sure its in the store
-                    seq = SequenceAPI.get_sequence(
-                        station_config, _block.sequence_key["sequence_name"], _block.sequence_key["tag_path"]
-                    )
+                    #seq = SequenceAPI.get_sequence(
+                    #    station_config, _block.sequence_key["sequence_name"], _block.sequence_key["tag_path"]
+                    #)
+
+                    # get the sequence from the index
+                    skey = (_block.sequence_key["sequence_name"], _block.sequence_key["tag_path"])
+                    seq = seq_index.get(skey, None)
+
                     # have we found it before?
-                    if seq and str(_block.sequence_key) not in _reaped:
+                    if seq and skey not in _reaped:
                         # register that we found it
-                        _reaped[str(_block.sequence_key)] = _block
+                        _reaped[skey] = _block
 
                         SequenceAPI.reset_by_episode_path(
                             station_config,

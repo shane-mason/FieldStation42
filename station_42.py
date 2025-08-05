@@ -172,22 +172,22 @@ def main():
 
     def delete_schedules(_rebuild_list):
         nonlocal success_messages, failure_messages, _l
-        _l.info("Starting schedule rebuild.")
+        _l.info("Starting schedule reset.")
         for station in _rebuild_list:
             if station["_has_schedule"]:
-                _l.info(f"Rebuilding schedule for {station['network_name']}")
+                _l.info(f"Resetting schedule for {station['network_name']}")
                 try:
                     LiquidManager().reset_schedule(station, args.force)
                     success_messages.append(
-                        f"Successfully rebuilt schedule for {station['network_name']}"
+                        f"Successfully reset schedule for {station['network_name']}"
                     )
                 except Exception as e:
                     console.print(
-                        f"[red]Error rebuilding schedule for {station['network_name']}: {e}[/red]"
+                        f"[red]Error resetting schedule for {station['network_name']}: {e}[/red]"
                     )
                     _l.exception(e)
                     failure_messages.append(
-                        f"Failed to rebuild schedule for {station['network_name']} - check logs."
+                        f"Failed to reset schedule for {station['network_name']} - check logs."
                     )
 
     def rebuild_catalogs(_rebuild_list):
@@ -228,7 +228,8 @@ def main():
         sys.exit()
 
     if args.verbose:
-        _l.setLevel(logging.DEBUG)
+        logging.getLogger().setLevel(logging.DEBUG)
+        _l.debug("Level set to debug.")
         success_messages.append("I enabled verbose logging")
 
     if args.logfile:

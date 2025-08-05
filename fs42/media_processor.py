@@ -26,6 +26,7 @@ class MediaProcessor:
         duration = 0.0
         result = None
         try:
+            full_path = False
             if fluid:
                 full_path = os.path.realpath(fname)
                 cached = fluid.check_file_cache(full_path)
@@ -51,6 +52,7 @@ class MediaProcessor:
             else:
                 show_clip = CatalogEntry(fname, duration, tag, hints)
                 result = show_clip
+                result.realpath = full_path
                 _l.debug(f"--_process_media is done with {fname}: {show_clip}")
 
         except Exception as e:

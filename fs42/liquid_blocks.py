@@ -72,7 +72,7 @@ class LiquidBlock:
         diff = self.playback_duration() - self.content_duration()
 
         _fluid = FluidBuilder()
-        break_points = _fluid.get_breaks(self.content.path)
+        break_points = _fluid.get_breaks(self.content.realpath)
         strict_count = None
         if break_points:
             # the maximum number of breaks points should be no more than every 2 minutes

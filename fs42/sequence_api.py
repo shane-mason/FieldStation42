@@ -11,6 +11,13 @@ class SequenceAPI:
         return {"station_name": station_config["network_name"], "sequence_name": sequence_name, "tag_path": tag_path}
 
     @staticmethod
+    def get_sequences_for_station(station_config):
+        _l = logging.getLogger("SEQUENCE")
+        sio = SequenceIO()
+        slist = sio.get_all_sequences_for_station(station_config['network_name'])
+        return slist
+
+    @staticmethod
     def get_sequence(station_config, sequence_name, tag_path) -> NamedSequence:
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()
@@ -53,21 +60,21 @@ class SequenceAPI:
     def reset_by_episode_path(station_config, sequence_name, tag_path, episode_path):
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()
-        seq = sio.get_sequence(station_config["network_name"], sequence_name, tag_path)
-
-        if not seq:
-            _l.error(f"Sequence {sequence_name} for {station_config['network_name']} not found.")
+        
+        # Use the optimized database query instead of loading the entire sequence
+        success = sio.update_sequence_index_by_path(
+            station_config["network_name"], 
+            sequence_name, 
+            tag_path, 
+            episode_path
+        )
+        
+        if success:
+            _l.info(f"Reset sequence {sequence_name} to episode {episode_path}.")
+            return True
+        else:
+            _l.error(f"Episode path {episode_path} not found in sequence {sequence_name}.")
             return False
-
-        for index, entry in enumerate(seq.episodes):
-            if entry.fpath == episode_path:
-                seq.current_index = index
-                sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
-                _l.info(f"Reset sequence {sequence_name} to episode {episode_path} at index {index}.")
-                return True
-
-        _l.error(f"Episode path {episode_path} not found in sequence {sequence_name}.")
-        return False
 
     @staticmethod
     def delete_sequences(station_config):

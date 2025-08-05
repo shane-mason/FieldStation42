@@ -16,6 +16,7 @@ class CatalogEntry:
     # CatalogEntry(row[2], row[3], float(row[4]), json.loads(row[6]) if row[6] else [])
     def __init__(self, path, duration, tag, hints=[], count=0):
         self.path = path
+        self.realpath = None
         # get the show name from the path
         self.title = os.path.splitext(os.path.basename(path))[0]
         self.duration = duration
@@ -64,9 +65,15 @@ class CatalogEntry:
 
     @staticmethod
     def from_db_row(row):
-        (dbid, station, path, title, duration, tag, count, hints_str, created, updated) = row
+        if len(row) == 11:  # New schema with realpath
+            (dbid, station, path, title, duration, tag, count, hints_str, created, updated, realpath) = row
+        else:  # Old schema without realpath
+            (dbid, station, path, title, duration, tag, count, hints_str, created, updated) = row
+            realpath = None
+
 
         entry = CatalogEntry(path, duration, tag, None)
+        entry.realpath = realpath
         entry.count = count
         entry.dbid = dbid
         entry.station = station

@@ -69,10 +69,10 @@ class FluidBuilder:
                     self._l.warning(f"{rfp} is not in catalog cache - not adding break points.")
             connection.commit()
 
-    def get_breaks(self, fname):
-        fname = os.path.realpath(fname)
+    def get_breaks(self, full_path):
+        #fname = os.path.realpath(fname)
         with sqlite3.connect(self.db_path) as connection:
-            results = FluidStatements.get_break_points(connection, fname)
+            results = FluidStatements.get_break_points(connection, full_path)
         return results
 
 

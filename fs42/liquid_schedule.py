@@ -14,7 +14,10 @@ from fs42.sequence_api import SequenceAPI
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
 
-logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
+
+
+
+# logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
 
 class LiquidSchedule:
@@ -78,6 +81,7 @@ class LiquidSchedule:
         if current_mark is None:
             current_mark = datetime.datetime.now()
 
+        self._l.info(f"Starting to build blocks for {self.conf['network_name']}")
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
             slot_config = SlotReader.get_slot(self.conf, current_mark)
@@ -173,14 +177,21 @@ class LiquidSchedule:
         # now, make plans for all the blocks and make list to update play counts
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
         play_counts = []
+
+
+
+        #for i, block in enumerate(new_blocks):
+        #    block.make_plan(self.catalog)
+
         for block in new_blocks:
             block.make_plan(self.catalog)
             if block.content:
                 # if the block has content, then we need to increment the play count
                 play_counts.append(block.content)
 
+        self._l.debug("Plans completed - updating play counts")
         CatalogAPI.update_play_counts(self.conf, play_counts)
-
+        self._l.debug("Counts updated")
         self._blocks = self._blocks + new_blocks
         self._l.info("Saving blocks to disk")
         self._save_blocks()

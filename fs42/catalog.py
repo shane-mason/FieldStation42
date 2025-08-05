@@ -43,6 +43,8 @@ class ShowCatalog:
 
         # the main index for videos
         self.clip_index = {}
+        # the tag/duration cache index
+        self.tag_dur_cache = {}
 
         # basically, a flattened list of clip_index keys
         self.tags = []
@@ -331,7 +333,7 @@ class ShowCatalog:
                     and MediaProcessor._test_candidate_hints(candidate.hints, when)
                 ):
                     matches.append(candidate)
-            random.shuffle(matches)
+            #random.shuffle(matches)
             if not len(matches):
                 err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
                 raise (MatchingContentNotFound(err))
@@ -340,6 +342,7 @@ class ShowCatalog:
             result.count += 1
             # CatalogAPI.set_play_count(self.config, result.path, result.count)
             return result
+
 
     def find_filler(self, seconds, when):
         bump_tag = self.config["bump_dir"]

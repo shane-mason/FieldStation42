@@ -1,6 +1,7 @@
 import sqlite3
 import json
-
+import os
+import logging
 
 from fs42.station_manager import StationManager
 from fs42.catalog_entry import CatalogEntry
@@ -9,6 +10,7 @@ from fs42.catalog_entry import CatalogEntry
 class CatalogIO:
     def __init__(self):
         self.db_path = StationManager().server_conf["db_path"]
+        self._l = logging.getLogger("CATIO")
         self._init_catalog_table()
 
     def _init_catalog_table(self):
@@ -18,10 +20,13 @@ class CatalogIO:
         """
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
+
+            # Create the table with new schema
             cursor.execute("""CREATE TABLE IF NOT EXISTS catalog_entries (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 station TEXT NOT NULL,
                                 path TEXT NOT NULL,
+                                realpath TEXT,
                                 title TEXT NOT NULL,
                                 duration REAL NOT NULL,
                                 tag TEXT NOT NULL,
@@ -31,20 +36,40 @@ class CatalogIO:
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 UNIQUE(station, tag, path)
                                 )
-                           """)
+                            """)
 
+            # Check if realpath column exists, add it if it doesn't
+            cursor.execute("PRAGMA table_info(catalog_entries)")
+            columns = [column[1] for column in cursor.fetchall()]
+
+            if "realpath" not in columns:
+                self._l.info("Adding realpath column to catalog_entries table")
+                cursor.execute("ALTER TABLE catalog_entries ADD COLUMN realpath TEXT")
+
+                # Populate realpath for existing entries
+                cursor.execute("SELECT id, path FROM catalog_entries WHERE realpath IS NULL")
+                rows = cursor.fetchall()
+                for row_id, path in rows:
+                    try:
+                        realpath = os.path.realpath(path)
+                        cursor.execute("UPDATE catalog_entries SET realpath = ? WHERE id = ?", (realpath, row_id))
+                    except Exception as e:
+                        self._l.warning(f"Could not compute realpath for {path}: {e}")
+
+                connection.commit()
+                self._l.info(f"Updated realpath for {len(rows)} existing entries")
+
+            # Create indexes
             cursor.execute("""CREATE INDEX IF NOT EXISTS idx_catalog_station 
-                             ON catalog_entries(station)""")
-
+                            ON catalog_entries(station)""")
             cursor.execute("""CREATE INDEX IF NOT EXISTS idx_catalog_tag 
-                             ON catalog_entries(tag)""")
-
+                            ON catalog_entries(tag)""")
             cursor.execute("""CREATE INDEX IF NOT EXISTS idx_catalog_path
                     ON catalog_entries(path)""")
+            cursor.execute("""CREATE INDEX IF NOT EXISTS idx_catalog_tag_duration_count
+                    ON catalog_entries(station, tag, duration, count)""")
 
             cursor.close()
-
-    
 
     def entry_by_id(self, entry_id: int):
         with sqlite3.connect(self.db_path) as connection:
@@ -76,12 +101,23 @@ class CatalogIO:
                     hints_json = json.dumps(hints) if hints else None
 
                     # Use INSERT OR REPLACE to overwrite existing entries
+
                     cursor.execute(
                         """INSERT OR REPLACE INTO catalog_entries 
-                                    (station, path, title, duration, tag, count, hints, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
-                        (station_name, entry.path, entry.title, entry.duration, entry.tag, entry.count, hints_json),
+                                    (station, path, realpath, title, duration, tag, count, hints, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                        (
+                            station_name,
+                            entry.path,
+                            entry.realpath,
+                            entry.title,
+                            entry.duration,
+                            entry.tag,
+                            entry.count,
+                            hints_json,
+                        ),
                     )
+
                 else:
                     print(f"Warning: Entry {entry} is not a CatalogEntry instance. Skipping.")
 
@@ -198,3 +234,21 @@ class CatalogIO:
                     print(f"Warning: Entry {entry} is not a CatalogEntry instance. Skipping.")
             connection.commit()
             cursor.close()
+
+    def find_best_candidates(self, station_name: str, tag: str, max_duration: float):
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """SELECT * FROM catalog_entries 
+                   WHERE station = ? AND tag = ? AND duration <= ? AND duration >= 1
+                   ORDER BY count ASC, title ASC""",
+                (station_name, tag, max_duration),
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+            catalog_entries = []
+            for row in rows:
+                catalog_entries.append(CatalogEntry.from_db_row(row))
+
+            return catalog_entries

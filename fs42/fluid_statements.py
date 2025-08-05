@@ -40,9 +40,11 @@ class FluidStatements:
                 # compare it to the stats in the repo
                 if entry != repo_entry:
                     # then the stats match
+                    
                     FluidStatements.update_file_entry(connection, entry)
 
             else:
+                
                 FluidStatements.add_file_entry(connection, entry)
         cursor.close()
 

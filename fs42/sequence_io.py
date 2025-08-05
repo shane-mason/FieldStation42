@@ -98,7 +98,38 @@ class SequenceIO:
 
             return ns
 
-    # a function to delete all sequences for a station
+    def get_all_sequences_for_station(self, station_name: str) -> list[NamedSequence]:
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """SELECT id, sequence_name, tag_path, start_perc, end_perc, current_index 
+                              FROM named_sequence 
+                              WHERE station = ?""",
+                (station_name,),
+            )
+            rows = cursor.fetchall()
+
+            if not rows:
+                return []
+
+            sequences = []
+            for row in rows:
+                named_sequence_id, sequence_name, tag_path, start_perc, end_perc, current_index = row
+
+                # Now retrieve the sequence entries for this sequence
+                cursor.execute(
+                    """SELECT fpath FROM sequence_entries 
+                                  WHERE named_sequence_id = ? ORDER BY sequence_index""",
+                    (named_sequence_id,),
+                )
+                file_paths = [entry_row[0] for entry_row in cursor.fetchall()]
+
+                ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths)
+                sequences.append(ns)
+
+            return sequences
+
+
     def delete_sequences_for_station(self, station_name: str):
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
@@ -113,7 +144,7 @@ class SequenceIO:
             cursor.execute("""DELETE FROM named_sequence WHERE station = ?""", (station_name,))
             connection.commit()
 
-    # make a function to update the current index of a sequence
+    
     def update_current_index(self, station_name: str, sequence_name: str, tag_path: str, new_index: int):
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
@@ -125,6 +156,29 @@ class SequenceIO:
             )
             cursor.close()
             connection.commit()
+
+    def update_sequence_index_by_path(self, station_name: str, sequence_name: str, tag_path: str, episode_path: str):
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            # Get the sequence_index for the episode_path
+            cursor.execute("""
+                SELECT se.sequence_index 
+                FROM sequence_entries se
+                JOIN named_sequence ns ON se.named_sequence_id = ns.id
+                WHERE ns.station = ? AND ns.sequence_name = ? AND ns.tag_path = ? AND se.fpath = ?
+            """, (station_name, sequence_name, tag_path, episode_path))
+            
+            result = cursor.fetchone()
+            if result:
+                new_index = result[0]
+                cursor.execute("""
+                    UPDATE named_sequence 
+                    SET current_index = ? 
+                    WHERE station = ? AND sequence_name = ? AND tag_path = ?
+                """, (new_index, station_name, sequence_name, tag_path))
+                connection.commit()
+                return True
+            return False
 
     def clean_sequences(self):
         """

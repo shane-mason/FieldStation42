@@ -52,3 +52,6 @@ class CatalogAPI:
     def get_entry_by_id(entry_id):
         return CatalogIO().entry_by_id(entry_id)
     
+    @staticmethod
+    def find_best_candidates(station_config, tag: str, max_duration: float):
+        return CatalogIO().find_best_candidates(station_config["network_name"], tag, max_duration)
