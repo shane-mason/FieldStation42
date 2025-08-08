@@ -189,6 +189,9 @@ class StationPlayer:
         vfx = None
         if "video_scramble_fx" in self.station_config:
             vfx = self.station_config["video_scramble_fx"]
+        elif "station_fx" in self.station_config:
+            vfx = "station_fx"
+            self.scramble_effects["station_fx"] = self.station_config["station_fx"]
 
         # check if one is set on the slot and override if so
         slot = SlotReader.get_slot(self.station_config, current_time)
