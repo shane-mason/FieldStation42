@@ -81,10 +81,11 @@ class ShowCatalog:
             return
 
         catalog_entries = CatalogAPI.get_entries(self.config)
-
+        
         self.clip_index = {}
 
         for entry in catalog_entries:
+            
             if entry.tag not in self.clip_index:
                 self.clip_index[entry.tag] = []
             self.clip_index[entry.tag].append(entry)
@@ -322,6 +323,7 @@ class ShowCatalog:
             return None
 
     def find_candidate(self, tag, seconds, when):
+
         if tag in self.clip_index and len(self.clip_index[tag]):
             candidates = self.clip_index[tag]
             matches = []
@@ -475,6 +477,7 @@ class ShowCatalog:
             try:
                 # if it is a small or negative number, this will throw an exception when a candidate isn't found
                 candidate = self.find_candidate(tag, duration - current_duration, when)
+                
                 current_duration += candidate.duration
                 clips.append(candidate)
             except MatchingContentNotFound as e:

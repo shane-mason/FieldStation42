@@ -26,7 +26,6 @@ class CatalogIO:
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 station TEXT NOT NULL,
                                 path TEXT NOT NULL,
-                                realpath TEXT,
                                 title TEXT NOT NULL,
                                 duration REAL NOT NULL,
                                 tag TEXT NOT NULL,
@@ -34,6 +33,7 @@ class CatalogIO:
                                 hints TEXT,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                realpath TEXT,
                                 UNIQUE(station, tag, path)
                                 )
                             """)

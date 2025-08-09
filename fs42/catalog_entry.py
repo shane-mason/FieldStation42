@@ -65,6 +65,7 @@ class CatalogEntry:
 
     @staticmethod
     def from_db_row(row):
+        
         if len(row) == 11:  # New schema with realpath
             (dbid, station, path, title, duration, tag, count, hints_str, created, updated, realpath) = row
         else:  # Old schema without realpath

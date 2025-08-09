@@ -181,8 +181,8 @@ class LiquidClipBlock(LiquidBlock):
 
 
 class LiquidOffAirBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", bump_info=None):
-        super().__init__(content, start_time, end_time, title)
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+        super().__init__(content, start_time, end_time, title, break_strategy, break_info)
 
     def make_plan(self, catalog):
         self.plan = []
@@ -201,8 +201,8 @@ class LiquidOffAirBlock(LiquidBlock):
 
 
 class LiquidLoopBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", bump_info=None):
-        super().__init__(content, start_time, end_time, title)
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+        super().__init__(content, start_time, end_time, title, break_strategy, break_info)
 
     def make_plan(self, catalog):
         if not self.content:
