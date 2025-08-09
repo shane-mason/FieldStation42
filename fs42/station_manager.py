@@ -111,7 +111,7 @@ class StationManager(object):
         if os.path.exists(StationManager.__main_config_path):
             with open(StationManager.__main_config_path) as f:
                 try:
-                    to_check = ["channel_socket", "status_socket", "time_format", "start_mpv", "db_path"]
+                    to_check = ["channel_socket", "status_socket", "time_format", "start_mpv", "db_path", "server_host", "server_port"]
                     d = json.load(f)
 
                     for key in to_check:
