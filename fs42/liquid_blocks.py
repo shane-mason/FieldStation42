@@ -189,8 +189,7 @@ class LiquidOffAirBlock(LiquidBlock):
         current_mark = self.start_time
 
         while current_mark < self.end_time:
-            duration = self.content.duration
-            print(f"Content reporting duration: {duration} as a {type(duration)} - {self.content.title}")
+            duration = float(self.content.duration)
             current_mark += datetime.timedelta(seconds=duration)
             datetime.timedelta()
             if current_mark > self.end_time:
