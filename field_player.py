@@ -137,6 +137,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
         if player_state.status == PlayerState.CHANNEL_CHANGE:
             stuck_timer = 0
+            #if we got anything, we'll tune up one channel
             tune_up = True
             # get the json payload
             if player_state.payload:
@@ -168,9 +169,11 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                         elif as_obj["command"] == "down":
                             tune_up = False
                             logger.debug("Got channel down command")
-                            channel_index -= 1
-                            if channel_index < 0:
-                                channel_index = len(manager.stations) - 1
+                            found = False
+                            while not found:
+                                channel_index -= 1
+                                channel_index = channel_index if channel_index > 0 else len(channel_index)
+                                found = not manager.stations[channel_index]["hidden"]
 
                 except Exception as e:
                     logger.exception(e)
@@ -180,9 +183,12 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
             if tune_up:
                 logger.info("Starting channel change")
-                channel_index += 1
-                if channel_index >= len(manager.stations):
-                    channel_index = 0
+                found = False
+                while not found:
+                    channel_index += 1
+                    channel_index = channel_index if channel_index < len(manager.stations) else 0
+                    found = not manager.stations[channel_index]["hidden"]
+
 
             channel_conf = manager.stations[channel_index]
             player.station_config = channel_conf

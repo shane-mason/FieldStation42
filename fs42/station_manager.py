@@ -19,6 +19,7 @@ class StationManager(object):
         "commercial_free": False,
         "clip_shows": [],
         "break_duration": 120,
+        "hidden": False 
     }
 
     __filechecks = ["sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
