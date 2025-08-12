@@ -192,7 +192,7 @@ class LiquidSchedule:
         self._l.debug("Plans completed - updating play counts")
         CatalogAPI.update_play_counts(self.conf, play_counts)
         self._l.debug("Counts updated")
-        self._blocks = self._blocks + new_blocks
+        self._blocks = new_blocks
         self._l.info("Saving blocks to disk")
         self._save_blocks()
 
@@ -221,7 +221,6 @@ class LiquidSchedule:
                 end_building = timings.next_week(start_building)
             case "month":
                 end_building = timings.next_month(start_building)
-
         match self.conf["network_type"]:
             case "standard":
                 self._fluid(start_building, end_building)
