@@ -40,9 +40,6 @@ class LiquidSchedule:
     def _load_blocks(self):
         self._blocks = LiquidAPI.get_blocks(self.conf)
 
-    def _save_blocks(self):
-        LiquidAPI.set_blocks(self.conf, self._blocks)
-
     def _end_time(self):
         # get the lastest time in the schedule
         if len(self._blocks) > 0:
@@ -70,8 +67,8 @@ class LiquidSchedule:
         for block in new_blocks:
             block.make_plan(self.catalog)
 
-        self._blocks = self._blocks + new_blocks
-        self._save_blocks()
+        LiquidAPI.add_blocks(self.conf, new_blocks)
+        self._load_blocks()
 
     def _fluid(self, start_time, end_target):
         # this is the core of the scheduler.
@@ -177,7 +174,7 @@ class LiquidSchedule:
         # now, make plans for all the blocks and make list to update play counts
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
         play_counts = []
-
+        
 
 
         #for i, block in enumerate(new_blocks):
@@ -194,7 +191,8 @@ class LiquidSchedule:
         self._l.debug("Counts updated")
         self._blocks = new_blocks
         self._l.info("Saving blocks to disk")
-        self._save_blocks()
+        LiquidAPI.add_blocks(self.conf, new_blocks)
+        self._load_blocks()
 
     def _increment(self, how_much):
         # add time to the existing schedule
