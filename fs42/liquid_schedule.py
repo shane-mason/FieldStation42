@@ -13,9 +13,7 @@ from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, 
 from fs42.sequence_api import SequenceAPI
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
-
-
-
+from fs42.marathon_agent import MarathonAgent
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -70,6 +68,79 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
+    def _fill(self, slot_config, tag_str, current_mark, break_strategy, break_info) -> LiquidBlock:
+        seq_key = None
+        candidate = None
+        new_block = None
+        next_mark = None
+        # see if this is a series with a sequence defined
+        if "sequence" in slot_config:
+            seq_name = slot_config["sequence"]
+
+            next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
+            if next_seq:
+                candidate = self.catalog.entry_by_fpath(next_seq.fpath)
+
+            seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
+        else:
+            candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
+
+        if candidate:
+            _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
+            
+            target_duration = self._calc_target_duration(candidate.duration, _increment)
+            next_mark = current_mark + datetime.timedelta(seconds=target_duration)
+
+            new_block = LiquidBlock(
+                candidate, current_mark, next_mark, candidate.title, break_strategy, break_info
+            )
+            # add sequence information
+            if seq_key:
+                new_block.sequence_key = seq_key
+        else:
+            # this should only happen on an error (have a tag, but no candidate)
+            raise MatchingContentNotFound(
+                f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
+            )
+        return (new_block, next_mark)
+    
+    def _clip_fill(self, tag_str, current_mark, break_strategy, break_info) -> LiquidClipBlock:
+        new_block = None
+        next_mark = None
+        # handle clip show
+        clip_content = self.catalog.gather_clip_content(
+            tag_str, self.conf["clip_shows"][tag_str]["duration"], current_mark
+        )
+        if len(clip_content) == 0:
+            # this should only happen on an error (have a tag, but no candidate)
+            raise MatchingContentNotFound(
+                f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
+            )
+        else:
+            clip_block = LiquidClipBlock(
+                clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info
+            )
+            target_duration = self._calc_target_duration(clip_block.content_duration())
+            next_mark = current_mark + datetime.timedelta(seconds=target_duration)
+            clip_block.end_time = next_mark
+            new_block = clip_block
+        return (new_block, next_mark)
+
+    def _break_info(self, slot_config):
+        break_info = {"start_bump": None, "end_bump": None, "bump_dir": None, "commercial_dir": None, "break_strategy": None}
+
+        # does this slot have a start bump?
+        if "start_bump" in slot_config:
+            break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
+        if "end_bump" in slot_config:
+            break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
+
+        break_info["bump_dir"] = slot_config.get("bump_dir", self.conf.get("bump_dir", None))
+        break_info["commercial_dir"] = slot_config.get("commercial_dir", self.conf.get("commercial_dir", None))
+
+        break_strategy = slot_config.get("break_strategy", self.conf["break_strategy"])
+        return (break_info, break_strategy)
+
     def _fluid(self, start_time, end_target):
         # this is the core of the scheduler.
         new_blocks = []
@@ -78,79 +149,31 @@ class LiquidSchedule:
         if current_mark is None:
             current_mark = datetime.datetime.now()
 
+        forward_buffer = []
+
         self._l.info(f"Starting to build blocks for {self.conf['network_name']}")
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
-            slot_config = SlotReader.get_slot(self.conf, current_mark)
+
+            if not len(forward_buffer):
+                slot_config = SlotReader.get_slot(self.conf, current_mark)
+            else:
+                slot_config = forward_buffer.pop(0)
+
             tag_str = SlotReader.get_tag_from_slot(slot_config, current_mark)
 
             new_block = None
             if tag_str is not None:
-                break_info = {"start_bump": None, "end_bump": None, "bump_dir": None, "commercial_dir": None, "break_strategy": None}
 
-                # does this slot have a start bump?
-                if "start_bump" in slot_config:
-                    break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
-                if "end_bump" in slot_config:
-                    break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
-
-                break_info["bump_dir"] = slot_config.get("bump_dir", self.conf.get("bump_dir", None))
-                break_info["commercial_dir"] = slot_config.get("commercial_dir", self.conf.get("commercial_dir", None))
-
-                break_strategy = slot_config.get("break_strategy", self.conf["break_strategy"])
-                    
-                seq_key = None
+                break_info, break_strategy = self._break_info(slot_config)
+                
+                if MarathonAgent.detect_marathon(slot_config):
+                    forward_buffer = MarathonAgent.fill_marathon(slot_config)
 
                 if tag_str not in self.conf["clip_shows"]:
-                    candidate = None
-                    # see if this is a series with a sequence defined
-                    if "sequence" in slot_config:
-                        seq_name = slot_config["sequence"]
-
-                        next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
-                        if next_seq:
-                            candidate = self.catalog.entry_by_fpath(next_seq.fpath)
-
-                        seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
-                    else:
-                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
-
-                    if candidate is None:
-                        # this should only happen on an error (have a tag, but no candidate)
-                        raise MatchingContentNotFound(
-                            f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
-                        )
-
-                    else:
-                        _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
-                        
-                        target_duration = self._calc_target_duration(candidate.duration, _increment)
-                        next_mark = current_mark + datetime.timedelta(seconds=target_duration)
-
-                        new_block = LiquidBlock(
-                            candidate, current_mark, next_mark, candidate.title, break_strategy, break_info
-                        )
-                        # add sequence information
-                        if seq_key:
-                            new_block.sequence_key = seq_key
+                    new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
                 else:
-                    # handle clip show
-                    clip_content = self.catalog.gather_clip_content(
-                        tag_str, self.conf["clip_shows"][tag_str]["duration"], current_mark
-                    )
-                    if len(clip_content) == 0:
-                        # this should only happen on an error (have a tag, but no candidate)
-                        raise MatchingContentNotFound(
-                            f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
-                        )
-                    else:
-                        clip_block = LiquidClipBlock(
-                            clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info
-                        )
-                        target_duration = self._calc_target_duration(clip_block.content_duration())
-                        next_mark = current_mark + datetime.timedelta(seconds=target_duration)
-                        clip_block.end_time = next_mark
-                        new_block = clip_block
+                    new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
 
             else:
                 # then we are offair - get offair video
@@ -176,10 +199,6 @@ class LiquidSchedule:
         play_counts = []
         
 
-
-        #for i, block in enumerate(new_blocks):
-        #    block.make_plan(self.catalog)
-
         for block in new_blocks:
             block.make_plan(self.catalog)
             if block.content:
@@ -193,6 +212,7 @@ class LiquidSchedule:
         self._l.info("Saving blocks to disk")
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
+
 
     def _increment(self, how_much):
         # add time to the existing schedule

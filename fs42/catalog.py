@@ -477,7 +477,8 @@ class ShowCatalog:
             try:
                 # if it is a small or negative number, this will throw an exception when a candidate isn't found
                 candidate = self.find_candidate(tag, duration - current_duration, when)
-                
+                if not candidate:
+                    print(tag, duration, duration - current_duration, when)                
                 current_duration += candidate.duration
                 clips.append(candidate)
             except MatchingContentNotFound as e:
