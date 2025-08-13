@@ -137,6 +137,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
         if player_state.status == PlayerState.CHANNEL_CHANGE:
             stuck_timer = 0
+            # Cache stations to prevent race conditions during reload
+            station_cache = manager.stations
+            stations_len = len(station_cache)
             #if we got anything, we'll tune up one channel
             tune_up = True
             # get the json payload
@@ -172,8 +175,11 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                             found = False
                             while not found:
                                 channel_index -= 1
-                                channel_index = channel_index if channel_index >= 0 else len(manager.stations)-1
-                                found = not manager.stations[channel_index]["hidden"]
+                                # channel_index = channel_index if channel_index >= 0 else len(manager.stations)-1
+                                if channel_index < 0:
+                                    channel_index = stations_len-1
+                                if not station_cache[channel_index]["hidden"]:
+                                    found = True
 
                 except Exception as e:
                     logger.exception(e)
@@ -186,11 +192,11 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                 found = False
                 while not found:
                     channel_index += 1
-                    channel_index = channel_index if channel_index < len(manager.stations) else 0
-                    found = not manager.stations[channel_index]["hidden"]
+                    channel_index = channel_index if channel_index < stations_len else 0
+                    found = not station_cache[channel_index]["hidden"]
 
 
-            channel_conf = manager.stations[channel_index]
+            channel_conf = station_cache[channel_index]
             player.station_config = channel_conf
 
             # long_change_effect(player, reception)
