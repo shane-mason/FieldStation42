@@ -172,7 +172,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                             found = False
                             while not found:
                                 channel_index -= 1
-                                channel_index = channel_index if channel_index > 0 else len(manager.stations)-1
+                                channel_index = channel_index if channel_index >= 0 else len(manager.stations)-1
                                 found = not manager.stations[channel_index]["hidden"]
 
                 except Exception as e:
