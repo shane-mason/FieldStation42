@@ -3,6 +3,9 @@ import sys
 import argparse
 import datetime
 from rich.console import Console
+from rich.logging import RichHandler
+from rich.panel import Panel
+from rich import style
 
 from fs42.catalog import ShowCatalog
 from fs42.station_manager import StationManager
@@ -10,12 +13,11 @@ from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.fluid_builder import FluidBuilder
 from fs42.sequence_api import SequenceAPI
-from fs42.liquid_api import LiquidAPI
 from fs42.fs42_server.fs42_server import mount_fs42_api
 
 FF_USE_FLUID_FILE_CACHE = True
 
-logging.basicConfig(format="%(levelname)s:%(name)s:%(message)s", level=logging.INFO)
+logging.basicConfig(format="[%(name)s] %(message)s", level=logging.INFO, handlers=[RichHandler()])
 
 
 class Station42:
@@ -215,7 +217,7 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.graphical_interface or len(sys.argv) <= 1:
+    if args.graphical_interface:
         try:
             from fs42.ux.ux import StationApp
         except ModuleNotFoundError:
@@ -496,11 +498,18 @@ def main():
                         f"Failed to add a month to {station['network_name']} - check logs."
                     )
 
-    if args.server:
+    print_outcome(success_messages, failure_messages, console)
+
+    if args.server or len(sys.argv) <= 1:
+        info = "\nFS42 web server is running on this machine. You can log into the web gui at http://localhost:4242 to manage catalogs and schedules\n"
+        print()
+        console.print(Panel.fit(info, title="FieldStation42", subtitle="Its Up To You.", border_style=style.Style(color="blue")))
+        print()
         mount_fs42_api()
+        
         return
 
-    print_outcome(success_messages, failure_messages, console)
+    
 
 
 if __name__ == "__main__":

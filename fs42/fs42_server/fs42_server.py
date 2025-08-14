@@ -59,6 +59,14 @@ def run_with_shutdown_queue(shutdown_queue, command_queue):
 
 
 def mount_fs42_api():
+    import logging
+    
+    class PlayerStatusFilter(logging.Filter):
+        def filter(self, record):
+            return ('/player/status' not in record.getMessage())
+    
+    logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
+    
     fapi.state.player_command_queue = None
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
     conf = StationManager().server_conf

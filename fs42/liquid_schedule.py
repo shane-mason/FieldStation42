@@ -87,13 +87,11 @@ class LiquidSchedule:
 
         if candidate:
             _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
-            
+
             target_duration = self._calc_target_duration(candidate.duration, _increment)
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
 
-            new_block = LiquidBlock(
-                candidate, current_mark, next_mark, candidate.title, break_strategy, break_info
-            )
+            new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
             # add sequence information
             if seq_key:
                 new_block.sequence_key = seq_key
@@ -103,7 +101,7 @@ class LiquidSchedule:
                 f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
             )
         return (new_block, next_mark)
-    
+
     def _clip_fill(self, tag_str, current_mark, break_strategy, break_info) -> LiquidClipBlock:
         new_block = None
         next_mark = None
@@ -117,9 +115,7 @@ class LiquidSchedule:
                 f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
             )
         else:
-            clip_block = LiquidClipBlock(
-                clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info
-            )
+            clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info)
             target_duration = self._calc_target_duration(clip_block.content_duration())
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
             clip_block.end_time = next_mark
@@ -127,7 +123,13 @@ class LiquidSchedule:
         return (new_block, next_mark)
 
     def _break_info(self, slot_config):
-        break_info = {"start_bump": None, "end_bump": None, "bump_dir": None, "commercial_dir": None, "break_strategy": None}
+        break_info = {
+            "start_bump": None,
+            "end_bump": None,
+            "bump_dir": None,
+            "commercial_dir": None,
+            "break_strategy": None,
+        }
 
         # does this slot have a start bump?
         if "start_bump" in slot_config:
@@ -145,7 +147,7 @@ class LiquidSchedule:
         # this is the core of the scheduler.
         new_blocks = []
         current_mark = start_time
-        
+
         if current_mark is None:
             current_mark = datetime.datetime.now()
 
@@ -164,9 +166,8 @@ class LiquidSchedule:
 
             new_block = None
             if tag_str is not None:
-
                 break_info, break_strategy = self._break_info(slot_config)
-                
+
                 if MarathonAgent.detect_marathon(slot_config):
                     forward_buffer = MarathonAgent.fill_marathon(slot_config)
 
@@ -197,7 +198,6 @@ class LiquidSchedule:
         # now, make plans for all the blocks and make list to update play counts
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
         play_counts = []
-        
 
         for block in new_blocks:
             block.make_plan(self.catalog)
@@ -212,7 +212,6 @@ class LiquidSchedule:
         self._l.info("Saving blocks to disk")
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
-
 
     def _increment(self, how_much):
         # add time to the existing schedule

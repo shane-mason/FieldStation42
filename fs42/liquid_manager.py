@@ -61,7 +61,7 @@ class LiquidManager(object):
         self.reload_schedules()
 
     def reset_schedule(self, station_config, force=False):
-        print(f"Resetting schedule for {station_config['network_name']} with force={force}")
+        
         if station_config["_has_schedule"]:
             logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
             if not force:

@@ -39,7 +39,7 @@ class ShowCatalog:
 
     def __init__(self, config, rebuild_catalog=False, load=True, debug=False, force=False):
         self.config = config
-        self._l = logging.getLogger(f"{self.config['network_name']}:CAT")
+        self._l = logging.getLogger(f"{self.config['network_name']} - CAT")
 
         # the main index for videos
         self.clip_index = {}
