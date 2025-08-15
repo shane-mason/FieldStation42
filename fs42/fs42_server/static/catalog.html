@@ -20,6 +20,17 @@
             const logDisplay = window.fs42Common.createLogDisplay();
 
             const content = `
+                    <div id="search-section" class="pure-u-1" style="margin-bottom: 1em;">
+                        <div class="pure-form" style="display: flex; align-items: center; gap: 0.5em;">
+                            <input type="text" id="search-input" placeholder="Search catalogs..." class="pure-input" style="flex: 1; max-width: 300px;">
+                            <button id="search-btn" class="pure-button pure-button-primary">Search</button>
+                            <button id="clear-search-btn" class="pure-button">Clear</button>
+                        </div>
+                        <div id="search-results" style="margin-top: 1em; display: none;">
+                            <h3>Search Results</h3>
+                            <div id="search-results-content"></div>
+                        </div>
+                    </div>
                     <div class="station-select-container">
                         <label for="station-select">Select Station:</label>
                         <select id="station-select" class="pure-input-1"></select>
@@ -246,6 +257,103 @@
             });
 
             loadStationsAndSummary();
+            
+            // Set up search functionality
+            setupSearchHandlers();
+
+            // Search functionality
+            function setupSearchHandlers() {
+                const searchBtn = document.getElementById('search-btn');
+                const clearBtn = document.getElementById('clear-search-btn');
+                const searchInput = document.getElementById('search-input');
+                
+                if (searchBtn) {
+                    searchBtn.addEventListener('click', performSearch);
+                }
+                
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', clearSearch);
+                }
+                
+                if (searchInput) {
+                    searchInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            performSearch();
+                        }
+                    });
+                }
+            }
+
+            async function performSearch() {
+                const searchInput = document.getElementById('search-input');
+                const resultsDiv = document.getElementById('search-results');
+                const resultsContent = document.getElementById('search-results-content');
+                const searchBtn = document.getElementById('search-btn');
+                
+                const query = searchInput.value.trim();
+                if (!query) {
+                    alert('Please enter a search term');
+                    return;
+                }
+                
+                // Show loading state
+                searchBtn.textContent = 'Searching...';
+                searchBtn.disabled = true;
+                resultsDiv.style.display = 'block';
+                resultsContent.innerHTML = '<p>Searching all catalogs...</p>';
+                
+                try {
+                    const response = await window.fs42Api.get(`catalogs/search_all?query=${encodeURIComponent(query)}`);
+                    displaySearchResults(response, query);
+                } catch (error) {
+                    resultsContent.innerHTML = '<p style="color: red;">Error searching catalogs: ' + error.message + '</p>';
+                } finally {
+                    searchBtn.textContent = 'Search';
+                    searchBtn.disabled = false;
+                }
+            }
+
+            function displaySearchResults(response, query) {
+                const resultsContent = document.getElementById('search-results-content');
+                const results = response.results || [];
+                
+                if (results.length === 0) {
+                    resultsContent.innerHTML = `<p>No results found for "${query}".</p>`;
+                    return;
+                }
+                
+                let totalResults = 0;
+                let html = '';
+                
+                for (const stationResult of results) {
+                    const entries = stationResult.catalog_entries || [];
+                    if (entries.length > 0) {
+                        totalResults += entries.length;
+                        html += `<h4>${stationResult.network_name} (${entries.length} results)</h4>`;
+                        html += window.fs42Common.renderCatalogTable(entries);
+                    } else if (stationResult.error) {
+                        html += `<h4>${stationResult.network_name}</h4>`;
+                        html += `<p style="color: red;">Error: ${stationResult.error}</p>`;
+                    }
+                }
+                
+                if (totalResults > 0) {
+                    resultsContent.innerHTML = `<p><strong>Found ${totalResults} results across ${results.filter(r => r.catalog_entries && r.catalog_entries.length > 0).length} stations for "${query}"</strong></p>` + html;
+                } else {
+                    resultsContent.innerHTML = `<p>No results found for "${query}".</p>`;
+                }
+            }
+
+            function clearSearch() {
+                const searchInput = document.getElementById('search-input');
+                const resultsDiv = document.getElementById('search-results');
+                const resultsContent = document.getElementById('search-results-content');
+                
+                searchInput.value = '';
+                resultsDiv.style.display = 'none';
+                resultsContent.innerHTML = '';
+            }
+
         }); // Close DOMContentLoaded event handler
     </script>
 </body>

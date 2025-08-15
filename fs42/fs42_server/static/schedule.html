@@ -35,6 +35,17 @@
             const logDisplay = window.fs42Common.createLogDisplay();
 
             const content = `
+                <div id="search-section" class="pure-u-1" style="margin-bottom: 1em;">
+                    <div class="pure-form" style="display: flex; align-items: center; gap: 0.5em;">
+                        <input type="text" id="search-input" placeholder="Search schedules..." class="pure-input" style="flex: 1; max-width: 300px;">
+                        <button id="search-btn" class="pure-button pure-button-primary">Search</button>
+                        <button id="clear-search-btn" class="pure-button">Clear</button>
+                    </div>
+                    <div id="search-results" style="margin-top: 1em; display: none;">
+                        <h3>Search Results</h3>
+                        <div id="search-results-content"></div>
+                    </div>
+                </div>
                 <div class="pure-u-1" id="all-stations-buttons">
                     <h3 style="margin-bottom: 0.5em; color: #ff00cc;">All Stations Actions:</h3>
                     ${actionButtons}
@@ -65,6 +76,9 @@
 
             // Initialize functionality after DOM is created
             initializeSchedulePage();
+            
+            // Set up search functionality
+            setupSearchHandlers();
         });
 
         function initializeSchedulePage() {
@@ -363,6 +377,171 @@
             document.getElementById('get-schedule').addEventListener('click', getScheduleBlocks);
 
             loadStationsAndSummary();
+        }
+
+        // Search functionality
+        function setupSearchHandlers() {
+            const searchBtn = document.getElementById('search-btn');
+            const clearBtn = document.getElementById('clear-search-btn');
+            const searchInput = document.getElementById('search-input');
+            
+            if (searchBtn) {
+                searchBtn.addEventListener('click', performSearch);
+            }
+            
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearSearch);
+            }
+            
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        performSearch();
+                    }
+                });
+            }
+        }
+
+        async function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            const resultsDiv = document.getElementById('search-results');
+            const resultsContent = document.getElementById('search-results-content');
+            const searchBtn = document.getElementById('search-btn');
+            
+            const query = searchInput.value.trim();
+            if (!query) {
+                alert('Please enter a search term');
+                return;
+            }
+            
+            // Show loading state
+            searchBtn.textContent = 'Searching...';
+            searchBtn.disabled = true;
+            resultsDiv.style.display = 'block';
+            resultsContent.innerHTML = '<p>Searching all schedules...</p>';
+            
+            try {
+                const response = await window.fs42Api.get(`schedules/search_all?query=${encodeURIComponent(query)}`);
+                displaySearchResults(response, query);
+            } catch (error) {
+                resultsContent.innerHTML = '<p style="color: red;">Error searching schedules: ' + error.message + '</p>';
+            } finally {
+                searchBtn.textContent = 'Search';
+                searchBtn.disabled = false;
+            }
+        }
+
+        function displaySearchResults(response, query) {
+            const resultsContent = document.getElementById('search-results-content');
+            const results = response.results || [];
+            
+            if (results.length === 0) {
+                resultsContent.innerHTML = `<p>No results found for "${query}".</p>`;
+                return;
+            }
+            
+            // Flatten all blocks and group by day
+            let allBlocks = [];
+            let totalResults = 0;
+            let stationCount = 0;
+            
+            for (const stationResult of results) {
+                const blocks = stationResult.schedule_blocks || [];
+                if (blocks.length > 0) {
+                    stationCount++;
+                    totalResults += blocks.length;
+                    for (const block of blocks) {
+                        allBlocks.push({
+                            ...block,
+                            station_name: stationResult.network_name
+                        });
+                    }
+                }
+            }
+            
+            if (totalResults === 0) {
+                resultsContent.innerHTML = `<p>No results found for "${query}".</p>`;
+                return;
+            }
+            
+            // Group blocks by day
+            const blocksByDay = {};
+            for (const block of allBlocks) {
+                const startTime = new Date(block.start_time);
+                const dayKey = startTime.toISOString().split('T')[0]; // YYYY-MM-DD format
+                const dayLabel = startTime.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                if (!blocksByDay[dayKey]) {
+                    blocksByDay[dayKey] = {
+                        label: dayLabel,
+                        blocks: []
+                    };
+                }
+                blocksByDay[dayKey].blocks.push(block);
+            }
+            
+            // Sort days and blocks within each day
+            const sortedDays = Object.keys(blocksByDay).sort();
+            for (const dayKey of sortedDays) {
+                blocksByDay[dayKey].blocks.sort((a, b) => 
+                    new Date(a.start_time) - new Date(b.start_time)
+                );
+            }
+            
+            // Generate HTML
+            let html = `<p><strong>Found ${totalResults} results across ${stationCount} stations for "${query}"</strong></p>`;
+            
+            for (const dayKey of sortedDays) {
+                const dayData = blocksByDay[dayKey];
+                html += `<h4>${dayData.label} (${dayData.blocks.length} results)</h4>`;
+                html += renderScheduleTableWithStations(dayData.blocks);
+            }
+            
+            resultsContent.innerHTML = html;
+        }
+
+        function renderScheduleTableWithStations(blocks) {
+            if (!blocks.length) return '<p>No schedule blocks found.</p>';
+            let html = '<table class="pure-table pure-table-horizontal" style="width:100%;margin-top:1em;">';
+            html += '<thead><tr><th>Start Time</th><th>End Time</th><th>Station</th><th>Title</th></tr></thead><tbody>';
+            for (const block of blocks) {
+                // Format time only (not date) for readability
+                let start = block.start_time ? formatTimeOnly(block.start_time) : '';
+                let end = block.end_time ? formatTimeOnly(block.end_time) : '';
+                html += `<tr>
+                    <td data-label='Start Time'>${start}</td>
+                    <td data-label='End Time'>${end}</td>
+                    <td data-label='Station'><strong>${block.station_name}</strong></td>
+                    <td data-label='Title'>${block.title || ''}</td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function formatTimeOnly(dtStr) {
+            // Returns just the time portion in HH:MM format
+            if (!dtStr) return '';
+            const d = new Date(dtStr);
+            if (isNaN(d.getTime())) return dtStr;
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            return `${hh}:${min}`;
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('search-input');
+            const resultsDiv = document.getElementById('search-results');
+            const resultsContent = document.getElementById('search-results-content');
+            
+            searchInput.value = '';
+            resultsDiv.style.display = 'none';
+            resultsContent.innerHTML = '';
         }
     </script>
 </body>

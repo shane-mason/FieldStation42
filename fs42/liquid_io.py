@@ -186,3 +186,45 @@ class LiquidIO:
                 return LiquidLoopBlock(*args)
             case _:
                 raise ValueError(f"Unknown liquid type: {liquid_type}")
+
+    def search_liquid_blocks(self, station_name: str, query: str) -> list[LiquidBlock]:
+        """
+        Search liquid blocks by title for a given station.
+        """
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT * FROM liquid_blocks WHERE station = ? AND title LIKE ? ORDER BY start_time", 
+                (station_name, f"%{query}%")
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+        blocks = []
+        for row in rows:
+            blocks.append(LiquidIO._build_block_from_row(row))
+
+        return blocks
+
+    def search_all_liquid_blocks(self, query: str) -> dict:
+        """
+        Search liquid blocks by title across all stations.
+        Returns a dictionary with station names as keys and lists of blocks as values.
+        """
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT * FROM liquid_blocks WHERE title LIKE ? ORDER BY station, start_time", 
+                (f"%{query}%",)
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+        results = {}
+        for row in rows:
+            station = row[1]  # station is at index 1
+            if station not in results:
+                results[station] = []
+            results[station].append(LiquidIO._build_block_from_row(row))
+
+        return results
