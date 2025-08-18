@@ -10,6 +10,7 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
+from fs42.webrender.web_render import web_render_runner
 from fs42.reception import (
     ReceptionStatus,
     HLScrambledVideoFilter,
@@ -265,6 +266,41 @@ class StationPlayer:
 
         return PlayerOutcome(PlayerState.SUCCESS)
 
+    def show_web(self, web_config):
+        # create the pipe to communicate with the web channel
+        queue = multiprocessing.Queue()
+        web_process = multiprocessing.Process(
+            target=web_render_runner,
+            args=(
+                web_config,
+                queue,
+            ),
+        )
+        web_process.start()
+        
+        # Stop any currently playing content
+        self.mpv.stop()
+        self.current_playing_file_path = None
+        
+        # update status
+        update_status_socket(
+            "playing",
+            self.station_config["network_name"],
+            self.station_config["channel_number"],
+            self.station_config["network_name"],
+            timestamp=StationManager().server_conf["date_time_format"],
+        )
+        keep_going = True
+        while keep_going:
+            time.sleep(0.05)
+            response = self.input_check_fn()
+            if response:
+                self._l.info("Sending the web channel shutdown command")
+                queue.put("hide_window")
+                web_process.join()
+                return response
+        return PlayerOutcome(PlayerState.SUCCESS)
+
     def schedule_panic(self, network_name):
         self._l.critical("*********************Schedule Panic*********************")
         self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
@@ -282,7 +318,7 @@ class StationPlayer:
             self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
             # fail so we can return and try again
             return PlayerOutcome(PlayerState.FAILED)
-
+        
         if play_point is None:
             self.current_playing_file_path = None
             return PlayerOutcome(PlayerState.FAILED)

@@ -92,7 +92,7 @@ class GuideBuilder:
 
         # each statio is a row
         for station in StationManager().stations:
-            if station["network_type"] == "guide" or station["network_type"] == "streaming" or station["hidden"]:
+            if not station["_has_schedule"]  or station["hidden"]:
                 continue
             entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
 
