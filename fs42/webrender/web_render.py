@@ -1,6 +1,8 @@
+import signal
 from PySide6.QtCore import QUrl, QTimer, Qt
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
 QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)
 
@@ -8,11 +10,46 @@ class WebRender(QMainWindow):
     def __init__(self, user_conf):
         super().__init__()
         self.browser = QWebEngineView()
+        
+        # Configure QWebEngineSettings to enable autoplay
+        settings = self.browser.settings()
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
+        
+        # Set custom user agent for identification
+        self.browser.page().profile().setHttpUserAgent("FieldStation42-WebRender/1.0")
+        
         self.setCentralWidget(self.browser)
         self.user_conf = user_conf
 
     def navigate(self, URL: str):
         self.browser.setUrl(QUrl(URL))
+        # Connect to loadFinished to simulate user interaction after page loads
+        self.browser.loadFinished.connect(self._on_load_finished)
+    
+    def _on_load_finished(self, success):
+        if success:
+            # Inject JavaScript to simulate user interaction and enable autoplay
+            js_code = """
+            // Simulate user interaction to enable autoplay
+            document.body.click();
+            
+            // Try to enable wake lock and autoplay for media elements
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').catch(e => console.log('Wake lock failed:', e));
+            }
+            
+            // Find and try to play any media elements
+            const mediaElements = document.querySelectorAll('video, audio');
+            mediaElements.forEach(element => {
+                if (element.paused) {
+                    element.play().catch(e => console.log('Autoplay failed:', e));
+                }
+            });
+            """
+            self.browser.page().runJavaScript(js_code)
 
 class WebRenderApp(QApplication):
     def __init__(self, user_conf, queue=None):
@@ -51,6 +88,18 @@ class WebRenderApp(QApplication):
                 return
 
 def web_render_runner(user_conf, queue):
+    # Set up signal handler for web process - just exit cleanly
+    def web_sigint_handler(sig, frame):
+        print("WebRender process received SIGINT, exiting...")
+        import sys
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, web_sigint_handler)
+    
+    # Set environment variables to enable autoplay
+    import os
+    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--autoplay-policy=no-user-gesture-required --disable-web-security --allow-running-insecure-content --disable-features=VizDisplayCompositor'
+    
     app = WebRenderApp(user_conf, queue)
     url = user_conf.get("web_url", "http://localhost:4242/static/diagnostics.html")
     # Set default URL if specified in config

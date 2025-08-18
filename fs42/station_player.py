@@ -102,6 +102,8 @@ class StationPlayer:
         self.reception = ReceptionStatus()
         self.current_playing_file_path = None
         self.skip_reception_check = False
+        self.web_process = None
+        self.web_queue = None
         self.scrambler = None
 
     def show_text(self, text, duration=4):
@@ -109,6 +111,26 @@ class StationPlayer:
 
     def shutdown(self):
         self.current_playing_file_path = None
+        # Terminate any running web process
+        if self.web_process and self.web_process.is_alive():
+            self._l.info("Terminating web process")
+            try:
+                if self.web_queue:
+                    self.web_queue.put("hide_window")
+                self.web_process.join(timeout=2)
+            except Exception:
+                pass
+            
+            # Check if process is still alive and has valid _popen
+            if self.web_process and hasattr(self.web_process, '_popen') and self.web_process._popen and self.web_process.is_alive():
+                try:
+                    self.web_process.terminate()
+                    self.web_process.join(timeout=1)
+                except Exception:
+                    pass
+                    
+        self.web_process = None
+        self.web_queue = None
         self.mpv.terminate()
 
     def update_filters(self):
@@ -268,15 +290,15 @@ class StationPlayer:
 
     def show_web(self, web_config):
         # create the pipe to communicate with the web channel
-        queue = multiprocessing.Queue()
-        web_process = multiprocessing.Process(
+        self.web_queue = multiprocessing.Queue()
+        self.web_process = multiprocessing.Process(
             target=web_render_runner,
             args=(
                 web_config,
-                queue,
+                self.web_queue,
             ),
         )
-        web_process.start()
+        self.web_process.start()
         
         # Stop any currently playing content
         self.mpv.stop()
@@ -296,8 +318,10 @@ class StationPlayer:
             response = self.input_check_fn()
             if response:
                 self._l.info("Sending the web channel shutdown command")
-                queue.put("hide_window")
-                web_process.join()
+                self.web_queue.put("hide_window")
+                self.web_process.join()
+                self.web_process = None
+                self.web_queue = None
                 return response
         return PlayerOutcome(PlayerState.SUCCESS)
 
