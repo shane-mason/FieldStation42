@@ -115,9 +115,6 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         if channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
             player_state = player.show_guide(channel_conf)
-        elif channel_conf["network_type"] == "web" and not skip_play:
-            logger.info("Starting the web channel")
-            player_state = player.show_web(channel_conf)
         elif not skip_play:
             now = datetime.datetime.now()
 
