@@ -10,7 +10,15 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
-from fs42.webrender.web_render import web_render_runner
+
+# Try to import web_render_runner, but handle gracefully if PySide6 isn't available
+try:
+    from fs42.webrender.web_render import web_render_runner
+    WEB_RENDER_AVAILABLE = True
+except ImportError:
+    WEB_RENDER_AVAILABLE = False
+    web_render_runner = None
+
 from fs42.reception import (
     ReceptionStatus,
     HLScrambledVideoFilter,
@@ -289,6 +297,10 @@ class StationPlayer:
         return PlayerOutcome(PlayerState.SUCCESS)
 
     def show_web(self, web_config):
+        if not WEB_RENDER_AVAILABLE:
+            self._l.error("Web rendering not available - PySide6 not installed")
+            return PlayerOutcome(PlayerState.FAILED, "Web rendering requires PySide6")
+        
         # create the pipe to communicate with the web channel
         self.web_queue = multiprocessing.Queue()
         self.web_process = multiprocessing.Process(
