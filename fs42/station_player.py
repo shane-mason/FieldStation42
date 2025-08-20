@@ -298,8 +298,8 @@ class StationPlayer:
 
     def show_web(self, web_config):
         if not WEB_RENDER_AVAILABLE:
-            self._l.warning("Web rendering not available - PySide6 not installed. Staying on current channel.")
-            return PlayerOutcome(PlayerState.SUCCESS)
+            self._l.error("Web rendering not available - PySide6 not installed")
+            return PlayerOutcome(PlayerState.EXITED, "Web rendering requires PySide6 to be installed.")
         
         # create the pipe to communicate with the web channel
         self.web_queue = multiprocessing.Queue()
