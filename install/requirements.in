@@ -7,3 +7,4 @@ fastapi
 uvicorn
 glfw
 PyOpenGL
+PySide6==6.8

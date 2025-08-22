@@ -28,8 +28,8 @@ class StationManager(object):
 
     # public visible - be careful
     stations = []
-    no_catalog = {"guide", "streaming"}
-    no_schedule = {"guide", "streaming"}
+    no_catalog = {"guide", "streaming", "web"}
+    no_schedule = {"guide", "streaming", "web"}
 
     # NOTE: This is the borg singleton pattern - __we_are_all_one
     def __new__(cls, *args, **kwargs):

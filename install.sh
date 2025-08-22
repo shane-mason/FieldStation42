@@ -75,5 +75,10 @@ else
   echo Catalog folder doesn\'t exist, making now
   mkdir catalog
 fi
+echo
 echo Installation is complete
 echo You can find example configurations in confs/examples
+echo
+echo NOTE: If you want to use web type channels, you will also need to run:
+echo sudo bash install/web_reqs.sh
+echo

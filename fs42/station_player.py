@@ -10,6 +10,15 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
+
+# Try to import web_render_runner, but handle gracefully if PySide6 isn't available
+try:
+    from fs42.webrender.web_render import web_render_runner
+    WEB_RENDER_AVAILABLE = True
+except ImportError:
+    WEB_RENDER_AVAILABLE = False
+    web_render_runner = None
+
 from fs42.reception import (
     ReceptionStatus,
     HLScrambledVideoFilter,
@@ -101,6 +110,8 @@ class StationPlayer:
         self.reception = ReceptionStatus()
         self.current_playing_file_path = None
         self.skip_reception_check = False
+        self.web_process = None
+        self.web_queue = None
         self.scrambler = None
 
     def show_text(self, text, duration=4):
@@ -108,6 +119,26 @@ class StationPlayer:
 
     def shutdown(self):
         self.current_playing_file_path = None
+        # Terminate any running web process
+        if self.web_process and self.web_process.is_alive():
+            self._l.info("Terminating web process")
+            try:
+                if self.web_queue:
+                    self.web_queue.put("hide_window")
+                self.web_process.join(timeout=2)
+            except Exception:
+                pass
+            
+            # Check if process is still alive and has valid _popen
+            if self.web_process and hasattr(self.web_process, '_popen') and self.web_process._popen and self.web_process.is_alive():
+                try:
+                    self.web_process.terminate()
+                    self.web_process.join(timeout=1)
+                except Exception:
+                    pass
+                    
+        self.web_process = None
+        self.web_queue = None
         self.mpv.terminate()
 
     def update_filters(self):
@@ -265,6 +296,48 @@ class StationPlayer:
 
         return PlayerOutcome(PlayerState.SUCCESS)
 
+    def show_web(self, web_config):
+        if not WEB_RENDER_AVAILABLE:
+            self._l.error("Web rendering not available - PySide6 not installed")
+            msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
+            return PlayerOutcome(PlayerState.EXIT_COMMAND, msg)
+        
+        # create the pipe to communicate with the web channel
+        self.web_queue = multiprocessing.Queue()
+        self.web_process = multiprocessing.Process(
+            target=web_render_runner,
+            args=(
+                web_config,
+                self.web_queue,
+            ),
+        )
+        self.web_process.start()
+        
+        # Stop any currently playing content
+        self.mpv.stop()
+        self.current_playing_file_path = None
+        
+        # update status
+        update_status_socket(
+            "playing",
+            self.station_config["network_name"],
+            self.station_config["channel_number"],
+            self.station_config["network_name"],
+            timestamp=StationManager().server_conf["date_time_format"],
+        )
+        keep_going = True
+        while keep_going:
+            time.sleep(0.05)
+            response = self.input_check_fn()
+            if response:
+                self._l.info("Sending the web channel shutdown command")
+                self.web_queue.put("hide_window")
+                self.web_process.join()
+                self.web_process = None
+                self.web_queue = None
+                return response
+        return PlayerOutcome(PlayerState.SUCCESS)
+
     def schedule_panic(self, network_name):
         self._l.critical("*********************Schedule Panic*********************")
         self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
@@ -282,7 +355,7 @@ class StationPlayer:
             self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
             # fail so we can return and try again
             return PlayerOutcome(PlayerState.FAILED)
-
+        
         if play_point is None:
             self.current_playing_file_path = None
             return PlayerOutcome(PlayerState.FAILED)
