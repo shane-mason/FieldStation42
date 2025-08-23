@@ -8,7 +8,7 @@ class TitleParser():
     @staticmethod
     def parse_title(in_str: str) -> str:
         if not in_str:
-            return ""
+            return "" # Consider defaulting to No Information or No Data to match TV Guides
         
         filename = in_str.strip()
         
@@ -25,12 +25,15 @@ class TitleParser():
             # Title + separators + season/episode pattern + optional extra
             (r'^(.+?)' + sep + r'(?:[sS]\d+' + sep + r'?[eE]\d+|[sS]\d+[eE]\d+|\d+[xX]\d+)(?:' + sep + r'.*)?$', 1),
             
+            # Title (Year) + seperators + season/episode pattern + seperators + episode name + seperators + extras
+            (r'^(.+?)(?:\s\(\d{4}\))' + sep + r'(?:[sS]\d+' + sep + r'?[eE]\d+|[sS]\d+[eE]\d+|\d+[xX]\d+)(?:' + sep + r'.*)?$', 1),
+
             # Title + version/volume format (show_title_V1-0003) - before simple episode
             (r'^(.+?)[\s._-]+V\d+[\s._-]+\d+$', 1),
             
             # Title + separators + simple episode number
             (r'^(.+?)' + sep + r'\d+(?:' + sep + r'.*)?$', 1),
-            
+
             # Just title (fallback)
             (r'^(.+)$', 1)
         ]
