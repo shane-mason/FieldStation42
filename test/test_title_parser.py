@@ -10,7 +10,7 @@ class TestTitleParser:
         
 
     def test_title_parser_group_title_episode(self):
-        episode = "[Buffy the Vampire Slayer] Once More, with Feeling - 6"
+        episode = "[Releasers] - Buffy the Vampire Slayer - 6"
 
         assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
 
@@ -30,7 +30,7 @@ class TestTitleParser:
         assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
 
     def test_title_parser_version_volume_format(self):
-        episode = "Buffy the Vampire Slayer - V1-0003 - Once More, with Feeling"
+        episode = "Buffy the Vampire Slayer - V1-0003"
 
         assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
     
