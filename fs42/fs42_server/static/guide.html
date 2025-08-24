@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <style>
+        /* Full-screen iframe for Guide */
+        #guide-frame {
+            width: 100%;
+            height: calc(100vh - 60px); /* Account for menu bar */
+            border: none;
+            display: block;
+        }
+        
+        /* Hide the main content area padding for full-screen experience */
+        .pure-g {
+            margin: 0 auto;
+            padding: 0;
+            max-width: none;
+            width: 100%;
+        }
+        
+        .pure-u-1 {
+            padding: 0;
+            width: 100%;
+        }
+        
+        /* Hide all scrollbars for clean full-screen experience */
+        body, html {
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="/static/fs42_client.js"></script>
+    <script src="/static/common.js"></script>
+    <script>
+        // Initialize page layout
+        document.addEventListener('DOMContentLoaded', async function () {
+            window.fs42Common.initTheme();
+
+            const content = `
+                <div class="pure-u-1">
+                    <iframe id="guide-frame" src="/static/guide_frame.html" title="Guide">
+                        <p>Your browser does not support iframes. Please <a href="/static/guide_frame.html">click here to view the Guide</a>.</p>
+                    </iframe>
+                </div>
+            `;
+
+            document.body.innerHTML = await window.fs42Common.createPageLayout('Guide', content);
+        });
+    </script>
+</body>
+
+</html>

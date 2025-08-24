@@ -1,0 +1,346 @@
+/* Programming Guide Styles */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@300;700;900&display=swap');
+
+.guide-container {
+    height: 100vh;
+    overflow: hidden;
+    background: #0f1b2d;
+    position: relative;
+}
+
+.guide-timeline {
+    height: 40px;
+    background: linear-gradient(to bottom, #0f1b2d, #0a1520);
+    border-bottom: 1px solid #1F53AD;
+    position: relative;
+    overflow: hidden;
+}
+
+.timeline-slot {
+    position: absolute;
+    top: 0;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: bold;
+    border-left: 1px solid #666;
+    background: linear-gradient(to bottom, #0f1b2d, #0a1520);
+    box-sizing: border-box;
+}
+
+.timeline-slot:hover {
+    background: linear-gradient(to bottom, #1F53AD, #1a4a9a);
+}
+
+.timeline-clock {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 120px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(to bottom, #0f1b2d, #0a1520);
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.guide-content {
+    display: flex;
+    position: relative;
+}
+
+.guide-stations {
+    width: 120px;
+    background: #0d1a26;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.station-row {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    border-bottom: 1px solid #1F53AD;
+    background: #0d1a26;
+    box-sizing: border-box;
+}
+
+.station-row:nth-child(even) {
+    background: #0a1520;
+}
+
+.station-row:hover {
+    background: #1F53AD;
+}
+
+.station-name {
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.guide-grid-container {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    background: #0f1b2d;
+    width: calc(100% - 120px);
+}
+
+.guide-grid {
+    position: relative;
+}
+
+.guide-row {
+    position: relative;
+    height: 60px;
+    width: 100%;
+    border-bottom: 1px solid #0f1b2d;
+    box-sizing: border-box;
+}
+
+.guide-row:nth-child(even) {
+    background: transparent;
+}
+
+.program-block {
+    position: absolute;
+    height: 57px;
+    top: 1.5px;
+    background: #4a4a4a;
+    padding: 4px 8px;
+    margin: 0;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.program-block:hover {
+    background: #555555;
+    transform: translateY(-1px);
+    box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+}
+
+.program-block.current-program {
+    background: linear-gradient(145deg, #1F53AD, #1a4a9a);
+}
+
+
+.program-block.no-programming {
+    background: linear-gradient(145deg, #0f1b2d, #0a1520);
+    border-color: #1a4a9a;
+    color: #6699cc;
+    font-style: italic;
+}
+
+.program-block.error {
+    background: linear-gradient(145deg, #660000, #440000);
+    border-color: #800000;
+    color: #ffcccc;
+}
+
+.program-title {
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.85rem;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 2px;
+}
+
+.program-time {
+    color: #ccc;
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+}
+
+.current-program .program-title,
+.current-program .program-time {
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+
+/* Scrollbar styling */
+.guide-grid-container::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.guide-grid-container::-webkit-scrollbar-track {
+    background: #0f1b2d;
+    border-radius: 6px;
+}
+
+.guide-grid-container::-webkit-scrollbar-thumb {
+    background: #1F53AD;
+    border-radius: 6px;
+    border: 2px solid #0f1b2d;
+}
+
+.guide-grid-container::-webkit-scrollbar-thumb:hover {
+    background: #2864c7;
+}
+
+.guide-grid-container::-webkit-scrollbar-corner {
+    background: #0f1b2d;
+}
+
+.guide-stations::-webkit-scrollbar {
+    width: 8px;
+}
+
+.guide-stations::-webkit-scrollbar-track {
+    background: #0d1a26;
+}
+
+.guide-stations::-webkit-scrollbar-thumb {
+    background: #1F53AD;
+    border-radius: 4px;
+}
+
+.guide-stations::-webkit-scrollbar-thumb:hover {
+    background: #2864c7;
+}
+
+/* Branding Overlay */
+.branding-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+}
+
+.branding-overlay.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.branding-content {
+    text-align: center;
+    transform: translateY(20px);
+    transition: transform 0.6s ease-out 0.3s, opacity 0.5s ease-in-out;
+    opacity: 1;
+}
+
+.branding-overlay.visible .branding-content {
+    transform: translateY(0);
+}
+
+.branding-title {
+    font-size: 4rem;
+    font-weight: bold;
+    color: #87ceeb;
+    text-shadow: 0 0 20px #87ceeb, 0 0 40px #87ceeb, 0 0 60px #4fc3f7, 2px 2px 8px rgba(0, 0, 0, 0.8);
+    margin-bottom: 1rem;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.branding-subtitle {
+    font-size: 1.8rem;
+    color: #ffd700;
+    font-style: italic;
+    opacity: 1;
+    font-family: 'Orbitron', 'Courier New', monospace;
+    letter-spacing: 2px;
+    text-shadow: 0 0 15px #ffd700, 0 0 30px #ffeb3b, 2px 2px 6px rgba(0, 0, 0, 0.8);
+    font-weight: 300;
+}
+
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .guide-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+    
+    .guide-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .guide-stations {
+        width: 150px;
+    }
+    
+    .station-name {
+        font-size: 0.8rem;
+    }
+    
+    .program-title {
+        font-size: 0.75rem;
+    }
+    
+    .program-time {
+        font-size: 0.6rem;
+    }
+    
+    .timeline-slot {
+        font-size: 0.8rem;
+        width: 100px;
+    }
+    
+    .time-display {
+        font-size: 1rem;
+        padding: 0.2rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .guide-stations {
+        width: 120px;
+    }
+    
+    .station-row {
+        height: 50px;
+        padding: 0 0.5rem;
+    }
+    
+    .guide-row {
+        height: 50px;
+    }
+    
+    .program-block {
+        height: 48px;
+        padding: 2px 6px;
+    }
+    
+    .program-title {
+        font-size: 0.7rem;
+    }
+    
+    .program-time {
+        font-size: 0.55rem;
+    }
+}

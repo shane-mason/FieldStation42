@@ -5,6 +5,7 @@ from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, LiquidLoopBlock, LiquidClipBlock, LiquidOffAirBlock
 from fs42.block_plan import BlockPlanEntry
 from fs42.catalog_api import CatalogAPI
+from fs42.title_parser import TitleParser
 
 
 class LiquidIO:
@@ -60,8 +61,8 @@ class LiquidIO:
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
             cursor.execute(
-                "SELECT * FROM liquid_blocks WHERE station = ? AND start_time >= ? AND end_time <= ?",
-                (station_name, start, end),
+                "SELECT * FROM liquid_blocks WHERE station = ? AND start_time < ? AND end_time > ?",
+                (station_name, end, start),
             )
             rows = cursor.fetchall()
             cursor.close()
@@ -159,7 +160,7 @@ class LiquidIO:
             content_obj,
             _start_time,
             _end_time,
-            _title,  # title
+            TitleParser.parse_title(_title),  # title
             _break_strategy,  # break_strategy
             _break_info,
         )

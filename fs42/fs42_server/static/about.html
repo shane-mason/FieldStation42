@@ -64,8 +64,7 @@
 
                 <div class="pure-u-1" style="margin-top: 2em;">
                     <h2>About FieldStation42</h2>
-                    <p>FieldStation42 is a modern TV station management system designed for managing multiple channels,
-                        catalogs, and schedules.</p>
+                    <p>FieldStation42 is a modern system that simulates retro TV.</p>
 
                     <h3>Features</h3>
                     <ul>
@@ -96,6 +95,9 @@
             `;
 
             document.body.innerHTML = await window.fs42Common.createPageLayout('About FieldStation42', content);
+            
+            // Load themes after the HTML is inserted
+            loadThemes();
         });
     </script>
 </head>

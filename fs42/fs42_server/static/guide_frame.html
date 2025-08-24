@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Guide - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <link rel="stylesheet" href="/static/guide.css">
+</head>
+
+<body>
+    <script src="/static/fs42_client.js"></script>
+    <script src="/static/common.js"></script>
+    <script>
+        let stations = [];
+        let currentTime = new Date();
+        let guideStartTime = new Date();
+        let guideEndTime = new Date();
+        let scrollInterval = null;
+        let verticalScrollInterval = null;
+        const autoScrollEnabled = true;
+        let virtualScrollPosition = 0;
+        const TIME_SLOT_WIDTH = 120; // pixels per 30-minute slot
+        const SCROLL_SPEED = 0.033; // pixels per second (1 pixel per 30 seconds = slow realistic scroll)
+        const VERTICAL_SCROLL_SPEED = 0.8; // pixels per scroll step for stations (ultra-smooth and relaxed)
+        
+        // Feature Flags
+        const ENABLE_BACKGROUND_MUSIC = false; // Set to true to enable background music
+        
+        // Background Music Playlist
+        const musicPlaylist = [
+            '/static/music/guide-track-1.mp3',
+            '/static/music/guide-track-2.mp3', 
+            '/static/music/guide-track-3.mp3',
+            '/static/music/guide-track-4.mp3'
+        ];
+        let currentTrackIndex = 0;
+        
+        // Format date for API (YYYY-MM-DDTHH:MM:SS)
+        function formatDateForAPI(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', async function () {
+            const content = `
+                <div class="guide-container">
+                    <div class="guide-timeline" id="timeline"></div>
+                    <div class="guide-content">
+                        <div class="guide-stations" id="stations-column"></div>
+                        <div class="guide-grid-container">
+                            <div class="guide-grid" id="guide-grid"></div>
+                        </div>
+                    </div>
+                    <div class="branding-overlay" id="branding-overlay">
+                        <div class="branding-content">
+                            <div class="branding-title">FieldStation42</div>
+                            <div class="branding-subtitle">It's Up To You</div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${ENABLE_BACKGROUND_MUSIC ? `
+                <!-- Background Music Player -->
+                <audio id="background-music" preload="auto" loop volume="0.3">
+                    <source src="/static/music/guide-track-1.mp3" type="audio/mpeg">
+                    <source src="/static/music/guide-track-1.ogg" type="audio/ogg">
+                </audio>
+                ` : ''}
+            `;
+
+            document.body.innerHTML = content;
+            
+            // Initialize guide
+            await initializeGuide();
+            
+            // Initialize background music
+            initializeMusic();
+            
+            // Start auto-scroll and time updates
+            startTimeUpdate();
+            startAutoScroll();
+        });
+
+        async function initializeGuide() {
+            currentTime = new Date();
+            
+            // Always start at the current 30-minute boundary
+            const now = new Date();
+            const minutes = now.getMinutes();
+            const currentSlot = Math.floor(minutes / 30) * 30;
+            guideStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), currentSlot, 0, 0);
+            
+            guideEndTime = new Date(guideStartTime.getTime() + (2 * 60 * 60 * 1000)); // 2 hours total
+            
+            // Load stations
+            const allStations = await window.fs42Common.fetchStationSummary();
+            
+            // Filter stations to only show those with schedule data
+            stations = allStations.filter(station => {
+                const hasSchedule = station.schedule_summary && 
+                                  station.schedule_summary.start !== 0 && 
+                                  station.schedule_summary.end !== 0;
+                return hasSchedule;
+            });
+            
+            if (stations.length === 0) {
+                const totalStations = allStations.length;
+                document.getElementById('guide-grid').innerHTML = `<p>No stations with programming schedules found. (${totalStations} total stations, but none have programming data)</p>`;
+                return;
+            }
+            
+            // Create timeline
+            createTimeline();
+            
+            // Create stations column
+            createStationsColumn();
+            
+            // Load and display schedule data
+            await loadScheduleData();
+            
+            // Set initial scroll position to show first station at top
+            const stationsColumn = document.getElementById('stations-column');
+            const guideGridContainer = document.querySelector('.guide-grid-container');
+            const containerHeight = window.innerHeight - 40; // Use full height minus timeline
+            
+            stationsColumn.scrollTop = containerHeight;
+            guideGridContainer.scrollTop = containerHeight;
+        }
+
+        function createTimeline() {
+            const timeline = document.getElementById('timeline');
+            const totalMinutes = (guideEndTime - guideStartTime) / (1000 * 60);
+            const totalSlots = Math.ceil(totalMinutes / 30);
+            
+            // Add clock in the left space (above stations column) - fixed width
+            let timelineHTML = `<div class="timeline-clock" id="current-time-display"></div>`;
+            
+            // Calculate available width for time slots (full width minus 120px for clock)
+            const slotWidth = `calc((100% - 120px) / ${totalSlots})`;
+            
+            for (let i = 0; i <= totalSlots; i++) {
+                const slotTime = new Date(guideStartTime.getTime() + (i * 30 * 60 * 1000));
+                const timeStr = slotTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                });
+                const slotLeft = `calc(120px + (100% - 120px) * ${i} / ${totalSlots})`;
+                timelineHTML += `<div class="timeline-slot" style="left: ${slotLeft}; width: ${slotWidth};">${timeStr}</div>`;
+            }
+            
+            timeline.innerHTML = timelineHTML;
+            timeline.style.width = '100%';
+            
+            // Set containers to use full available height
+            const guideGridContainer = document.querySelector('.guide-grid-container');
+            const guideGrid = document.getElementById('guide-grid');
+            const stationsColumn = document.getElementById('stations-column');
+            const stationsHeight = stations.length * 60;
+            const availableHeight = window.innerHeight - 40; // Subtract timeline height
+            
+            // Set containers to full available height for better screen usage
+            guideGridContainer.style.height = availableHeight + 'px';
+            stationsColumn.style.height = availableHeight + 'px';
+            guideGrid.style.height = stationsHeight + 'px';
+            
+            // Hide scrollbars since we're auto-scrolling
+            stationsColumn.style.overflowY = 'hidden';
+            guideGridContainer.style.overflowY = 'hidden';
+        }
+
+        function createStationsColumn() {
+            const stationsColumn = document.getElementById('stations-column');
+            const containerHeight = window.innerHeight - 40; // Use full height minus timeline
+            
+            let stationsHTML = '';
+            
+            // Add smooth blank space at the top
+            stationsHTML += `<div style="height: ${containerHeight}px; background: #0f1b2d;"></div>`;
+            
+            // Add actual stations
+            for (const station of stations) {
+                stationsHTML += `
+                    <div class="station-row">
+                        <div class="station-name">${station.network_name}</div>
+                    </div>
+                `;
+            }
+            
+            // Add smooth blank space at the bottom
+            stationsHTML += `<div style="height: ${containerHeight}px; background: #0f1b2d;"></div>`;
+            
+            stationsColumn.innerHTML = stationsHTML;
+        }
+
+        async function loadScheduleData() {
+            const grid = document.getElementById('guide-grid');
+            const totalMinutes = (guideEndTime - guideStartTime) / (1000 * 60);
+            grid.style.width = '100%';
+            grid.innerHTML = '';
+            
+            // Add smooth blank space at the top to match the stations column
+            const containerHeight = window.innerHeight - 40; // Use full height minus timeline
+            const topBlankDiv = document.createElement('div');
+            topBlankDiv.style.height = containerHeight + 'px';
+            topBlankDiv.style.width = '100%';
+            topBlankDiv.style.background = '#0f1b2d';
+            grid.appendChild(topBlankDiv);
+            
+            for (let stationIndex = 0; stationIndex < stations.length; stationIndex++) {
+                const station = stations[stationIndex];
+                const stationRow = document.createElement('div');
+                stationRow.className = 'guide-row';
+                
+                try {
+                    // Fetch a wider time range to include shows that started before our guide window
+                    // but might still be airing during our guide time
+                    const extendedStartTime = new Date(guideStartTime.getTime() - (3 * 60 * 60 * 1000)); // 3 hours before
+                    const scheduleBlocks = await window.fs42Common.fetchSchedule(
+                        station.network_name,
+                        formatDateForAPI(extendedStartTime),
+                        formatDateForAPI(guideEndTime)
+                    );
+                    
+                    if (scheduleBlocks && scheduleBlocks.length > 0) {
+                        for (const block of scheduleBlocks) {
+                            const blockElement = createProgramBlock(block);
+                            if (blockElement) {
+                                stationRow.appendChild(blockElement);
+                            }
+                        }
+                    } else {
+                        // No programming data
+                        const emptyBlock = document.createElement('div');
+                        emptyBlock.className = 'program-block no-programming';
+                        emptyBlock.style.left = '0px';
+                        emptyBlock.style.width = '100%';
+                        emptyBlock.innerHTML = '<span class="program-title">No Programming Data</span>';
+                        stationRow.appendChild(emptyBlock);
+                    }
+                } catch (error) {
+                    console.error('Error loading schedule for', station.network_name, error);
+                    // Show error block
+                    const errorBlock = document.createElement('div');
+                    errorBlock.className = 'program-block error';
+                    errorBlock.style.left = '0px';
+                    errorBlock.style.width = '100%';
+                    errorBlock.innerHTML = '<span class="program-title">Error loading schedule</span>';
+                    stationRow.appendChild(errorBlock);
+                }
+                
+                grid.appendChild(stationRow);
+            }
+            
+            // Add smooth blank space at the bottom to match the stations column  
+            const bottomBlankDiv = document.createElement('div');
+            bottomBlankDiv.style.height = containerHeight + 'px';
+            bottomBlankDiv.style.width = '100%';
+            bottomBlankDiv.style.background = '#0f1b2d';
+            grid.appendChild(bottomBlankDiv);
+        }
+
+        function createProgramBlock(block) {
+            const blockStart = new Date(block.start_time);
+            const blockEnd = new Date(block.end_time);
+            
+            // Check if block overlaps with our guide time range
+            if (blockEnd < guideStartTime || blockStart > guideEndTime) {
+                return null;
+            }
+            
+            // Calculate position and width
+            const guideStartMs = guideStartTime.getTime();
+            const guideEndMs = guideEndTime.getTime();
+            const blockStartMs = blockStart.getTime();
+            const blockEndMs = blockEnd.getTime();
+            
+            // Clamp the block to the visible guide time range
+            const visibleStartMs = Math.max(guideStartMs, blockStartMs);
+            const visibleEndMs = Math.min(guideEndMs, blockEndMs);
+            
+            const startOffset = (visibleStartMs - guideStartMs) / (1000 * 60); // minutes from guide start
+            const endOffset = (visibleEndMs - guideStartMs) / (1000 * 60); // minutes from guide start
+            const duration = endOffset - startOffset; // duration in minutes within the guide range
+            
+            // Calculate as percentages of the available program area (after 120px clock space)
+            const totalMinutes = (guideEndMs - guideStartMs) / (1000 * 60);
+            const leftPercent = (startOffset / totalMinutes) * 100;
+            const widthPercent = (duration / totalMinutes) * 100;
+            
+            const left = `calc(${leftPercent}% + 1.5px)`;
+            const width = `calc(${widthPercent}% - 3px)`;
+            
+            const programDiv = document.createElement('div');
+            programDiv.className = 'program-block';
+            programDiv.style.left = left;
+            programDiv.style.width = width;
+            
+            // Add current program class if it's currently airing
+            if (blockStart <= currentTime && blockEnd > currentTime) {
+                programDiv.classList.add('current-program');
+            }
+            
+            const title = block.title || 'Untitled';
+            const startTime = blockStart.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            programDiv.innerHTML = `
+                <span class="program-title">${title}</span>
+                <span class="program-time">${startTime}</span>
+            `;
+            
+            return programDiv;
+        }
+
+        function updateTimelineMarker() {
+            // Remove any existing marker
+            const existingMarker = document.querySelector('.current-time-marker');
+            if (existingMarker) {
+                existingMarker.remove();
+            }
+            
+            const minutesFromStart = (currentTime - guideStartTime) / (1000 * 60);
+            const totalMinutes = (guideEndTime - guideStartTime) / (1000 * 60);
+            const timePercent = (minutesFromStart / totalMinutes) * 100;
+            
+            // Only show marker if current time is within the guide window
+            if (minutesFromStart >= 0 && minutesFromStart <= totalMinutes) {
+                const timeline = document.getElementById('timeline');
+                const marker = document.createElement('div');
+                marker.className = 'current-time-marker';
+                marker.style.position = 'absolute';
+                marker.style.left = `calc(120px + (100% - 120px) * ${timePercent} / 100)`;
+                marker.style.top = '32px';
+                marker.style.width = '0';
+                marker.style.height = '0';
+                marker.style.borderLeft = '6px solid transparent';
+                marker.style.borderRight = '6px solid transparent';
+                marker.style.borderTop = '8px solid #ff0000';
+                marker.style.transform = 'translateX(-6px)'; // Center the triangle
+                marker.style.zIndex = '1000';
+                marker.style.filter = 'drop-shadow(0 0 4px #ff0000)';
+                timeline.appendChild(marker);
+            }
+        }
+
+        function startTimeUpdate() {
+            setInterval(() => {
+                currentTime = new Date();
+                document.getElementById('current-time-display').textContent = 
+                    currentTime.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit',
+                        hour12: false 
+                    });
+                updateTimelineMarker();
+            }, 1000);
+        }
+
+        function startAutoScroll() {
+            if (scrollInterval) {
+                clearInterval(scrollInterval);
+            }
+            
+            // Check every minute if we need to advance the guide
+            scrollInterval = setInterval(() => {
+                if (autoScrollEnabled) {
+                    checkTimeAdvance();
+                }
+            }, 60000); // Check every minute
+            
+            // Start vertical scrolling of stations
+            startVerticalScroll();
+        }
+
+        function startVerticalScroll() {
+            if (verticalScrollInterval) {
+                clearInterval(verticalScrollInterval);
+            }
+            
+            verticalScrollInterval = setInterval(() => {
+                if (autoScrollEnabled) {
+                    const stationsColumn = document.getElementById('stations-column');
+                    const guideGridContainer = document.querySelector('.guide-grid-container');
+                    
+                    if (stationsColumn && guideGridContainer) {
+                        const maxScroll = stationsColumn.scrollHeight - stationsColumn.clientHeight;
+                        
+                        // Only scroll if there's content to scroll through
+                        if (maxScroll > 0) {
+                            // Get current scroll position
+                            const currentScroll = stationsColumn.scrollTop;
+                            let nextScroll = currentScroll + VERTICAL_SCROLL_SPEED;
+                            
+                            // Check if we're in the blank space area and should show branding
+                            const stationsHeight = stations.length * 60;
+                            const blankSpaceHeight = window.innerHeight - 40;
+                            
+                            // Simple range check: show branding from when last station is nearly gone 
+                            // until we've scrolled enough after reset to see stations from bottom
+                            const showStart = blankSpaceHeight + stationsHeight - 100; // Show when near end
+                            const hideAfterReset = 200; // Hide when we've scrolled 200px after reset (stations should be visible)
+                            
+                            const shouldShowBranding = currentScroll >= showStart || currentScroll <= hideAfterReset;
+                            
+                            // Only show branding if viewport is tall enough (skip for small iframes)
+                            const viewportHeight = window.innerHeight;
+                            const shouldShowBrandingWithHeightCheck = shouldShowBranding && viewportHeight >= 400;
+                            
+                            // Show/hide branding overlay  
+                            if (shouldShowBrandingWithHeightCheck) {
+                                showBrandingOverlay();
+                            } else {
+                                hideBrandingOverlay();
+                            }
+                            
+                            // Reset to top when we reach the bottom (now includes blank space)
+                            if (nextScroll >= maxScroll) {
+                                nextScroll = 0;
+                            }
+                            
+                            // Apply scroll to both containers
+                            stationsColumn.scrollTop = nextScroll;
+                            guideGridContainer.scrollTop = nextScroll;
+                        }
+                    }
+                }
+            }, 50); // Update every 50ms (20 times per second) for ultra-smooth scrolling
+        }
+
+        function checkTimeAdvance() {
+            const now = new Date();
+            const currentMinutes = now.getMinutes();
+            const currentSlot = Math.floor(currentMinutes / 30) * 30;
+            const expectedStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), currentSlot, 0, 0);
+            
+            // If we've crossed into a new 30-minute boundary, advance the guide
+            if (expectedStartTime.getTime() !== guideStartTime.getTime()) {
+                console.log('Advancing guide to new 30-minute slot');
+                guideStartTime = expectedStartTime;
+                guideEndTime = new Date(guideStartTime.getTime() + (2 * 60 * 60 * 1000));
+                
+                // Reload the guide data
+                reloadGuideData();
+            }
+        }
+
+        async function reloadGuideData() {
+            // Update timeline
+            createTimeline();
+            
+            // Reload schedule data
+            await loadScheduleData();
+            
+            // Reset scroll position to start
+            const container = document.querySelector('.guide-grid-container');
+            container.scrollLeft = 0;
+        }
+
+        function showBrandingOverlay() {
+            const overlay = document.getElementById('branding-overlay');
+            if (overlay && !overlay.classList.contains('visible')) {
+                overlay.classList.add('visible');
+                
+                // Start cycling messages every 7 seconds
+                if (!brandingCycleInterval) {
+                    // Set initial message immediately without transition
+                    const titleElement = document.querySelector('.branding-title');
+                    const subtitleElement = document.querySelector('.branding-subtitle');
+                    if (titleElement && subtitleElement) {
+                        const initialMessage = brandingMessages[brandingMessageIndex];
+                        titleElement.textContent = initialMessage.title;
+                        subtitleElement.textContent = initialMessage.subtitle;
+                        brandingMessageIndex = (brandingMessageIndex + 1) % brandingMessages.length;
+                    }
+                    
+                    // Start cycling for subsequent messages
+                    brandingCycleInterval = setInterval(cycleBrandingMessage, 7000);
+                }
+            }
+        }
+
+        function hideBrandingOverlay() {
+            const overlay = document.getElementById('branding-overlay');
+            if (overlay && overlay.classList.contains('visible')) {
+                overlay.classList.remove('visible');
+                
+                // Stop cycling messages
+                if (brandingCycleInterval) {
+                    clearInterval(brandingCycleInterval);
+                    brandingCycleInterval = null;
+                    brandingMessageIndex = 0; // Reset to first message for next time
+                }
+            }
+        }
+        
+        // Branding message cycling
+        let brandingMessageIndex = 0;
+        const brandingMessages = [
+            { title: "FieldStation42", subtitle: "It's Up To You" },
+            { title: "Cable Television", subtitle: "The Way You Like It" }
+        ];
+        let brandingCycleInterval = null;
+        
+        function cycleBrandingMessage() {
+            const titleElement = document.querySelector('.branding-title');
+            const subtitleElement = document.querySelector('.branding-subtitle');
+            const contentElement = document.querySelector('.branding-content');
+            
+            if (titleElement && subtitleElement && contentElement) {
+                // Fade out
+                contentElement.style.opacity = '0';
+                contentElement.style.transform = 'translateY(20px) scale(0.95)';
+                
+                setTimeout(() => {
+                    // Change text while faded out
+                    const currentMessage = brandingMessages[brandingMessageIndex];
+                    titleElement.textContent = currentMessage.title;
+                    subtitleElement.textContent = currentMessage.subtitle;
+                    
+                    brandingMessageIndex = (brandingMessageIndex + 1) % brandingMessages.length;
+                    
+                    // Fade back in
+                    contentElement.style.opacity = '1';
+                    contentElement.style.transform = 'translateY(0) scale(1)';
+                }, 500); // Half second fade out duration
+            }
+        }
+        
+        // Music Player Functions
+        function initializeMusic() {
+            if (!ENABLE_BACKGROUND_MUSIC) {
+                console.log('Background music is disabled by feature flag');
+                return;
+            }
+            
+            const audio = document.getElementById('background-music');
+            if (!audio) return;
+            
+            // Set initial volume
+            audio.volume = 0.3;
+            
+            // Handle track ended - play next in playlist
+            audio.addEventListener('ended', function() {
+                playNextTrack();
+            });
+            
+            // Handle errors - try next track
+            audio.addEventListener('error', function() {
+                console.log('Error loading track, trying next...');
+                playNextTrack();
+            });
+            
+            // Auto-start music (may require user interaction first)
+            tryPlayMusic();
+        }
+        
+        function tryPlayMusic() {
+            if (!ENABLE_BACKGROUND_MUSIC) return;
+            
+            const audio = document.getElementById('background-music');
+            if (!audio) return;
+            
+            audio.play().catch(function(error) {
+                console.log('Auto-play blocked, music will start on user interaction');
+                // Add click listener to start music on first user interaction
+                document.addEventListener('click', function startMusicOnClick() {
+                    audio.play();
+                    document.removeEventListener('click', startMusicOnClick);
+                }, { once: true });
+            });
+        }
+        
+        function playNextTrack() {
+            if (!ENABLE_BACKGROUND_MUSIC) return;
+            
+            const audio = document.getElementById('background-music');
+            if (!audio) return;
+            
+            currentTrackIndex = (currentTrackIndex + 1) % musicPlaylist.length;
+            const nextTrack = musicPlaylist[currentTrackIndex];
+            
+            // Update audio source
+            audio.src = nextTrack;
+            audio.load();
+            audio.play().catch(function(error) {
+                console.log('Error playing next track:', error);
+            });
+        }
+        
+        function toggleMusic() {
+            if (!ENABLE_BACKGROUND_MUSIC) return;
+            
+            const audio = document.getElementById('background-music');
+            if (!audio) return;
+            
+            if (audio.paused) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        }
+
+    </script>
+</body>
+
+</html>

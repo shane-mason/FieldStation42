@@ -18,6 +18,18 @@
             window.fs42Common.initTheme();
 
             const content = `
+                <div class="pure-u-1" style="margin-bottom:2em;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1em;">
+                        <h2 style="margin:0;">On Now</h2>
+                        <a href="/static/guide.html" class="pure-button pure-button-primary" style="font-size:0.8em;">View Full Guide</a>
+                    </div>
+                    <iframe src="/static/guide_frame.html" 
+                            style="width:100%; height:200px; border:1px solid #666; border-radius:4px; display:block;"
+                            title="Current Programming">
+                        <p>Your browser does not support iframes. <a href="/static/guide.html">View Guide</a></p>
+                    </iframe>
+                </div>
+                
                 <div id="station-summary" class="pure-u-1">
                     <h2>Station Summary</h2>
                     <div id="stations-list">
@@ -30,7 +42,7 @@
                 </div>
             `;
 
-            document.body.innerHTML = await window.fs42Common.createPageLayout('Welcome to FieldStation42', content);
+            document.body.innerHTML = await window.fs42Common.createPageLayout('', content);
         });
     </script>
     <script src="static/fs42_client.js"></script>
