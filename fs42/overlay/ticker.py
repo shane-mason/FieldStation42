@@ -162,40 +162,19 @@ class TickerWindow(QWidget):
             self.logo_pixmap = None
     
     def position_at_bottom_center(self):
-        # Force a process of events to ensure geometry is updated
-        QApplication.processEvents()
-        
-        # Get all available screens and use the primary one explicitly
-        screens = QApplication.screens()
+        # Simple positioning for single-screen Raspberry Pi setup
         screen = QApplication.primaryScreen()
-        
-        if not screen and screens:
-            screen = screens[0]
-        
         if not screen:
-            print("Warning: No screen found, using default positioning")
-            self.move(100, 100)
             return
             
-        # Get screen geometry - try both available and full geometry
-        screen_rect = screen.availableGeometry()
-        if screen_rect.isEmpty():
-            screen_rect = screen.geometry()
+        # Use full screen geometry (not availableGeometry)
+        screen_rect = screen.geometry()
         
-        print(f"Screen geometry: {screen_rect.width()}x{screen_rect.height()} at ({screen_rect.x()}, {screen_rect.y()})")
-        print(f"Window size: {self.width()}x{self.height()}")
+        # Calculate bottom-center position
+        x = (screen_rect.width() - self.width()) // 2
+        y = screen_rect.height() - self.height() - 50
         
-        # Calculate center position
-        center_x = screen_rect.x() + (screen_rect.width() - self.width()) // 2
-        bottom_y = screen_rect.y() + screen_rect.height() - self.height() - 50
-        
-        print(f"Calculated position: ({center_x}, {bottom_y})")
-        
-        # Apply position
-        self.move(center_x, bottom_y)
-        
-        # Force another update to ensure position is applied
-        QApplication.processEvents()
+        self.move(x, y)
     
     def show_message(self, text, title="FS42", style="fieldstation", iterations=2):
 
