@@ -162,9 +162,21 @@ class TickerWindow(QWidget):
             self.logo_pixmap = None
     
     def position_at_bottom_center(self):
-        screen = QApplication.primaryScreen().geometry()
-        x = (screen.width() - self.width()) // 2
-        y = screen.height() - self.height() - 50  # 50px from bottom
+        # Get the screen that contains the cursor or the primary screen
+        screen = QApplication.screenAt(self.pos()) or QApplication.primaryScreen()
+        if not screen:
+            screen = QApplication.primaryScreen()
+        
+        screen_geometry = screen.availableGeometry()  # Use availableGeometry to avoid taskbars
+        
+        # Calculate center position
+        x = screen_geometry.x() + (screen_geometry.width() - self.width()) // 2
+        y = screen_geometry.y() + screen_geometry.height() - self.height() - 50  # 50px from bottom
+        
+        # Ensure the window stays within screen bounds
+        x = max(screen_geometry.x(), min(x, screen_geometry.x() + screen_geometry.width() - self.width()))
+        y = max(screen_geometry.y(), min(y, screen_geometry.y() + screen_geometry.height() - self.height()))
+        
         self.move(x, y)
     
     def show_message(self, text, title="FS42", style="fieldstation", iterations=2):
