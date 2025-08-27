@@ -5,7 +5,7 @@ import os
 import tempfile
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout
 from PySide6.QtGui import QPixmap, QColor, QPaintEvent, QPainter, QFont, QFontMetrics, QLinearGradient, QPen
-from PySide6.QtCore import QTimer, Qt, QPointF, QSharedMemory
+from PySide6.QtCore import QTimer, Qt, QPointF, QSharedMemory, QRect
 from pathlib import Path
 
 
@@ -61,14 +61,18 @@ class SingleApplication(QApplication):
 class TickerWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setWindowOpacity(0.9)  # Add transparency
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.background_color = QColor(0, 0, 0, 180)  # More transparent background
         
-        # Set window size for NTSC screens (larger)
-        self.resize(600, 100)
-        # Don't position immediately - do it after show()
+        # Make it fullscreen instead of fixed size
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_rect = screen.geometry()
+            self.setGeometry(screen_rect)
+        
+        # Ticker content dimensions
+        self.ticker_width = 600
+        self.ticker_height = 100
         
         # Styling
         self.header_height = 32
@@ -161,21 +165,6 @@ class TickerWindow(QWidget):
         if self.logo_pixmap is None or self.logo_pixmap.isNull():
             self.logo_pixmap = None
     
-    def position_at_bottom_center(self):
-        # Simple positioning for single-screen Raspberry Pi setup
-        screen = QApplication.primaryScreen()
-        if not screen:
-            return
-            
-        # Use full screen geometry (not availableGeometry)
-        screen_rect = screen.geometry()
-        
-        # Calculate bottom-center position
-        x = (screen_rect.width() - self.width()) // 2
-        y = screen_rect.height() - self.height() - 50
-        
-        self.move(x, y)
-    
     def show_message(self, text, title="FS42", style="fieldstation", iterations=2):
 
         self.message = text
@@ -188,7 +177,7 @@ class TickerWindow(QWidget):
         if style in self.color_schemes:
             self.current_style = style
         
-        self.scroll_position = self.width() - self.margin  # Start from right edge minus margin
+        self.scroll_position = self.ticker_width - self.margin  # Start from right edge minus margin
     
     def scroll_text(self):
         if self.message:
@@ -199,7 +188,7 @@ class TickerWindow(QWidget):
             
             if self.scroll_position < -text_width:
                 self.current_iterations += 1
-                self.scroll_position = self.width() - self.margin
+                self.scroll_position = self.ticker_width - self.margin
                 
                 if self.current_iterations >= self.max_iterations:
                     print(f"Completed {self.current_iterations} iterations. Exiting...")
@@ -212,6 +201,11 @@ class TickerWindow(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
+        # Calculate bottom area for ticker content
+        ticker_x = (self.width() - self.ticker_width) // 2
+        ticker_y = self.height() - self.ticker_height - 50
+        ticker_rect = QRect(ticker_x, ticker_y, self.ticker_width, self.ticker_height)
+        
         # Use default style if current style is invalid
         try:
             scheme = self.color_schemes[self.current_style]
@@ -219,18 +213,18 @@ class TickerWindow(QWidget):
             print(f"Warning: Style '{self.current_style}' not found, using default 'fieldstation' style")
             scheme = self.color_schemes['fieldstation']
         
-        # Draw main background with rounded corners
-        main_rect = self.rect().adjusted(2, self.header_height, -2, -2)
+        # Draw main background with rounded corners in bottom area only
+        main_rect = ticker_rect.adjusted(2, self.header_height, -2, -2)
         painter.setBrush(scheme['background'])
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(main_rect, 4, 4)
         
-        # Draw header tab on the left side
+        # Draw header tab on the left side within ticker area
         font_metrics = QFontMetrics(self.header_font)
         text_width = font_metrics.horizontalAdvance(self.header_title)
         logo_width = self.logo_pixmap.width() + 8 if self.logo_pixmap else 0  # 8px padding
         tab_width = text_width + logo_width + self.margin * 2
-        header_rect = self.rect().adjusted(2, 2, -(self.width() - tab_width - 2), -(self.height() - self.header_height))
+        header_rect = ticker_rect.adjusted(2, 2, -(self.ticker_width - tab_width - 2), -(self.ticker_height - self.header_height))
         
         # Create gradient for header tab
         gradient = QLinearGradient(0, header_rect.top(), 0, header_rect.bottom())
@@ -273,20 +267,20 @@ class TickerWindow(QWidget):
         painter.setPen(self.header_text_color)
         painter.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, self.header_title)
 
-        # Draw scrolling text in main area
+        # Draw scrolling text in main area (adjusted for ticker area)
         if self.message:
             painter.setFont(self.font)
             
-            text_y = self.header_height + (main_rect.height() // 2) + 6
+            text_y = ticker_y + self.header_height + (main_rect.height() // 2) + 6
             
             clip_rect = main_rect.adjusted(self.margin, 4, -self.margin, -4)
             painter.setClipRect(clip_rect)
 
             painter.setPen(scheme['text_shadow'])
-            painter.drawText(self.scroll_position + 1, text_y + 1, self.message)
+            painter.drawText(ticker_x + self.scroll_position + 1, text_y + 1, self.message)
 
             painter.setPen(self.text_color)
-            painter.drawText(self.scroll_position, text_y, self.message)
+            painter.drawText(ticker_x + self.scroll_position, text_y, self.message)
         
         # End the painter to avoid backing store warnings
         painter.end()
@@ -319,10 +313,6 @@ def run_ticker_app(text, title="FS42", style="fieldstation", iterations=2):
     window = TickerWindow()
     window.show_message(text, title, style, iterations)
     window.show()
-    
-    # Position after window is shown and geometry is established
-    QApplication.processEvents()  # Process show events
-    window.position_at_bottom_center()
     
     timer = QTimer()
     timer.start(500)
