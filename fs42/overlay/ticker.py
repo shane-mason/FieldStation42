@@ -68,7 +68,7 @@ class TickerWindow(QWidget):
         
         # Set window size for NTSC screens (larger)
         self.resize(600, 100)
-        self.position_at_bottom_center()
+        # Don't position immediately - do it after show()
         
         # Styling
         self.header_height = 32
@@ -162,22 +162,40 @@ class TickerWindow(QWidget):
             self.logo_pixmap = None
     
     def position_at_bottom_center(self):
-        # Get the screen that contains the cursor or the primary screen
-        screen = QApplication.screenAt(self.pos()) or QApplication.primaryScreen()
-        if not screen:
-            screen = QApplication.primaryScreen()
+        # Force a process of events to ensure geometry is updated
+        QApplication.processEvents()
         
-        screen_geometry = screen.availableGeometry()  # Use availableGeometry to avoid taskbars
+        # Get all available screens and use the primary one explicitly
+        screens = QApplication.screens()
+        screen = QApplication.primaryScreen()
+        
+        if not screen and screens:
+            screen = screens[0]
+        
+        if not screen:
+            print("Warning: No screen found, using default positioning")
+            self.move(100, 100)
+            return
+            
+        # Get screen geometry - try both available and full geometry
+        screen_rect = screen.availableGeometry()
+        if screen_rect.isEmpty():
+            screen_rect = screen.geometry()
+        
+        print(f"Screen geometry: {screen_rect.width()}x{screen_rect.height()} at ({screen_rect.x()}, {screen_rect.y()})")
+        print(f"Window size: {self.width()}x{self.height()}")
         
         # Calculate center position
-        x = screen_geometry.x() + (screen_geometry.width() - self.width()) // 2
-        y = screen_geometry.y() + screen_geometry.height() - self.height() - 50  # 50px from bottom
+        center_x = screen_rect.x() + (screen_rect.width() - self.width()) // 2
+        bottom_y = screen_rect.y() + screen_rect.height() - self.height() - 50
         
-        # Ensure the window stays within screen bounds
-        x = max(screen_geometry.x(), min(x, screen_geometry.x() + screen_geometry.width() - self.width()))
-        y = max(screen_geometry.y(), min(y, screen_geometry.y() + screen_geometry.height() - self.height()))
+        print(f"Calculated position: ({center_x}, {bottom_y})")
         
-        self.move(x, y)
+        # Apply position
+        self.move(center_x, bottom_y)
+        
+        # Force another update to ensure position is applied
+        QApplication.processEvents()
     
     def show_message(self, text, title="FS42", style="fieldstation", iterations=2):
 
@@ -322,6 +340,10 @@ def run_ticker_app(text, title="FS42", style="fieldstation", iterations=2):
     window = TickerWindow()
     window.show_message(text, title, style, iterations)
     window.show()
+    
+    # Position after window is shown and geometry is established
+    QApplication.processEvents()  # Process show events
+    window.position_at_bottom_center()
     
     timer = QTimer()
     timer.start(500)
