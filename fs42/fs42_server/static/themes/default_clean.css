@@ -44,6 +44,75 @@ body {
     color: var(--retro-accent) !important;
 }
 
+/* Form elements - Clean Theme */
+select, input, textarea {
+    background: var(--retro-bg) !important;
+    color: var(--retro-text) !important;
+    border: 1px solid var(--retro-border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+select {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%233dd8ff' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.65em auto;
+    padding-right: 2.5rem;
+}
+
+select:focus, input:focus, textarea:focus {
+    border-color: var(--retro-accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(61, 216, 255, 0.15);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+}
+
+select option {
+    background: var(--retro-bg);
+    color: var(--retro-text);
+}
+
+label {
+    display: block;
+    color: var(--retro-header);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.25px;
+}
+
+label:first-child {
+    margin-top: 0;
+}
+
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Form containers */
+.pure-form fieldset {
+    background: var(--retro-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--retro-border);
+    margin-bottom: 1rem;
+}
+
 /* Button styling */
 .pure-button {
     background: var(--retro-surface);
@@ -520,3 +589,4 @@ label {
         padding: 12px;
     }
 }
+

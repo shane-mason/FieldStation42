@@ -36,6 +36,43 @@
                         <p>Loading station data...</p>
                     </div>
                 </div>
+                
+                <div id="ticker-control" class="pure-u-1" style="display:none; margin-top:1.5em; margin-bottom:1.5em;">
+                    <h2 style="margin-bottom:1em; font-size:1.2em;">Display Message</h2>
+                    <form id="ticker-form" class="pure-form pure-form-aligned">
+                        <fieldset style="padding:1em;">
+                            <div class="pure-g" style="align-items:end;">
+                                <div class="pure-u-1 pure-u-md-1-3" style="padding-right:0.5em;">
+                                    <label for="ticker-message" style="margin-top:0;">Message</label>
+                                    <input id="ticker-message" type="text" class="pure-input-1" placeholder="Enter ticker message..." required>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-6" style="padding:0 0.25em;">
+                                    <label for="ticker-header">Header</label>
+                                    <input id="ticker-header" type="text" class="pure-input-1" value="FS42" placeholder="Header">
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-4" style="padding:0 0.25em;">
+                                    <label for="ticker-style">Style</label>
+                                    <select id="ticker-style" class="pure-input-1">
+                                        <option value="fieldstation">FieldStation</option>
+                                        <option value="breaking">Breaking</option>
+                                        <option value="weather">Weather</option>
+                                        <option value="sports">Sports</option>
+                                        <option value="financial">Financial</option>
+                                        <option value="election">Election</option>
+                                    </select>
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-12" style="padding:0 0.25em;">
+                                    <label for="ticker-iterations">Count</label>
+                                    <input id="ticker-iterations" type="number" class="pure-input-1" value="2" min="1" max="10" style="text-align:center;">
+                                </div>
+                                <div class="pure-u-1 pure-u-md-1-6" style="padding-left:0.5em;">
+                                    <label style="margin-top:0; visibility:hidden;">Action</label>
+                                    <button type="submit" class="pure-button pure-button-primary" style="width:100%;">Send</button>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </form>
+                </div>
                 <div style="text-align:center; margin-top:1em;">
                     <span style="font-size:1.5em;font-weight:bold;">FieldStation42</span>
                     <span style="margin-left:1em; font-size:1.2em;">It's Up To You.</span>
@@ -93,6 +130,72 @@
             }
         }
         loadStationSummary();
+
+        // Check queue connection status and show/hide ticker controls
+        async function checkQueueConnection() {
+            try {
+                const resp = await window.fs42Api.get('player/status/queue_connected');
+                const tickerControl = document.getElementById('ticker-control');
+                if (resp.queue_connected) {
+                    tickerControl.style.display = 'block';
+                } else {
+                    tickerControl.style.display = 'none';
+                }
+            } catch (e) {
+                // If API call fails, hide ticker controls
+                document.getElementById('ticker-control').style.display = 'none';
+            }
+        }
+        
+        // Check queue connection initially and periodically
+        checkQueueConnection();
+        setInterval(checkQueueConnection, 5000); // Check every 5 seconds
+
+        // Handle ticker form submission
+        document.addEventListener('submit', async function(e) {
+            if (e.target.id === 'ticker-form') {
+                e.preventDefault();
+                
+                const message = document.getElementById('ticker-message').value.trim();
+                const header = document.getElementById('ticker-header').value.trim() || 'FS42';
+                const style = document.getElementById('ticker-style').value;
+                const iterations = parseInt(document.getElementById('ticker-iterations').value) || 2;
+                
+                if (!message) {
+                    alert('Please enter a ticker message');
+                    return;
+                }
+                
+                try {
+                    const resp = await window.fs42Api.post('player/ticker', {
+                        message: message,
+                        header: header,
+                        style: style,
+                        iterations: iterations
+                    });
+                    
+                    if (resp.status === 'success') {
+                        // Clear the form
+                        document.getElementById('ticker-message').value = '';
+                        document.getElementById('ticker-header').value = 'FS42';
+                        document.getElementById('ticker-style').value = 'fieldstation';
+                        document.getElementById('ticker-iterations').value = '2';
+                        
+                        // Show success message briefly
+                        const button = e.target.querySelector('button[type="submit"]');
+                        const originalText = button.textContent;
+                        button.textContent = 'Ticker Sent!';
+                        button.disabled = true;
+                        setTimeout(() => {
+                            button.textContent = originalText;
+                            button.disabled = false;
+                        }, 2000);
+                    }
+                } catch (error) {
+                    alert('Failed to send ticker: ' + error.message);
+                }
+            }
+        });
 
         function updateStationSummary(networkName) {
             if (!networkName) {

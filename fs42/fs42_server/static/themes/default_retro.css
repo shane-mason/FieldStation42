@@ -230,6 +230,82 @@ h2 {
 /* Retro font imports */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Press+Start+2P&family=VT323&display=swap');
 
+/* Form elements - Retro Theme */
+select, input, textarea {
+    background: #111 !important;
+    color: #f8f8f2 !important;
+    border: 2px solid #00fff7;
+    border-radius: 6px;
+    padding: 0.7em;
+    font-size: 0.95em;
+    font-family: 'IBM Plex Mono', 'VT323', monospace;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+select {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%2300fff7' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7em center;
+    background-size: 0.65em auto;
+    padding-right: 2.5em;
+}
+
+select:focus, input:focus, textarea:focus {
+    border-color: #ff00cc;
+    outline: none;
+    box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.4),
+        0 0 12px rgba(255, 0, 204, 0.4);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.4;
+}
+
+select option {
+    background: #111;
+    color: #f8f8f2;
+    font-family: 'IBM Plex Mono', 'VT323', monospace;
+}
+
+label {
+    display: block;
+    color: #00fff7;
+    font-weight: bold;
+    margin-bottom: 0.5em;
+    margin-top: 1em;
+    font-size: 0.9em;
+    font-family: 'IBM Plex Mono', 'VT323', monospace;
+    text-shadow: 0 0 6px rgba(0, 255, 247, 0.6);
+    letter-spacing: 0.5px;
+}
+
+label:first-child {
+    margin-top: 0;
+}
+
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Form containers */
+.pure-form fieldset {
+    background: rgba(24, 26, 27, 0.95);
+    padding: 1.5em;
+    border-radius: 8px;
+    border: 1px solid #393e5c;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+    margin-bottom: 1em;
+}
+
 /* Station selector styling */
 .station-select-container {
     display: flex;
@@ -242,6 +318,7 @@ h2 {
 .station-select-container label {
     font-weight: bold;
     color: #ff00cc;
+    margin: 0;
 }
 
 .station-select-container select {
@@ -621,3 +698,4 @@ h2 {
         padding: 12px;
     }
 }
+

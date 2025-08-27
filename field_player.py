@@ -23,6 +23,7 @@ from fs42.reception import (
     none_change_effect,
 )
 
+from fs42.overlay.ticker import run_ticker
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
@@ -32,21 +33,31 @@ api_commands_queue: multiprocessing.Queue = None
 
 def input_check():
     if api_commands_queue:
-        command = None
+        q_message = None
         try:
-            command = api_commands_queue.get(block=False)
+            q_message = api_commands_queue.get(block=False)
         except Empty:
             pass
-        if command:
-            if command.get("command", None) == "exit":
-                return PlayerOutcome(PlayerState.EXIT_COMMAND)
-            elif command.get("command", None) == "reload_data":
-                LiquidManager().reload_schedules()
-            elif command.get("command", None) == "guide":
-                if StationManager().guide_config:
+        
+        if q_message:
+            command = q_message.get("command", None)
+            if not command:
+                return
+            match command:
+                case "exit":
+                    return PlayerOutcome(PlayerState.EXIT_COMMAND)
+                case "reload_data":
+                    LiquidManager().reload_schedules()
+                case "guide":
                     c_number = StationManager().guide_config["channel_number"]
                     change_request = {"command": "direct", "channel": c_number}
                     return PlayerOutcome(PlayerState.CHANNEL_CHANGE, json.dumps(change_request))
+                case "ticker":
+                    message = q_message.get("message", None)
+                    header = q_message.get("header", None)
+                    style = q_message.get("style", None)
+                    iterations = q_message.get("iterations", None)
+                    run_ticker(message, header, style, iterations)
 
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:
