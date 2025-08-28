@@ -203,7 +203,7 @@ class TickerWindow(QWidget):
         
         # Calculate bottom area for ticker content
         ticker_x = (self.width() - self.ticker_width) // 2
-        ticker_y = self.height() - self.ticker_height - 50
+        ticker_y = self.height() - self.ticker_height - 30
         ticker_rect = QRect(ticker_x, ticker_y, self.ticker_width, self.ticker_height)
         
         # Use default style if current style is invalid
