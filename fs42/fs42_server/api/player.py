@@ -225,6 +225,18 @@ async def player_stop(request: Request):
     command_queue.put({"command": "exit"})
     return {"status": "stopped"}
 
+@router.post("/ticker")
+async def show_ticker(request: Request):
+    data = await request.json()
+    command_queue = request.app.state.player_command_queue
+    command_queue.put({
+        "command": "ticker", 
+        "message": data.get("message", ""), 
+        "header": data.get("header", "FS42"), 
+        "style": data.get("style", "fieldstation"), 
+        "iterations": data.get("iterations", 2)
+    })
+    return {"status": "success"}
 
 @router.get("/volume/up")
 @router.post("/volume/up")
