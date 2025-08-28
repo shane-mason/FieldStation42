@@ -1,6 +1,5 @@
 import logging
 import sys
-import resource
 import argparse
 import datetime
 from rich.console import Console
@@ -221,23 +220,6 @@ def main():
                         f"Failed to rebuild catalog for {station['network_name']} - check logs."
                     )
 
-    def get_memory():
-        with open('/proc/meminfo', 'r') as mem:
-            free_memory = 0
-            for i in mem:
-                sline = i.split()
-                if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
-                    free_memory += int(sline[1])
-        return free_memory  # KiB
-
-
-    def memory_limit(percent):
-        """Limit max memory usage to half."""
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-        # Convert KiB to bytes, and divide in two to half
-        resource.setrlimit(resource.RLIMIT_AS, (int(get_memory() * 1024 / (1/percent)), hard))
-        _l.info("Reducing available memory usage.")
-
     execution_start_time = datetime.datetime.now()
     parser = build_parser()
     args = parser.parse_args()
@@ -267,6 +249,27 @@ def main():
         success_messages.append(f"I setup logging to file: {args.logfile}")
 
     if args.limit_memory:
+
+        import resource
+
+        def get_memory():
+            with open('/proc/meminfo', 'r') as mem:
+                free_memory = 0
+                for i in mem:
+                    sline = i.split()
+                    if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
+                        free_memory += int(sline[1])
+            return free_memory  # KiB
+
+
+        def memory_limit(percent):
+            """Limit max memory usage to half."""
+            soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+            # Convert KiB to bytes, and divide in two to half
+            resource.setrlimit(resource.RLIMIT_AS, (int(get_memory() * 1024 / (1/percent)), hard))
+            _l.info("Reducing available memory usage.")
+
+
         memory_percent = args.limit_memory[0]
         if memory_percent > 1:
             memory_percent = 1
