@@ -153,13 +153,12 @@ class StationPlayer:
             else:
                 self.mpv.vf = self.reception.filter()
 
-    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False):
+    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown"):
         try:
             if os.path.exists(file_path) or is_stream:
                 self._l.debug(f"%%%Attempting to play {file_path}")
                 self.current_playing_file_path = file_path
-                basename = os.path.basename(file_path)
-                title, _ = os.path.splitext(basename)
+    
                 if self.station_config:
                     self._l.debug("Got station config, updating status socket")
                     if "date_time_format" in StationManager().server_conf:
@@ -350,6 +349,7 @@ class StationPlayer:
         liquid = LiquidManager()
         try:
             play_point = liquid.get_play_point(network_name, when)
+            self._current_playing = play_point
         except (ScheduleNotFound, ScheduleQueryNotInBounds):
             self.schedule_panic(network_name)
             self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
@@ -358,7 +358,9 @@ class StationPlayer:
         
         if play_point is None:
             self.current_playing_file_path = None
+            self.current_playing_block_title = None
             return PlayerOutcome(PlayerState.FAILED)
+        
         return self._play_from_point(play_point)
 
     # returns true if play is interrupted
@@ -377,7 +379,8 @@ class StationPlayer:
                 if hasattr(entry, "is_stream"):
                     is_stream = entry.is_stream
 
-                self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream)
+                title = play_point.block_title
+                self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title)
 
                 try:
                     self.mpv.seek(total_skip)
@@ -421,7 +424,7 @@ class StationPlayer:
             self.current_playing_file_path = None
             return PlayerOutcome(PlayerState.FAILED, "Failure getting index...")
 
-    def get_current_title(self):
+    def get_current_path(self):
         if self.current_playing_file_path:
             basename = os.path.basename(self.current_playing_file_path)
             title, _ = os.path.splitext(basename)

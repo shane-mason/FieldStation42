@@ -17,13 +17,14 @@ class ScheduleNotFound(Exception):
 
 
 class PlayPoint:
-    def __init__(self, index, offset, plan):
+    def __init__(self, index, offset, plan, block_title="Unknown"):
         self.index = index
         self.offset = offset
         self.plan: BlockPlanEntry = plan
+        self.block_title = block_title
 
     def __str__(self):
-        return f"PlayPoint: index={self.index} offet={self.offset} plan_len={len(self.plan)}"
+        return f"PlayPoint: title={self.block_title} index={self.index} offet={self.offset} plan_len={len(self.plan)}"
 
 
 class LiquidManager(object):
@@ -194,7 +195,7 @@ class LiquidManager(object):
             if next_mark > when:
                 # then this is the index - calc offset
                 diff = when - current_mark
-                return PlayPoint(found_index, diff.total_seconds(), _block.plan)
+                return PlayPoint(found_index, diff.total_seconds(), _block.plan, _block.title)
             current_mark = next_mark
             found_index += 1
 
