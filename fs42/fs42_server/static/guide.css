@@ -84,9 +84,34 @@
     color: #fff;
     font-weight: bold;
     font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    height: 100%;
+    width: 100%;
+}
+
+.channel-number {
+    color: #87ceeb;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 2px;
+    text-shadow: 0 0 5px rgba(135, 206, 235, 0.5);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.network-name {
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: normal;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .guide-grid-container {
@@ -298,6 +323,15 @@
         font-size: 0.8rem;
     }
     
+    .channel-number {
+        font-size: 0.9rem;
+        margin-bottom: 1px;
+    }
+    
+    .network-name {
+        font-size: 0.65rem;
+    }
+    
     .program-title {
         font-size: 0.75rem;
     }
@@ -325,6 +359,15 @@
     .station-row {
         height: 50px;
         padding: 0 0.5rem;
+    }
+    
+    .channel-number {
+        font-size: 0.8rem;
+        margin-bottom: 1px;
+    }
+    
+    .network-name {
+        font-size: 0.6rem;
     }
     
     .guide-row {

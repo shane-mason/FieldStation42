@@ -189,9 +189,13 @@
             
             // Add actual stations
             for (const station of stations) {
+                const channelNumber = station.channel_number || '?';
                 stationsHTML += `
                     <div class="station-row">
-                        <div class="station-name">${station.network_name}</div>
+                        <div class="station-name">
+                            <div class="channel-number">${channelNumber}</div>
+                            <div class="network-name">${station.network_name}</div>
+                        </div>
                     </div>
                 `;
             }
