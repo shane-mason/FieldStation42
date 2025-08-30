@@ -1,0 +1,74 @@
+{"station_conf" : {
+    "network_name" : "PBS",
+    "channel_number": 6,
+
+    "network_type": "standard",
+    "schedule_increment": 10,
+    "break_strategy": "end",
+    "commercial_free": true, 
+
+    "content_dir" : "catalog/pbs_catalog",
+    "commercial_dir" : "commercials",
+    "bump_dir" : "bumps",
+    "clip_shows" : [],
+
+    "sign_off_video": "runtime/signoff.mp4",
+    "off_air_video": "runtime/off_air_pattern.mp4",
+    "standby_image": "runtime/standby.png",
+    "be_right_back_media" : "runtime/brb.png",
+
+    "day_templates" : {
+        "weekday": {
+            "0": {"tags" : "late"},
+            "1": {"tags" : "late"},
+            "2": {"event" : "signoff"},
+            "7": {"tags": "news"},
+            "8": {"tags": "kids"},
+            "9": {"tags": "kids"},
+            "10": {"tags" : "local"},
+            "11": {"tags" : "local"},
+            "12": {"tags" : "news"},
+            "13": {"tags" : "general"},
+            "14": {"tags" : "general"},
+            "15": {"tags" : "general"},
+            "16": {"tags" : "general"},
+            "17": {"tags" : "local"},
+            "18": {"tags" : "news"},
+            "19": {"tags" : "prime"},
+            "20": {"tags" : "prime"},
+            "21": {"tags" : "prime"},
+            "22": {"tags" : "prime"},
+            "23": {"tags" : "prime"}
+        },
+        "weekend": {
+            "0": {"tags" : "movie"},
+            "1": {"tags" : "movie"},
+            "2": {"event" : "signoff"},
+            "7": {"tags": "news"},
+            "8": {"tags": "kids"},
+            "9": {"tags": "kids"},
+            "10": {"tags" : "kids"},
+            "11": {"tags" : "local"},
+            "12": {"tags" : "news"},
+            "13": {"tags" : "movie"},
+            "14": {"tags" : "movie"},
+            "15": {"tags" : "music"},
+            "16": {"tags" : "sports"},
+            "17": {"tags" : "local"},
+            "18": {"tags" : "news"},
+            "19": {"tags" : "movie"},
+            "20": {"tags" : "movie"},
+            "21": {"tags" : "movie"},
+            "22": {"tags" : "general"},
+            "23": {"tags" : "general"}
+        }
+    },
+
+    "monday": "weekday",
+    "tuesday": "weekday",
+    "wednesday": "weekday",
+    "thursday": "weekday",
+    "friday": "weekday",
+    "saturday": "weekend",
+    "sunday": "weekend"
+}}
