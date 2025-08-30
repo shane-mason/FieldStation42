@@ -4,6 +4,7 @@ import os
 import glob
 from fs42.slot_reader import SlotReader
 from fs42 import timings
+from fs42.config_processor import ConfigProcessor, ConfigurationError
 
 
 class StationManager(object):
@@ -19,7 +20,7 @@ class StationManager(object):
         "commercial_free": False,
         "clip_shows": [],
         "break_duration": 120,
-        "hidden": False 
+        "hidden": False,
     }
 
     __filechecks = ["sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
@@ -111,7 +112,15 @@ class StationManager(object):
         if os.path.exists(StationManager.__main_config_path):
             with open(StationManager.__main_config_path) as f:
                 try:
-                    to_check = ["channel_socket", "status_socket", "time_format", "start_mpv", "db_path", "server_host", "server_port"]
+                    to_check = [
+                        "channel_socket",
+                        "status_socket",
+                        "time_format",
+                        "start_mpv",
+                        "db_path",
+                        "server_host",
+                        "server_port",
+                    ]
                     d = json.load(f)
 
                     for key in to_check:
@@ -161,6 +170,8 @@ class StationManager(object):
                 with open(fname) as f:
                     try:
                         d = json.load(f)
+                        d["station_conf"] = ConfigProcessor.preprocess(d["station_conf"])
+                        
                         # set defaults for optionals
                         for key in StationManager.__overwatch:
                             if key not in d["station_conf"]:
