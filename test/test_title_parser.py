@@ -88,3 +88,18 @@ class TestTitleParser:
         episode = "Buffy the vampire slayer s01e03e03 - whatever comes after"
 
         assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_year_number_combination(self):
+        episode = "Top 100 1992"
+
+        assert TitleParser.parse_title(episode) == "Top 100 1992"
+
+    def test_title_parser_movie_sequel_with_year(self):
+        episode = "Jaws 2 (1976)"
+
+        assert TitleParser.parse_title(episode) == "Jaws 2"
+
+    def test_title_parser_movie_with_year(self):
+        episode = "Jaws (1975)"
+
+        assert TitleParser.parse_title(episode) == "Jaws"
