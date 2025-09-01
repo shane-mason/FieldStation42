@@ -58,3 +58,33 @@ class TestTitleParser:
         episode = "Buffy the Vampire Slayer    "
 
         assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_movie_sequel_with_space(self):
+        episode = "Jaws 2"
+
+        assert TitleParser.parse_title(episode) == "Jaws 2"
+
+    def test_title_parser_movie_sequel_without_space(self):
+        episode = "Jaws2"
+
+        assert TitleParser.parse_title(episode) == "Jaws2"
+
+    def test_title_parser_episode_format_with_space(self):
+        episode = "Buffy the Vampire Slayer Episode 1"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_episode_format_with_title(self):
+        episode = "Buffy the Vampire Slayer Episode 1 - Pilot"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_duplicate_episodes(self):
+        episode = "Buffy the vampire slayer s01e03e03"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_duplicate_episodes_with_extra(self):
+        episode = "Buffy the vampire slayer s01e03e03 - whatever comes after"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"

@@ -19,8 +19,8 @@ class TitleParser:
         patterns = [
             # [Group] Title - Episode (release group prefix)
             (r"^\[.+?\]" + sep + r"(.+?)" + sep + r"\d+.*$", 1),
-            # Title + separators + season/episode pattern + optional extra
-            (r"^(.+?)" + sep + r"(?:[sS]\d+" + sep + r"?[eE]\d+|[sS]\d+[eE]\d+|\d+[xX]\d+)(?:" + sep + r".*)?$", 1),
+            # Title + separators + season/episode pattern + optional extra (including duplicate episodes like s01e03e03)
+            (r"^(.+?)" + sep + r"(?:[sS]\d+(?:" + sep + r"?[eE]\d+)+|[sS]\d+[eE]\d+(?:[eE]\d+)*|\d+[xX]\d+)(?:" + sep + r".*)?$", 1),
             # Title (Year) + seperators + season/episode pattern + seperators + episode name + seperators + extras
             (
                 r"^(.+?)(?:\s\(\d{4}\))"
@@ -34,8 +34,10 @@ class TitleParser:
             ),
             # Title + version/volume format (show_title_V1-0003) - before simple episode
             (r"^(.+?)[\s._-]+V\d+[\s._-]+\d+$", 1),
-            # Title + separators + simple episode number
-            (r"^(.+?)" + sep + r"\d+(?:" + sep + r".*)?$", 1),
+            # Title + separators + episode indicators + number (e.g., "e2", "ep3", "episode4", "Episode 1")
+            (r"^(.+?)" + sep + r"(?:[eE](?:p(?:isode)?)?(?:" + sep + r")?\d+|[eE]\d+)(?:" + sep + r".*)?$", 1),
+            # Title + separators + simple episode number (but only if followed by more content like episode title)
+            (r"^(.+?)" + sep + r"\d+(?:" + sep + r".+)+$", 1),
             # Just title (fallback)
             (r"^(.+)$", 1),
         ]
