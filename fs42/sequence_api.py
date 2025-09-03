@@ -98,8 +98,6 @@ class SequenceAPI:
             if day in station_config:
                 slots = station_config[day]
                 for k in slots:
-                    if isinstance(slots, str):
-                        print("FOUND IT:", k)
                     if "sequence" in slots[k]:
                         # the user supplied sequence name
                         if isinstance(slots[k]["tags"], list):
