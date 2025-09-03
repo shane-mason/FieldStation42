@@ -23,11 +23,15 @@ from fs42.reception import (
     none_change_effect,
 )
 
-from fs42.overlay.ticker import run_ticker
-
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
 )
+
+try:
+    from fs42.overlay.ticker import run_ticker
+except ModuleNotFoundError:
+    logging.getLogger("FieldPlayer").warning("Error importing ticker - using the ticker will cause an error.")
+
 api_commands_queue: multiprocessing.Queue = None
 
 
