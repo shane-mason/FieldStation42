@@ -77,7 +77,7 @@ class GuideWindowConf:
     def check_config(self, merge_conf):
         """Note: this should only be called from the startup checker since it merges the conf again"""
         self.merge_config(merge_conf)
-        to_check = self.images
+        to_check = self.images.copy()
         if self.play_sound:
             to_check.append(self.sound_to_play) 
         errors = []
@@ -281,14 +281,34 @@ class ScheduleFrame(tk.Frame):
             # check to see if its been more than a minute since we started
             if diff > datetime.timedelta(minutes=1):
                 self.refresh()
+                return
             else:
-                self.canvas.yview_moveto(-0.2)
-
-            self.after(3000, self.scroll_canvas_view)
-
+                # Cool slide transition: animate back to top
+                self.slide_to_top(steps=20, current_step=0)
+                return
         else:
+            # Continue scrolling up (moving view down in content)
             self.canvas.yview_moveto(top + 0.001)
+
+        self.after(100, self.scroll_canvas_view)
+
+    def slide_to_top(self, steps, current_step):
+        if current_step >= steps:
+            # Animation complete, resume normal scrolling
+            self.canvas.yview_moveto(0.0)
             self.after(100, self.scroll_canvas_view)
+            return
+        
+        # Calculate eased position (ease-out effect)
+        progress = current_step / steps
+        eased_progress = 1 - (1 - progress) ** 3  # cubic ease-out
+        
+        # Animate from current position (1.0) to top (0.0)
+        current_pos = 1.0 - eased_progress
+        self.canvas.yview_moveto(current_pos)
+        
+        # Continue animation
+        self.after(50, lambda: self.slide_to_top(steps, current_step + 1))
 
     def update_time(self):
         time_f = StationManager().server_conf["time_format"]
