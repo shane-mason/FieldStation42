@@ -49,6 +49,7 @@ class GuideWindowConf:
         self.footer_height = 50
 
         self.schedule_row_count = 3
+        self.schedule_col_count = 3
 
         self.play_sound = False
         self.sound_to_play = None
@@ -60,7 +61,7 @@ class GuideWindowConf:
         self.half_h = self.height / 2
         self.half_w = self.width / 2
         self.network_w = self.width / 6
-        self.sched_w = (self.width - self.network_w) / self.schedule_row_count
+        self.sched_w = (self.width - self.network_w) / self.schedule_col_count
         self.sched_h = self.half_h / (1 + self.schedule_row_count)
         self._message_font = (self.message_font_family, self.message_font_size)
         self._schedule_font = (self.schedule_font_family, self.schedule_font_size)
