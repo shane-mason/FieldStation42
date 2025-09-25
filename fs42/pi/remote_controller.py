@@ -12,7 +12,7 @@ import sys
 # ======================================
 
 # Server Configuration - can be overridden by environment variables
-FS42_HOST = os.getenv('FS42_HOST', '192.168.50.142')
+FS42_HOST = os.getenv('FS42_HOST', '127.0.0.1')
 FS42_PORT = os.getenv('FS42_PORT', '4242')
 FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
 
@@ -27,6 +27,7 @@ KEY_MAPPINGS = {
     'volume_down': 'left',       # Decrease volume  
     'channel_up': 'up',          # Next channel
     'channel_down': 'down',      # Previous channel
+    'last_channel': 'enter',     # Switch to last channel
     'power_stop': 'end',         # Stop player (power button)
     'exit': 'esc',               # Exit remote controller
     
@@ -42,10 +43,14 @@ channel_input = ''
 channel_input_timer = None
 input_lock = threading.Lock()
 
+# Last channel tracking
+current_channel = None
+last_channel = None
+
 
 def send_channel_change():
     """Send accumulated channel input to the server"""
-    global channel_input, channel_input_timer
+    global channel_input, channel_input_timer, current_channel, last_channel
     
     with input_lock:
         if channel_input:
@@ -55,6 +60,9 @@ def send_channel_change():
                 response = requests.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
                 if response.ok:
                     print(f"Changed to channel {channel_number}")
+                    # Update channel tracking
+                    last_channel = current_channel
+                    current_channel = channel_number
                 else:
                     print(f"Channel change to {channel_number} failed")
             except Exception as e:
@@ -130,10 +138,14 @@ def volume_down_pressed():
 
 def channel_up_pressed():
     """Handle up arrow key press"""
+    global current_channel, last_channel
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
         if response.ok:
             print("Channel up success")
+            # Update channel tracking (we don't know the exact channel number for up/down)
+            last_channel = current_channel
+            current_channel = None  # Unknown after up/down
         else:
             print("Channel up failed")
     except Exception as e:
@@ -142,14 +154,39 @@ def channel_up_pressed():
 
 def channel_down_pressed():
     """Handle down arrow key press"""
+    global current_channel, last_channel
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
         if response.ok:
             print("Channel down success")
+            # Update channel tracking (we don't know the exact channel number for up/down)
+            last_channel = current_channel
+            current_channel = None  # Unknown after up/down
         else:
             print("Channel down failed")
     except Exception as e:
         print(f"Channel down error: {e}")
+
+
+def last_channel_pressed():
+    """Handle last channel key press"""
+    global current_channel, last_channel
+    if last_channel is not None:
+        try:
+            print(f"Switching to last channel: {last_channel}")
+            response = requests.get(f'{FS42_BASE_URL}/player/channels/{last_channel}')
+            if response.ok:
+                print(f"Switched to last channel {last_channel}")
+                # Swap current and last channel
+                temp = current_channel
+                current_channel = last_channel
+                last_channel = temp
+            else:
+                print(f"Last channel change to {last_channel} failed")
+        except Exception as e:
+            print(f"Last channel error: {e}")
+    else:
+        print("No last channel stored")
 
 
 def end_pressed():
@@ -256,6 +293,8 @@ def handle_key_event(event):
                     channel_up_pressed()
                 elif function_name == 'channel_down':
                     channel_down_pressed()
+                elif function_name == 'last_channel':
+                    last_channel_pressed()
                 elif function_name == 'power_stop':
                     end_pressed()
                 elif function_name == 'exit':
