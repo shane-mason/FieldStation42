@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Station Bump</title>
+    <link rel="stylesheet" href="bump.css">
+</head>
+<body>
+    <div class="bump-container" id="bumpContainer">
+        <div class="background-layer" id="backgroundLayer"></div>
+
+        <div class="content-area">
+            <div class="title-section">
+                <h1 class="main-title" id="mainTitle">FIELDSTATION42</h1>
+            </div>
+
+            <div class="subtitle-section">
+                <h2 class="subtitle" id="subtitle">Your Retro Broadcast Experience</h2>
+            </div>
+
+            <div class="details-section">
+                <div class="detail-line" id="detailLine1">102.7 FM</div>
+                <div class="detail-line" id="detailLine2">Broadcasting 24/7</div>
+                <div class="detail-line" id="detailLine3">fieldstation42.com</div>
+            </div>
+        </div>
+
+        <!-- Background music audio element -->
+        <audio id="bgMusicPlayer" loop preload="auto" style="display: none;">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+    
+    <script src="../fs42_client.js"></script>
+    <script src="../common.js"></script>
+    <script src="bump.js"></script>
+</body>
+</html>

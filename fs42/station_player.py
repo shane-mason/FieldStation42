@@ -10,6 +10,7 @@ import os
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
+from fs42.autobump_agent import AutoBumpAgent
 
 # Try to import web_render_runner, but handle gracefully if PySide6 isn't available
 try:
@@ -155,7 +156,7 @@ class StationPlayer:
 
     def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown"):
         try:
-            if os.path.exists(file_path) or is_stream:
+            if os.path.exists(file_path) or is_stream or AutoBumpAgent.is_autobump_url(file_path):
                 self._l.debug(f"%%%Attempting to play {file_path}")
                 self.current_playing_file_path = file_path
     
@@ -179,10 +180,23 @@ class StationPlayer:
                         duration=duration,
                         file_path=file_path,
                     )
+                          
                 else:
                     self._l.warning(
                         "station_config not available in play_file, cannot update status socket with title."
                     )
+                
+                                #now see if this is an autobump
+
+                if AutoBumpAgent.is_autobump_url(file_path):
+                    print("Is auto bump!!")
+                    conf = {
+                        "web_url" : AutoBumpAgent.extract_url(file_path)
+                    }
+                    if file_duration:
+                        conf["duration"] = file_duration
+                    self.show_web(conf)
+                    return True
 
                 if "panscan" in self.station_config:
                     self.mpv.panscan = self.station_config["panscan"]
@@ -300,7 +314,7 @@ class StationPlayer:
             self._l.error("Web rendering not available - PySide6 not installed")
             msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
             return PlayerOutcome(PlayerState.EXIT_COMMAND, msg)
-        
+
         # create the pipe to communicate with the web channel
         self.web_queue = multiprocessing.Queue()
         self.web_process = multiprocessing.Process(
@@ -311,11 +325,11 @@ class StationPlayer:
             ),
         )
         self.web_process.start()
-        
+
         # Stop any currently playing content
         self.mpv.stop()
         self.current_playing_file_path = None
-        
+
         # update status
         update_status_socket(
             "playing",
@@ -324,9 +338,27 @@ class StationPlayer:
             self.station_config["network_name"],
             timestamp=StationManager().server_conf["date_time_format"],
         )
+
+        # Check if duration is specified for auto-bumps
+        duration = web_config.get("duration")
+        stop_time = None
+        if duration:
+            stop_time = datetime.datetime.now() + datetime.timedelta(seconds=duration)
+            self._l.info(f"Web content will auto-stop after {duration} seconds")
+
         keep_going = True
         while keep_going:
             time.sleep(0.05)
+
+            # Check if duration has expired
+            if stop_time and datetime.datetime.now() >= stop_time:
+                self._l.info("Web content duration expired, shutting down")
+                self.web_queue.put("hide_window")
+                self.web_process.join()
+                self.web_process = None
+                self.web_queue = None
+                return PlayerOutcome(PlayerState.SUCCESS)
+
             response = self.input_check_fn()
             if response:
                 self._l.info("Sending the web channel shutdown command")

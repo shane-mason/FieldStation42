@@ -7,6 +7,7 @@ from fs42.timings import MIN_5, DAYS
 from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
 from fs42.sequence_api import SequenceAPI
+from fs42.autobump_agent import AutoBumpAgent
 
 
 try:
@@ -346,14 +347,6 @@ class ShowCatalog:
             return result
 
 
-    def find_filler(self, seconds, when):
-        bump_tag = self.config["bump_dir"]
-        com_tag = self.config["commercial_dir"]
-
-        if not len(self.clip_index[bump_tag]) and not len(self.clip_index[com_tag]):
-            raise NoFillerContentFound("Can't find filler - add commercials and bumps...")
-        return self.find_candidate(random.choice([bump_tag, com_tag, com_tag]), seconds, when)
-
     def find_bump(self, seconds, when, position=None, bump_tag=None):
         if not bump_tag:
             bump_tag = self.config["bump_dir"]
@@ -388,10 +381,17 @@ class ShowCatalog:
         start_candidate = None
         end_candidate = None
 
+        # INSERT AUTO BUMPER LOGIC HERE
         if bumpers:
-            start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
-            end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir)
-
+            if "autobump" not in self.config:
+                start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
+                end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir)
+            else:
+                autos = AutoBumpAgent.gen_bumps(self.config)
+                if autos:
+                    start_candidate = autos.get("start_block", None)
+                    end_candidate = autos.get("end_block", None)
+            
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
 

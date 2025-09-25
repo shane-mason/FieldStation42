@@ -7,7 +7,7 @@ from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
 QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)
 
 class WebRender(QMainWindow):
-    def __init__(self, user_conf):
+    def __init__(self):
         super().__init__()
         self.browser = QWebEngineView()
         
@@ -22,7 +22,6 @@ class WebRender(QMainWindow):
         self.browser.page().profile().setHttpUserAgent("FieldStation42-WebRender/1.0")
         
         self.setCentralWidget(self.browser)
-        self.user_conf = user_conf
 
     def navigate(self, URL: str):
         self.browser.setUrl(QUrl(URL))
@@ -54,10 +53,10 @@ class WebRender(QMainWindow):
 class WebRenderApp(QApplication):
     def __init__(self, user_conf, queue=None):
         super().__init__([])
-        self.user_conf = user_conf
+        
         self.queue = queue
         
-        self.window = WebRender(user_conf)
+        self.window = WebRender()
         
         # Set window properties similar to GuideApp
         if "width" in user_conf and "height" in user_conf:

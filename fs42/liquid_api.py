@@ -9,6 +9,8 @@ class LiquidAPI:
 
     @staticmethod
     def get_blocks(station_config, start=None, end=None):
+        if not station_config:
+            return None
         if not start and not end:
             return LiquidIO().get_liquid_blocks(station_config["network_name"])
         else:

@@ -106,7 +106,7 @@ class LiquidBlock:
                 bump_dir=self.bump_override,
                 strict_count=strict_count,
             )
-
+            
         else:
             self.reel_blocks = []
 
