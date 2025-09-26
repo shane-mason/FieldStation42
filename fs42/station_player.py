@@ -353,10 +353,20 @@ class StationPlayer:
             # Check if duration has expired
             if stop_time and datetime.datetime.now() >= stop_time:
                 self._l.info("Web content duration expired, shutting down")
-                self.web_queue.put("hide_window")
-                self.web_process.join()
-                self.web_process = None
-                self.web_queue = None
+                try:
+                    self.web_queue.put("hide_window")
+                    self._l.info("Sent hide_window message to web process")
+                    self.web_process.join(timeout=3)  # Wait up to 3 seconds
+                    if self.web_process.is_alive():
+                        self._l.warning("Web process did not terminate gracefully, forcing termination")
+                        self.web_process.terminate()
+                        self.web_process.join(timeout=1)
+                    self._l.info("Web process terminated successfully")
+                except Exception as e:
+                    self._l.error(f"Error shutting down web process: {e}")
+                finally:
+                    self.web_process = None
+                    self.web_queue = None
                 return PlayerOutcome(PlayerState.SUCCESS)
 
             response = self.input_check_fn()

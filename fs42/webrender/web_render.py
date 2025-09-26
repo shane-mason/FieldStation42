@@ -81,9 +81,13 @@ class WebRenderApp(QApplication):
             # Handle queue messages similar to GuideApp
             if hasattr(msg, 'hide_window') or msg == "hide_window":
                 print("WebRender window is shutting down now.")
+                print("Stopping timer...")
                 self.timer.stop()
+                print("Closing window...")
                 self.window.close()
+                print("Quitting application...")
                 self.quit()
+                print("WebRender shutdown complete")
                 return
 
 def web_render_runner(user_conf, queue):
