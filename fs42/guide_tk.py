@@ -55,6 +55,8 @@ class GuideWindowConf:
         self.sound_to_play = None
         self.normalize_title = True
 
+        self.scroll_speed = 1.0
+
         self._calc_internals()
 
     def _calc_internals(self):
@@ -205,6 +207,9 @@ class ScheduleFrame(tk.Frame):
         )
         self.canvas.place(x=0, y=self.conf.sched_h)
 
+        # Initialize scroll speed (1.0 = normal speed, 0 = no scrolling)
+        self.scroll_speed = self.conf.scroll_speed
+
         self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=canvas_h, bg=self.conf.bottom_bg)
 
         x_offset = 0
@@ -273,6 +278,11 @@ class ScheduleFrame(tk.Frame):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def scroll_canvas_view(self):
+        # If scroll speed is zero, don't scroll at all
+        if self.scroll_speed == 0:
+            self.after(100, self.scroll_canvas_view)
+            return
+
         # get the current bounds
         top, bottom = self.canvas.yview()
         # print(bottom)
@@ -290,7 +300,9 @@ class ScheduleFrame(tk.Frame):
             # Continue scrolling up (moving view down in content)
             self.canvas.yview_moveto(top + 0.001)
 
-        self.after(100, self.scroll_canvas_view)
+        # Calculate delay based on scroll speed (higher speed = shorter delay)
+        delay = int(100 / self.scroll_speed) if self.scroll_speed > 0 else 100
+        self.after(delay, self.scroll_canvas_view)
 
     def slide_to_top(self, steps, current_step):
         if current_step >= steps:
