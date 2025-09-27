@@ -51,6 +51,14 @@ class CatalogAPI:
     @staticmethod
     def get_entry_by_id(entry_id):
         return CatalogIO().entry_by_id(entry_id)
+
+    @staticmethod
+    def get_entries_by_ids(entry_ids: list[int]) -> dict[int, CatalogEntry]:
+        """
+        Batch lookup of catalog entries by IDs.
+        Returns a dictionary mapping entry_id -> CatalogEntry for found entries.
+        """
+        return CatalogIO().entries_by_ids(entry_ids)
     
     @staticmethod
     def find_best_candidates(station_config, tag: str, max_duration: float):

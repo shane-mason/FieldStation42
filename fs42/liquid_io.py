@@ -37,6 +37,13 @@ class LiquidIO:
                                 content_json TEXT NOT NULL,
                                 plan_json TEXT NOT NULL
                             )""")
+
+            # Create indexes for performance
+            cursor.execute("""CREATE INDEX IF NOT EXISTS idx_liquid_blocks_station
+                            ON liquid_blocks(station)""")
+            cursor.execute("""CREATE INDEX IF NOT EXISTS idx_liquid_blocks_station_time
+                            ON liquid_blocks(station, start_time, end_time)""")
+
             cursor.close()
             connection.commit()
 
@@ -46,13 +53,27 @@ class LiquidIO:
         """
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
-            cursor.execute("SELECT * FROM liquid_blocks WHERE station = ?", (station_name,))
+            cursor.execute("SELECT * FROM liquid_blocks WHERE station = ? ORDER BY start_time", (station_name,))
             rows = cursor.fetchall()
             cursor.close()
 
+            # Collect all content IDs for batch lookup
+            content_ids = set()
+            for row in rows:
+                content_json = json.loads(row[9]) if row[9] else None
+                if content_json:
+                    if isinstance(content_json, list):
+                        content_ids.update(content_json)
+                    else:
+                        content_ids.add(content_json)
+
+            # Batch fetch all content entries
+            content_cache = CatalogAPI.get_entries_by_ids(list(content_ids)) if content_ids else {}
+
+            # Build blocks with cached content
             liquid_blocks = []
             for row in rows:
-                block = LiquidIO._build_block_from_row(row)
+                block = LiquidIO._build_block_from_row(row, content_cache)
                 liquid_blocks.append(block)
 
             return liquid_blocks
@@ -61,15 +82,29 @@ class LiquidIO:
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
             cursor.execute(
-                "SELECT * FROM liquid_blocks WHERE station = ? AND start_time < ? AND end_time > ?",
+                "SELECT * FROM liquid_blocks WHERE station = ? AND start_time < ? AND end_time > ? ORDER BY start_time",
                 (station_name, end, start),
             )
             rows = cursor.fetchall()
             cursor.close()
 
+            # Collect all content IDs for batch lookup
+            content_ids = set()
+            for row in rows:
+                content_json = json.loads(row[9]) if row[9] else None
+                if content_json:
+                    if isinstance(content_json, list):
+                        content_ids.update(content_json)
+                    else:
+                        content_ids.add(content_json)
+
+            # Batch fetch all content entries
+            content_cache = CatalogAPI.get_entries_by_ids(list(content_ids)) if content_ids else {}
+
+            # Build blocks with cached content
             liquid_blocks = []
             for row in rows:
-                block = LiquidIO._build_block_from_row(row)
+                block = LiquidIO._build_block_from_row(row, content_cache)
                 liquid_blocks.append(block)
 
             return liquid_blocks
@@ -127,9 +162,10 @@ class LiquidIO:
             connection.commit()
 
     @staticmethod
-    def _build_block_from_row(row):
+    def _build_block_from_row(row, content_cache: dict = None):
         """
         Helper method to build a LiquidBlock from a database row.
+        If content_cache is provided, uses it for batch lookups instead of individual CatalogAPI calls.
         """
         _id = row[0]
         _station = row[1]
@@ -147,14 +183,21 @@ class LiquidIO:
         content_obj = None
         if _content_json:
             if not isinstance(_content_json, list):
-                # If the content is a single LiquidBlock
-                content_obj = CatalogAPI.get_entry_by_id(int(_content_json))
+                # Single content entry
+                if content_cache is not None:
+                    content_obj = content_cache.get(int(_content_json))
+                else:
+                    content_obj = CatalogAPI.get_entry_by_id(int(_content_json))
             else:
-                # or if its a list of blocks
+                # Multiple content entries
                 content_obj = []
                 for entry in _content_json:
-                    # content_obj.append(CatalogEntry.from_json_dict(entry))
-                    content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))  
+                    if content_cache is not None:
+                        cached_entry = content_cache.get(int(entry))
+                        if cached_entry:
+                            content_obj.append(cached_entry)
+                    else:
+                        content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))  
 
         main_normal = StationManager().server_conf.get("normalize_title", True)
         the_title = _title

@@ -75,7 +75,7 @@ class CatalogIO:
         with sqlite3.connect(self.db_path) as connection:
             cursor = connection.cursor()
             cursor.execute(
-                """SELECT * FROM catalog_entries 
+                """SELECT * FROM catalog_entries
                               WHERE id = ?""",
                 (entry_id,),
             )
@@ -86,6 +86,34 @@ class CatalogIO:
                 return CatalogEntry.from_db_row(row)
 
             return None
+
+    def entries_by_ids(self, entry_ids: list[int]) -> dict[int, CatalogEntry]:
+        """
+        Batch lookup of catalog entries by IDs.
+        Returns a dictionary mapping entry_id -> CatalogEntry for found entries.
+        """
+        if not entry_ids:
+            return {}
+
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            # Create placeholders for IN clause
+            placeholders = ','.join('?' * len(entry_ids))
+            cursor.execute(
+                f"""SELECT * FROM catalog_entries
+                   WHERE id IN ({placeholders})""",
+                entry_ids,
+            )
+            rows = cursor.fetchall()
+            cursor.close()
+
+            # Build result dictionary
+            result = {}
+            for row in rows:
+                entry = CatalogEntry.from_db_row(row)
+                result[entry.dbid] = entry
+
+            return result
 
     def put_catalog_entries(self, station_name: str, catalog_entries: list[CatalogEntry]):
         with sqlite3.connect(self.db_path) as connection:
