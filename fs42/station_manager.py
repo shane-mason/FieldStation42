@@ -120,6 +120,7 @@ class StationManager(object):
                         "db_path",
                         "server_host",
                         "server_port",
+                        "normalize_titles"
                     ]
                     d = json.load(f)
 

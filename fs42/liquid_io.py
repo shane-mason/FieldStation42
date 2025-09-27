@@ -156,11 +156,17 @@ class LiquidIO:
                     # content_obj.append(CatalogEntry.from_json_dict(entry))
                     content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))  
 
+        main_normal = StationManager().server_conf.get("normalize_title", True)
+        the_title = _title
+
+        if main_normal:
+            the_title = TitleParser.parse_title(the_title)
+
         args = (
             content_obj,
             _start_time,
             _end_time,
-            TitleParser.parse_title(_title),  # title
+            the_title,  # title
             _break_strategy,  # break_strategy
             _break_info,
         )

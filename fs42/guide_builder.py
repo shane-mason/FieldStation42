@@ -53,7 +53,11 @@ class ScheduleQuery:
             if next_marker > end_target:
                 ends_later = True
 
-            _display_title = normalize_video_title(programming_block.title) if normalize else programming_block.title
+            _display_title = programming_block.title
+
+            #never normalize - this is at the global level now
+            #if normalize:
+            #    _display_title = normalize_video_title(programming_block.title)
 
             _block = PreviewBlock(_display_title)
             _block.started_earlier = started_earlier

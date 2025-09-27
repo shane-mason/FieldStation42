@@ -53,7 +53,7 @@ class GuideWindowConf:
 
         self.play_sound = False
         self.sound_to_play = None
-        self.normalize_title = True
+        self.normalize_titles = True
 
         self.scroll_speed = 1.0
 
@@ -166,7 +166,7 @@ class ScheduleFrame(tk.Frame):
 
     def populate_frame(self):
         gb = GuideBuilder()
-        view = gb.build_view(normalize=self.conf.normalize_title)
+        view = gb.build_view(normalize=self.conf.normalize_titles)
 
         self.lbl_current_time = tk.Label(
             self,
