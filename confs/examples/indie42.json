@@ -16,6 +16,16 @@
     "standby_image": "runtime/standby.png",
     "be_right_back_media" : "runtime/brb.png",
 
+    "autobump": {
+        "title": "Indie42 TV",
+        "subtitle": "Old and Bad Videos",
+        "variation": "retro",
+        "detail1": "If you like the old stuff",
+        "detail2": "that has bad messaging",
+        "detail3": "details are optional",
+        "bg_music": "logo0.mp3"
+    },
+
     "monday": {
         "0": {"tags" : "late"},
         "1": {"tags" : "late"},
