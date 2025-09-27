@@ -10,5 +10,6 @@
     "fullscreen" : false,
     "width": 720,
     "height": 480,
-    "normalize_title": true
+    "normalize_title": true,
+    "scroll_speed": 1.0
 }}
