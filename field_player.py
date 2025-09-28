@@ -224,7 +224,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             stuck_timer += 1
 
             # only put it up once after 2 seconds of being stuck
-            if stuck_timer >= 2 and "standby_image" in channel_conf:
+            if stuck_timer == 2 and "standby_image" in channel_conf:
                 player.play_file(channel_conf["standby_image"])
             current_title_on_stuck = player.get_current_path()
             update_status_socket(
