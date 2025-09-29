@@ -387,10 +387,21 @@ class ShowCatalog:
                 start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
                 end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir)
             else:
+                # then what kind of autobumps?
+                autoconf = self.config["autobump"]
+                strategy = "both"
+                if "strategy" in autoconf:
+                    strategy = autoconf["strategy"]
+                
                 autos = AutoBumpAgent.gen_bumps(self.config)
-                if autos:
-                    start_candidate = autos.get("start_block", None)
-                    end_candidate = autos.get("end_block", None)
+                
+                start_candidate = autos.get("message_bump", None)
+                end_candidate = autos.get("next_bump", None)                
+                
+                if strategy == "start":
+                    end_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
+                elif strategy == "end":
+                    start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
             
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration

@@ -23,6 +23,7 @@ bump.html?title=MTV&subtitle=Music Television&variation=retro&bg_music=logo2.mp3
 | `next_network` | Show upcoming programs | `"nbc"`, `"mtv"`, `"espn"` |
 | `duration` | Auto-hide after milliseconds | `5000`, `10000`, `0` (never) |
 | `bg_music` | Background music file or URL | `"logo2.mp3"`, `"https://..."` |
+| `strategy` | Autobump position| `start`, `end`, `both`|
 
 ## Visual Styles
 

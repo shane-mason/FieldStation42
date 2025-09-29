@@ -21,9 +21,9 @@ class AutoBumpAgent:
         if "duration" not in ab_config or not ab_config["duration"]:
             ab_config["duration"] = 7
 
-        start_bump = AutoBumpAgent.message_bump(ab_config, AutoBumpAgent.base_url)
-        end_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.base_url, station_config["network_name"])
-        return {"start_block": start_bump, "end_block": end_bump}
+        msg_bump = AutoBumpAgent.message_bump(ab_config, AutoBumpAgent.base_url)
+        next_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.base_url, station_config["network_name"])
+        return {"message_bump": msg_bump, "next_bump": next_bump}
 
     @staticmethod
     def is_autobump_url(url):
