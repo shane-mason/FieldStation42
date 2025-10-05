@@ -256,9 +256,17 @@ class ShowCatalog:
                 pre_key = f"{tag}-{ShowCatalog.prebump}"
                 post_key = f"{tag}-{ShowCatalog.postbump}"
                 (pre, fill, post) = MediaProcessor._by_position(subdir_clips, ShowCatalog.prebump, ShowCatalog.postbump)
+
+                # Update the tag attribute on each entry to match the composite key
+                for entry in pre:
+                    entry.tag = pre_key
+                for entry in post:
+                    entry.tag = post_key
+
                 self.clip_index[tag] = self.clip_index[tag] + fill
                 self.clip_index[pre_key] = pre
                 self.clip_index[post_key] = post
+           
                 count_added += len(pre) + len(fill) + len(post)
             else:
                 self.clip_index[tag] += subdir_clips
@@ -389,7 +397,7 @@ class ShowCatalog:
         remaining = target_duration
         start_candidate = None
         end_candidate = None
-
+        
         # INSERT AUTO BUMPER LOGIC HERE
         if bumpers:
             if "autobump" not in self.config:
