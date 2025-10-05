@@ -212,8 +212,14 @@ class MediaProcessor:
                 break_points[i]["segment_duration"] = (
                     break_points[i + 1]["chapter_start"] - break_points[i]["chapter_start"]
                 )
+                # Preserve or calculate chapter_end
+                if "chapter_end" not in break_points[i]:
+                    break_points[i]["chapter_end"] = break_points[i + 1]["chapter_start"]
             else:
                 break_points[i]["segment_duration"] = content_duration - break_points[i]["chapter_start"]
+                # Preserve or calculate chapter_end
+                if "chapter_end" not in break_points[i]:
+                    break_points[i]["chapter_end"] = content_duration
 
         return break_points
 
