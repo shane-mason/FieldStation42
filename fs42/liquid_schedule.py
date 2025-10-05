@@ -90,7 +90,6 @@ class LiquidSchedule:
 
             target_duration = self._calc_target_duration(candidate.duration, _increment)
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
-            print("Calling new block: ", break_info)
             new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
             # add sequence information
             if seq_key:
@@ -133,17 +132,15 @@ class LiquidSchedule:
 
         # does this slot have a start bump?
         if "start_bump" in slot_config:
-            print("Has start")
             break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
         if "end_bump" in slot_config:
-            print("has end")
             break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
 
         break_info["bump_dir"] = slot_config.get("bump_dir", self.conf.get("bump_dir", None))
         break_info["commercial_dir"] = slot_config.get("commercial_dir", self.conf.get("commercial_dir", None))
 
         break_strategy = slot_config.get("break_strategy", self.conf["break_strategy"])
-        print("Returning: ", break_info)
+
         return (break_info, break_strategy)
 
     def _fluid(self, start_time, end_target):
@@ -169,15 +166,18 @@ class LiquidSchedule:
 
             new_block = None
             if tag_str is not None:
-                print("Sending slot config: ", slot_config)
                 break_info, break_strategy = self._break_info(slot_config)
-                print("Got back ", break_info)
+                
                 if MarathonAgent.detect_marathon(slot_config):
                     forward_buffer = MarathonAgent.fill_marathon(slot_config)
 
+                #print("in _fluid - working on tag ", tag_str)
+                #print(self.conf["clip_shows"])
                 if tag_str not in self.conf["clip_shows"]:
+                    #print("not clip show")
                     new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
                 else:
+                    #print("is clip show")
                     new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
 
             else:
