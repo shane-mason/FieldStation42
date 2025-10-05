@@ -301,25 +301,29 @@ def main():
         memory_limit(memory_percent)
 
     if args.reset_chapters:
+        import sqlite3
         from fs42.fluid_builder import FluidBuilder
         _l.info("Clearing all cached chapter markers from database")
         fluid = FluidBuilder()
-        cursor = fluid.connection.cursor()
-        cursor.execute("DELETE FROM chapter_points")
-        fluid.connection.commit()
-        cursor.close()
+        with sqlite3.connect(fluid.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute("DELETE FROM chapter_points")
+            connection.commit()
+            cursor.close()
         success_messages.append("Cleared all cached chapter markers")
         print_outcome(success_messages, failure_messages, console)
         return
 
     if args.reset_breaks:
+        import sqlite3
         from fs42.fluid_builder import FluidBuilder
         _l.info("Clearing all cached break points from database")
         fluid = FluidBuilder()
-        cursor = fluid.connection.cursor()
-        cursor.execute("DELETE FROM break_points")
-        fluid.connection.commit()
-        cursor.close()
+        with sqlite3.connect(fluid.db_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute("DELETE FROM break_points")
+            connection.commit()
+            cursor.close()
         success_messages.append("Cleared all cached break points")
         print_outcome(success_messages, failure_messages, console)
         return
