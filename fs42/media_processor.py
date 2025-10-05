@@ -206,14 +206,14 @@ class MediaProcessor:
     @staticmethod
     def calc_black_segments(break_points, content_duration):
         # ensure start ordering
-        break_points = sorted(break_points, key=lambda k: k["black_start"])
+        break_points = sorted(break_points, key=lambda k: k["chapter_start"])
         for i in range(len(break_points)):
             if i < len(break_points) - 1:
                 break_points[i]["segment_duration"] = (
-                    break_points[i + 1]["black_start"] - break_points[i]["black_start"]
+                    break_points[i + 1]["chapter_start"] - break_points[i]["chapter_start"]
                 )
             else:
-                break_points[i]["segment_duration"] = content_duration - break_points[i]["black_start"]
+                break_points[i]["segment_duration"] = content_duration - break_points[i]["chapter_start"]
 
         return break_points
 
@@ -242,8 +242,8 @@ class MediaProcessor:
             # Actually run the command and capture its output
             stdout, stderr = filter_complex.run(capture_stdout=True, capture_stderr=True)
 
-            # Decode and parse
-            black_frames = []
+            # Decode and parse - collect all black frame midpoints
+            black_midpoints = []
             for line in stderr.decode("utf-8").split("\n"):
                 if "blackdetect" in line:
                     try:
@@ -258,7 +258,9 @@ class MediaProcessor:
                                 # then not a good line
                                 continue
 
-                            black_frames.append(info)
+                            # Calculate middle of black frame as the break point
+                            midpoint = (info["black_start"] + info["black_end"]) / 2
+                            black_midpoints.append(midpoint)
 
                     except IndexError:
                         _l.debug(f"Skipping malformed line: {line}")
@@ -268,15 +270,32 @@ class MediaProcessor:
                         pass
                     except Exception as e:
                         _l.info(f"An unexpected error occurred while parsing line: {line}. Error: {e}")
-            _l.info(f"Found {len(black_frames)} black segments in {fname}")
+            _l.info(f"Found {len(black_midpoints)} black segments in {fname}")
 
-            trimmed = []
-            # trim any near start and end times
-            for point in black_frames:
-                if point["black_start"] > timings.MIN_1 and point["black_start"] < base_duration - timings.MIN_1:
-                    trimmed.append(point)
+            # Trim any near start and end times
+            trimmed_midpoints = []
+            for midpoint in black_midpoints:
+                if midpoint > timings.MIN_1 and midpoint < base_duration - timings.MIN_1:
+                    trimmed_midpoints.append(midpoint)
 
-            segmented = MediaProcessor.calc_black_segments(trimmed, base_duration)
+            # Convert midpoints to segment format: each segment goes from previous break to current break
+            segments = []
+            prev_point = 0
+            for midpoint in trimmed_midpoints:
+                segments.append({
+                    "chapter_start": prev_point,
+                    "chapter_end": midpoint,
+                })
+                prev_point = midpoint
+
+            # Add final segment from last break to end of content
+            if trimmed_midpoints:
+                segments.append({
+                    "chapter_start": prev_point,
+                    "chapter_end": base_duration,
+                })
+
+            segmented = MediaProcessor.calc_black_segments(segments, base_duration)
 
             while min_segment(segmented) < timings.MIN_1 and len(segmented) > 1:
                 segmented = remove_min(segmented)
@@ -286,6 +305,58 @@ class MediaProcessor:
 
         except Exception as e:
             _l.error(f"FFmpeg hit an error detecting black frames in {fname}")
+            _l.exception(e)
+
+        return None
+
+    @staticmethod
+    def chapter_detect(fname, base_duration):
+        import subprocess
+        import json
+
+        _l = logging.getLogger("MEDIA")
+        _l.info(f"Detecting chapter markers in {fname}")
+
+        try:
+            # Use ffprobe with -show_chapters to extract chapter information
+            result = subprocess.run(
+                ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_chapters", fname],
+                capture_output=True,
+                text=True,
+            )
+
+            probed = json.loads(result.stdout)
+
+            chapters = []
+            if "chapters" in probed and len(probed["chapters"]) > 0:
+                for chapter in probed["chapters"]:
+                    chapter_info = {
+                        "chapter_start": float(chapter["start_time"]),
+                        "chapter_end": float(chapter["end_time"]),
+                    }
+
+                    # Add title if available
+                    if "tags" in chapter and "title" in chapter["tags"]:
+                        chapter_info["title"] = chapter["tags"]["title"]
+
+                    chapters.append(chapter_info)
+
+                _l.info(f"Found {len(chapters)} chapter markers in {fname}")
+
+                # Calculate segment durations
+                for i in range(len(chapters)):
+                    if i < len(chapters) - 1:
+                        chapters[i]["segment_duration"] = chapters[i + 1]["chapter_start"] - chapters[i]["chapter_start"]
+                    else:
+                        chapters[i]["segment_duration"] = base_duration - chapters[i]["chapter_start"]
+
+                return chapters
+            else:
+                _l.info(f"No chapter markers found in {fname}")
+                return []
+
+        except Exception as e:
+            _l.error(f"Error detecting chapter markers in {fname}")
             _l.exception(e)
 
         return None

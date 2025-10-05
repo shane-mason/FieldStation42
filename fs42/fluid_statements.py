@@ -145,6 +145,39 @@ class FluidStatements:
         connection.commit()
 
     @staticmethod
+    def add_chapter_points(connection: sqlite3.Connection, path: str, points: dict):
+        """Add or update the chapter points for this file"""
+        cursor = connection.cursor()
+        now = datetime.datetime.now()
+        json_points = json.dumps(points)
+        cursor.execute("REPLACE INTO chapter_points VALUES(?, ?, ?)", (path, json_points, now))
+        cursor.close()
+        connection.commit()
+
+    @staticmethod
+    def get_chapter_points(connection: sqlite3.Connection, path: str) -> dict:
+        """Get the chapter points for this file. Returns {} if no chapters or never scanned."""
+        cursor = connection.cursor()
+        cursor.execute("SELECT points FROM chapter_points WHERE path=?", (path,))
+        row = cursor.fetchone()
+        result = {}
+        if row:
+            loaded = json.loads(row[0])
+            # Return {} if empty list (file was scanned but has no chapters)
+            # This way schedule build sees it as "no usable chapters"
+            result = loaded if loaded else {}
+        cursor.close()
+        return result
+
+    @staticmethod
+    def delete_chapter_points(connection: sqlite3.Connection, path: str):
+        """Delete any chapter points for this file"""
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM chapter_points WHERE path=?", (path,))
+        cursor.close()
+        connection.commit()
+
+    @staticmethod
     def init_db(connection: sqlite3.Connection):
         cursor = connection.cursor()
         cursor.execute("""CREATE TABLE IF NOT EXISTS file_meta ( 
@@ -160,6 +193,13 @@ class FluidStatements:
                             """)
         
         cursor.execute("""CREATE TABLE IF NOT EXISTS break_points (
+                            path TEXT REFERENCES file_meta(path) PRIMARY KEY,
+                            points TEXT,
+                            last_updated TIMESTAMP
+                            )
+                       """)
+
+        cursor.execute("""CREATE TABLE IF NOT EXISTS chapter_points (
                             path TEXT REFERENCES file_meta(path) PRIMARY KEY,
                             points TEXT,
                             last_updated TIMESTAMP

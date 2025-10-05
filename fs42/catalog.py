@@ -38,7 +38,7 @@ class ShowCatalog:
     prebump = "prebump"
     postbump = "postbump"
 
-    def __init__(self, config, rebuild_catalog=False, load=True, debug=False, force=False):
+    def __init__(self, config, rebuild_catalog=False, load=True, debug=False, force=False, skip_chapter_scan=False):
         self.config = config
         self._l = logging.getLogger(f"{self.config['network_name']} - CAT")
 
@@ -52,6 +52,7 @@ class ShowCatalog:
 
         self.__fluid_builder = None
         self.min_gap = 3
+        self.skip_chapter_scan = skip_chapter_scan
         if rebuild_catalog:
             if force:
                 self._l.info("Rebuilding catalog with force flag - will delete existing catalog")
@@ -238,10 +239,18 @@ class ShowCatalog:
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")
             self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
 
+            # Scan for chapters
+            if self.__fluid_builder and not self.skip_chapter_scan:
+                self.__fluid_builder.scan_chapters_for_entries(self.clip_index[tag])
+
             subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder)
 
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
+
+            # Scan for chapters in subdirectory clips
+            if self.__fluid_builder and not self.skip_chapter_scan:
+                self.__fluid_builder.scan_chapters_for_entries(subdir_clips)
 
             if is_bumps:
                 pre_key = f"{tag}-{ShowCatalog.prebump}"

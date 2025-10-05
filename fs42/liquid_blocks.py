@@ -47,15 +47,6 @@ class LiquidBlock:
         return self.playback_duration() - self.content_duration()
 
     @staticmethod
-    def clip_break_points_dist(break_points, max_breaks):
-        # then remove the ones with the shortest durations until we have fewer than max_breaks
-        sorted_breaks = sorted(break_points, key=lambda k: k["black_duration"], reverse=True)
-        clipped_breaks = sorted_breaks[: int(max_breaks)]
-        # and put it back in place
-        break_points = sorted(clipped_breaks, key=lambda k: k["black_start"])
-        return break_points
-
-    @staticmethod
     def clip_break_points(break_points, max_breaks, content_duration):
         # ensure start ordering
         break_points = MediaProcessor.calc_black_segments(break_points, content_duration)
@@ -64,7 +55,7 @@ class LiquidBlock:
         sorted_breaks = sorted(break_points, key=lambda k: k["segment_duration"], reverse=True)
         clipped_breaks = sorted_breaks[: int(max_breaks)]
         # and put it back in place
-        break_points = sorted(clipped_breaks, key=lambda k: k["black_start"])
+        break_points = sorted(clipped_breaks, key=lambda k: k["chapter_start"])
         return break_points
 
     def make_plan(self, catalog):
@@ -72,9 +63,16 @@ class LiquidBlock:
         diff = self.playback_duration() - self.content_duration()
 
         _fluid = FluidBuilder()
-        break_points = _fluid.get_breaks(self.content.realpath)
+
+        # Prefer chapter markers over black detection
+        break_points = _fluid.get_chapters(self.content.realpath)
+        if not break_points:
+            # Fall back to black detection if no chapters
+            break_points = _fluid.get_breaks(self.content.realpath)
+
         strict_count = None
         if break_points:
+            print("Got breakpoints for ", self.content.realpath)
             # the maximum number of breaks points should be no more than every 2 minutes
             max_breaks = self.playback_duration() / timings.MIN_2
             # or the max breaks points should make them last at least one minute each

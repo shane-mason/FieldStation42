@@ -44,12 +44,13 @@ class ReelCutter:
             else:
 
                 keep_going = True
-                
+
                 if len(break_points):
-                    # deal with the first one segment, since the rest work off points
-                    segment_duration = break_points[0]["black_start"] + (break_points[0]["black_duration"]/2)
-                    entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration))
-                    offset += segment_duration
+                    # Play first segment from start to first break point
+                    # Use absolute chapter_start position, not cumulative offset
+                    first_segment = break_points.pop(0)
+                    segment_duration = first_segment["chapter_end"] - first_segment["chapter_start"]
+                    entries.append(BlockPlanEntry(base_clip.path, first_segment["chapter_start"], segment_duration))
 
                 while keep_going:
 
@@ -59,11 +60,10 @@ class ReelCutter:
 
                     if len(break_points):
                         this_bp = break_points.pop(0)
-                        # break in the middle of the black
-                        segment_duration = this_bp["segment_duration"] 
-                        e = BlockPlanEntry(base_clip.path, offset, segment_duration)
+                        # Play content segment using absolute chapter_start position
+                        segment_duration = this_bp["chapter_end"] - this_bp["chapter_start"]
+                        e = BlockPlanEntry(base_clip.path, this_bp["chapter_start"], segment_duration)
                         entries.append(e)
-                        offset += segment_duration
                     
                         
                     if not len(break_points) and not len(reel_blocks):

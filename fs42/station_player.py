@@ -189,7 +189,6 @@ class StationPlayer:
                                 #now see if this is an autobump
 
                 if AutoBumpAgent.is_autobump_url(file_path):
-                    print("Is auto bump!!")
                     conf = {
                         "web_url" : AutoBumpAgent.extract_url(file_path)
                     }
@@ -412,11 +411,16 @@ class StationPlayer:
 
     # returns true if play is interrupted
     def _play_from_point(self, play_point: PlayPoint):
+        # Fade to black duration before commercial breaks (in seconds)
+        FADE_DURATION = 0.5
+        fade_active = False
+
         if len(play_point.plan):
             initial_skip = play_point.offset
 
             # iterate over the slice from index to end
             for entry in play_point.plan[play_point.index :]:
+                self._l.info(f"Starting entry at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
                 self._l.info(f"Playing entry {entry}")
                 self._l.info(f"Initial Skip: {initial_skip}")
                 total_skip = entry.skip + initial_skip
@@ -437,12 +441,26 @@ class StationPlayer:
 
                 self._l.info(f"Seeking for: {total_skip}")
 
+                # Detect if this video is being clipped (stopping before natural end)
+                is_clipped = False
+                try:
+                    actual_file_duration = self.mpv.duration
+                    stop_position = total_skip + (entry.duration - initial_skip)
+                    # If stopping before end (with tolerance), we're clipping
+                    is_clipped = stop_position < (actual_file_duration - 0.5)
+                    self._l.info(f"File duration: {actual_file_duration:.2f}s, stop at: {stop_position:.2f}s, clipped: {is_clipped}")
+                except Exception as e:
+                    self._l.info(f"Could not determine if clipped: {e}")
+                    is_clipped = False
+
                 if entry.duration:
                     self._l.info(f"Monitoring for: {entry.duration - initial_skip}")
 
+                    # Calculate target playback position (where to stop in the file)
+                    target_playback_pos = total_skip + (entry.duration - initial_skip)
+
                     # this is our main event loop
                     keep_waiting = True
-                    stop_time = datetime.datetime.now() + datetime.timedelta(seconds=entry.duration - initial_skip)
                     while keep_waiting:
                         if not self.skip_reception_check:
                             self.update_reception()
@@ -450,9 +468,34 @@ class StationPlayer:
                             if self.scrambler:
                                 self.mpv.vf = self.scrambler.update_filter()
 
-                        now = datetime.datetime.now()
+                        # Use time_pos to monitor playback position
+                        try:
+                            current_playback_pos = self.mpv.time_pos
+                            if current_playback_pos is None:
+                                # time_pos unavailable, assume we've reached the end
+                                time_remaining = 0
+                            else:
+                                time_remaining = target_playback_pos - current_playback_pos
+                        except Exception:
+                            # If we can't read time_pos, assume we're done
+                            time_remaining = 0
 
-                        if now >= stop_time:
+                        # Initiate fade-to-black effect when entering fade window (only if clipped)
+                        if 0 < time_remaining <= FADE_DURATION and not fade_active and is_clipped:
+                            self._l.info(f"Starting fade with {time_remaining:.2f}s remaining")
+
+                            # Use MPV's built-in fade filter with duration
+                            # Fade video to black (only if not using scramble effects)
+                            if not self.skip_reception_check:
+                                try:
+                                    # Use fade filter: fade out to black over remaining time
+                                    self.mpv.vf = f"fade=t=out:st=0:d={time_remaining}"
+                                except Exception as e:
+                                    self._l.debug(f"Could not set video fade filter: {e}")
+
+                            fade_active = True
+
+                        if time_remaining <= 0:
                             keep_waiting = False
                         else:
                             # debounce time
@@ -462,6 +505,12 @@ class StationPlayer:
                                 return response
                 else:
                     return PlayerOutcome(PlayerState.FAILED)
+
+                # Log timing for debugging inter-entry delays
+                self._l.info(f"Segment ended at {datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+
+                # Reset fade state for next segment
+                fade_active = False
 
                 initial_skip = 0
 

@@ -21,12 +21,12 @@ logging.basicConfig(format="[%(name)s] %(message)s", level=logging.INFO, handler
 
 
 class Station42:
-    def __init__(self, config, rebuild_catalog=False, force=False):
+    def __init__(self, config, rebuild_catalog=False, force=False, skip_chapter_scan=False):
         # station configuration
         self.config = config
         self._l = logging.getLogger(self.config["network_name"])
         self.catalog: ShowCatalog = ShowCatalog(
-            self.config, rebuild_catalog=rebuild_catalog, force=force
+            self.config, rebuild_catalog=rebuild_catalog, force=force, skip_chapter_scan=skip_chapter_scan
         )
         self.get_text_listing = self.catalog.get_text_listing
         self.check_catalog = self.catalog.check_catalog
@@ -98,6 +98,11 @@ def build_parser():
         help="Scan for points break insertion point in media files in the provided directory. (VERY experimental)",
     )
     parser.add_argument(
+        "-t",
+        "--chapter_detect_dir",
+        help="Scan for chapter markers in media files in the provided directory.",
+    )
+    parser.add_argument(
         "-w",
         "--add_week",
         nargs="*",
@@ -137,6 +142,16 @@ def build_parser():
         "--force",
         action="store_true",
         help="With -r or -x will force deletion of schedules and catalogs if they are failing. Wont reset sequences, file cache or breakpoints",
+    )
+    parser.add_argument(
+        "--scan_chapters",
+        action="store_true",
+        help="Enable automatic chapter scanning during catalog rebuild (experimental)",
+    )
+    parser.add_argument(
+        "--reset_chapters",
+        action="store_true",
+        help="Clear all cached chapter markers from the database",
     )
     parser.add_argument(
         "-v",
@@ -207,7 +222,8 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Rebuilding catalog for {station['network_name']}")
                 try:
-                    Station42(station, True, args.force)
+                    # Invert the flag: scan_chapters is opt-in, so skip when NOT set
+                    Station42(station, True, args.force, not args.scan_chapters)
                     success_messages.append(
                         f"Successfully rebuilt catalog for {station['network_name']}"
                     )
@@ -278,6 +294,18 @@ def main():
             memory_percent = 0.1
             _l.info("Memory percent too low. Setting to 10%.")
         memory_limit(memory_percent)
+
+    if args.reset_chapters:
+        from fs42.fluid_builder import FluidBuilder
+        _l.info("Clearing all cached chapter markers from database")
+        fluid = FluidBuilder()
+        cursor = fluid.connection.cursor()
+        cursor.execute("DELETE FROM chapter_points")
+        fluid.connection.commit()
+        cursor.close()
+        success_messages.append("Cleared all cached chapter markers")
+        print_outcome(success_messages, failure_messages, console)
+        return
 
     if args.schedule:
         _l.info("Printing shedule summary.")
@@ -448,6 +476,11 @@ def main():
         _l.info("Scanning for break detection points in media files...")
         FluidBuilder().scan_breaks(args.break_detect_dir)
         success_messages.append("I scanned for break detection points")
+
+    if args.chapter_detect_dir is not None:
+        _l.info("Scanning for chapter markers in media files...")
+        FluidBuilder().scan_chapters(args.chapter_detect_dir)
+        success_messages.append("I scanned for chapter markers")
 
     if args.add_day is not None:
         _to_add_to = []

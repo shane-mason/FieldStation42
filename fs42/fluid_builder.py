@@ -75,6 +75,62 @@ class FluidBuilder:
             results = FluidStatements.get_break_points(connection, full_path)
         return results
 
+    def scan_chapters(self, dir_path):
+        with sqlite3.connect(self.db_path) as connection:
+
+            self._l.info(f"Scanning directory {dir_path} for chapters")
+            if not os.path.isdir(dir_path):
+                raise FileNotFoundError(f"Directory does not exist {dir_path}")
+            dir_path = os.path.realpath(dir_path)
+            file_list = MediaProcessor._rfind_media(dir_path)
+
+            # Check the cache because we require the duration to process.
+            file_paths = [os.path.realpath(file) for file in file_list]
+            cached_files = {}
+            for path in file_paths:
+                cached = FluidStatements.check_file_cache(connection, path)
+                if cached:
+                    cached_files[path] = cached
+
+            for file in file_list:
+                rfp = os.path.realpath(file)
+                if rfp in cached_files:
+                    cached = cached_files[rfp]
+                    if FluidStatements.get_chapter_points(connection, rfp):
+                        self._l.info(f"Chapters already exist for {rfp}")
+                    else:
+                        chapters = MediaProcessor.chapter_detect(rfp, cached.duration)
+                        if chapters:
+                            FluidStatements.add_chapter_points(connection, rfp, chapters)
+                        else:
+                            self._l.info(f"No chapters found in {rfp}")
+                else:
+                    self._l.warning(f"{rfp} is not in catalog cache - not adding chapter points.")
+            connection.commit()
+
+    def get_chapters(self, full_path):
+        with sqlite3.connect(self.db_path) as connection:
+            results = FluidStatements.get_chapter_points(connection, full_path)
+        return results
+
+    def scan_chapters_for_entries(self, entries):
+        """Scan chapter markers for a list of catalog entries that don't have them yet"""
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+            for entry in entries:
+                if hasattr(entry, 'realpath') and entry.realpath:
+                    # Check if we've already scanned this file (row exists in table)
+                    cursor.execute("SELECT path FROM chapter_points WHERE path=?", (entry.realpath,))
+                    if not cursor.fetchone():  # Never scanned before
+                        # Scan for chapters
+                        chapters = MediaProcessor.chapter_detect(entry.realpath, entry.duration)
+                        # Always store result, even if empty or None
+                        FluidStatements.add_chapter_points(connection, entry.realpath, chapters if chapters else [])
+                        if chapters:
+                            self._l.info(f"Added {len(chapters)} chapters for {entry.realpath}")
+            cursor.close()
+            connection.commit()
+
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(levelname)s:%(name)s:%(message)s", level=logging.INFO)
