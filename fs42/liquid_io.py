@@ -130,7 +130,6 @@ class LiquidIO:
                 # plan_json = json.dumps(block.plan.toJSON()) if block.plan else None
                 plan_json = json.dumps([p.toJSON() for p in block.plan])
                 block_type = type(block).__name__
-
                 break_info = json.dumps(block.break_info) if block.break_info else None
                 seq_json = json.dumps(block.sequence_key) if block.sequence_key else None
                

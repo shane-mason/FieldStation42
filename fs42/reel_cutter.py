@@ -12,7 +12,7 @@ class ReelCutter:
             #[print(x) for x in break_points]
 
         if start_bump:
-            entries.append(BlockPlanEntry(start_bump.path, 0, start_bump.duration))
+            entries.append(BlockPlanEntry(start_bump["path"], 0, start_bump["duration"]))
 
         if reel_blocks:
             break_count = len(reel_blocks)
@@ -70,7 +70,7 @@ class ReelCutter:
                         keep_going = False
 
         if end_bump:
-            entries.append(BlockPlanEntry(end_bump.path, 0, end_bump.duration))
+            entries.append(BlockPlanEntry(end_bump["path"], 0, end_bump["duration"]))
 
         return entries
 

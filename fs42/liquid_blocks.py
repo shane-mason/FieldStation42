@@ -27,6 +27,7 @@ class LiquidBlock:
         self.sequence_key = None
 
         if break_info:
+            #print("break info: ", break_info)
             self.start_bump = break_info.get("start_bump", None)
             self.end_bump = break_info.get("end_bump", None)
             self.bump_override = break_info.get("bump_dir", None)
@@ -85,10 +86,10 @@ class LiquidBlock:
 
         # is there a start bump?
         if self.start_bump:
-            diff -= self.start_bump.duration
+            diff -= self.start_bump["duration"]
 
         if self.end_bump:
-            diff -= self.end_bump.duration
+            diff -= self.end_bump["duration"]
 
         self.reel_blocks = None
         if diff < -2:

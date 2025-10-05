@@ -8,6 +8,7 @@ from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
 from fs42.sequence_api import SequenceAPI
 from fs42.autobump_agent import AutoBumpAgent
+from fs42.block_plan import BlockPlanEntry
 
 
 try:
@@ -309,13 +310,16 @@ class ShowCatalog:
         return candidate
 
     def get_start_bump(self, fp):
-        if fp in self.clip_index["start_bumps"]:
-            return self.clip_index["start_bumps"][fp]
+        for bump in self.clip_index["start_bumps"]:
+            if bump.path.endswith(fp):
+                return {"path": bump.path, "duration": bump.duration}
         return None
 
     def get_end_bump(self, fp):
-        if fp in self.clip_index["end_bumps"]:
-            return self.clip_index["end_bumps"][fp]
+        for bump in self.clip_index["end_bumps"]:
+            if bump.path.endswith(fp):
+                return {"path": bump.path, "duration": bump.duration}
+
         return None
 
     def entry_by_fpath(self, fpath):
