@@ -302,7 +302,6 @@ def main():
 
     if args.reset_chapters:
         import sqlite3
-        from fs42.fluid_builder import FluidBuilder
         _l.info("Clearing all cached chapter markers from database")
         fluid = FluidBuilder()
         with sqlite3.connect(fluid.db_path) as connection:
@@ -316,7 +315,6 @@ def main():
 
     if args.reset_breaks:
         import sqlite3
-        from fs42.fluid_builder import FluidBuilder
         _l.info("Clearing all cached break points from database")
         fluid = FluidBuilder()
         with sqlite3.connect(fluid.db_path) as connection:
