@@ -154,6 +154,11 @@ def build_parser():
         help="Clear all cached chapter markers from the database",
     )
     parser.add_argument(
+        "--reset_breaks",
+        action="store_true",
+        help="Clear all cached break points from the database",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -304,6 +309,18 @@ def main():
         fluid.connection.commit()
         cursor.close()
         success_messages.append("Cleared all cached chapter markers")
+        print_outcome(success_messages, failure_messages, console)
+        return
+
+    if args.reset_breaks:
+        from fs42.fluid_builder import FluidBuilder
+        _l.info("Clearing all cached break points from database")
+        fluid = FluidBuilder()
+        cursor = fluid.connection.cursor()
+        cursor.execute("DELETE FROM break_points")
+        fluid.connection.commit()
+        cursor.close()
+        success_messages.append("Cleared all cached break points")
         print_outcome(success_messages, failure_messages, console)
         return
 
