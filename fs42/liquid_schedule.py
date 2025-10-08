@@ -132,8 +132,6 @@ class LiquidSchedule:
 
         # does this slot have a start bump?
         if "start_bump" in slot_config:
-            print("Start bump found")
-            print(slot_config)
             break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
         if "end_bump" in slot_config:
             break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
