@@ -11,7 +11,6 @@ class ConfigProcessor:
         # first, fill in templates
         processed = ConfigProcessor._process_templates(conf)
         processed = ConfigProcessor._process_strategy(processed)
-
         return processed
 
     @staticmethod

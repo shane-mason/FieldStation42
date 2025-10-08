@@ -73,7 +73,6 @@ class LiquidBlock:
 
         strict_count = None
         if break_points:
-            print("Got breakpoints for ", self.content.realpath)
             # the maximum number of breaks points should be no more than every 2 minutes
             max_breaks = self.playback_duration() / timings.MIN_2
             # or the max breaks points should make them last at least one minute each
