@@ -156,10 +156,10 @@ class LiquidClipBlock(LiquidBlock):
 
         # is there a start bump?
         if self.start_bump:
-            diff -= self.start_bump.duration
+            diff -= self.start_bump["duration"]
 
         if self.end_bump:
-            diff -= self.end_bump.duration
+            diff -= self.end_bump["duration"]
 
         self.reel_blocks = None
         if diff < -2:
