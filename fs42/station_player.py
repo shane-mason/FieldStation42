@@ -213,7 +213,6 @@ class StationPlayer:
                 self._l.info(f"playing {file_path}")
                 self.mpv.play(file_path)
                 self.mpv.wait_for_property("duration")
-                self._l.info("## Set duration, returning true")
 
                 return True
             else:
@@ -436,7 +435,7 @@ class StationPlayer:
                 try:
                     self.mpv.seek(total_skip)
                 except Exception:
-                    self._l.error(f"Failed seeking on {entry.path}")
+                    self._l.error(f"Failed seeking {total_skip} on {entry.path}")
                     return PlayerOutcome(PlayerState.FAILED)
 
                 self._l.info(f"Seeking for: {total_skip}")
@@ -456,8 +455,9 @@ class StationPlayer:
                 if entry.duration:
                     self._l.info(f"Monitoring for: {entry.duration - initial_skip}")
 
-                    # Calculate target playback position (where to stop in the file)
-                    target_playback_pos = total_skip + (entry.duration - initial_skip)
+                    # Calculate target end time using wall clock
+                    target_end_time = datetime.datetime.now() + datetime.timedelta(seconds=(entry.duration - initial_skip))
+                    self._l.info(f"Target end time: {target_end_time.strftime('%H:%M:%S.%f')[:-3]}")
 
                     # this is our main event loop
                     keep_waiting = True
@@ -468,17 +468,8 @@ class StationPlayer:
                             if self.scrambler:
                                 self.mpv.vf = self.scrambler.update_filter()
 
-                        # Use time_pos to monitor playback position
-                        try:
-                            current_playback_pos = self.mpv.time_pos
-                            if current_playback_pos is None:
-                                # time_pos unavailable, assume we've reached the end
-                                time_remaining = 0
-                            else:
-                                time_remaining = target_playback_pos - current_playback_pos
-                        except Exception:
-                            # If we can't read time_pos, assume we're done
-                            time_remaining = 0
+                        # Calculate time remaining based on wall clock
+                        time_remaining = (target_end_time - datetime.datetime.now()).total_seconds()
 
                         # Initiate fade-to-black effect when entering fade window (only if clipped)
                         if 0 < time_remaining <= FADE_DURATION and not fade_active and is_clipped:
