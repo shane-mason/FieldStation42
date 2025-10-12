@@ -21,7 +21,7 @@ bump.html?title=MTV&subtitle=Music Television&variation=retro&bg_music=logo2.mp3
 | `bg` | Background image URL | `"background.jpg"` |
 | `css` | Custom CSS file | `"custom.css"` |
 | `next_network` | Show upcoming programs | `"nbc"`, `"mtv"`, `"espn"` |
-| `duration` | Auto-hide after milliseconds | `5000`, `10000`, `0` (never) |
+| `duration` | Auto-hide after seconds | `7`, `10`, `0` (never) |
 | `bg_music` | Background music file or URL | `"logo2.mp3"`, `"https://..."` |
 | `strategy` | Autobump position| `start`, `end`, `both`|
 
@@ -92,7 +92,7 @@ bump.html?title=NBC&subtitle=Must See TV&detail1=Channel 4&detail2=nbctv.com
 
 ### With Music and Programming
 ```
-bump.html?title=MTV&subtitle=Music Television&variation=retro&next_network=mtv&bg_music=logo2.mp3&duration=7000
+bump.html?title=MTV&subtitle=Music Television&variation=retro&next_network=mtv&bg_music=logo2.mp3&duration=7
 ```
 
 ### Custom Colors
@@ -110,7 +110,7 @@ configureBump({
     subtitle: 'Explore Your World',
     variation: 'modern',
     bgMusic: 'logo1.mp3',
-    duration: 5000
+    duration: 5
 });
 ```
 
@@ -124,7 +124,7 @@ For autobump system integration:
     "subtitle": "Your Retro Broadcast Experience",
     "variation": "retro",
     "bg_music": "logo2.mp3",
-    "duration": 7000,
+    "duration": 7,
     "next_network": "fieldstation42"
 }
 ```
