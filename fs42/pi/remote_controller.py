@@ -5,6 +5,7 @@ import requests
 import os
 import threading
 import sys
+import time
 
 
 # ======================================
@@ -15,6 +16,9 @@ import sys
 FS42_HOST = os.getenv('FS42_HOST', '127.0.0.1')
 FS42_PORT = os.getenv('FS42_PORT', '4242')
 FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
+
+# Debounce Configuration - Time in seconds to wait between repeated button presses
+DEBOUNCE_TIME = 0.25  # 250ms default debounce time
 
 # Key Mappings - Change these to customize which keys do what
 # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
@@ -46,6 +50,25 @@ input_lock = threading.Lock()
 # Last channel tracking
 current_channel = None
 last_channel = None
+
+# Debounce tracking - stores last press time for each function
+last_press_time = {}
+debounce_lock = threading.Lock()
+
+
+def should_allow_press(function_name, debounce_time=DEBOUNCE_TIME):
+    """Check if enough time has passed since last press of this function"""
+    global last_press_time
+
+    with debounce_lock:
+        current_time = time.time()
+        last_time = last_press_time.get(function_name, 0)
+
+        if current_time - last_time >= debounce_time:
+            last_press_time[function_name] = current_time
+            return True
+        else:
+            return False
 
 
 def send_channel_change():
@@ -100,6 +123,9 @@ def number_pressed(number):
 
 def show_guide_pressed():
     """Handle home key press"""
+    if not should_allow_press('show_guide'):
+        return  # Debounced - ignore this press
+
     try:
         response = requests.post(f'{FS42_BASE_URL}/player/channels/guide')
         if response.ok:
@@ -112,6 +138,9 @@ def show_guide_pressed():
 
 def volume_up_pressed():
     """Handle right arrow key press"""
+    if not should_allow_press('volume_up'):
+        return  # Debounced - ignore this press
+
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/volume/up')
         if response.ok:
@@ -125,6 +154,9 @@ def volume_up_pressed():
 
 def volume_down_pressed():
     """Handle left arrow key press"""
+    if not should_allow_press('volume_down'):
+        return  # Debounced - ignore this press
+
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/volume/down')
         if response.ok:
@@ -138,6 +170,9 @@ def volume_down_pressed():
 
 def channel_up_pressed():
     """Handle up arrow key press"""
+    if not should_allow_press('channel_up'):
+        return  # Debounced - ignore this press
+
     global current_channel, last_channel
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
@@ -154,6 +189,9 @@ def channel_up_pressed():
 
 def channel_down_pressed():
     """Handle down arrow key press"""
+    if not should_allow_press('channel_down'):
+        return  # Debounced - ignore this press
+
     global current_channel, last_channel
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
@@ -170,6 +208,9 @@ def channel_down_pressed():
 
 def last_channel_pressed():
     """Handle last channel key press"""
+    if not should_allow_press('last_channel'):
+        return  # Debounced - ignore this press
+
     global current_channel, last_channel
     if last_channel is not None:
         try:
@@ -191,6 +232,9 @@ def last_channel_pressed():
 
 def end_pressed():
     """Handle end key press - stop the player"""
+    if not should_allow_press('power_stop'):
+        return  # Debounced - ignore this press
+
     try:
         response = requests.get(f'{FS42_BASE_URL}/player/commands/stop')
         if response.ok:
