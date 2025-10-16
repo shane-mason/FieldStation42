@@ -40,8 +40,7 @@ class MediaProcessor:
             # it might not support streams, so check with moviepy
             if duration <= 0.0:
                 try:
-                    video_clip = VideoFileClip(fname)
-                    duration = video_clip.duration
+                    duration = MediaProcessor.get_duration_with_ffprobe(fname)
                 except Exception as e:
                     _l.error(f"Error in moviepy attempting to get duration for {fname}")
                     _l.exception(e)
@@ -61,6 +60,22 @@ class MediaProcessor:
 
         return result
 
+    @staticmethod
+    def get_duration_with_ffprobe(filepath):
+        """
+        Retrieves video duration using ffprobe.
+        """
+        try:
+            probe = ffmpeg.probe(filepath)
+            duration_str = probe['format']['duration']
+            return float(duration_str)
+        except ffmpeg.Error as e:
+            print(f"Error calling ffprobe: {e.stderr.decode()}")
+            return None
+        except Exception as e:
+            print(f"Error parsing ffprobe output: {e}")
+            return None
+            
     @staticmethod
     def _process_media(file_list, tag, hints=[], fluid=None) -> list[CatalogEntry]:
         _l = logging.getLogger("MEDIA")
