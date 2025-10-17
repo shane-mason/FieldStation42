@@ -429,7 +429,9 @@ async def _volume_wireplumber(action: str):
     """Control volume using WirePlumber wpctl (newer PipeWire systems)"""
     try:
         if action == "up":
-            cmd = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05+"]
+            # wpctl has a built-in limit option
+            # Using --limit=1.0 caps volume at 100%
+            cmd = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05+", "--limit=1.0"]
             message = "Volume increased by 5%"
         elif action == "down":
             cmd = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "0.05-"]
@@ -439,10 +441,14 @@ async def _volume_wireplumber(action: str):
             message = "Mute toggled"
         else:
             raise ValueError(f"Invalid action: {action}")
-        
+
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return {"action": action, "method": "wireplumber", "status": "success", "message": message, "volume": "unknown"}
-        
+
+        # Try to get current volume from wpctl
+        volume = await _get_wireplumber_volume()
+
+        return {"action": action, "method": "wireplumber", "status": "success", "message": message, "volume": volume}
+
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"WirePlumber wpctl failed: {e.stderr}")
 
@@ -490,24 +496,51 @@ async def _get_pulseaudio_mute_status() -> str:
             ["pactl", "get-sink-mute", "@DEFAULT_SINK@"],
             capture_output=True, text=True, check=True
         )
-        
+
         # Get volume
         volume_result = subprocess.run(
             ["pactl", "get-sink-volume", "@DEFAULT_SINK@"],
             capture_output=True, text=True, check=True
         )
-        
+
         # Parse mute status - output is like "Mute: yes" or "Mute: no"
         is_muted = "yes" in mute_result.stdout.lower()
-        
+
         # Parse volume
         volume_match = re.search(r'(\d+)%', volume_result.stdout)
         volume = volume_match.group(1) if volume_match else "??"
-        
+
         if is_muted:
             return f"MUTED ({volume}%)"
         else:
             return f"{volume}%"
-            
+
     except:
         return "MUTE"
+
+
+async def _get_wireplumber_volume() -> str:
+    """Get current volume from WirePlumber"""
+    try:
+        result = subprocess.run(
+            ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"],
+            capture_output=True, text=True, check=True
+        )
+
+        # wpctl output looks like: "Volume: 0.75" or "Volume: 0.75 [MUTED]"
+        # Convert decimal to percentage
+        match = re.search(r'Volume:\s+([\d.]+)', result.stdout)
+        if match:
+            volume_decimal = float(match.group(1))
+            volume_percent = int(volume_decimal * 100)
+
+            # Check if muted
+            is_muted = "[MUTED]" in result.stdout
+
+            if is_muted:
+                return f"MUTED ({volume_percent}%)"
+            else:
+                return f"{volume_percent}%"
+        return "unknown"
+    except:
+        return "unknown"
