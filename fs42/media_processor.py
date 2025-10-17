@@ -60,7 +60,7 @@ class MediaProcessor:
             _l.error(f"Error processing media file {fname}")
 
         return result
-            
+
     @staticmethod
     def _process_media(file_list, tag, hints=[], fluid=None) -> list[CatalogEntry]:
         _l = logging.getLogger("MEDIA")
