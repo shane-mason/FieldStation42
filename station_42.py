@@ -144,9 +144,9 @@ def build_parser():
         help="With -r or -x will force deletion of schedules and catalogs if they are failing. Wont reset sequences, file cache or breakpoints",
     )
     parser.add_argument(
-        "--scan_chapters",
+        "--skip_chapter_scan",
         action="store_true",
-        help="Enable automatic chapter scanning during catalog rebuild (experimental)",
+        help="Skip automatic chapter scanning during catalog rebuild",
     )
     parser.add_argument(
         "--reset_chapters",
@@ -227,8 +227,8 @@ def main():
             if station["_has_catalog"]:
                 _l.info(f"Rebuilding catalog for {station['network_name']}")
                 try:
-                    # Invert the flag: scan_chapters is opt-in, so skip when NOT set
-                    Station42(station, True, args.force, not args.scan_chapters)
+                    # Chapter scanning is now opt-out via --skip_chapter_scan flag
+                    Station42(station, True, args.force, args.skip_chapter_scan)
                     success_messages.append(
                         f"Successfully rebuilt catalog for {station['network_name']}"
                     )
