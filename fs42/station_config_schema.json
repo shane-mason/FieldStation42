@@ -1,0 +1,485 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fieldstation42.example.com/station-config.schema.json",
+  "title": "FieldStation42 Station Configuration",
+  "description": "Schema for FieldStation42 station configuration files",
+  "type": "object",
+  "required": ["station_conf"],
+  "properties": {
+    "station_conf": {
+      "type": "object",
+      "required": ["network_name", "channel_number"],
+      "properties": {
+        "network_name": {
+          "type": "string",
+          "description": "Name of the network/station"
+        },
+        "network_long_name": {
+          "type": "string",
+          "description": "Extended name for the network"
+        },
+        "channel_number": {
+          "type": "integer",
+          "description": "Channel number for the station"
+        },
+        "network_type": {
+          "type": "string",
+          "enum": ["standard", "web", "guide", "loop", "streaming"],
+          "description": "Type of network station"
+        },
+        "schedule_increment": {
+          "type": "integer",
+          "description": "Time increment for scheduling in minutes"
+        },
+        "schedule_offset": {
+          "type": "integer",
+          "description": "Offset for schedule timing in minutes"
+        },
+        "break_strategy": {
+          "type": "string",
+          "enum": ["standard", "end", "center"],
+          "description": "Strategy for commercial breaks"
+        },
+        "commercial_free": {
+          "type": "boolean",
+          "description": "Whether the channel is commercial-free"
+        },
+        "break_duration": {
+          "type": "integer",
+          "description": "Duration of commercial breaks in seconds"
+        },
+        "content_dir": {
+          "type": "string",
+          "description": "Directory containing content files"
+        },
+        "bump_dir": {
+          "type": "string",
+          "description": "Directory containing bump videos"
+        },
+        "commercial_dir": {
+          "type": "string",
+          "description": "Directory containing commercial videos"
+        },
+        "runtime_dir": {
+          "type": "string",
+          "description": "Runtime directory for station data"
+        },
+        "catalog_path": {
+          "type": "string",
+          "description": "Path to catalog binary file"
+        },
+        "schedule_path": {
+          "type": "string",
+          "description": "Path to schedule binary file"
+        },
+        "standby_image": {
+          "type": "string",
+          "description": "Path to standby image"
+        },
+        "be_right_back_media": {
+          "type": "string",
+          "description": "Path to 'be right back' media file"
+        },
+        "sign_off_video": {
+          "type": "string",
+          "description": "Path to sign-off video"
+        },
+        "off_air_video": {
+          "type": "string",
+          "description": "Path to off-air pattern video"
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "Whether the channel is hidden"
+        },
+        "video_keepaspect": {
+          "type": "boolean",
+          "description": "Keep aspect ratio for videos"
+        },
+        "panscan": {
+          "type": "number",
+          "description": "MPV panscan value (e.g., 1.0) to fill screen by cropping edges"
+        },
+        "video_scramble_fx": {
+          "type": "string",
+          "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble"],
+          "description": "Preset video scrambling effect"
+        },
+        "station_fx": {
+          "type": "string",
+          "description": "Custom FFMPEG video filter string (ignored if video_scramble_fx is set)"
+        },
+        "clip_shows": {
+          "type": "array",
+          "description": "List of clip show configurations",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "tags": {
+                    "type": "string"
+                  },
+                  "duration": {
+                    "type": "integer"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "slot_overrides": {
+          "type": "object",
+          "description": "Named slot override configurations",
+          "additionalProperties": {
+            "$ref": "#/$defs/timeSlotConfig"
+          }
+        },
+        "autobump": {
+          "type": "object",
+          "description": "Auto-generated bump configuration",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "subtitle": {
+              "type": "string"
+            },
+            "variation": {
+              "type": "string"
+            },
+            "detail1": {
+              "type": "string"
+            },
+            "detail2": {
+              "type": "string"
+            },
+            "detail3": {
+              "type": "string"
+            },
+            "bg_music": {
+              "type": "string"
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["both", "end", "start"]
+            }
+          }
+        },
+        "day_templates": {
+          "type": "object",
+          "description": "Named day schedule templates",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/timeSlotConfig"
+            }
+          }
+        },
+        "monday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "tuesday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "wednesday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "thursday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "friday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "saturday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "sunday": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Reference to a day template"
+            },
+            {
+              "type": "object",
+              "description": "Day schedule with hour slots",
+              "additionalProperties": {
+                "$ref": "#/$defs/timeSlotConfig"
+              }
+            }
+          ]
+        },
+        "web_url": {
+          "type": "string",
+          "description": "URL for web-type networks"
+        },
+        "messages": {
+          "type": "array",
+          "description": "Messages to display (guide networks)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "images": {
+          "type": "array",
+          "description": "Images to display (guide networks)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "play_sound": {
+          "type": "boolean",
+          "description": "Whether to play sound (guide networks)"
+        },
+        "sound_to_play": {
+          "type": "string",
+          "description": "Path to sound file (guide networks)"
+        },
+        "fullscreen": {
+          "type": "boolean",
+          "description": "Display in fullscreen mode"
+        },
+        "width": {
+          "type": "integer",
+          "description": "Window width"
+        },
+        "height": {
+          "type": "integer",
+          "description": "Window height"
+        },
+        "window_decorations": {
+          "type": "boolean",
+          "description": "Whether to show window decorations"
+        },
+        "scroll_speed": {
+          "type": "number",
+          "description": "Scroll speed for guide"
+        },
+        "logo_dir": {
+          "type": "string",
+          "description": "Directory containing logo images for on-screen display"
+        },
+        "show_logo": {
+          "type": "boolean",
+          "description": "Whether to display station logo on screen"
+        },
+        "default_logo": {
+          "type": "string",
+          "description": "Default logo filename to display"
+        },
+        "logo_permanent": {
+          "type": "boolean",
+          "description": "Whether logo stays on screen permanently"
+        },
+        "multi_logo": {
+          "type": "string",
+          "description": "Multi-logo configuration identifier"
+        },
+        "streams": {
+          "type": "array",
+          "description": "Stream configurations for streaming networks",
+          "items": {
+            "type": "object",
+            "required": ["url", "duration", "title"],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "duration": {
+                "type": "integer"
+              },
+              "title": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "timeSlotConfig": {
+      "type": "object",
+      "description": "Configuration for a specific time slot",
+      "properties": {
+        "tags": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Single tag for content selection"
+            },
+            {
+              "type": "array",
+              "description": "Multiple tags for content selection",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "event": {
+          "type": "string",
+          "enum": ["signoff"],
+          "description": "Special event for this time slot"
+        },
+        "overrides": {
+          "type": "string",
+          "description": "Reference to a slot_overrides configuration"
+        },
+        "start_bump": {
+          "type": "string",
+          "description": "Path to start bump video"
+        },
+        "end_bump": {
+          "type": "string",
+          "description": "Path to end bump video"
+        },
+        "bump_dir": {
+          "type": "string",
+          "description": "Directory for bumps"
+        },
+        "commercial_dir": {
+          "type": "string",
+          "description": "Directory for commercials"
+        },
+        "break_strategy": {
+          "type": "string",
+          "enum": ["standard", "end", "center"],
+          "description": "Commercial break strategy"
+        },
+        "schedule_increment": {
+          "type": "integer",
+          "description": "Time increment for this slot"
+        },
+        "sequence": {
+          "type": "string",
+          "description": "Sequence identifier"
+        },
+        "sequence_start": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Starting point in sequence (0.0 to 1.0)"
+        },
+        "sequence_end": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Ending point in sequence (0.0 to 1.0)"
+        },
+        "random_tags": {
+          "type": "boolean",
+          "description": "Randomize tag selection"
+        },
+        "marathon": {
+          "type": "object",
+          "description": "Marathon configuration",
+          "properties": {
+            "chance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Probability of marathon (0.0 to 1.0)"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of episodes in marathon"
+            }
+          },
+          "required": ["chance", "count"]
+        },
+        "video_scramble_fx": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble"],
+              "description": "Video scrambling effect"
+            },
+            {
+              "type": "boolean",
+              "enum": [false],
+              "description": "Disable video scrambling (false)"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
