@@ -99,6 +99,8 @@ class MediaProcessor:
 
         if "streams" in probed and len(probed["streams"]) and "duration" in probed["streams"][0]:
             return float(probed["streams"][0]["duration"])
+        elif "format" in probed and "duration" in probed["format"]:
+            return float(probed['format']['duration'])
         else:
             return -1
 
