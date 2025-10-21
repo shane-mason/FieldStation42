@@ -4,8 +4,7 @@ import os
 import glob
 from fs42.slot_reader import SlotReader
 from fs42 import timings
-from fs42.config_processor import ConfigProcessor, ConfigurationError
-
+from fs42.config_processor import ConfigProcessor
 
 class StationManager(object):
     # the borg singleton pattern

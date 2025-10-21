@@ -17,6 +17,8 @@ from fs42.marathon_agent import MarathonAgent
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
+class ClipShowKickBack(Exception):
+    pass
 
 class LiquidSchedule:
     def __init__(self, conf):
@@ -86,6 +88,10 @@ class LiquidSchedule:
             candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
 
         if candidate:
+            # handle clip shows in regular dirs
+            if candidate.tag in self.conf["clip_shows"]:
+                raise ClipShowKickBack()
+
             _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
 
             target_duration = self._calc_target_duration(candidate.duration, _increment)
@@ -175,7 +181,10 @@ class LiquidSchedule:
                 #print(self.conf["clip_shows"])
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
-                    new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
+                    try:
+                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
+                    except ClipShowKickBack:
+                        new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
                 else:
                     #print("is clip show")
                     new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)

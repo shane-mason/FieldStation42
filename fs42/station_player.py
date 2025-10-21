@@ -432,13 +432,14 @@ class StationPlayer:
                 title = play_point.block_title
                 self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title)
 
-                try:
-                    self.mpv.seek(total_skip)
-                except Exception:
-                    self._l.error(f"Failed seeking {total_skip} on {entry.path}")
-                    return PlayerOutcome(PlayerState.FAILED)
+                if not is_stream:
+                    try:
+                        self.mpv.seek(total_skip)
+                    except Exception:
+                        self._l.error(f"Failed seeking {total_skip} on {entry.path}")
+                        return PlayerOutcome(PlayerState.FAILED)
 
-                self._l.info(f"Seeking for: {total_skip}")
+                    self._l.info(f"Seeking for: {total_skip}")
 
                 # Detect if this video is being clipped (stopping before natural end)
                 is_clipped = False

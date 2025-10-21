@@ -8,7 +8,7 @@ from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
 from fs42.sequence_api import SequenceAPI
 from fs42.autobump_agent import AutoBumpAgent
-from fs42.block_plan import BlockPlanEntry
+
 
 
 try:
