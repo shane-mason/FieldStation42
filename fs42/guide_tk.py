@@ -166,8 +166,7 @@ class ScheduleFrame(tk.Frame):
 
     def populate_frame(self):
         gb = GuideBuilder()
-        view = gb.build_view(normalize=self.conf.normalize_titles)
-
+        
         self.lbl_current_time = tk.Label(
             self,
             text="Network",
@@ -181,6 +180,7 @@ class ScheduleFrame(tk.Frame):
 
         l_offset = self.conf.network_w
 
+        view = gb.build_view(normalize=self.conf.normalize_titles)
         for timing in view["timings"]:
             lbl_time_slot = tk.Label(
                 self,

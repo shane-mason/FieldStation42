@@ -5,7 +5,7 @@ import datetime
 
 sys.path.append(os.getcwd())
 from fs42.station_manager import StationManager
-from fs42.liquid_manager import LiquidManager
+from fs42.liquid_manager import LiquidManager, ScheduleNotFound
 from fs42.liquid_blocks import LiquidBlock
 from fs42.title_parser import TitleParser
 
@@ -98,7 +98,13 @@ class GuideBuilder:
         for station in StationManager().stations:
             if station["hidden"] or not station["_has_schedule"]:
                 continue
-            entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
+
+            try:
+                entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
+            except ScheduleNotFound:
+                # Create a single block that spans the entire 1.5 hour viewing window (5400 seconds)
+                placeholder = PreviewBlock("Schedule Not Found", width=5400)
+                entries = [placeholder]
 
             view["rows"].append(entries)
             network_name = station["network_name"]
