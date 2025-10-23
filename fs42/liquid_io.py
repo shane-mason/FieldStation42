@@ -198,7 +198,7 @@ class LiquidIO:
                     else:
                         content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))  
 
-        main_normal = StationManager().server_conf.get("normalize_title", True)
+        main_normal = StationManager().server_conf.get("normalize_titles", True)
         the_title = _title
 
         if main_normal:

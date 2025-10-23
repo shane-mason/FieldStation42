@@ -179,7 +179,6 @@ class ScheduleFrame(tk.Frame):
         self.lbl_current_time.place(x=0, y=0, height=self.conf.sched_h, width=self.conf.network_w)
 
         l_offset = self.conf.network_w
-
         view = gb.build_view(normalize=self.conf.normalize_titles)
         for timing in view["timings"]:
             lbl_time_slot = tk.Label(
