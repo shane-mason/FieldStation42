@@ -85,6 +85,7 @@ The `network_type` property determines how the station operates:
 | `break_strategy` | string | When to insert commercial breaks | `"standard"` (interspersed), `"end"` (end of program), `"center"` (single break in middle) |
 | `commercial_free` | boolean | Whether channel has commercials | `true`, `false` |
 | `break_duration` | integer | Duration of commercial breaks in seconds | Any positive integer (default: `120`) |
+| `fallback_tag` | string | Tag/folder used when no content is found for a scheduled slot | Any valid tag string |
 
 ### Directory Paths
 
@@ -130,6 +131,21 @@ Example:
 ```
 
 The system automatically adjusts durations based on `break_strategy` to account for commercial time.
+
+### Fallback Content
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `fallback_tag` | string | Tag/folder to use when no matching content is found |
+
+When the scheduler cannot find content matching the scheduled tags (e.g., due to filtering or empty catalog), it will attempt to use content from the `fallback_tag` directory instead. This is useful for generic content that should only play when all other scheduled content has been filtered out.
+
+Example:
+```json
+"fallback_tag": "generic-content"
+```
+
+If no `fallback_tag` is specified and content is not found, the scheduler will generate an error and stop.
 
 ### Display Properties
 

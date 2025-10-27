@@ -185,6 +185,13 @@ class LiquidSchedule:
                         new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
                     except ClipShowKickBack:
                         new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
+                    except MatchingContentNotFound as e:
+                        if "fallback_tag" in self.conf:
+                            fb_config = {"tags": self.conf["fallback_tag"]}
+                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, break_strategy, break_info)
+                        else:
+                            self._l.warning("Content not found, but no fallback_tag specified.")
+                            raise e
                 else:
                     #print("is clip show")
                     new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)

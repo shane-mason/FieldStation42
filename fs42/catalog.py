@@ -159,6 +159,10 @@ class ShowCatalog:
                     if "end_bump" in slots[k]:
                         end_bumps[slots[k]["end_bump"]] = True
 
+        # chech for fallback tag
+        if "fallback_tag" in self.config:
+            tags[self.config["fallback_tag"]] = True
+
         SequenceAPI.scan_sequences(self.config)
 
         self.clip_index["start_bumps"] = []
