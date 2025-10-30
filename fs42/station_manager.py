@@ -166,7 +166,7 @@ class StationManager(object):
         cfiles = glob.glob("confs/*.json")
         station_buffer = []
         for fname in cfiles:
-            if fname != StationManager.__main_config_path:
+            if os.path.normpath(fname) != os.path.normpath(StationManager.__main_config_path):
                 with open(fname) as f:
                     try:
                         d = json.load(f)
