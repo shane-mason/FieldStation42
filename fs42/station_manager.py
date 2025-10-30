@@ -58,6 +58,7 @@ class StationManager(object):
                     "start_mpv": True,
                     "server_host": "0.0.0.0",
                     "server_port": 4242,
+                    "title_patterns": [],
                 }
                 self._number_index = {}
                 self._name_index = {}
@@ -127,6 +128,36 @@ class StationManager(object):
                         if key in d:
                             self.server_conf[key] = d[key]
 
+                    # Load custom title patterns if provided
+                    if "title_patterns" in d:
+                        import re
+                        custom_patterns = []
+                        for i, pattern_config in enumerate(d["title_patterns"]):
+                            try:
+                                # Validate that required fields exist
+                                if "pattern" not in pattern_config:
+                                    _l.error(f"title_patterns[{i}]: missing 'pattern' field")
+                                    continue
+                                if "group" not in pattern_config:
+                                    _l.error(f"title_patterns[{i}]: missing 'group' field")
+                                    continue
+
+                                # Validate that the regex compiles
+                                re.compile(pattern_config["pattern"])
+
+                                # Add as tuple (pattern, group) to match existing format
+                                custom_patterns.append((pattern_config["pattern"], pattern_config["group"]))
+
+                                desc = pattern_config.get("description", f"Custom pattern {i+1}")
+                                _l.info(f"Loaded custom title pattern: {desc}")
+                            except re.error as e:
+                                _l.error(f"Invalid regex in title_patterns[{i}]: {e}")
+                                _l.error(f"Pattern was: {pattern_config.get('pattern', 'N/A')}")
+
+                        self.server_conf["title_patterns"] = custom_patterns
+                        if custom_patterns:
+                            _l.info(f"Loaded {len(custom_patterns)} custom title pattern(s)")
+
                     if "day_parts" in d:
                         new_parts = {}
                         for key in d["day_parts"]:
@@ -159,7 +190,7 @@ class StationManager(object):
                     _l.exception(e)
                     _l.error(f"Error loading main config overrides from {StationManager.__main_config_path}")
                     exit(-1)
-        # else skip, no over rides
+        # else: skip, no overrides (title_patterns already initialized to [] in __init__)
 
     def load_json_stations(self):
         _l = logging.getLogger("STATIONMANAGER")

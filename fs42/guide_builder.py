@@ -10,7 +10,8 @@ from fs42.liquid_blocks import LiquidBlock
 from fs42.title_parser import TitleParser
 
 def normalize_video_title(title):
-    return TitleParser.parse_title(title)
+    custom_patterns = StationManager().server_conf.get("title_patterns", [])
+    return TitleParser.parse_title(title, custom_patterns)
 
 
 class PreviewBlock:

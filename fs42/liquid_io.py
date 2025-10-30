@@ -202,7 +202,8 @@ class LiquidIO:
         the_title = _title
 
         if main_normal:
-            the_title = TitleParser.parse_title(the_title)
+            custom_patterns = StationManager().server_conf.get("title_patterns", [])
+            the_title = TitleParser.parse_title(the_title, custom_patterns)
 
         args = (
             content_obj,
