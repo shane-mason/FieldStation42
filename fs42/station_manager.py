@@ -2,9 +2,16 @@ import json
 import logging
 import os
 import glob
+import re
+import shutil
+from pathlib import Path
 from fs42.slot_reader import SlotReader
 from fs42 import timings
 from fs42.config_processor import ConfigProcessor
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None
 
 class StationManager(object):
     # the borg singleton pattern
@@ -285,3 +292,252 @@ class StationManager(object):
         for station in self.stations:
             self._name_index[station["network_name"]] = station
             self._number_index[station["channel_number"]] = station
+
+    def _load_schema(self):
+        """Load the station configuration JSON schema."""
+        schema_path = "fs42/station_config_schema.json"
+        if os.path.exists(schema_path):
+            with open(schema_path) as f:
+                return json.load(f)
+        return None
+
+    def _normalize_filename(self, network_name):
+        # Convert to lowercase, replace spaces and special chars with underscores
+        safe_name = re.sub(r'[^\w\s-]', '', network_name.lower())
+        safe_name = re.sub(r'[-\s]+', '_', safe_name)
+        return safe_name.strip('_')
+
+    def _get_config_file_path(self, network_name):
+        """Get the file path for a station configuration."""
+        filename = self._normalize_filename(network_name)
+        return f"confs/{filename}.json"
+
+    def check_uniqueness(self, channel_number, network_name, exclude_name=None):
+        _l = logging.getLogger("STATIONMANAGER")
+
+        # Check channel number uniqueness
+        for station in self.stations:
+            if exclude_name and station["network_name"] == exclude_name:
+                continue
+            if station["channel_number"] == channel_number:
+                msg = f"Channel number {channel_number} is already used by station '{station['network_name']}'"
+                _l.warning(msg)
+                return False, msg
+
+        # Check network name uniqueness
+        for station in self.stations:
+            if exclude_name and station["network_name"] == exclude_name:
+                continue
+            if station["network_name"] == network_name:
+                msg = f"Network name '{network_name}' already exists"
+                _l.warning(msg)
+                return False, msg
+
+        return True, None
+
+    def validate_station_config(self, config_data):
+
+        _l = logging.getLogger("STATIONMANAGER")
+        errors = []
+
+        # Check that station_conf wrapper exists
+        if "station_conf" not in config_data:
+            errors.append("Configuration must have a 'station_conf' top-level key")
+            return False, errors
+
+        station_conf = config_data["station_conf"]
+
+        # Check required fields
+        if "network_name" not in station_conf:
+            errors.append("'network_name' is required")
+        if "channel_number" not in station_conf:
+            errors.append("'channel_number' is required")
+
+        # Validate with JSON schema if available
+        if jsonschema is not None:
+            schema = self._load_schema()
+            if schema:
+                try:
+                    jsonschema.validate(config_data, schema)
+                except jsonschema.ValidationError as e:
+                    errors.append(f"Schema validation error: {e.message}")
+                except Exception as e:
+                    _l.error(f"Error during schema validation: {e}")
+                    errors.append(f"Schema validation error: {str(e)}")
+            else:
+                _l.warning("Could not load station_config_schema.json for validation")
+        else:
+            # jsonschema not installed - return error with installation instructions
+            error_msg = (
+                "The 'jsonschema' library is required for station configuration validation. "
+                "Please install it by running the installer or: pip install jsonschema"
+            )
+            _l.error(error_msg)
+            errors.append(error_msg)
+
+        # Warn about missing files (don't fail, just warn)
+        for to_check in self.__filechecks:
+            if to_check in station_conf:
+                if not os.path.exists(station_conf[to_check]):
+                    warning = f"File not found: {station_conf[to_check]} (referenced in '{to_check}')"
+                    _l.warning(warning)
+                    # Don't add to errors, just log warning
+
+        if errors:
+            return False, errors
+        return True, []
+
+    def write_station_config(self, network_name, config_data, is_update=False):
+
+        _l = logging.getLogger("STATIONMANAGER")
+
+        # Validate the configuration
+        is_valid, errors = self.validate_station_config(config_data)
+        if not is_valid:
+            error_msg = "; ".join(errors)
+            _l.error(f"Validation failed for station '{network_name}': {error_msg}")
+            return False, f"Validation failed: {error_msg}", None
+
+        station_conf = config_data["station_conf"]
+
+        # Check uniqueness
+        exclude_name = network_name if is_update else None
+        is_unique, uniqueness_error = self.check_uniqueness(
+            station_conf["channel_number"],
+            station_conf["network_name"],
+            exclude_name=exclude_name
+        )
+        if not is_unique:
+            return False, uniqueness_error, None
+
+        # Get file path
+        file_path = self._get_config_file_path(network_name)
+
+        # For updates, check if we're renaming
+        old_file_path = None
+        if is_update and network_name != station_conf["network_name"]:
+            old_file_path = self._get_config_file_path(network_name)
+            file_path = self._get_config_file_path(station_conf["network_name"])
+
+        # Create backup if file exists
+        if os.path.exists(file_path):
+            backup_path = f"{file_path}.bak"
+            try:
+                shutil.copy2(file_path, backup_path)
+                _l.info(f"Created backup: {backup_path}")
+            except Exception as e:
+                _l.error(f"Failed to create backup: {e}")
+                return False, f"Failed to create backup: {str(e)}", None
+
+        # Write to temporary file first (atomic write)
+        temp_path = f"{file_path}.tmp"
+        try:
+            with open(temp_path, 'w') as f:
+                json.dump(config_data, f, indent=2)
+
+            # Rename temp file to actual file (atomic on POSIX systems)
+            os.rename(temp_path, file_path)
+            _l.info(f"Successfully wrote configuration to {file_path}")
+
+            # If this was a rename, delete the old file
+            if old_file_path and old_file_path != file_path and os.path.exists(old_file_path):
+                os.remove(old_file_path)
+                _l.info(f"Removed old configuration file: {old_file_path}")
+
+            # Reload the station configuration
+            self._reload_stations()
+
+            return True, "Station configuration saved successfully", file_path
+
+        except Exception as e:
+            _l.error(f"Failed to write configuration: {e}")
+            # Clean up temp file if it exists
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except:
+                    pass
+            return False, f"Failed to write configuration: {str(e)}", None
+
+    def delete_station_config(self, network_name):
+        _l = logging.getLogger("STATIONMANAGER")
+
+        # Check if station exists
+        if network_name not in self._name_index:
+            msg = f"Station '{network_name}' not found"
+            _l.warning(msg)
+            return False, msg
+
+        # Get file path
+        file_path = self._get_config_file_path(network_name)
+
+        if not os.path.exists(file_path):
+            # Station exists in memory but file not found - try to find it
+            # This could happen if the file was manually renamed
+            _l.warning(f"Expected file not found: {file_path}")
+
+            # Search for a file that contains this network_name
+            for conf_file in glob.glob("confs/*.json"):
+                if os.path.normpath(conf_file) != os.path.normpath(self.__main_config_path):
+                    try:
+                        with open(conf_file) as f:
+                            d = json.load(f)
+                            if d.get("station_conf", {}).get("network_name") == network_name:
+                                file_path = conf_file
+                                _l.info(f"Found configuration in: {file_path}")
+                                break
+                    except:
+                        continue
+
+            if not os.path.exists(file_path):
+                msg = f"Configuration file for '{network_name}' not found"
+                _l.error(msg)
+                return False, msg
+
+        # Create backup before deletion
+        backup_path = f"{file_path}.bak"
+        try:
+            shutil.copy2(file_path, backup_path)
+            _l.info(f"Created backup before deletion: {backup_path}")
+        except Exception as e:
+            _l.warning(f"Failed to create backup: {e}")
+
+        # Delete the file
+        try:
+            os.remove(file_path)
+            _l.info(f"Deleted configuration file: {file_path}")
+
+            # Reload stations
+            self._reload_stations()
+
+            return True, f"Station '{network_name}' deleted successfully"
+
+        except Exception as e:
+            _l.error(f"Failed to delete configuration: {e}")
+            return False, f"Failed to delete configuration: {str(e)}"
+
+    def _reload_stations(self):
+        """Reload all station configurations from disk."""
+        _l = logging.getLogger("STATIONMANAGER")
+        _l.info("Reloading station configurations...")
+
+        # Clear current stations
+        self.stations = []
+        self._name_index = {}
+        self._number_index = {}
+
+        # Reload from disk
+        self.load_json_stations()
+
+        # Re-apply tag smoothing for standard networks
+        for i in range(len(self.stations)):
+            station = self.stations[i]
+            if station["network_type"] == "standard":
+                self.stations[i] = SlotReader.smooth_tags(station)
+
+        # Rebuild indexes
+        for station in self.stations:
+            self._name_index[station["network_name"]] = station
+            self._number_index[station["channel_number"]] = station
+
+        _l.info(f"Reloaded {len(self.stations)} station(s)")
