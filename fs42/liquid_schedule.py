@@ -18,7 +18,10 @@ from fs42.marathon_agent import MarathonAgent
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
 class ClipShowKickBack(Exception):
-    pass
+
+    def __init__(self, message, clip_tag):
+        super().__init__(message)
+        self.clip_tag = clip_tag
 
 class LiquidSchedule:
     def __init__(self, conf):
@@ -89,8 +92,11 @@ class LiquidSchedule:
 
         if candidate:
             # handle clip shows in regular dirs
-            if candidate.tag in self.conf["clip_shows"]:
-                raise ClipShowKickBack()
+            from fs42.path_query import PathQuery
+
+            the_match =  PathQuery.path_matches_any_relative(candidate.realpath, self.conf["clip_shows"].keys())
+            if the_match:
+                raise ClipShowKickBack(the_match, the_match)
 
             _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
 
@@ -183,8 +189,9 @@ class LiquidSchedule:
                     #print("not clip show")
                     try:
                         new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
-                    except ClipShowKickBack:
-                        new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
+                    except ClipShowKickBack as e:
+                        print("Got kickpath: ", e.clip_tag)
+                        new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, break_strategy, break_info)
                     except MatchingContentNotFound as e:
                         if "fallback_tag" in self.conf:
                             fb_config = {"tags": self.conf["fallback_tag"]}
