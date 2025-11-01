@@ -97,15 +97,19 @@ class GuideBuilder:
 
         # each statio is a row
         for station in StationManager().stations:
-            if station["hidden"] or not station["_has_schedule"]:
+            if station["hidden"]:
                 continue
-
-            try:
-                entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
-            except ScheduleNotFound:
-                # Create a single block that spans the entire 1.5 hour viewing window (5400 seconds)
-                placeholder = PreviewBlock("Schedule Not Found", width=5400)
+            elif not station["_has_schedule"]:
+                to_display = station.get("network_long_name", station["network_name"])
+                placeholder = PreviewBlock(to_display, width=5400)
                 entries = [placeholder]
+            else:
+                try:
+                    entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
+                except ScheduleNotFound:
+                    # Create a single block that spans the entire 1.5 hour viewing window (5400 seconds)
+                    placeholder = PreviewBlock("Schedule Not Found", width=5400)
+                    entries = [placeholder]
 
             view["rows"].append(entries)
             network_name = station["network_name"]
