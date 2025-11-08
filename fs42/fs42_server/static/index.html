@@ -105,15 +105,31 @@
                     if (typeof totalDuration === 'number') {
                         totalDuration = (totalDuration / 3600).toFixed(2) + ' hrs';
                     }
+
                     const sched = station.schedule_summary || {};
-                    let start = sched.start ?? 'N/A';
-                    let end = sched.end ?? 'N/A';
-                    // Format start/end if they look like ISO strings
-                    if (typeof start === 'string' && start.length > 10) start = start.replace('T', ' ');
-                    if (typeof end === 'string' && end.length > 10) end = end.replace('T', ' ');
-                    // Remove last ':00' from start/end if present
-                    if (typeof start === 'string' && start.match(/:\d{2}$/)) start = start.replace(/:\d{2}$/, '');
-                    if (typeof end === 'string' && end.match(/:\d{2}$/)) end = end.replace(/:\d{2}$/, '');
+                    let start, end;
+
+                    // Check if station has schedule configured
+                    if (!station._has_schedule) {
+                        // No schedule configured for this station
+                        start = 'N/A';
+                        end = 'N/A';
+                    } else if (sched.start === 0 || sched.end === 0) {
+                        // Station has schedule configured but it's empty
+                        start = '-';
+                        end = '-';
+                    } else {
+                        // Station has schedule with data
+                        start = sched.start ?? '-';
+                        end = sched.end ?? '-';
+                        // Format start/end if they look like ISO strings
+                        if (typeof start === 'string' && start.length > 10) start = start.replace('T', ' ');
+                        if (typeof end === 'string' && end.length > 10) end = end.replace('T', ' ');
+                        // Remove last ':00' from start/end if present
+                        if (typeof start === 'string' && start.match(/:\d{2}$/)) start = start.replace(/:\d{2}$/, '');
+                        if (typeof end === 'string' && end.match(/:\d{2}$/)) end = end.replace(/:\d{2}$/, '');
+                    }
+
                     html += `<tr>
                         <td data-label='Network'><strong>${name}</strong></td>
                         <td data-label='Channel'>${channel}</td>

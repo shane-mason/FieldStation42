@@ -34,10 +34,7 @@
                     <div class="station-select-container">
                         <label for="station-select">Select Station:</label>
                         <select id="station-select" class="pure-input-1"></select>
-                        <button id="rebuild-all-btn" class="pure-button primary" style="margin-left: 1em;">Rebuild All</button>
-                    </div>
-                    <div class="action-buttons" style="justify-content: flex-start; margin-top: 1em; margin-bottom: 1em;">
-                        <button id="rebuild-selected-btn" class="pure-button secondary" style="display:none;">Rebuild Selected</button>
+                        <button id="rebuild-btn" class="pure-button primary" style="margin-left: 1em;">Rebuild Catalog</button>
                     </div>
                     <div id="station-summary" class="pure-u-1">
                         <h2 id="station-summary-header" style="display:none;">Station Summary</h2>
@@ -51,9 +48,6 @@
                 `;
 
             document.body.innerHTML = await window.fs42Common.createPageLayout('Catalog Manager', content);
-
-            // Set initial button state
-            document.getElementById('rebuild-selected-btn').style.display = 'none';
         });
     </script>
     <script src="/static/fs42_client.js"></script>
@@ -82,43 +76,39 @@
                 stations = await window.fs42Common.fetchStationSummary();
                 const select = document.getElementById('station-select');
                 select.innerHTML = '';
-                const defaultOpt = document.createElement('option');
-                defaultOpt.value = '';
-                defaultOpt.textContent = 'Select Station';
-                select.appendChild(defaultOpt);
+                const allOpt = document.createElement('option');
+                allOpt.value = 'all';
+                allOpt.textContent = `All Channels (${stations.length})`;
+                select.appendChild(allOpt);
                 stations.forEach(station => {
                     const opt = document.createElement('option');
                     opt.value = station.network_name;
                     opt.textContent = station.network_name;
                     select.appendChild(opt);
                 });
-                selectedStation = null;
-                select.value = '';
+                selectedStation = 'all';
+                select.value = 'all';
                 document.getElementById('station-summary-table').innerHTML = '';
                 document.getElementById('catalog-table').innerHTML = '';
-                document.getElementById('rebuild-selected-btn').style.display = 'none';
                 document.getElementById('rebuild-log').textContent = '';
             }
 
             function updateStationSummary(networkName) {
                 const header = document.getElementById('station-summary-header');
-                if (!networkName) {
+                if (!networkName || networkName === 'all') {
                     document.getElementById('station-summary-table').innerHTML = '';
                     header.style.display = 'none';
                     document.getElementById('catalog-table').innerHTML = '';
                     document.getElementById('catalog-table-header').style.display = 'none';
-                    document.getElementById('rebuild-selected-btn').style.display = 'none';
                     return;
                 }
                 const station = stations.find(s => s.network_name === networkName);
                 if (station) {
                     document.getElementById('station-summary-table').innerHTML = window.fs42Common.renderSummaryTable([station]);
                     header.style.display = '';
-                    document.getElementById('rebuild-selected-btn').style.display = 'block';
                 } else {
                     document.getElementById('station-summary-table').innerHTML = '<p>No summary found.</p>';
                     header.style.display = 'none';
-                    document.getElementById('rebuild-selected-btn').style.display = 'none';
                 }
             }
 
@@ -186,7 +176,7 @@
             }
 
             document.getElementById('station-select').addEventListener('change', function (e) {
-                selectedStation = e.target.value || null;
+                selectedStation = e.target.value || 'all';
                 updateStationSummary(selectedStation);
                 document.getElementById('catalog-table').innerHTML = '';
                 document.getElementById('catalog-table-header').style.display = 'none';
@@ -194,7 +184,7 @@
                 document.getElementById('rebuild-log-header').style.display = 'none';
                 document.getElementById('rebuild-log-frame').style.display = 'none';
                 document.getElementById('rebuild-log-dismiss').style.display = 'none';
-                if (selectedStation) {
+                if (selectedStation && selectedStation !== 'all') {
                     loadCatalog(selectedStation);
                 }
             });
@@ -203,51 +193,29 @@
                 document.getElementById('rebuild-log-dismiss').style.display = 'none';
             });
 
-            document.getElementById('rebuild-selected-btn').addEventListener('click', async function () {
-                if (!selectedStation) return;
-                document.getElementById('rebuild-log').textContent = 'Starting rebuild...';
+            document.getElementById('rebuild-btn').addEventListener('click', async function () {
+                const station = selectedStation || 'all';
+                const stationText = station === 'all' ? 'all catalogs' : station;
+
+                document.getElementById('rebuild-log').textContent = `Starting rebuild for ${stationText}...`;
                 document.getElementById('rebuild-log-header').style.display = '';
                 document.getElementById('catalog-table').innerHTML = '';
                 document.getElementById('catalog-table-header').style.display = 'none';
-                document.getElementById('station-summary-header').style.display = 'none';
                 document.getElementById('station-summary-table').innerHTML = '';
+                document.getElementById('station-summary-header').style.display = 'none';
                 try {
-                    const resp = await fetch(`/build/catalog/${selectedStation}`, {
+                    const resp = await fetch(`/build/catalog/${station}`, {
                         method: 'POST'
                     });
                     const data = await resp.json();
                     if (data.task_id) {
                         pollRebuildStatus(data.task_id, async function () {
                             // After rebuild is done, fetch and display catalog entries and update summary
-                            if (selectedStation) {
+                            if (selectedStation && selectedStation !== 'all') {
                                 await loadCatalog(selectedStation);
                                 updateStationSummary(selectedStation);
                             }
                         });
-                    } else {
-                        document.getElementById('rebuild-log').textContent = 'Error starting rebuild.';
-                    }
-                } catch (e) {
-                    document.getElementById('rebuild-log').textContent = 'Error starting rebuild.';
-                }
-            });
-
-            document.getElementById('rebuild-all-btn').addEventListener('click', async function () {
-                document.getElementById('rebuild-log').textContent = 'Starting rebuild for all catalogs...';
-                document.getElementById('rebuild-log-header').style.display = '';
-                document.getElementById('catalog-table').innerHTML = '';
-                document.getElementById('catalog-table-header').style.display = 'none';
-                document.getElementById('station-summary-table').innerHTML = '';
-                document.getElementById('station-summary-header').style.display = 'none';
-                document.getElementById('station-select').value = '';
-                selectedStation = null;
-                try {
-                    const resp = await fetch(`/build/catalog/all`, {
-                        method: 'POST'
-                    });
-                    const data = await resp.json();
-                    if (data.task_id) {
-                        pollRebuildStatus(data.task_id);
                     } else {
                         document.getElementById('rebuild-log').textContent = 'Error starting rebuild.';
                     }

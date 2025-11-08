@@ -104,6 +104,31 @@ class TestTitleParser:
 
         assert TitleParser.parse_title(episode) == "Jaws"
 
+    def test_title_parser_title1_suffix_lowercase(self):
+        episode = "Buffy the Vampire Slayer - title1"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_title1_suffix_uppercase(self):
+        episode = "Buffy the Vampire Slayer - TITLE1"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_title2_suffix_mixedcase(self):
+        episode = "Buffy the Vampire Slayer - Title2"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_title10_suffix(self):
+        episode = "Buffy the Vampire Slayer.Title10"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
+    def test_title_parser_title1_suffix_underscore_separator(self):
+        episode = "Buffy_the_Vampire_Slayer_title1"
+
+        assert TitleParser.parse_title(episode) == "Buffy The Vampire Slayer"
+
 
 class TestTitleParserCustomPatterns:
     """Tests for user-defined custom patterns"""

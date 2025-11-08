@@ -73,19 +73,25 @@ async def rebuild_catalog_status(task_id: str):
             return {"error": "Task ID not found."}
         return {"status": task["status"], "log": task["log"]}
 
-@router.post("/schedule/add_time/{amount}")
-async def add_time_to_schedule(amount: str, request: Request):
+@router.post("/schedule/add_time/{amount}/{network_name}")
+async def add_time_to_schedule(amount: str, network_name: str, request: Request):
     task_id = str(uuid.uuid4())
     with add_time_tasks_lock:
         add_time_tasks[task_id] = {"status": "starting", "log": ""}
 
     def add_time_worker():
         try:
-            stations = StationManager().stations
             with add_time_tasks_lock:
                 add_time_tasks[task_id]["status"] = "running"
-            
-            for station in stations:
+
+            # Determine which stations to process
+            to_process = []
+            if not network_name or network_name == "all":
+                to_process = StationManager().stations
+            else:
+                to_process = [StationManager().station_by_name(network_name)]
+
+            for station in to_process:
                 if station["_has_schedule"]:
                     with add_time_tasks_lock:
                         add_time_tasks[task_id]["log"] += f"Adding {amount} to schedule for {station['network_name']}\n"

@@ -25,19 +25,13 @@
         document.addEventListener('DOMContentLoaded', async function () {
             window.fs42Common.initTheme();
 
-            const actionButtons = window.fs42Common.createActionButtons([
-                { id: 'add-month-btn', text: 'Add Month' },
-                { id: 'add-week-btn', text: 'Add Week' },
-                { id: 'add-day-btn', text: 'Add Day' },
-                { id: 'reset-schedules-btn', text: 'Reset Schedules', classes: 'danger' }
-            ]);
-            const stationSelector = window.fs42Common.createStationSelector();
             const logDisplay = window.fs42Common.createLogDisplay();
 
             const content = `
-                <div id="search-section" class="pure-u-1" style="margin-bottom: 1em;">
+                <div id="search-section" class="pure-u-1" style="margin-bottom: 1.5em; padding-bottom: 1.5em; border-bottom: 2px solid #e0e0e0;">
+                    <h3 style="margin-top: 0; color: #ff00cc;">Search</h3>
                     <div class="pure-form" style="display: flex; align-items: center; gap: 0.5em;">
-                        <input type="text" id="search-input" placeholder="Search schedules..." class="pure-input" style="flex: 1; max-width: 300px;">
+                        <input type="text" id="search-input" placeholder="Search All Schedules..." class="pure-input" style="flex: 1; max-width: 300px;">
                         <button id="search-btn" class="pure-button pure-button-primary">Search</button>
                         <button id="clear-search-btn" class="pure-button">Clear</button>
                     </div>
@@ -46,29 +40,37 @@
                         <div id="search-results-content"></div>
                     </div>
                 </div>
-                <div class="pure-u-1" id="all-stations-buttons">
-                    <h3 style="margin-bottom: 0.5em; color: #ff00cc;">All Stations Actions:</h3>
-                    ${actionButtons}
-                    <div style="margin-top: 2em; margin-bottom: 1em;">
-                        ${stationSelector}
+                <div style="margin-bottom: 1em;">
+                    <h3 style="margin-top: 0; margin-bottom: 0.5em; color: #ff00cc;">Schedule Operations</h3>
+                    <div class="station-select-container">
+                        <label for="station-select">Select Station:</label>
+                        <select id="station-select" class="pure-input-1"></select>
+                        <label for="time-amount-select" style="margin-left: 1em;">Time to Add:</label>
+                        <select id="time-amount-select" class="pure-input-1" style="max-width: 150px;">
+                            <option value="month">Month</option>
+                            <option value="week">Week</option>
+                            <option value="day">Day</option>
+                        </select>
+                        <button id="build-schedule-btn" class="pure-button primary" style="margin-left: 1em;">Add Time</button>
+                        <button id="reset-schedules-btn" class="pure-button danger" style="margin-left: 1em;">Reset Schedule</button>
                     </div>
-                    <div id="station-summary" class="pure-u-1">
-                        <h2 id="station-summary-header" style="display:none;">Station Summary</h2>
-                        <div id="station-summary-table"></div>
-                    </div>
-                    ${logDisplay.replace('log-frame', 'add-time-log-frame').replace('log-header-text', 'add-time-log-header').replace('log-dismiss', 'add-time-log-dismiss').replace('log-content', 'add-time-log')}
-                    <div id="schedule-controls" class="pure-u-1" style="display:none;">
-                        <h2 id="schedule-query-header" style="display:none;">Schedule Query</h2>
-                        <label for="start-date" id="start-date-label" style="display:none;">Start:</label>
-                        <input type="datetime-local" id="start-date" style="margin-right:1em; display:none;">
-                        <label for="end-date" id="end-date-label" style="display:none;">End:</label>
-                        <input type="datetime-local" id="end-date" style="margin-right:1em; display:none;">
-                        <button id="get-schedule" class="pure-button pure-button-primary" style="display:none;">Get Schedule</button>
-                    </div>
-                    <div id="schedule-table-frame" class="pure-u-1">
-                        <h2 id="schedule-blocks-header" style="display:none;">Schedule Blocks</h2>
-                        <div id="schedule-table"></div>
-                    </div>
+                </div>
+                <div id="station-summary" class="pure-u-1">
+                    <h2 id="station-summary-header" style="display:none;">Station Summary</h2>
+                    <div id="station-summary-table"></div>
+                </div>
+                ${logDisplay.replace('log-frame', 'add-time-log-frame').replace('log-header-text', 'add-time-log-header').replace('log-dismiss', 'add-time-log-dismiss').replace('log-content', 'add-time-log')}
+                <div id="schedule-controls" class="pure-u-1" style="display:none;">
+                    <h2 id="schedule-query-header" style="display:none;">Schedule Query</h2>
+                    <label for="start-date" id="start-date-label" style="display:none;">Start:</label>
+                    <input type="datetime-local" id="start-date" style="margin-right:1em; display:none;">
+                    <label for="end-date" id="end-date-label" style="display:none;">End:</label>
+                    <input type="datetime-local" id="end-date" style="margin-right:1em; display:none;">
+                    <button id="get-schedule" class="pure-button pure-button-primary" style="display:none;">Get Schedule</button>
+                </div>
+                <div id="schedule-table-frame" class="pure-u-1">
+                    <h2 id="schedule-blocks-header" style="display:none;">Schedule Blocks</h2>
+                    <div id="schedule-table"></div>
                 </div>
             `;
 
@@ -86,18 +88,23 @@
                 stations = await window.fs42Common.fetchStationSummary();
                 const select = document.getElementById('station-select');
                 select.innerHTML = '';
-                const defaultOpt = document.createElement('option');
-                defaultOpt.value = '';
-                defaultOpt.textContent = 'Select Station';
-                select.appendChild(defaultOpt);
-                stations.forEach(station => {
+
+                // Filter stations that have schedules
+                const stationsWithSchedules = stations.filter(station => station._has_schedule);
+
+                const allOpt = document.createElement('option');
+                allOpt.value = 'all';
+                allOpt.textContent = `All Channels (${stationsWithSchedules.length})`;
+                select.appendChild(allOpt);
+
+                stationsWithSchedules.forEach(station => {
                     const opt = document.createElement('option');
                     opt.value = station.network_name;
                     opt.textContent = station.network_name;
                     select.appendChild(opt);
                 });
-                selectedStation = null;
-                select.value = '';
+                selectedStation = 'all';
+                select.value = 'all';
                 document.getElementById('station-summary-table').innerHTML = '';
                 document.getElementById('station-summary-header').style.display = 'none';
                 document.getElementById('schedule-controls').style.display = 'none';
@@ -113,7 +120,7 @@
             }
 
             function updateStationSummary(networkName) {
-                if (!networkName) {
+                if (!networkName || networkName === 'all') {
                     document.getElementById('station-summary-table').innerHTML = '';
                     document.getElementById('station-summary-header').style.display = 'none';
                     document.getElementById('schedule-controls').style.display = 'none';
@@ -230,7 +237,7 @@
 
             // Event listeners
             document.getElementById('station-select').addEventListener('change', async function (e) {
-                selectedStation = e.target.value || null;
+                selectedStation = e.target.value || 'all';
                 updateStationSummary(selectedStation);
                 document.getElementById('schedule-table').innerHTML = '';
                 document.getElementById('schedule-blocks-header').style.display = 'none';
@@ -238,12 +245,29 @@
                 document.getElementById('add-time-log-header').style.display = 'none';
                 document.getElementById('add-time-log-frame').style.display = 'none';
                 document.getElementById('add-time-log-dismiss').style.display = 'none';
-                if (selectedStation) {
+                if (selectedStation && selectedStation !== 'all') {
                     await loadScheduleExtents(selectedStation);
-                    if (scheduleExtents && scheduleExtents.start && scheduleExtents.end) {
-                        document.getElementById('start-date').value = scheduleExtents.start.replace(' ', 'T');
-                        document.getElementById('end-date').value = scheduleExtents.end.replace(' ', 'T');
-                    }
+
+                    // Set default query to 24 hours from start of current hour
+                    const now = new Date();
+                    const startOfHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0);
+                    const endOfPeriod = new Date(startOfHour.getTime() + 24 * 60 * 60 * 1000); // +24 hours
+
+                    // Format for datetime-local input (requires local time, not UTC)
+                    const formatLocalDateTime = (date) => {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const hours = String(date.getHours()).padStart(2, '0');
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        return `${year}-${month}-${day}T${hours}:${minutes}`;
+                    };
+
+                    document.getElementById('start-date').value = formatLocalDateTime(startOfHour);
+                    document.getElementById('end-date').value = formatLocalDateTime(endOfPeriod);
+
+                    // Auto-load schedule preview for the selected channel
+                    await getScheduleBlocks();
                 } else {
                     document.getElementById('start-date').value = '';
                     document.getElementById('end-date').value = '';
@@ -255,44 +279,17 @@
                 document.getElementById('add-time-log-dismiss').style.display = 'none';
             });
 
-            document.getElementById('add-month-btn').addEventListener('click', async function () {
-                addTimeType = 'month';
-                document.getElementById('add-time-log').textContent = 'Starting add month for all stations...';
-                document.getElementById('add-time-log-header').style.display = '';
-                document.getElementById('add-time-log-frame').style.display = '';
-                document.getElementById('add-time-log-dismiss').style.display = '';
-                try {
-                    const resp = await fetch(`/build/schedule/add_time/month`, {
-                        method: 'POST'
-                    });
-                    const data = await resp.json();
-                    let taskId = data.task_id;
-                    function pollStatus() {
-                        if (addTimePollInterval) clearInterval(addTimePollInterval);
-                        addTimePollInterval = setInterval(async () => {
-                            const resp = await fetch(`/build/schedule/add_time/status/${taskId}`);
-                            const data = await resp.json();
-                            document.getElementById('add-time-log').textContent = data.log || '';
-                            if (data.status === 'done' || data.status === 'error') {
-                                clearInterval(addTimePollInterval);
-                                await getScheduleBlocks();
-                            }
-                        }, 2000);
-                    }
-                    pollStatus();
-                } catch (e) {
-                    document.getElementById('add-time-log').textContent = 'Error starting add month.';
-                }
-            });
+            document.getElementById('build-schedule-btn').addEventListener('click', async function () {
+                const amount = document.getElementById('time-amount-select').value;
+                const station = selectedStation || 'all';
+                const stationText = station === 'all' ? 'all stations' : station;
 
-            document.getElementById('add-week-btn').addEventListener('click', async function () {
-                addTimeType = 'week';
-                document.getElementById('add-time-log').textContent = 'Starting add week for all stations...';
+                document.getElementById('add-time-log').textContent = `Starting add ${amount} for ${stationText}...`;
                 document.getElementById('add-time-log-header').style.display = '';
                 document.getElementById('add-time-log-frame').style.display = '';
                 document.getElementById('add-time-log-dismiss').style.display = '';
                 try {
-                    const resp = await fetch(`/build/schedule/add_time/week`, {
+                    const resp = await fetch(`/build/schedule/add_time/${amount}/${station}`, {
                         method: 'POST'
                     });
                     const data = await resp.json();
@@ -305,53 +302,37 @@
                             document.getElementById('add-time-log').textContent = data.log || '';
                             if (data.status === 'done' || data.status === 'error') {
                                 clearInterval(addTimePollInterval);
-                                await getScheduleBlocks();
+                                if (selectedStation && selectedStation !== 'all') {
+                                    await getScheduleBlocks();
+                                }
                             }
                         }, 2000);
                     }
                     pollStatus();
                 } catch (e) {
-                    document.getElementById('add-time-log').textContent = 'Error starting add week.';
-                }
-            });
-
-            document.getElementById('add-day-btn').addEventListener('click', async function () {
-                addTimeType = 'day';
-                document.getElementById('add-time-log').textContent = 'Starting add day for all stations...';
-                document.getElementById('add-time-log-header').style.display = '';
-                document.getElementById('add-time-log-frame').style.display = '';
-                document.getElementById('add-time-log-dismiss').style.display = '';
-                try {
-                    const resp = await fetch(`/build/schedule/add_time/day`, {
-                        method: 'POST'
-                    });
-                    const data = await resp.json();
-                    let taskId = data.task_id;
-                    function pollStatus() {
-                        if (addTimePollInterval) clearInterval(addTimePollInterval);
-                        addTimePollInterval = setInterval(async () => {
-                            const resp = await fetch(`/build/schedule/add_time/status/${taskId}`);
-                            const data = await resp.json();
-                            document.getElementById('add-time-log').textContent = data.log || '';
-                            if (data.status === 'done' || data.status === 'error') {
-                                clearInterval(addTimePollInterval);
-                                await getScheduleBlocks();
-                            }
-                        }, 2000);
-                    }
-                    pollStatus();
-                } catch (e) {
-                    document.getElementById('add-time-log').textContent = 'Error starting add day.';
+                    document.getElementById('add-time-log').textContent = `Error starting add ${amount}.`;
                 }
             });
 
             document.getElementById('reset-schedules-btn').addEventListener('click', async function () {
-                document.getElementById('add-time-log').textContent = 'Resetting schedules for all stations...';
+                const station = selectedStation || 'all';
+                const stationText = station === 'all' ? 'all stations' : station;
+
+                // Confirmation dialog
+                const confirmMessage = station === 'all'
+                    ? 'Are you sure you want to reset schedules for ALL stations? This will delete all existing schedule data.'
+                    : `Are you sure you want to reset the schedule for ${station}? This will delete all existing schedule data for this station.`;
+
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                document.getElementById('add-time-log').textContent = `Resetting schedules for ${stationText}...`;
                 document.getElementById('add-time-log-header').style.display = '';
                 document.getElementById('add-time-log-frame').style.display = '';
                 document.getElementById('add-time-log-dismiss').style.display = '';
                 try {
-                    const resp = await fetch(`/build/schedule/reset/all`, {
+                    const resp = await fetch(`/build/schedule/reset/${station}`, {
                         method: 'POST'
                     });
                     const data = await resp.json();
@@ -364,7 +345,9 @@
                             document.getElementById('add-time-log').textContent = data.log || '';
                             if (data.status === 'done' || data.status === 'error') {
                                 clearInterval(addTimePollInterval);
-                                await getScheduleBlocks();
+                                if (selectedStation && selectedStation !== 'all') {
+                                    await getScheduleBlocks();
+                                }
                             }
                         }, 2000);
                     }
