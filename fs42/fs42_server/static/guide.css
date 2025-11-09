@@ -173,6 +173,20 @@
     font-style: italic;
 }
 
+.program-block.no-schedule {
+    background: linear-gradient(145deg, #1a2533, #0f1821);
+    border: 1px solid #2a3f5f;
+    color: #7a9cc6;
+    font-style: italic;
+    cursor: default;
+}
+
+.program-block.no-schedule:hover {
+    background: linear-gradient(145deg, #243548, #172838);
+    transform: none;
+    box-shadow: none;
+}
+
 .program-block.error {
     background: linear-gradient(145deg, #660000, #440000);
     border-color: #800000;

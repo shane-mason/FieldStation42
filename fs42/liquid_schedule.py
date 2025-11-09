@@ -209,7 +209,6 @@ class LiquidSchedule:
 
                 # play the sign-off video if set and onair is still true
                 if slot_config and "event" in slot_config and slot_config["event"] == "signoff" and onair_flag:
-                    print("Adding signoff")
                     sign_off = self.catalog.get_signoff()
 
                 candidate = self.catalog.get_offair()

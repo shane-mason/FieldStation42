@@ -101,20 +101,18 @@
             
             guideEndTime = new Date(guideStartTime.getTime() + (2 * 60 * 60 * 1000)); // 2 hours total
             
-            // Load stations
-            const allStations = await window.fs42Common.fetchStationSummary();
-            
-            // Filter stations to only show those with schedule data
-            stations = allStations.filter(station => {
-                const hasSchedule = station.schedule_summary && 
-                                  station.schedule_summary.start !== 0 && 
-                                  station.schedule_summary.end !== 0;
-                return hasSchedule;
+            // Load all stations
+            stations = await window.fs42Common.fetchStationSummary();
+
+            // Mark stations with/without schedules
+            stations.forEach(station => {
+                station.has_schedule = station.schedule_summary &&
+                                      station.schedule_summary.start !== 0 &&
+                                      station.schedule_summary.end !== 0;
             });
-            
+
             if (stations.length === 0) {
-                const totalStations = allStations.length;
-                document.getElementById('guide-grid').innerHTML = `<p>No stations with programming schedules found. (${totalStations} total stations, but none have programming data)</p>`;
+                document.getElementById('guide-grid').innerHTML = `<p>No stations found.</p>`;
                 return;
             }
             
@@ -190,11 +188,12 @@
             // Add actual stations
             for (const station of stations) {
                 const channelNumber = station.channel_number || '?';
+                const displayName = station.network_long_name || station.network_name;
                 stationsHTML += `
                     <div class="station-row">
                         <div class="station-name">
                             <div class="channel-number">${channelNumber}</div>
-                            <div class="network-name">${station.network_name}</div>
+                            <div class="network-name">${displayName}</div>
                         </div>
                     </div>
                 `;
@@ -224,7 +223,21 @@
                 const station = stations[stationIndex];
                 const stationRow = document.createElement('div');
                 stationRow.className = 'guide-row';
-                
+
+                // Check if station has schedule
+                if (!station.has_schedule) {
+                    // No schedule - show single bar with network name
+                    const noScheduleBlock = document.createElement('div');
+                    noScheduleBlock.className = 'program-block no-schedule';
+                    noScheduleBlock.style.left = '0px';
+                    noScheduleBlock.style.width = '100%';
+                    const displayName = station.network_long_name || station.network_name;
+                    noScheduleBlock.innerHTML = `<span class="program-title">${displayName}</span>`;
+                    stationRow.appendChild(noScheduleBlock);
+                    grid.appendChild(stationRow);
+                    continue;
+                }
+
                 try {
                     // Fetch a wider time range to include shows that started before our guide window
                     // but might still be airing during our guide time
@@ -234,7 +247,7 @@
                         formatDateForAPI(extendedStartTime),
                         formatDateForAPI(guideEndTime)
                     );
-                    
+
                     if (scheduleBlocks && scheduleBlocks.length > 0) {
                         for (const block of scheduleBlocks) {
                             const blockElement = createProgramBlock(block);
@@ -261,7 +274,7 @@
                     errorBlock.innerHTML = '<span class="program-title">Error loading schedule</span>';
                     stationRow.appendChild(errorBlock);
                 }
-                
+
                 grid.appendChild(stationRow);
             }
             
