@@ -272,8 +272,8 @@ class StationIO:
                     raise ValueError(f"Invalid clip show entry: {entry}")
 
             # Determine fill target based on break strategy
-            # 0.73 is the calculated average for content vs breaks
-            fill_target = 0.95 if schedule_increment else 0.73
+            # go a little below if there will be commercials
+            fill_target = 0.95 if schedule_increment else 1.0
 
             # Convert minutes to seconds and apply fill ratio
             target_seconds = (requested_duration * timings.MIN_1) * fill_target
