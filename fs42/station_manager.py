@@ -1,8 +1,5 @@
-import json
 import logging
 import os
-import re
-from pathlib import Path
 from fs42.slot_reader import SlotReader
 from fs42.station_io import StationIO
 

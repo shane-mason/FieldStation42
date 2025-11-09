@@ -18,6 +18,8 @@ class TitleParser:
 
         # Default built-in patterns
         default_patterns = [
+            # Title + separators + "Title" + number suffix (e.g., "Show Name - Title1", "Show Name TITLE2")
+            (r"^(.+?)" + sep + r"[tT][iI][tT][lL][eE]\d+$", 1),
             # [Group] Title - Episode (release group prefix)
             (r"^\[.+?\]" + sep + r"(.+?)" + sep + r"\d+.*$", 1),
             # Title (including sequels) + year in parentheses - strip the year
