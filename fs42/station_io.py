@@ -31,6 +31,7 @@ class StationIO:
     # Network types that don't have catalogs or schedules
     NO_CATALOG = {"guide", "streaming", "web"}
     NO_SCHEDULE = {"guide", "streaming", "web"}
+    
 
     def __init__(self):
         self._l = logging.getLogger("STATIONIO")
@@ -67,7 +68,7 @@ class StationIO:
         return None
 
     def load_all_station_configs(self):
- 
+
         cfiles = glob.glob(f"{self.confs_dir}*.json")
         station_configs = []
 
@@ -87,6 +88,57 @@ class StationIO:
                     raise
 
         return station_configs
+
+    def read_raw_station_config(self, network_name):
+        """
+        Read a station configuration file without any processing or normalization.
+        Returns the raw JSON data exactly as it appears on disk.
+
+        Args:
+            network_name: The network name to look up
+
+        Returns:
+            tuple: (success: bool, data: dict or None, error_message: str or None)
+        """
+        file_path = self.find_config_by_network_name(network_name)
+
+        if file_path is None:
+            return False, None, f"Station '{network_name}' not found"
+
+        try:
+            with open(file_path) as f:
+                raw_data = json.load(f)
+            return True, raw_data, None
+        except Exception as e:
+            self._l.error(f"Error reading configuration file: {file_path}")
+            self._l.exception(e)
+            return False, None, f"Failed to read configuration: {str(e)}"
+
+    def list_raw_station_configs(self):
+        """
+        List all station configurations without processing or normalization.
+        Returns raw JSON data exactly as it appears on disk.
+
+        Returns:
+            list: List of raw station configuration dictionaries
+        """
+        cfiles = glob.glob(f"{self.confs_dir}*.json")
+        raw_configs = []
+
+        for fname in cfiles:
+            # Skip the main config file
+            if os.path.normpath(fname) != os.path.normpath(self.main_config_path):
+                try:
+                    with open(fname) as f:
+                        raw_data = json.load(f)
+                        raw_configs.append(raw_data)
+                except Exception as e:
+                    self._l.error(f"Error loading station configuration: {fname}")
+                    self._l.exception(e)
+                    # Continue loading other stations even if one fails
+                    continue
+
+        return raw_configs
 
     def write_station_config(self, file_path, config_data):
 
@@ -118,8 +170,8 @@ class StationIO:
             if os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except:
-                    pass
+                except OSError as cleanup_error:
+                    self._l.warning(f"Failed to clean up temp file {temp_path}: {cleanup_error}")
             return False, f"Failed to write configuration: {str(e)}"
 
     def delete_station_file(self, file_path):
@@ -154,7 +206,9 @@ class StationIO:
                         if d.get("station_conf", {}).get("network_name") == network_name:
                             self._l.info(f"Found configuration for '{network_name}' in: {conf_file}")
                             return conf_file
-                except:
+                except (OSError, json.JSONDecodeError, KeyError) as e:
+                    # Skip files that can't be read, parsed, or don't have expected structure
+                    self._l.debug(f"Skipping {conf_file} during search: {e}")
                     continue
         return None
 

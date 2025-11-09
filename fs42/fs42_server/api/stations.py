@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from fs42.station_manager import StationManager
+from fs42.station_io import StationIO
 
 router = APIRouter(prefix="/stations", tags=["stations"])
 
@@ -45,31 +46,39 @@ class ErrorResponse(BaseModel):
 
 @router.get("", response_model=StationListResponse)
 async def list_stations():
-
-    station_manager = StationManager()
-    stations = station_manager.stations
+    """
+    List all stations returning raw file data without processing.
+    """
+    station_io = StationIO()
+    raw_stations = station_io.list_raw_station_configs()
 
     return {
-        "count": len(stations),
-        "stations": stations
+        "count": len(raw_stations),
+        "stations": raw_stations
     }
 
 @router.get("/{network_name}")
 async def get_station_config(network_name: str):
+    """
+    Get a specific station configuration returning raw file data without processing.
+    """
+    station_io = StationIO()
+    success, raw_data, error_msg = station_io.read_raw_station_config(network_name)
 
-    station_manager = StationManager()
-    station = station_manager.station_by_name(network_name)
-
-    if station is None:
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Station '{network_name}' not found"
+            detail=error_msg
         )
 
-    return {"network_name": network_name, "station_config": station}
+    return {"network_name": network_name, "station_config": raw_data}
 
 @router.post("", response_model=StationConfigResponse, status_code=status.HTTP_201_CREATED)
 async def create_station(config: StationConfigRequest):
+    """
+    Create a new station configuration.
+    Uses StationManager for validation and processing, then reloads.
+    """
     station_manager = StationManager()
 
     # Extract network_name for checking
@@ -88,7 +97,7 @@ async def create_station(config: StationConfigRequest):
             detail=f"Station '{network_name}' already exists. Use PUT to update."
         )
 
-    # Write the configuration
+    # Write the configuration (StationManager handles validation and file I/O via StationIO)
     success, message, file_path = station_manager.write_station_config(
         network_name,
         config.model_dump(),
@@ -118,7 +127,10 @@ async def create_station(config: StationConfigRequest):
 
 @router.put("/{network_name}", response_model=StationConfigResponse)
 async def update_station(network_name: str, config: StationConfigRequest):
-
+    """
+    Update an existing station configuration.
+    Uses StationManager for validation and processing, then reloads.
+    """
     station_manager = StationManager()
 
     # Check if station exists
@@ -128,7 +140,7 @@ async def update_station(network_name: str, config: StationConfigRequest):
             detail=f"Station '{network_name}' not found"
         )
 
-    # Write the configuration (update mode)
+    # Write the configuration (update mode, StationManager handles validation and file I/O via StationIO)
     success, message, file_path = station_manager.write_station_config(
         network_name,
         config.model_dump(),
@@ -160,7 +172,10 @@ async def update_station(network_name: str, config: StationConfigRequest):
 
 @router.delete("/{network_name}", response_model=StationConfigResponse)
 async def delete_station(network_name: str):
-
+    """
+    Delete a station configuration.
+    Uses StationManager for existence checks and file deletion, then reloads.
+    """
     station_manager = StationManager()
 
     # Check if station exists
@@ -170,7 +185,7 @@ async def delete_station(network_name: str):
             detail=f"Station '{network_name}' not found"
         )
 
-    # Delete the configuration
+    # Delete the configuration (StationManager handles file deletion via StationIO)
     success, message = station_manager.delete_station_config(network_name)
 
     if not success:
