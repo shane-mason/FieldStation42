@@ -179,15 +179,22 @@ class LiquidClipBlock(LiquidBlock):
 
 
 class LiquidOffAirBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, sign_off=None):
         super().__init__(content, start_time, end_time, title, break_strategy, break_info)
+        self.sign_off = sign_off
 
     def make_plan(self, catalog):
         self.plan = []
         current_mark = self.start_time
-
+        first_loop = True
         while current_mark < self.end_time:
-            duration = float(self.content.duration)
+            # only show sign_off on first loop
+            if self.sign_off and first_loop:
+                _content = self.sign_off
+            else:
+                _content = self.content
+            first_loop = False
+            duration = float(_content.duration)
             current_mark += datetime.timedelta(seconds=duration)
             datetime.timedelta()
             if current_mark > self.end_time:
@@ -195,7 +202,7 @@ class LiquidOffAirBlock(LiquidBlock):
                 delta = current_mark - self.end_time
                 duration -= delta.total_seconds()
 
-            self.plan.append(BlockPlanEntry(self.content.path, 0, duration))
+            self.plan.append(BlockPlanEntry(_content.path, 0, duration))
 
 
 class LiquidLoopBlock(LiquidBlock):

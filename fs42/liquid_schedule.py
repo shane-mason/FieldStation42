@@ -177,14 +177,14 @@ class LiquidSchedule:
             tag_str = SlotReader.get_tag_from_slot(slot_config, current_mark)
 
             new_block = None
+            onair_flag = True
             if tag_str is not None:
+                onair_flag = True
                 break_info, break_strategy = self._break_info(slot_config)
                 
                 if MarathonAgent.detect_marathon(slot_config):
                     forward_buffer = MarathonAgent.fill_marathon(slot_config)
 
-                #print("in _fluid - working on tag ", tag_str)
-                #print(self.conf["clip_shows"])
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
                     try:
@@ -204,8 +204,19 @@ class LiquidSchedule:
                     new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
 
             else:
-                # then we are offair - get offair video
+                # we are offair, but assume no sign_off video this slot
+                sign_off = None
+
+                # play the sign-off video if set and onair is still true
+                if slot_config and "event" in slot_config and slot_config["event"] == "signoff" and onair_flag:
+                    print("Adding signoff")
+                    sign_off = self.catalog.get_signoff()
+
                 candidate = self.catalog.get_offair()
+
+                # we are offair, so set onair off
+                onair_flag = False
+                
                 if candidate is None:
                     self._l.error(f"Schedule logic error: no time slots configured for {current_mark}")
                     self._l.error("This indicates that the station is offair, but offair content is not configured")
@@ -215,7 +226,7 @@ class LiquidSchedule:
                 # make it for one hour.
                 # TODO: handle when it starts at half hour - just go to next hour (not always one hour)
                 next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-                new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair")
+                new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
 
             # here
             new_blocks.append(new_block)

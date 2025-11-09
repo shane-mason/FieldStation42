@@ -307,9 +307,11 @@ class ShowCatalog:
             print(f"{bcolors.OKGREEN}All checks passed{bcolors.ENDC}")
 
     def get_signoff(self):
-        if "sign_off" in self.clip_index:
-            return self.clip_index["sign_off"]
-        return None
+        all_signoff = CatalogAPI.get_by_tag(self.config, "sign_off")
+        candidate = None
+        if all_signoff and len(all_signoff):
+            candidate = all_signoff[0]
+        return candidate
 
     def get_offair(self):
         all_offair = CatalogAPI.get_by_tag(self.config, "off_air")
