@@ -102,7 +102,7 @@ class CatalogEntry:
                         elif hint["type"] == "range":
                             hints.append(schedule_hint.RangeHint(hint["range_string"]))
                         elif hint["type"] == "quarter":
-                            hints.append(schedule_hint.QuarterHint(hint["range_string"]))
+                            hints.append(schedule_hint.QuarterHint(hint["quarter"]))
                         elif hint["type"] == "month":
                             hints.append(schedule_hint.MonthHint(hint["month"]))
                         else:
