@@ -449,10 +449,15 @@ class ShowCatalog:
 
         return ReelBlock(start_candidate, reels, end_candidate)
 
+
+
     def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None):
         target_break_duration = self.config["break_duration"]
 
-        if strict_count:
+        strategy =  self.config.get("break_strategy", None)
+        if strategy == "end":
+            target_break_duration = length
+        elif strict_count:
             target_break_duration = length / strict_count
 
         remaining = length
