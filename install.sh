@@ -49,7 +49,7 @@ fi
 
 
 echo Installing python modules
-pip install -r install/requirements.txt
+pip install -r install/requirements.in
 
 echo Creating folders
 
@@ -79,6 +79,6 @@ echo
 echo Installation is complete
 echo You can find example configurations in confs/examples
 echo
-echo NOTE: If you want to use web type channels, you will also need to run:
+echo NOTE: If you want to use web type channels on Raspberry Pi Bookworm, you will also need to run:
 echo sudo bash install/web_reqs.sh
 echo

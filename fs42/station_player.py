@@ -94,7 +94,9 @@ class StationPlayer:
 
         if not mpv:
             self._l.info("Starting MPV instance")
-            # command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window
+            # command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window 
+
+            # if not running on trixie
             self.mpv = MPV(
                 start_mpv=start_it,
                 ipc_socket="/tmp/mpvsocket",
@@ -104,6 +106,7 @@ class StationPlayer:
                 force_window=True,
                 script_opts="osc-idlescreen=no",
             )
+
         self.station_config = station_config
         # self.playlist = self.read_json(runtime_filepath)
         self.input_check_fn = input_check_fn

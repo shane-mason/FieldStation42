@@ -1,4 +1,4 @@
-moviepy==2.1.1
+moviepy>=2.1.1
 python-mpv-jsonipc
 pyserial
 textual
@@ -7,5 +7,5 @@ fastapi
 uvicorn
 glfw
 PyOpenGL
-PySide6==6.8
+PySide6>=6.8
 jsonschema
