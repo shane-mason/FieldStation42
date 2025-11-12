@@ -118,7 +118,7 @@ class ReelCutter:
             for i in range(len(clips)):
                 clip = clips[i]
                 entries.append(BlockPlanEntry(clip.path, 0, clip.duration))
-                if len(reel_blocks) and (i % clips_per_segment) == 0:
+                if len(reel_blocks) and i > 0 and (i % clips_per_segment) == 0:
                     reel_b = reel_blocks.pop(0)
                     entries += reel_b.make_plan()
 
