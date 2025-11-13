@@ -85,7 +85,7 @@ The `network_type` property determines how the station operates:
 | `break_strategy` | string | When to insert commercial breaks | `"standard"` (interspersed), `"end"` (end of program), `"center"` (single break in middle) |
 | `commercial_free` | boolean | Whether channel has commercials | `true`, `false` |
 | `break_duration` | integer | Duration of commercial breaks in seconds | Any positive integer (default: `120`) |
-| `fallback_tag` | string | Tag/folder used when no content is found for a scheduled slot | Any valid tag string |
+| `fallback_tag` | string | Tag/folder used when no content is found for a scheduled slot | A valid tag |
 
 ### Directory Paths
 
