@@ -154,9 +154,9 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 | `video_keepaspect` | boolean | Maintain video aspect ratio (default: `true`) |
 | `panscan` | number | MPV panscan value (e.g., `1.0`) to fill screen by cropping top/bottom and left/right edges |
 | `fullscreen` | boolean | Display in fullscreen mode |
-| `width` | integer | Window width (pixels) |
-| `height` | integer | Window height (pixels) |
-| `window_decorations` | boolean | Show window decorations |
+| `width` | integer | Window width (pixels) (Guide only) |
+| `height` | integer | Window height (pixels) (Guide only)|
+| `window_decorations` | boolean | Show window decorations (Guide only)|
 
 ### Video Effects
 
