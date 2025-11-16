@@ -104,6 +104,15 @@
     flex-grow: 1;
 }
 
+/* Clip long URLs/paths in descriptions */
+.station-card-description small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
 .station-card-actions {
     margin-top: 1em;
     display: flex;
