@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Station Manager - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <link rel="stylesheet" href="/static/station_ui.css">
+</head>
+<body>
+    <script src="/static/common.js"></script>
+    <script src="/static/fs42_client.js"></script>
+    <script>
+        let allStations = [];
+        let filteredStations = [];
+
+        // Initialize page layout
+        document.addEventListener('DOMContentLoaded', async function() {
+            window.fs42Common.initTheme();
+
+            const content = `
+                <div class="page-header">
+                    <div>
+                        <h1 style="margin:0;">Station Manager</h1>
+                        <p style="color:#8b949e;margin:0.5em 0 0 0;">Manage your FieldStation42 channel configurations</p>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <select id="type-filter" class="pure-input">
+                        <option value="all">All Types</option>
+                        <option value="standard">Standard</option>
+                        <option value="web">Web</option>
+                        <option value="guide">Guide</option>
+                        <option value="loop">Loop</option>
+                        <option value="streaming">Streaming</option>
+                    </select>
+                    <div class="search-container">
+                        <input id="search-input" type="text" class="pure-input" placeholder="Search stations...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                </div>
+
+                <div id="station-list">
+                    <div class="loading-spinner">
+                        <p>Loading stations...</p>
+                    </div>
+                </div>
+            `;
+
+            document.body.innerHTML = await window.fs42Common.createPageLayout('', content);
+
+            // Load stations
+            await loadStations();
+
+            // Setup event listeners
+            document.getElementById('type-filter').addEventListener('change', applyFilters);
+            document.getElementById('search-input').addEventListener('input', applyFilters);
+        });
+
+        async function loadStations() {
+            try {
+                const data = await window.fs42Api.get('stations');
+                // Extract station_conf from each station object
+                allStations = (data.stations || []).map(s => s.station_conf);
+                filteredStations = [...allStations];
+
+                // Sort by channel number
+                allStations.sort((a, b) => (a.channel_number || 0) - (b.channel_number || 0));
+                filteredStations.sort((a, b) => (a.channel_number || 0) - (b.channel_number || 0));
+
+                renderStations();
+            } catch (error) {
+                document.getElementById('station-list').innerHTML = `
+                    <div class="error-message">
+                        <strong>Error loading stations:</strong> ${error.message || 'Unknown error'}
+                    </div>
+                `;
+            }
+        }
+
+        function applyFilters() {
+            const typeFilter = document.getElementById('type-filter').value;
+            const searchQuery = document.getElementById('search-input').value.toLowerCase();
+
+            filteredStations = allStations.filter(station => {
+                // Type filter
+                if (typeFilter !== 'all' && (station.network_type || 'standard') !== typeFilter) {
+                    return false;
+                }
+
+                // Search filter
+                if (searchQuery) {
+                    const nameMatch = (station.network_name || '').toLowerCase().includes(searchQuery);
+                    const channelMatch = String(station.channel_number || '').includes(searchQuery);
+                    if (!nameMatch && !channelMatch) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            renderStations();
+        }
+
+        function renderStations() {
+            const container = document.getElementById('station-list');
+
+            if (filteredStations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No stations found</h3>
+                        <p>Try adjusting your filters or search query.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<div class="station-cards">';
+
+            for (const station of filteredStations) {
+                const name = escapeHtml(station.network_name || 'Unnamed Station');
+                const channel = station.channel_number || 'N/A';
+                const type = station.network_type || 'standard';
+                const description = getStationDescription(station);
+
+                html += `
+                    <div class="station-card">
+                        <div class="station-card-header">
+                            <div class="station-card-title-row">
+                                <h3 class="station-card-name">${name}</h3>
+                                <span class="station-card-channel">#${channel}</span>
+                            </div>
+                            <div class="station-card-meta">
+                                <span class="station-card-type station-type-${type}">${type}</span>
+                            </div>
+                        </div>
+                        <div class="station-card-description">${description}</div>
+                        <div class="station-card-actions">
+                            <button class="pure-button pure-button-primary" onclick="editStation('${escapeHtml(station.network_name)}')">
+                                Edit Config
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function getStationDescription(station) {
+            const type = station.network_type || 'standard';
+
+            switch(type) {
+                case 'standard':
+                    const increment = station.schedule_increment || 30;
+                    const commercial = station.commercial_free ? 'Commercial-free' : 'With commercials';
+                    return `${commercial} &bull; ${increment}-minute shows`;
+
+                case 'web':
+                    const url = station.web_url || 'No URL set';
+                    return `Web page channel<br><small style="color:#61afef;">${escapeHtml(url)}</small>`;
+
+                case 'guide':
+                    const messages = station.messages?.length || 0;
+                    const images = station.images?.length || 0;
+                    return `Program guide &bull; ${messages} message(s) &bull; ${images} image(s)`;
+
+                case 'loop':
+                    const dir = station.content_dir || 'No directory set';
+                    return `Continuous loop<br><small style="color:#61afef;">${escapeHtml(dir)}</small>`;
+
+                case 'streaming':
+                    const streams = station.streams?.length || 0;
+                    return `External streams &bull; ${streams} source(s)`;
+
+                default:
+                    return 'Custom configuration';
+            }
+        }
+
+        function editStation(networkName) {
+            window.location.href = `station_editor.html?station=${encodeURIComponent(networkName)}`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

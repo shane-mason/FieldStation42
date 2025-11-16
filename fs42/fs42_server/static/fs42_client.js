@@ -20,7 +20,40 @@ async function apiPost(endpoint, data) {
         body: JSON.stringify(data)
     });
     if (!response.ok) {
-        throw new Error(`POST ${endpoint} failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(`POST ${endpoint} failed: ${response.status}`);
+        error.detail = errorData.detail || errorData.message;
+        throw error;
+    }
+    return response.json();
+}
+
+async function apiPut(endpoint, data) {
+    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(`PUT ${endpoint} failed: ${response.status}`);
+        error.detail = errorData.detail || errorData.message;
+        throw error;
+    }
+    return response.json();
+}
+
+async function apiDelete(endpoint) {
+    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+        method: 'DELETE'
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(`DELETE ${endpoint} failed: ${response.status}`);
+        error.detail = errorData.detail || errorData.message;
+        throw error;
     }
     return response.json();
 }
@@ -28,9 +61,13 @@ async function apiPost(endpoint, data) {
 // Example usage:
 // apiGet('catalog').then(data => console.log(data));
 // apiPost('guide', { id: 42 }).then(data => console.log(data));
+// apiPut('stations/MyStation', { station_conf: {...} }).then(data => console.log(data));
+// apiDelete('stations/MyStation').then(data => console.log(data));
 
 // Export functions for use in other scripts
 window.fs42Api = {
     get: apiGet,
-    post: apiPost
+    post: apiPost,
+    put: apiPut,
+    delete: apiDelete
 };

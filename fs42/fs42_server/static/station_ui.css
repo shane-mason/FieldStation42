@@ -1,0 +1,219 @@
+/* Station UI Styles for FieldStation42 */
+
+/* Station Cards */
+.station-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5em;
+    margin-top: 1.5em;
+}
+
+.station-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 1.5em;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.station-card:hover {
+    border-color: #61afef;
+    box-shadow: 0 4px 12px rgba(97, 175, 239, 0.15);
+    transform: translateY(-2px);
+}
+
+.station-card-header {
+    margin-bottom: 1em;
+    border-bottom: 1px solid #30363d;
+    padding-bottom: 0.5em;
+}
+
+.station-card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5em;
+    gap: 0.5em;
+}
+
+.station-card-name {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #e6e6e6;
+    margin: 0;
+    word-wrap: break-word;
+    flex: 1;
+}
+
+.station-card-channel {
+    font-size: 1.1em;
+    font-weight: 500;
+    color: #61afef;
+    white-space: nowrap;
+}
+
+.station-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+}
+
+.station-card-type {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Type-specific colors */
+.station-type-standard {
+    background: #1f6feb;
+    color: #ffffff;
+}
+
+.station-type-web {
+    background: #da3633;
+    color: #ffffff;
+}
+
+.station-type-guide {
+    background: #a371f7;
+    color: #ffffff;
+}
+
+.station-type-loop {
+    background: #f78166;
+    color: #ffffff;
+}
+
+.station-type-streaming {
+    background: #56d364;
+    color: #ffffff;
+}
+
+.station-card-description {
+    color: #8b949e;
+    font-size: 0.9em;
+    line-height: 1.5;
+    margin: 1em 0;
+    flex-grow: 1;
+}
+
+.station-card-actions {
+    margin-top: 1em;
+    display: flex;
+    gap: 0.5em;
+}
+
+.station-card-actions .pure-button {
+    flex: 1;
+    text-align: center;
+}
+
+/* Filter bar */
+.filter-bar {
+    display: flex;
+    gap: 1em;
+    align-items: center;
+    margin-bottom: 1.5em;
+    flex-wrap: wrap;
+}
+
+.filter-bar select {
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #e6e6e6;
+    padding: 0.5em 0.75em;
+    border-radius: 4px;
+    min-width: 150px;
+}
+
+.filter-bar select:focus {
+    outline: none;
+    border-color: #61afef;
+}
+
+/* Search input */
+.search-container {
+    flex: 1;
+    max-width: 400px;
+    position: relative;
+}
+
+.search-container input {
+    width: 100%;
+    padding-right: 2.5em;
+}
+
+.search-icon {
+    position: absolute;
+    right: 0.75em;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #8b949e;
+    pointer-events: none;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3em 1em;
+    color: #8b949e;
+}
+
+.empty-state h3 {
+    color: #8b949e;
+    margin-bottom: 0.5em;
+}
+
+/* Loading state */
+.loading-spinner {
+    text-align: center;
+    padding: 2em;
+    color: #61afef;
+}
+
+/* Error message */
+.error-message {
+    background: #3a1a1a;
+    border: 1px solid #a33;
+    color: #faa;
+    padding: 1em;
+    border-radius: 4px;
+    margin: 1em 0;
+}
+
+/* Header actions */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5em;
+    flex-wrap: wrap;
+    gap: 1em;
+}
+
+.page-header h1 {
+    margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .station-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-container {
+        max-width: 100%;
+    }
+}

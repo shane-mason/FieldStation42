@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Station - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <link rel="stylesheet" href="/static/station_ui.css">
+    <style>
+        #editor-container {
+            width: 100%;
+            height: 70vh;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            margin-top: 1em;
+        }
+
+        #error-panel {
+            display: none;
+            background: #3a1a1a;
+            border: 1px solid #a33;
+            border-left: 4px solid #a33;
+            padding: 1em;
+            margin-top: 1em;
+            border-radius: 4px;
+        }
+
+        #error-panel.visible {
+            display: block;
+        }
+
+        .error-header {
+            color: #faa;
+            font-weight: 600;
+            margin-bottom: 0.5em;
+            font-size: 1.1em;
+        }
+
+        .error-item {
+            color: #faa;
+            margin: 0.5em 0;
+            padding-left: 1em;
+            cursor: pointer;
+        }
+
+        .error-item:hover {
+            color: #fcc;
+            text-decoration: underline;
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1em;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 0.5em;
+            margin-top: 1em;
+        }
+
+        .success-message {
+            background: #1a3a1a;
+            border: 1px solid #3a3;
+            border-left: 4px solid #3a3;
+            color: #afa;
+            padding: 1em;
+            margin-top: 1em;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success-message.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script src="/static/common.js"></script>
+    <script src="/static/fs42_client.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+    <script>
+        let editor = null;
+        let stationName = null;
+        let isDirty = false;
+        let originalContent = '';
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            window.fs42Common.initTheme();
+
+            // Get station name from URL
+            const params = new URLSearchParams(window.location.search);
+            stationName = params.get('station');
+
+            if (!stationName) {
+                alert('No station specified');
+                window.location.href = '/static/stations.html';
+                return;
+            }
+
+            const content = `
+                <div class="editor-header">
+                    <div>
+                        <h1 style="margin:0;">Edit Station Configuration</h1>
+                        <p style="color:#8b949e;margin:0.5em 0 0 0;">${escapeHtml(stationName)}</p>
+                    </div>
+                    <a href="/static/stations.html" class="pure-button">
+                        ← Back to Stations
+                    </a>
+                </div>
+
+                <div id="editor-container"></div>
+
+                <div id="error-panel">
+                    <div class="error-header">⚠️ Validation Errors</div>
+                    <div id="error-list"></div>
+                </div>
+
+                <div id="success-message" class="success-message">
+                    ✓ Configuration saved successfully!
+                </div>
+
+                <div class="editor-actions">
+                    <button id="save-btn" class="pure-button pure-button-primary" onclick="saveStation()">
+                        Save
+                    </button>
+                    <button class="pure-button" onclick="cancelEdit()">
+                        Cancel
+                    </button>
+                    <button id="format-btn" class="pure-button" onclick="formatDocument()">
+                        Format JSON
+                    </button>
+                </div>
+            `;
+
+            document.body.innerHTML = await window.fs42Common.createPageLayout('', content);
+
+            // Initialize Monaco Editor
+            await initEditor();
+
+            // Load station config
+            await loadStation();
+        });
+
+        async function initEditor() {
+            return new Promise((resolve) => {
+                require.config({
+                    paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' }
+                });
+
+                require(['vs/editor/editor.main'], function() {
+                    // Define custom theme matching FieldStation42 dark theme
+                    monaco.editor.defineTheme('fs42-dark', {
+                        base: 'vs-dark',
+                        inherit: true,
+                        rules: [],
+                        colors: {
+                            'editor.background': '#0d1117',
+                            'editor.foreground': '#e6e6e6',
+                            'editorLineNumber.foreground': '#8b949e',
+                            'editorLineNumber.activeForeground': '#61afef',
+                            'editor.selectionBackground': '#1f6feb40',
+                            'editor.inactiveSelectionBackground': '#1f6feb20',
+                        }
+                    });
+
+                    editor = monaco.editor.create(document.getElementById('editor-container'), {
+                        value: '// Loading...',
+                        language: 'json',
+                        theme: 'fs42-dark',
+                        automaticLayout: true,
+                        lineNumbers: 'on',
+                        minimap: { enabled: true },
+                        scrollBeyondLastLine: false,
+                        formatOnPaste: false,
+                        formatOnType: false,
+                        tabSize: 2,
+                        insertSpaces: true
+                    });
+
+                    // Track changes for dirty state
+                    editor.onDidChangeModelContent(() => {
+                        isDirty = (editor.getValue() !== originalContent);
+                        updateSaveButton();
+                    });
+
+                    resolve();
+                });
+            });
+        }
+
+        function compactJsonStringify(obj, indent = 4) {
+            // Custom JSON formatter for more compact output
+            // Keeps simple objects on one line, expands complex ones
+            const indentStr = ' '.repeat(indent);
+
+            function format(val, depth = 0) {
+                const currentIndent = indentStr.repeat(depth);
+                const nextIndent = indentStr.repeat(depth + 1);
+
+                if (val === null) return 'null';
+                if (typeof val === 'boolean') return val.toString();
+                if (typeof val === 'number') return val.toString();
+                if (typeof val === 'string') return JSON.stringify(val);
+
+                if (Array.isArray(val)) {
+                    if (val.length === 0) return '[]';
+                    // Keep simple arrays compact
+                    if (val.every(v => typeof v !== 'object' || v === null)) {
+                        return '[' + val.map(v => format(v, depth)).join(', ') + ']';
+                    }
+                    // Expand complex arrays
+                    return '[\n' + val.map(v => nextIndent + format(v, depth + 1)).join(',\n') + '\n' + currentIndent + ']';
+                }
+
+                if (typeof val === 'object') {
+                    const keys = Object.keys(val);
+                    if (keys.length === 0) return '{}';
+
+                    // Check if object is simple (no nested objects/arrays, max 3 properties)
+                    const isSimple = keys.length <= 3 &&
+                        keys.every(k => {
+                            const v = val[k];
+                            return v === null || typeof v !== 'object';
+                        });
+
+                    if (isSimple) {
+                        return '{' + keys.map(k => JSON.stringify(k) + ': ' + format(val[k], depth)).join(', ') + '}';
+                    }
+
+                    // Expand complex objects
+                    return '{\n' + keys.map(k =>
+                        nextIndent + JSON.stringify(k) + ': ' + format(val[k], depth + 1)
+                    ).join(',\n') + '\n' + currentIndent + '}';
+                }
+
+                return JSON.stringify(val);
+            }
+
+            return format(obj);
+        }
+
+        async function loadStation() {
+            try {
+                const data = await window.fs42Api.get(`stations/${encodeURIComponent(stationName)}`);
+
+                // Load the config using compact formatting
+                const jsonStr = compactJsonStringify(data.station_config, 4);
+                originalContent = jsonStr;
+                editor.setValue(jsonStr);
+                isDirty = false;
+                updateSaveButton();
+
+            } catch (error) {
+                showError(`Failed to load station: ${error.message || 'Unknown error'}`);
+            }
+        }
+
+        async function saveStation() {
+            // Clear previous messages
+            hideError();
+            hideSuccess();
+
+            // 1. Validate JSON syntax
+            let config;
+            try {
+                config = JSON.parse(editor.getValue());
+            } catch (e) {
+                showError(`Invalid JSON: ${e.message}`);
+                return;
+            }
+
+            // 2. Basic validation
+            if (!config.station_conf) {
+                showError('Configuration must have a "station_conf" object');
+                return;
+            }
+
+            if (!config.station_conf.network_name) {
+                showError('Missing required field: network_name');
+                return;
+            }
+
+            if (config.station_conf.channel_number === undefined) {
+                showError('Missing required field: channel_number');
+                return;
+            }
+
+            // 3. Send to API
+            try {
+                const result = await window.fs42Api.put(
+                    `stations/${encodeURIComponent(stationName)}`,
+                    config
+                );
+
+                // Success!
+                originalContent = editor.getValue();
+                isDirty = false;
+                updateSaveButton();
+                showSuccess();
+
+                // If the station was renamed, update the URL and station name
+                if (config.station_conf.network_name !== stationName) {
+                    stationName = config.station_conf.network_name;
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('station', stationName);
+                    window.history.replaceState({}, '', newUrl);
+
+                    // Update the header
+                    document.querySelector('.editor-header p').textContent = stationName;
+                }
+
+            } catch (error) {
+                // Server validation error
+                let errorMsg = error.detail || error.message || 'Failed to save configuration';
+
+                // Try to parse and enhance schema validation errors
+                errorMsg = enhanceErrorMessage(errorMsg);
+
+                showError(errorMsg);
+
+                // Try to highlight the field mentioned in the error
+                highlightErrorField(errorMsg);
+            }
+        }
+
+        function formatDocument() {
+            try {
+                // Parse current editor content
+                const currentJson = JSON.parse(editor.getValue());
+
+                // Format using our compact formatter
+                const formatted = compactJsonStringify(currentJson, 4);
+
+                // Update editor
+                editor.setValue(formatted);
+
+                // Mark as dirty since we changed the content
+                isDirty = (formatted !== originalContent);
+                updateSaveButton();
+            } catch (e) {
+                showError(`Cannot format: ${e.message}`);
+            }
+        }
+
+        function cancelEdit() {
+            if (isDirty && !confirm('You have unsaved changes. Are you sure you want to leave?')) {
+                return;
+            }
+            window.location.href = '/static/stations.html';
+        }
+
+        function updateSaveButton() {
+            const btn = document.getElementById('save-btn');
+            btn.disabled = !isDirty;
+            btn.textContent = isDirty ? 'Save *' : 'Save';
+        }
+
+        function showError(message) {
+            const panel = document.getElementById('error-panel');
+            const list = document.getElementById('error-list');
+
+            if (typeof message === 'string') {
+                list.innerHTML = `<div class="error-item">${escapeHtml(message)}</div>`;
+            } else if (Array.isArray(message)) {
+                list.innerHTML = message.map(err =>
+                    `<div class="error-item">${escapeHtml(err)}</div>`
+                ).join('');
+            }
+
+            panel.classList.add('visible');
+        }
+
+        function hideError() {
+            document.getElementById('error-panel').classList.remove('visible');
+        }
+
+        function showSuccess() {
+            const msg = document.getElementById('success-message');
+            msg.classList.add('visible');
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                msg.classList.remove('visible');
+            }, 3000);
+        }
+
+        function hideSuccess() {
+            document.getElementById('success-message').classList.remove('visible');
+        }
+
+        function enhanceErrorMessage(errorMsg) {
+            // Just return the original server error message as-is
+            return errorMsg;
+        }
+
+        function highlightErrorField(errorMsg) {
+            // Don't try to highlight - server errors don't include line numbers
+            // Just clear any previous markers
+            monaco.editor.setModelMarkers(editor.getModel(), 'validation', []);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Warn before leaving with unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+    </script>
+</body>
+</html>

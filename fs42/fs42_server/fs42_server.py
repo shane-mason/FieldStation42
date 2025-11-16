@@ -27,6 +27,10 @@ async def root():
 async def remote():
     return FileResponse("fs42/fs42_server/static/remote.html")
 
+@fapi.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse("fs42/fs42_server/static/favicon.ico")
+
 # Include routers from the api package
 for router in routers:
     fapi.include_router(router)
