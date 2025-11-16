@@ -159,7 +159,7 @@
                 case 'standard':
                     const increment = station.schedule_increment || 30;
                     const commercial = station.commercial_free ? 'Commercial-free' : 'With commercials';
-                    return `${commercial} &bull; ${increment}-minute shows`;
+                    return `${commercial} &bull; ${increment}-min intervals`;
 
                 case 'web':
                     const url = station.web_url || 'No URL set';
