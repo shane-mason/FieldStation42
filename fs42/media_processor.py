@@ -167,12 +167,34 @@ class MediaProcessor:
 
     @staticmethod
     def _process_subs(dir_path, tag, bumpdir=False, fluid=None):
-        subs = [f.path for f in os.scandir(dir_path) if f.is_dir()]
+        """Process all subdirectories recursively, collecting hints from all levels"""
+        from collections import defaultdict
+
+        # Get all media files recursively
+        all_files = MediaProcessor._rfind_media(dir_path)
+
+        # Group files by their immediate parent directory
+        files_by_dir = defaultdict(list)
+        for f in all_files:
+            parent = os.path.dirname(f)
+            files_by_dir[parent].append(f)
+
         clips = []
-        for sub in subs:
-            file_list = MediaProcessor._rfind_media(sub)
-            hints = MediaProcessor._process_hints(sub, tag, bumpdir)
+
+        # Process each directory group
+        for media_dir, file_list in files_by_dir.items():
+            # Collect hints from all path components
+            hints = []
+            rel_path = os.path.relpath(media_dir, dir_path)
+
+            if rel_path != '.':
+                path_parts = rel_path.split(os.sep)
+                for part in path_parts:
+                    hints += MediaProcessor._process_hints(part, tag, bumpdir)
+
+            # Process all files in this directory with these hints
             clips += MediaProcessor._process_media(file_list, tag, hints=hints, fluid=fluid)
+
         return clips
 
     @staticmethod
