@@ -89,7 +89,7 @@ class LogoDisplay(object):
 
     def load_main_config(self) -> dict:
         """
-        Load main_config.json from confs/, where FS42 keeps all config files.
+        Load main_config.json from confs/
         """
         if self.main_config is not None:
             return self.main_config
@@ -103,7 +103,6 @@ class LogoDisplay(object):
             self.main_config = {}
 
         return self.main_config
-
 
     # -------------------------------------------------------------------------
     # Tag-based content directory: logo_dir/<first_tag>/
@@ -216,17 +215,6 @@ class LogoDisplay(object):
         """
         Determine the current day_part from main_config.json.
 
-        Expected shape:
-
-            "day_parts": {
-                "morning":  { "start_hour": 6,  "end_hour": 10 },
-                "daytime":  { "start_hour": 10, "end_hour": 17 },
-                "prime":    { "start_hour": 17, "end_hour": 21 },
-                "late":     { "start_hour": 21, "end_hour": 2 },
-                "overnight":{ "start_hour": 2,  "end_hour": 6 }
-            }
-
-        Wrap-around parts (e.g. 21 → 2) are supported.
         """
         cfg = self.load_main_config()
         day_parts = cfg.get("day_parts")
@@ -282,7 +270,7 @@ class LogoDisplay(object):
             6. Weekday + daypart:          logo_dir/<Weekday>/<day_part>/
             7. Weekday-only:               logo_dir/<Weekday>/
             8. daypart-only:               logo_dir/<day_part>/
-            9. Base directory              (original FS42 behavior)
+            9. Base directory              (original behavior)
         """
         multi = station_data.get("multi_logo", "single").lower()
         if multi == "off":
@@ -296,12 +284,13 @@ class LogoDisplay(object):
         logo_dir = station_data.get("logo_dir")
         default_logo_name = station_data.get("default_logo")
 
-        # Original FS42 semantics: logo_dir relative to content_dir if present,
-        # otherwise relative to project_root.
+        # Original FS42 semantics: logo_dir relative to content_dir
+        # (catalog/<STATION>/<logo_dir>), all rooted at project_root.
         if content_dir and logo_dir:
-            base_dir = Path(content_dir) / logo_dir
+            base_dir = project_root / content_dir / logo_dir
         elif logo_dir:
-            base_dir = project_root / logo_dir
+            p = Path(logo_dir)
+            base_dir = p if p.is_absolute() else project_root / logo_dir
         else:
             return None
 
@@ -404,42 +393,71 @@ class LogoDisplay(object):
     # -------------------------------------------------------------------------
 
     def check_status(self, socket_file: str = SOCKET_FILE) -> None:
+        """
+        Poll the play_status socket and keep track of:
+          - current channel info (network_name, title, etc.)
+          - current content type (FEATURE vs bump/commercial/etc.)
+          - when we last changed channel/program or returned to FEATURE.
+
+        Behavior:
+          - On network change: reset timer, reload logo, reclassify content.
+          - On title change:   update content type, reset timer on first FEATURE
+                               frame, reload multi-logo stations.
+          - On no net/title change: still detect transitions from non-FEATURE
+                                    to FEATURE (e.g., coming back from break)
+                                    and reset timer / reload multi-logo logos.
+        """
         try:
             with open(socket_file, "r") as f:
                 status = json.loads(f.read())
-
-            curr_net = self.current_channel_info.get("network_name")
-            curr_title = self.current_channel_info.get("title")
-            new_net = status.get("network_name")
-            new_title = status.get("title")
-
-            if new_net != curr_net:
-                self.current_channel_info = status
-                self.time_since_change = 0.0
-                self.available_logos = []
-                self.load_logo_for_channel(status)
-                self.current_content_type = classify_current_content()
-
-            elif new_title != curr_title:
-                old_type = self.current_content_type
-                self.current_content_type = classify_current_content()
-                if (
-                    old_type != ContentType.FEATURE
-                    and self.current_content_type == ContentType.FEATURE
-                ):
-                    self.time_since_change = 0.0
-                    if self.channel_config.get("multi_logo", "single").lower() in (
-                        "multi",
-                        "random",
-                    ):
-                        self.load_logo_for_channel(status)
-                self.current_channel_info = status
-
-            else:
-                self.current_channel_info = status
-
         except Exception as e:
             print(f"Unable to parse player status for logo: {e}")
+            return
+
+        prev_net = self.current_channel_info.get("network_name")
+        prev_title = self.current_channel_info.get("title")
+        prev_type = self.current_content_type
+
+        new_net = status.get("network_name")
+        new_title = status.get("title")
+
+        # Always update current_channel_info to what we just read
+        self.current_channel_info = status
+
+        # Always classify the current content so our draw() logic is up to date
+        new_type = classify_current_content()
+        self.current_content_type = new_type
+
+        multi_setting = self.channel_config.get("multi_logo", "single").lower()
+        if multi_setting == "random":
+            multi_setting = "multi"
+
+        # 1) Network change: new station or channel
+        if new_net != prev_net:
+            self.time_since_change = 0.0
+            self.available_logos = []
+            self.load_logo_for_channel(status)
+            return
+
+        # 2) Same network, but title changed (likely program change or interstitial)
+        if new_title != prev_title:
+            # If we just entered FEATURE content, reset the timer
+            if prev_type != ContentType.FEATURE and new_type == ContentType.FEATURE:
+                self.time_since_change = 0.0
+
+            # For multi-logo stations, reshuffle on each title change
+            if multi_setting in ("multi",):
+                self.load_logo_for_channel(status)
+
+            return
+
+        # 3) Same network and same title, but content type may have changed
+        #    (e.g., we returned from a bump/commercial to FEATURE, but title
+        #    stayed the same).
+        if prev_type != ContentType.FEATURE and new_type == ContentType.FEATURE:
+            self.time_since_change = 0.0
+            if multi_setting in ("multi",):
+                self.load_logo_for_channel(status)
 
     # -------------------------------------------------------------------------
     # Logo loading
@@ -507,6 +525,7 @@ class LogoDisplay(object):
         self.current_frame_index = 0
         self.frame_timer = 0.0
         self.is_animated = False
+
 
     def load_static_logo(self, path: str) -> None:
         self.clear_logo_textures()
