@@ -37,7 +37,7 @@ logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", lev
 
 
 def update_status_socket(
-    status, network_name, channel, title=None, timestamp="%Y-%m-%dT%H:%M:%S", duration=None, file_path=None
+    status, network_name, channel, title=None, timestamp="%Y-%m-%dT%H:%M:%S", duration=None, file_path=None, content_type=None
 ):
     status_obj = {
         "status": status,
@@ -51,6 +51,8 @@ def update_status_socket(
         status_obj["duration"] = duration
     if file_path is not None:
         status_obj["file_path"] = file_path
+    if content_type is not None:
+        status_obj["content_type"] = content_type
     status_socket = StationManager().server_conf["status_socket"]
     as_str = json.dumps(status_obj)
     with open(status_socket, "w") as fp:
@@ -157,12 +159,12 @@ class StationPlayer:
             else:
                 self.mpv.vf = self.reception.filter()
 
-    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown"):
+    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown", content_type=None):
         try:
             if os.path.exists(file_path) or is_stream or AutoBumpAgent.is_autobump_url(file_path):
                 self._l.debug(f"%%%Attempting to play {file_path}")
                 self.current_playing_file_path = file_path
-    
+
                 if self.station_config:
                     self._l.debug("Got station config, updating status socket")
                     if "date_time_format" in StationManager().server_conf:
@@ -182,6 +184,7 @@ class StationPlayer:
                         timestamp=ts_format,
                         duration=duration,
                         file_path=file_path,
+                        content_type=content_type,
                     )
                           
                 else:
@@ -297,6 +300,7 @@ class StationPlayer:
             self.station_config["channel_number"],
             self.station_config["network_name"],
             timestamp=StationManager().server_conf["date_time_format"],
+            content_type="guide",
         )
         keep_going = True
         while keep_going:
@@ -338,6 +342,7 @@ class StationPlayer:
             self.station_config["channel_number"],
             self.station_config["network_name"],
             timestamp=StationManager().server_conf["date_time_format"],
+            content_type="web",
         )
 
         # Check if duration is specified for auto-bumps
@@ -433,7 +438,8 @@ class StationPlayer:
                     is_stream = entry.is_stream
 
                 title = play_point.block_title
-                self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title)
+                content_type = getattr(entry, 'content_type', 'feature')  # Get content_type from entry, default to 'feature'
+                self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type)
 
                 if not is_stream:
                     try:

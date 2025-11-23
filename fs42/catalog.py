@@ -121,7 +121,7 @@ class ShowCatalog:
         # for station types with all files in a single directory
         self._l.info(f"Checking for media in {self.config['content_dir']} for single directory")
         file_list = MediaProcessor._find_media(self.config["content_dir"])
-        self.clip_index[tag] = MediaProcessor._process_media(file_list, tag)
+        self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, content_type="feature")
         self._l.info(f"Building complete - processed {len(file_list)} files")
         self._write_catalog()
 
@@ -150,14 +150,15 @@ class ShowCatalog:
                     else:
                         tags[slots[k]["tags"]] = True
 
-                    if "bump_dir" in slots[k]:
-                        bump_overrides[slots[k]["bump_dir"]] = True
-                    if "commercial_dir" in slots[k]:
-                        commercial_overrides[slots[k]["commercial_dir"]] = True
-                    if "start_bump" in slots[k]:
-                        start_bumps[slots[k]["start_bump"]] = True
-                    if "end_bump" in slots[k]:
-                        end_bumps[slots[k]["end_bump"]] = True
+                # These checks should be outside the tags check - slots can have bump/commercial dirs without tags
+                if "bump_dir" in slots[k]:
+                    bump_overrides[slots[k]["bump_dir"]] = True
+                if "commercial_dir" in slots[k]:
+                    commercial_overrides[slots[k]["commercial_dir"]] = True
+                if "start_bump" in slots[k]:
+                    start_bumps[slots[k]["start_bump"]] = True
+                if "end_bump" in slots[k]:
+                    end_bumps[slots[k]["end_bump"]] = True
 
         # check for fallback tag
         if "fallback_tag" in self.config:
@@ -176,7 +177,7 @@ class ShowCatalog:
         # collect start and end bumps first
         for fp in start_bumps:
             path = f"{self.config['content_dir']}/{fp}"
-            sb = MediaProcessor._process_media([path], "start_bumps", fluid=self.__fluid_builder)
+            sb = MediaProcessor._process_media([path], "start_bumps", fluid=self.__fluid_builder, content_type="bump")
             if len(sb) == 1:
                 self.clip_index["start_bumps"].append(sb[0])
             else:
@@ -185,7 +186,7 @@ class ShowCatalog:
 
         for fp in end_bumps:
             path = f"{self.config['content_dir']}/{fp}"
-            eb = MediaProcessor._process_media([path], "end_bumps", fluid=self.__fluid_builder)
+            eb = MediaProcessor._process_media([path], "end_bumps", fluid=self.__fluid_builder, content_type="bump")
             if len(eb) == 1:
                 self.clip_index["end_bumps"].append(eb[0])
             else:
@@ -201,35 +202,35 @@ class ShowCatalog:
 
         # add commercial and bumps to the tags
         if "commercial_dir" in self.config:
-            total_count += self._scan_directory(self.config["commercial_dir"])
+            total_count += self._scan_directory(self.config["commercial_dir"], content_type="commercial")
         # setup the general bump dir
         if "bump_dir" in self.config and self.config["bump_dir"]:
-            total_count += self._scan_directory(self.config["bump_dir"], is_bumps=True)
+            total_count += self._scan_directory(self.config["bump_dir"], is_bumps=True, content_type="bump")
 
         for override_dir in bump_overrides:
-            total_count += self._scan_directory(override_dir, is_bumps=True)
+            total_count += self._scan_directory(override_dir, is_bumps=True, content_type="bump")
 
         for override_dir in commercial_overrides:
-            total_count += self._scan_directory(override_dir)
+            total_count += self._scan_directory(override_dir, content_type="commercial")
 
         # add sign-off and off-air videos to the clip index
         if "sign_off_video" in self.config:
             self._l.debug("Adding sign-off video")
             video_clip = VideoFileClip(self.config["sign_off_video"])
-            self.clip_index["sign_off"] = [CatalogEntry(self.config["sign_off_video"], video_clip.duration, "sign_off")]
+            self.clip_index["sign_off"] = [CatalogEntry(self.config["sign_off_video"], video_clip.duration, "sign_off", content_type="sign_off")]
             self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
             total_count += 1
 
         if "off_air_video" in self.config:
             self._l.debug("Adding off air video")
             video_clip = VideoFileClip(self.config["off_air_video"])
-            self.clip_index["off_air"] = [CatalogEntry(self.config["off_air_video"], video_clip.duration, "off_air")]
+            self.clip_index["off_air"] = [CatalogEntry(self.config["off_air_video"], video_clip.duration, "off_air", content_type="off_air")]
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count += 1
 
         if "off_air_image" in self.config:
             self._l.debug("Adding offair image")
-            self.clip_index["off_air_image"] = CatalogEntry(self.config["off_air_image"], MIN_5, "off_air")
+            self.clip_index["off_air_image"] = CatalogEntry(self.config["off_air_image"], MIN_5, "off_air", content_type="off_air")
             self._l.debug(f"Added off air image {self.config['off_air_image']}")
             total_count += 1
 
@@ -237,7 +238,7 @@ class ShowCatalog:
         self._build_tags()
         self._write_catalog()
 
-    def _scan_directory(self, tag, is_bumps=False):
+    def _scan_directory(self, tag, is_bumps=False, content_type="feature"):
         count_added = 0
         if tag not in self.clip_index:
             self.clip_index[tag] = []
@@ -245,7 +246,7 @@ class ShowCatalog:
             tag_dir = f"{self.config['content_dir']}/{tag}"
             file_list = MediaProcessor._find_media(tag_dir)
 
-            self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, fluid=self.__fluid_builder)
+            self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, fluid=self.__fluid_builder, content_type=content_type)
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")
             self._l.debug(f"---- {tag} media listing: {self.clip_index[tag]}")
 
@@ -253,7 +254,7 @@ class ShowCatalog:
             if self.__fluid_builder and not self.skip_chapter_scan:
                 self.__fluid_builder.scan_chapters_for_entries(self.clip_index[tag])
 
-            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder)
+            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder, content_type=content_type)
 
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")

@@ -34,6 +34,7 @@ class CatalogIO:
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                 realpath TEXT,
+                                content_type TEXT DEFAULT 'feature',
                                 UNIQUE(station, tag, path)
                                 )
                             """)
@@ -58,6 +59,12 @@ class CatalogIO:
 
                 connection.commit()
                 self._l.info(f"Updated realpath for {len(rows)} existing entries")
+
+            if "content_type" not in columns:
+                self._l.info("Adding content_type column to catalog_entries table")
+                cursor.execute("ALTER TABLE catalog_entries ADD COLUMN content_type TEXT DEFAULT 'feature'")
+                connection.commit()
+                self._l.info("Added content_type column to catalog_entries table")
 
             # Create indexes
             cursor.execute("""CREATE INDEX IF NOT EXISTS idx_catalog_station 
@@ -131,9 +138,9 @@ class CatalogIO:
                     # Use INSERT OR REPLACE to overwrite existing entries
 
                     cursor.execute(
-                        """INSERT OR REPLACE INTO catalog_entries 
-                                    (station, path, realpath, title, duration, tag, count, hints, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                        """INSERT OR REPLACE INTO catalog_entries
+                                    (station, path, realpath, title, duration, tag, count, hints, content_type, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
                         (
                             station_name,
                             entry.path,
@@ -143,6 +150,7 @@ class CatalogIO:
                             entry.tag,
                             entry.count,
                             hints_json,
+                            entry.content_type,
                         ),
                     )
 

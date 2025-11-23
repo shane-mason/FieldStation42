@@ -19,7 +19,7 @@ from fs42.catalog_entry import CatalogEntry
 class MediaProcessor:
     supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v", "webm", "wmv"]
 
-    def process_one(fname, tag, hints, fluid=None) -> CatalogEntry:
+    def process_one(fname, tag, hints, fluid=None, content_type="feature") -> CatalogEntry:
         _l = logging.getLogger("MEDIA")
         _l.debug(f"--process_one is working on {fname}")
         # get video file length in seconds
@@ -50,7 +50,7 @@ class MediaProcessor:
                 _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
                 _l.warning("Files with 0 length can't be added to the catalog.")
             else:
-                show_clip = CatalogEntry(fname, duration, tag, hints)
+                show_clip = CatalogEntry(fname, duration, tag, hints, content_type=content_type)
                 result = show_clip
                 result.realpath = full_path
                 _l.debug(f"--_process_media is done with {fname}: {show_clip}")
@@ -62,7 +62,7 @@ class MediaProcessor:
         return result
 
     @staticmethod
-    def _process_media(file_list, tag, hints=[], fluid=None) -> list[CatalogEntry]:
+    def _process_media(file_list, tag, hints=[], fluid=None, content_type="feature") -> list[CatalogEntry]:
         _l = logging.getLogger("MEDIA")
         _l.debug(f"_process_media starting processing for tag={tag} on {len(file_list)} files")
         show_clip_list = []
@@ -74,7 +74,7 @@ class MediaProcessor:
         for fname in file_list:
             _l.debug(f"--_process_media is working on {fname}")
             # get video file length in seconds
-            results = MediaProcessor.process_one(fname, tag, hints, fluid)
+            results = MediaProcessor.process_one(fname, tag, hints, fluid, content_type)
             if results:
                 show_clip_list.append(results)
             else:
@@ -166,7 +166,7 @@ class MediaProcessor:
         return hints
 
     @staticmethod
-    def _process_subs(dir_path, tag, bumpdir=False, fluid=None):
+    def _process_subs(dir_path, tag, bumpdir=False, fluid=None, content_type="feature"):
         """Process all subdirectories recursively, collecting hints from all levels"""
         from collections import defaultdict
 
@@ -193,7 +193,7 @@ class MediaProcessor:
                     hints += MediaProcessor._process_hints(part, tag, bumpdir)
 
             # Process all files in this directory with these hints
-            clips += MediaProcessor._process_media(file_list, tag, hints=hints, fluid=fluid)
+            clips += MediaProcessor._process_media(file_list, tag, hints=hints, fluid=fluid, content_type=content_type)
 
         return clips
 
