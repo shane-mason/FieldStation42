@@ -59,14 +59,42 @@ class GuideWindowConf:
 
         self.scroll_speed = 1.0
 
+        # Ratio of top section height to total height (0.0 to 1.0)
+        # 0.5 = 50/50 split, 0.3 = 30% top / 70% bottom, etc.
+        self.top_section_ratio = 0.5
+
+        # Row height constraints for responsive sizing
+        self.target_row_height = 60  # Target height for schedule rows
+        self.min_row_height = 40     # Minimum height for schedule rows
+        self.max_row_height = 80     # Maximum height for schedule rows
+
         self._calc_internals()
 
     def _calc_internals(self):
         self.half_h = self.height / 2
         self.half_w = self.width / 2
+
+        # Calculate section heights based on configurable ratio
+        self.top_section_height = self.height * self.top_section_ratio
+        self.bottom_section_height = self.height * (1.0 - self.top_section_ratio)
+
         self.network_w = self.width / self.network_width_divisor
         self.sched_w = (self.width - self.network_w) / self.schedule_col_count
-        self.sched_h = self.half_h / (1 + self.schedule_row_count)
+
+        # Calculate responsive row height with constraints
+        # First, calculate how much space is available for rows (minus the header row)
+        available_height = self.bottom_section_height
+
+        # Try to use target row height for header + rows
+        total_rows = 1 + self.schedule_row_count  # 1 header + schedule rows
+        calculated_height = available_height / total_rows
+
+        # Constrain row height to min/max bounds
+        self.sched_h = max(self.min_row_height, min(self.max_row_height, calculated_height))
+
+        # Calculate how many visible rows we can actually fit
+        self.visible_row_count = int((available_height - self.sched_h) / self.sched_h)
+
         self._message_font = (self.message_font_family, self.message_font_size)
         self._schedule_font = (self.schedule_font_family, self.schedule_font_size)
         self._network_font = (self.network_font_family, self.network_font_size)
@@ -129,7 +157,7 @@ class AdFrame(tk.Frame):
 
         self.lbl_v = tk.Label(self, text="Video Placeholder", bg="black", fg="white")
 
-        self.lbl_v.place(x=conf.pad, y=conf.pad, width=conf.half_w - conf.pad * 2, height=conf.half_h - conf.pad * 2)
+        self.lbl_v.place(x=conf.pad, y=conf.pad, width=conf.half_w - conf.pad * 2, height=conf.top_section_height - conf.pad * 2)
 
         self.photo = None
         self.image_index = 0
@@ -138,10 +166,10 @@ class AdFrame(tk.Frame):
             self, text="This is the message\nplaceholder", bg=conf.top_bg, fg="white", font=conf._message_font
         )
         self.lbl_messages.place(
-            x=conf.pad + conf.half_w, y=conf.pad, width=conf.half_w - conf.pad * 2, height=conf.half_h - conf.pad * 2
+            x=conf.pad + conf.half_w, y=conf.pad, width=conf.half_w - conf.pad * 2, height=conf.top_section_height - conf.pad * 2
         )
 
-        self.place(x=0, y=0, height=conf.height / 2, width=conf.width)
+        self.place(x=0, y=0, height=conf.top_section_height, width=conf.width)
         self.conf = conf
         self.message_index = 0
         self.rotate_message()
@@ -156,10 +184,13 @@ class AdFrame(tk.Frame):
         if len(self.conf.images):
             try:
                 as_img = Image.open(self.conf.images[self.image_index])
-                resized = as_img.resize(
-                    (int(self.conf.half_w - self.conf.pad * 2), int(self.conf.half_h - self.conf.pad * 2))
-                )
-                self.photo = ImageTk.PhotoImage(resized)
+                # Calculate maximum size for the image area
+                max_width = int(self.conf.half_w - self.conf.pad * 2)
+                max_height = int(self.conf.top_section_height - self.conf.pad * 2)
+
+                # Use thumbnail to preserve aspect ratio (fits within max size)
+                as_img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                self.photo = ImageTk.PhotoImage(as_img)
 
                 self.lbl_v.configure(image=self.photo)
 
@@ -180,7 +211,7 @@ class ScheduleFrame(tk.Frame):
         self.parent = parent
         self.conf = conf
         self.populate_frame()
-        self.place(x=0, y=conf.half_h, height=conf.half_h, width=conf.width)
+        self.place(x=0, y=conf.top_section_height, height=conf.bottom_section_height, width=conf.width)
         self.start_time = datetime.datetime.now()
 
     def populate_frame(self):
@@ -219,7 +250,7 @@ class ScheduleFrame(tk.Frame):
         self.canvas = tk.Canvas(
             self,
             bg="green",
-            height=self.conf.half_h - self.conf.sched_h,
+            height=self.conf.bottom_section_height - self.conf.sched_h,
             width=self.conf.width,
             scrollregion=(0, 0, canvas_h, self.conf.width),
         )
