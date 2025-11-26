@@ -199,8 +199,43 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 | `messages` | array of strings | Text messages to display |
 | `images` | array of strings | Image paths to display |
 | `play_sound` | boolean | Whether to play background sound |
-| `sound_to_play` | string | Path to audio file |
+| `sound_to_play` | string or array | Path to audio file, directory path, or array of files for shuffle playlist |
 | `scroll_speed` | number | Speed of scrolling (e.g., `1.0`) |
+
+#### Guide Audio Examples
+
+Single audio file:
+```json
+{
+  "network_type": "guide",
+  "play_sound": true,
+  "sound_to_play": "runtime/guide/background.mp3"
+}
+```
+
+Directory of audio files (automatically finds all .mp3 files and shuffles):
+```json
+{
+  "network_type": "guide",
+  "play_sound": true,
+  "sound_to_play": "runtime/guide/music"
+}
+```
+**Note:** Trailing slash is optional - any valid directory path will be auto-detected and expanded
+
+Explicit shuffle playlist (plays files in random order, looping indefinitely):
+```json
+{
+  "network_type": "guide",
+  "play_sound": true,
+  "sound_to_play": [
+    "runtime/guide/track1.mp3",
+    "runtime/guide/track2.mp3",
+    "runtime/guide/track3.mp3",
+    "runtime/guide/track4.mp3"
+  ]
+}
+```
 
 ### Streaming Network Properties
 

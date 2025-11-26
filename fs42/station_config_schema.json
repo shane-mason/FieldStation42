@@ -307,8 +307,19 @@
           "description": "Whether to play sound (guide networks)"
         },
         "sound_to_play": {
-          "type": "string",
-          "description": "Path to sound file (guide networks)"
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Path to single sound file (guide networks)"
+            },
+            {
+              "type": "array",
+              "description": "Array of sound files to play on shuffle (guide networks)",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
         },
         "fullscreen": {
           "type": "boolean",

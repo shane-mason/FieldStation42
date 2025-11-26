@@ -1,6 +1,7 @@
 import os
 import sys
 import datetime
+import glob
 
 sys.path.append(os.getcwd())
 
@@ -80,8 +81,25 @@ class GuideWindowConf:
         """Note: this should only be called from the startup checker since it merges the conf again"""
         self.merge_config(merge_conf)
         to_check = self.images.copy()
-        if self.play_sound:
-            to_check.append(self.sound_to_play) 
+
+        # Check sound_to_play - can be a string (file or directory) or a list of files
+        if self.play_sound and self.sound_to_play:
+            if isinstance(self.sound_to_play, list):
+                # It's a list - check each file
+                for sound_file in self.sound_to_play:
+                    to_check.append(sound_file)
+            elif isinstance(self.sound_to_play, str):
+                # It's a string - could be a file or directory
+                if os.path.isdir(self.sound_to_play):
+                    # Directory path - check if it has any mp3 files
+                    mp3_files = glob.glob(os.path.join(self.sound_to_play, "*.mp3"))
+                    if not mp3_files:
+                        errors = [f"Guide channel directory {self.sound_to_play} exists but contains no .mp3 files"]
+                        return errors
+                else:
+                    # Single file path - add to check list
+                    to_check.append(self.sound_to_play)
+
         errors = []
         for fp in to_check:
             if not os.path.exists(fp):

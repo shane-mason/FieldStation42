@@ -6,6 +6,8 @@ import time
 import datetime
 import json
 import os
+import glob
+import random
 
 from python_mpv_jsonipc import MPV
 
@@ -233,6 +235,61 @@ class StationPlayer:
             )
             return False
 
+    def play_file_list(self, file_list):
+        """
+        Play a list of audio files in random shuffle order, looping indefinitely.
+        This is a simplified player for background music without duration constraints.
+        Note: Does not update status socket - caller is responsible for that.
+
+        Args:
+            file_list: List of file paths to play
+
+        Returns:
+            True if playlist started successfully, False otherwise
+        """
+        try:
+            # Filter out any files that don't exist
+            valid_files = [f for f in file_list if os.path.exists(f)]
+
+            if not valid_files:
+                self._l.error("No valid audio files found in playlist")
+                return False
+            print(valid_files)
+            # Shuffle the file list so each invocation has a different order
+            random.shuffle(valid_files)
+
+            self._l.info(f"Starting shuffle playlist with {len(valid_files)} files")
+
+            # Clear any existing playlist and load the files
+            self.current_playing_file_path = "playlist"
+
+            # Clear existing playlist
+            self.mpv.command("playlist-clear")
+
+            # Load files using loadfile with 'append' flag
+            for i, file_path in enumerate(valid_files):
+                self._l.debug(f"Adding to playlist: {file_path}")
+                if i == 0:
+                    # First file: replace current playlist
+                    self.mpv.command("loadfile", file_path, "replace")
+                else:
+                    # Subsequent files: append to playlist
+                    self.mpv.command("loadfile", file_path, "append")
+
+            # Set playlist to loop infinitely
+            self.mpv.loop_playlist = "inf"
+
+            # Wait for the first file to start
+            self._l.info("Starting playlist playback")
+            self.mpv.wait_for_property("duration")
+
+            return True
+
+        except Exception as e:
+            self._l.exception(e)
+            self._l.error(f"Error starting playlist: {e}")
+            return False
+
     def _apply_vfx(self, current_time):
         vfx = None
         if "video_scramble_fx" in self.station_config:
@@ -284,11 +341,46 @@ class StationPlayer:
         guide_process.start()
 
         if "play_sound" in guide_config and guide_config["play_sound"]:
-            # make sure it actually exists
-            playing = self.play_file(guide_config["sound_to_play"])
-            if not playing:
+            sound_to_play = guide_config["sound_to_play"]
+
+            # Normalize sound_to_play to always be a list
+            if isinstance(sound_to_play, str):
+                # Check if it's a directory (with or without trailing slash)
+                if os.path.isdir(sound_to_play):
+                    # Find all mp3 files in the directory
+                    mp3_files = glob.glob(os.path.join(sound_to_play, "*.mp3"))
+                    if mp3_files:
+                        sound_to_play = sorted(mp3_files)
+                        self._l.info(f"Expanded directory {guide_config['sound_to_play']} to {len(sound_to_play)} mp3 files")
+                    else:
+                        self._l.error(f"Directory {sound_to_play} contains no mp3 files")
+                        sound_to_play = []
+                else:
+                    # Single file - wrap in a list
+                    sound_to_play = [sound_to_play]
+            elif not isinstance(sound_to_play, list):
+                self._l.error(f"Invalid sound_to_play configuration: {type(sound_to_play)}")
+                sound_to_play = []
+
+            # Now sound_to_play is always a list
+            if len(sound_to_play) == 0:
+                # No valid files
                 self.mpv.stop()
                 self.current_playing_file_path = None
+            elif len(sound_to_play) == 1:
+                # Single file - use the simple play_file method
+                self._l.info(f"Playing guide audio from single file: {sound_to_play[0]}")
+                playing = self.play_file(sound_to_play[0])
+                if not playing:
+                    self.mpv.stop()
+                    self.current_playing_file_path = None
+            else:
+                # Multiple files - use shuffle playlist
+                self._l.info(f"Playing guide audio as shuffle playlist with {len(sound_to_play)} files")
+                playing = self.play_file_list(sound_to_play)
+                if not playing:
+                    self.mpv.stop()
+                    self.current_playing_file_path = None
         else:
             self.mpv.stop()
             self.current_playing_file_path = None
