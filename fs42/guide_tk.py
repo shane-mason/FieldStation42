@@ -306,7 +306,6 @@ class ScheduleFrame(tk.Frame):
         self.scroll_frame_id = self.canvas.create_window((0, 0), window=self.scroll_frame, anchor=tk.NW)
         self.after(1000, self.scroll_canvas_view)
 
-        f0, f1 = self.conf.footer_messages
 
         y_offset = (len(view["rows"]) + 1) * self.conf.sched_h
 
