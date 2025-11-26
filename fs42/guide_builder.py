@@ -134,9 +134,9 @@ class GuideBuilder:
             timings.append(f"{hour_two}:00")
 
         formatted_timings = []
-        # TODO: Add configuration option for 24 vs 12 hour times
+        time_format = StationManager().server_conf["time_format"]
         for timing in timings:
-            formatted = datetime.datetime.strptime(timing, "%H:%M").strftime("%I:%M %p")
+            formatted = datetime.datetime.strptime(timing, "%H:%M").strftime(time_format)
             formatted_timings.append(formatted)
 
         view["timings"] = formatted_timings
