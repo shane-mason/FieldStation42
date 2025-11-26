@@ -335,7 +335,7 @@
         },
         "window_decorations": {
           "type": "boolean",
-          "description": "Whether to show window decorations"
+          "description": "Whether to show window decorations "
         },
         "scroll_speed": {
           "type": "number",

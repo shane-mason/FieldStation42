@@ -37,6 +37,7 @@ class GuideWindowConf:
 
         self.network_font_family = "Arial"
         self.network_font_size = 12
+        self.network_width_divisor = 6.0
 
         self.schedule_font_family = "Arial"
         self.schedule_font_size = 12
@@ -63,7 +64,7 @@ class GuideWindowConf:
     def _calc_internals(self):
         self.half_h = self.height / 2
         self.half_w = self.width / 2
-        self.network_w = self.width / 6
+        self.network_w = self.width / self.network_width_divisor
         self.sched_w = (self.width - self.network_w) / self.schedule_col_count
         self.sched_h = self.half_h / (1 + self.schedule_row_count)
         self._message_font = (self.message_font_family, self.message_font_size)
