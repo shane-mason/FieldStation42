@@ -279,9 +279,8 @@ class StationPlayer:
             # Set playlist to loop infinitely
             self.mpv.loop_playlist = "inf"
 
-            # Wait for the first file to start
+            # Start playback - don't wait for duration to avoid blocking channel changes
             self._l.info("Starting playlist playback")
-            self.mpv.wait_for_property("duration")
 
             return True
 
