@@ -1,0 +1,15 @@
+[Unit]
+Description=FieldStation42 Field Player
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=__INSTALL_DIR__/env/bin/python3 field_player.py -l fieldplayer.log
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

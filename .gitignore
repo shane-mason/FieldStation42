@@ -9,6 +9,7 @@ __pycache__/
 runtime/
 catalog/
 env/
+local/
 *.kdev4*
 *.kate-swp
 *confs/*.json

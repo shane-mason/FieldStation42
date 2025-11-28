@@ -102,7 +102,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     reception.degrade()
     player.update_filters()
 
-    def sigint_handler(sig, frame):
+    def signal_handler(sig, frame):
         logger.critical("Received sig-int signal, attempting to exit gracefully...")
         player.shutdown()
 
@@ -115,7 +115,8 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         logger.info("Shutdown completed as expected - exiting application")
         exit(0)
 
-    signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     channel_conf = manager.stations[channel_index]
 
@@ -249,7 +250,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         elif player_state.status == PlayerState.SUCCESS:
             stuck_timer = 0
         elif player_state.status == PlayerState.EXIT_COMMAND:
-            sigint_handler(None, None)
+            signal_handler(None, None)
         else:
             stuck_timer = 0
 

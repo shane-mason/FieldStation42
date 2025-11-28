@@ -141,6 +141,17 @@ else
   echo -e "${CHECK} Catalog folder created"
 fi
 
+# Install systemd user services
+echo ""
+echo -e "${INFO} Would you like to install systemd user services?"
+echo -e "       This will set up FieldStation42 to run automatically as background services."
+read -p "Install services? (y/N): " install_services
+
+if [[ "$install_services" =~ ^[Yy]$ ]]; then
+  echo ""
+  bash install/install_services.sh
+fi
+
 echo ""
 echo -e "${CYAN}════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}✓ Installation is complete!${NC}"
