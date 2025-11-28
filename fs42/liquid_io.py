@@ -219,7 +219,7 @@ class LiquidIO:
 
         plans = []
         for p in _plan_json:
-            plans.append(BlockPlanEntry(p["path"], p["skip"], p["duration"], p["is_stream"]))
+            plans.append(BlockPlanEntry(p["path"], p["skip"], p["duration"], p["is_stream"], p.get("content_type", "feature")))
         block.plan = plans
         return block
 

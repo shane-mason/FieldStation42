@@ -173,7 +173,7 @@ class LiquidManager(object):
         conf_streams = station_conf["streams"]
         block_plan = []
         for stream in conf_streams:
-            bpe = BlockPlanEntry(stream["url"], 0, stream["duration"], is_stream=True)
+            bpe = BlockPlanEntry(stream["url"], 0, stream["duration"], is_stream=True, content_type="stream")
             block_plan.append(bpe)
 
         pp = PlayPoint(0, 0, block_plan)
