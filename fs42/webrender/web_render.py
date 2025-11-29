@@ -10,36 +10,59 @@ class WebRender(QMainWindow):
     def __init__(self):
         super().__init__()
         self.browser = QWebEngineView()
-        
+
         # Configure QWebEngineSettings to enable autoplay
         settings = self.browser.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.PlaybackRequiresUserGesture, False)
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
-        
+
         # Set custom user agent for identification
         self.browser.page().profile().setHttpUserAgent("FieldStation42-WebRender/1.0")
-        
+
         self.setCentralWidget(self.browser)
 
+        # Hide cursor
+        self.setCursor(Qt.BlankCursor)
+
+        # Retry logic for handling web server startup races
+        self.current_url = None
+        self.retry_count = 0
+        self.max_retries = 3
+        self.retry_delay = 2000  # 2 seconds in milliseconds
+
     def navigate(self, URL: str):
+        # Initialize retry tracking for new URL
+        self.current_url = URL
+        self.retry_count = 0
+        print(f"WebRender navigating to: {URL}")
+
         self.browser.setUrl(QUrl(URL))
         # Connect to loadFinished to simulate user interaction after page loads
         self.browser.loadFinished.connect(self._on_load_finished)
-    
+
+    def _retry_load(self):
+        """Retry loading the current URL"""
+        print(f"WebRender retrying URL: {self.current_url} (attempt {self.retry_count + 1}/{self.max_retries})")
+        self.browser.setUrl(QUrl(self.current_url))
+
     def _on_load_finished(self, success):
         if success:
+            print(f"WebRender successfully loaded: {self.current_url}")
+            # Reset retry count on success
+            self.retry_count = 0
+
             # Inject JavaScript to simulate user interaction and enable autoplay
             js_code = """
             // Simulate user interaction to enable autoplay
             document.body.click();
-            
+
             // Try to enable wake lock and autoplay for media elements
             if ('wakeLock' in navigator) {
                 navigator.wakeLock.request('screen').catch(e => console.log('Wake lock failed:', e));
             }
-            
+
             // Find and try to play any media elements
             const mediaElements = document.querySelectorAll('video, audio');
             mediaElements.forEach(element => {
@@ -49,6 +72,15 @@ class WebRender(QMainWindow):
             });
             """
             self.browser.page().runJavaScript(js_code)
+        else:
+            # Load failed - check if we should retry
+            if self.retry_count < self.max_retries:
+                self.retry_count += 1
+                print(f"WebRender load failed for: {self.current_url}, will retry in {self.retry_delay/1000}s...")
+                # Schedule retry after delay
+                QTimer.singleShot(self.retry_delay, self._retry_load)
+            else:
+                print(f"WebRender load failed for: {self.current_url} after {self.max_retries} retries, giving up.")
 
 class WebRenderApp(QApplication):
     def __init__(self, user_conf, queue=None):
