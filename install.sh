@@ -141,17 +141,6 @@ else
   echo -e "${CHECK} Catalog folder created"
 fi
 
-# Install systemd user services
-echo ""
-echo -e "${INFO} Would you like to install systemd user services?"
-echo -e "       This will set up FieldStation42 to run automatically as background services."
-read -p "Install services? (y/N): " install_services
-
-if [[ "$install_services" =~ ^[Yy]$ ]]; then
-  echo ""
-  bash install/install_services.sh
-fi
-
 echo ""
 echo -e "${CYAN}════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}✓ Installation is complete!${NC}"
@@ -159,6 +148,9 @@ echo -e "${CYAN}═════════════════════�
 echo ""
 echo -e "${INFO} You can find example configurations in ${CYAN}confs/examples${NC}"
 echo -e "${INFO} Visit the wiki for details ${CYAN}https://github.com/shane-mason/FieldStation42/wiki${NC}"
+echo ""
+echo -e "${INFO} To set up FieldStation42 as auto-starting systemd services:"
+echo -e "       ${CYAN}bash install/install_services.sh${NC}"
 echo ""
 echo -e "${WARN} NOTE: If you want to use web type channels on Raspberry Pi Bookworm,"
 echo -e "       you will also need to run:"

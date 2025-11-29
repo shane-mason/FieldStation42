@@ -53,14 +53,60 @@ echo -e "${INFO} Reloading systemd daemon..."
 systemctl --user daemon-reload
 echo -e "${CHECK} Daemon reloaded"
 
+# Prompt for each service
+echo ""
+echo -e "${CYAN}Select which services to enable:${NC}"
+echo ""
+
+SERVICES_TO_ENABLE=()
+
+# Field Player
+echo -e "${BLUE}Field Player${NC} - Main content playback service (core functionality)"
+read -p "Enable fs42.service? (Y/n): " enable_fp
+if [[ ! "$enable_fp" =~ ^[Nn]$ ]]; then
+    SERVICES_TO_ENABLE+=("fs42.service")
+fi
+
+# Cable Box
+echo ""
+echo -e "${BLUE}Cable Box${NC} - Cable box interface"
+read -p "Enable fs42-cable-box.service? (y/N): " enable_cb
+if [[ "$enable_cb" =~ ^[Yy]$ ]]; then
+    SERVICES_TO_ENABLE+=("fs42-cable-box.service")
+fi
+
+# Remote Controller
+echo ""
+echo -e "${BLUE}Remote Controller${NC} - Remote controller interface"
+read -p "Enable fs42-remote-controller.service? (y/N): " enable_rc
+if [[ "$enable_rc" =~ ^[Yy]$ ]]; then
+    SERVICES_TO_ENABLE+=("fs42-remote-controller.service")
+fi
+
+# OSD
+echo ""
+echo -e "${BLUE}On-Screen Display${NC} - Visual overlay (starts 30s after login)"
+read -p "Enable fs42-osd.service? (y/N): " enable_osd
+if [[ "$enable_osd" =~ ^[Yy]$ ]]; then
+    SERVICES_TO_ENABLE+=("fs42-osd.service")
+fi
+
+# Enable selected services
+if [ ${#SERVICES_TO_ENABLE[@]} -eq 0 ]; then
+    echo ""
+    echo -e "${WARN} No services selected for installation."
+    echo -e "${INFO} You can run this script again later to install services."
+    exit 0
+fi
 
 echo ""
 echo -e "${INFO} Enabling services to start on next login..."
-for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service; do
+for service in "${SERVICES_TO_ENABLE[@]}"; do
     systemctl --user enable "$service"
     echo -e "${CHECK} Enabled $service"
 done
 
+# Only enable lingering if at least one service was enabled
 echo ""
 echo -e "${INFO} Enabling user lingering (services will run without active login)..."
 loginctl enable-linger $USER
@@ -71,12 +117,12 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${GREEN}✓ Services installed successfully!${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════${NC}"
 echo ""
-echo -e "${INFO} Services will start automatically on next login."
-echo -e "${INFO} To start them now, run: ${CYAN}systemctl --user start fs42-*${NC}"
+echo -e "${INFO} Enabled services will start automatically on next login."
+echo -e "${INFO} To start them now, run: ${CYAN}systemctl --user start <service-name>${NC}"
 echo ""
 echo -e "${INFO} Useful commands:"
-echo -e "  ${CYAN}systemctl --user status fs42-*${NC}       - Check status of all services"
-echo -e "  ${CYAN}systemctl --user stop fs42-*${NC}         - Stop all services"
-echo -e "  ${CYAN}systemctl --user restart fs42-*${NC}      - Restart all services"
-echo -e "  ${CYAN}journalctl --user -u fs42-* -f${NC}       - View logs for all services"
+echo -e "  ${CYAN}systemctl --user status fs42*${NC}        - Check status of enabled services"
+echo -e "  ${CYAN}systemctl --user stop <service>${NC}      - Stop a specific service"
+echo -e "  ${CYAN}systemctl --user restart <service>${NC}   - Restart a specific service"
+echo -e "  ${CYAN}journalctl --user -u <service> -f${NC}    - View logs for a service"
 echo ""
