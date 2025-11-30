@@ -164,7 +164,6 @@ class CableBox:
 
             tick_count += 1
 
-
 if __name__ == "__main__":
     cable_box = CableBox()
     cable_box.event_loop()
