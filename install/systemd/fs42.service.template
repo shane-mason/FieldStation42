@@ -9,9 +9,6 @@ WorkingDirectory=__INSTALL_DIR__
 Environment="DISPLAY=:0"
 ExecStartPre=/bin/sleep 5
 ExecStart=__INSTALL_DIR__/env/bin/python3 field_player.py -l fieldplayer.log
-KillMode=mixed
-KillSignal=SIGTERM
-TimeoutStopSec=30
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

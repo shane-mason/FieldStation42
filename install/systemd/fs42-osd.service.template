@@ -9,9 +9,6 @@ WorkingDirectory=__INSTALL_DIR__
 Environment="DISPLAY=:0"
 ExecStartPre=/bin/sleep 10
 ExecStart=__INSTALL_DIR__/env/bin/python3 fs42/osd/main.py
-KillMode=mixed
-KillSignal=SIGTERM
-TimeoutStopSec=30
 Restart=on-failure
 RestartSec=10
 StandardOutput=null
