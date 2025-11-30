@@ -21,6 +21,9 @@ class WebRender(QMainWindow):
         # Set custom user agent for identification
         self.browser.page().profile().setHttpUserAgent("FieldStation42-WebRender/1.0")
 
+        # Set black background color
+        self.browser.page().setBackgroundColor(Qt.black)
+
         self.setCentralWidget(self.browser)
 
         # Hide cursor
@@ -73,7 +76,14 @@ class WebRender(QMainWindow):
             """
             self.browser.page().runJavaScript(js_code)
         else:
-            # Load failed - check if we should retry
+            # Load failed - hide any error content and show black screen
+            hide_error_code = """
+            document.body.style.backgroundColor = 'black';
+            document.body.innerHTML = '';
+            """
+            self.browser.page().runJavaScript(hide_error_code)
+
+            # Check if we should retry
             if self.retry_count < self.max_retries:
                 self.retry_count += 1
                 print(f"WebRender load failed for: {self.current_url}, will retry in {self.retry_delay/1000}s...")

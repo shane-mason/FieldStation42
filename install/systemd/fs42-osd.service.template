@@ -8,7 +8,7 @@ PartOf=fs42.service
 Type=simple
 WorkingDirectory=__INSTALL_DIR__
 Environment="DISPLAY=:0"
-ExecStartPre=/bin/sleep 10
+ExecStartPre=/bin/sleep 5
 ExecStart=__INSTALL_DIR__/env/bin/python3 fs42/osd/main.py
 Restart=always
 RestartSec=5
