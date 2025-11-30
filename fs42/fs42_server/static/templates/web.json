@@ -1,0 +1,8 @@
+{
+  "station_conf": {
+    "network_name": "New Web Channel",
+    "channel_number": 100,
+    "network_type": "web",
+    "web_url": "http://localhost:4242/example.html"
+  }
+}

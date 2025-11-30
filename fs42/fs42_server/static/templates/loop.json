@@ -1,0 +1,8 @@
+{
+  "station_conf": {
+    "network_name": "New Loop Channel",
+    "channel_number": 50,
+    "network_type": "loop",
+    "content_dir": "media/loop_content"
+  }
+}

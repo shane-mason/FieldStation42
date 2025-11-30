@@ -88,25 +88,33 @@
         let stationName = null;
         let isDirty = false;
         let originalContent = '';
+        let isCreateMode = false;
 
         document.addEventListener('DOMContentLoaded', async function() {
             window.fs42Common.initTheme();
 
-            // Get station name from URL
+            // Get parameters from URL
             const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode');
             stationName = params.get('station');
 
-            if (!stationName) {
+            // Check if we're in create mode
+            isCreateMode = (mode === 'create');
+
+            if (!isCreateMode && !stationName) {
                 alert('No station specified');
                 window.location.href = '/static/stations.html';
                 return;
             }
 
+            const headerTitle = isCreateMode ? 'Create New Station' : 'Edit Station Configuration';
+            const headerSubtitle = isCreateMode ? 'Configure your new channel' : escapeHtml(stationName);
+
             const content = `
                 <div class="editor-header">
                     <div>
-                        <h1 style="margin:0;">Edit Station Configuration</h1>
-                        <p style="color:#8b949e;margin:0.5em 0 0 0;">${escapeHtml(stationName)}</p>
+                        <h1 style="margin:0;">${headerTitle}</h1>
+                        <p style="color:#8b949e;margin:0.5em 0 0 0;">${headerSubtitle}</p>
                     </div>
                     <a href="/static/stations.html" class="pure-button">
                         ← Back to Stations
@@ -142,8 +150,12 @@
             // Initialize Monaco Editor
             await initEditor();
 
-            // Load station config
-            await loadStation();
+            // Load station config or template
+            if (isCreateMode) {
+                await loadTemplate();
+            } else {
+                await loadStation();
+            }
         });
 
         async function initEditor() {
@@ -260,6 +272,35 @@
             }
         }
 
+        async function loadTemplate() {
+            try {
+                // Get template from sessionStorage
+                const templateStr = sessionStorage.getItem('newStationTemplate');
+                if (!templateStr) {
+                    throw new Error('No template found in session');
+                }
+
+                // Clear from sessionStorage
+                sessionStorage.removeItem('newStationTemplate');
+
+                // Parse and load the template
+                const template = JSON.parse(templateStr);
+                const jsonStr = compactJsonStringify(template, 4);
+
+                originalContent = '';  // No original content for new stations
+                editor.setValue(jsonStr);
+                isDirty = true;  // Mark as dirty since it's new
+                updateSaveButton();
+
+            } catch (error) {
+                showError(`Failed to load template: ${error.message || 'Unknown error'}`);
+                // Redirect back to dashboard on error
+                setTimeout(() => {
+                    window.location.href = '/static/stations.html';
+                }, 2000);
+            }
+        }
+
         async function saveStation() {
             // Clear previous messages
             hideError();
@@ -292,27 +333,50 @@
 
             // 3. Send to API
             try {
-                const result = await window.fs42Api.put(
-                    `stations/${encodeURIComponent(stationName)}`,
-                    config
-                );
+                let result;
+
+                if (isCreateMode) {
+                    // Create new station with POST
+                    result = await window.fs42Api.post('stations', config);
+
+                    // After successful creation, switch to edit mode
+                    stationName = config.station_conf.network_name;
+                    isCreateMode = false;
+
+                    // Update URL to edit mode
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.delete('mode');
+                    newUrl.searchParams.set('station', stationName);
+                    window.history.replaceState({}, '', newUrl);
+
+                    // Update the header
+                    document.querySelector('.editor-header h1').textContent = 'Edit Station Configuration';
+                    document.querySelector('.editor-header p').textContent = stationName;
+
+                } else {
+                    // Update existing station with PUT
+                    result = await window.fs42Api.put(
+                        `stations/${encodeURIComponent(stationName)}`,
+                        config
+                    );
+
+                    // If the station was renamed, update the URL and station name
+                    if (config.station_conf.network_name !== stationName) {
+                        stationName = config.station_conf.network_name;
+                        const newUrl = new URL(window.location.href);
+                        newUrl.searchParams.set('station', stationName);
+                        window.history.replaceState({}, '', newUrl);
+
+                        // Update the header
+                        document.querySelector('.editor-header p').textContent = stationName;
+                    }
+                }
 
                 // Success!
                 originalContent = editor.getValue();
                 isDirty = false;
                 updateSaveButton();
                 showSuccess();
-
-                // If the station was renamed, update the URL and station name
-                if (config.station_conf.network_name !== stationName) {
-                    stationName = config.station_conf.network_name;
-                    const newUrl = new URL(window.location.href);
-                    newUrl.searchParams.set('station', stationName);
-                    window.history.replaceState({}, '', newUrl);
-
-                    // Update the header
-                    document.querySelector('.editor-header p').textContent = stationName;
-                }
 
             } catch (error) {
                 // Server validation error

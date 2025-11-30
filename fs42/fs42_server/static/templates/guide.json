@@ -1,0 +1,11 @@
+{
+  "station_conf": {
+    "network_name": "New Guide Channel",
+    "channel_number": 0,
+    "network_type": "guide",
+    "messages": [
+      "Welcome to your channel guide"
+    ],
+    "images": []
+  }
+}

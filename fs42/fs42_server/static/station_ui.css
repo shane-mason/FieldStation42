@@ -211,6 +211,122 @@
     margin: 0;
 }
 
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1em;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5em;
+    border-bottom: 1px solid #30363d;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #e6e6e6;
+    font-size: 1.5em;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2em;
+    color: #8b949e;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    width: 1em;
+    height: 1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: #e6e6e6;
+}
+
+.modal-body {
+    padding: 1.5em;
+}
+
+/* Template Grid */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1em;
+}
+
+.template-card {
+    background: #161b22;
+    border: 2px solid #30363d;
+    border-radius: 6px;
+    padding: 1.5em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.template-card:hover {
+    border-color: #61afef;
+    background: #1c2128;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(97, 175, 239, 0.15);
+}
+
+.template-icon {
+    font-size: 3em;
+    margin-bottom: 0.5em;
+}
+
+.template-card h3 {
+    font-size: 1.1em;
+    margin: 0 0 0.5em 0;
+    color: #e6e6e6;
+}
+
+.template-card p {
+    font-size: 0.85em;
+    color: #8b949e;
+    margin: 0;
+    line-height: 1.4;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .station-cards {
@@ -224,5 +340,13 @@
 
     .search-container {
         max-width: 100%;
+    }
+
+    .template-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .modal-content {
+        max-height: 95vh;
     }
 }

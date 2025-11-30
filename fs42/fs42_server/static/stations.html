@@ -26,6 +26,9 @@
                         <h1 style="margin:0;">Station Manager</h1>
                         <p style="color:#8b949e;margin:0.5em 0 0 0;">Manage your FieldStation42 channel configurations</p>
                     </div>
+                    <button class="pure-button pure-button-primary" onclick="showTemplateSelector()">
+                        + Create New Station
+                    </button>
                 </div>
 
                 <div class="filter-bar">
@@ -46,6 +49,52 @@
                 <div id="station-list">
                     <div class="loading-spinner">
                         <p>Loading stations...</p>
+                    </div>
+                </div>
+
+                <!-- Template Selector Modal -->
+                <div id="template-modal" class="modal" style="display:none;">
+                    <div class="modal-overlay" onclick="hideTemplateSelector()"></div>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Create New Station</h2>
+                            <button class="modal-close" onclick="hideTemplateSelector()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="color:#8b949e;margin-bottom:1.5em;">Choose a template to get started:</p>
+                            <div class="template-grid">
+                                <div class="template-card" onclick="createFromTemplate('standard')">
+                                    <div class="template-icon">📺</div>
+                                    <h3>Standard</h3>
+                                    <p>Traditional scheduled TV with time slots and programming</p>
+                                </div>
+                                <div class="template-card" onclick="createFromTemplate('web')">
+                                    <div class="template-icon">🌐</div>
+                                    <h3>Web Page</h3>
+                                    <p>Embed a web page as a channel</p>
+                                </div>
+                                <div class="template-card" onclick="createFromTemplate('loop')">
+                                    <div class="template-icon">🔄</div>
+                                    <h3>Loop</h3>
+                                    <p>Continuous playlist of content</p>
+                                </div>
+                                <div class="template-card" onclick="createFromTemplate('guide')">
+                                    <div class="template-icon">📋</div>
+                                    <h3>Guide</h3>
+                                    <p>Program guide with EPG information</p>
+                                </div>
+                                <div class="template-card" onclick="createFromTemplate('streaming')">
+                                    <div class="template-icon">📡</div>
+                                    <h3>Streaming</h3>
+                                    <p>External stream sources</p>
+                                </div>
+                                <div class="template-card" onclick="createFromTemplate('blank')">
+                                    <div class="template-icon">⚡</div>
+                                    <h3>Blank</h3>
+                                    <p>Minimal configuration for advanced users</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -143,6 +192,9 @@
                             <button class="pure-button pure-button-primary" onclick="editStation('${escapeHtml(station.network_name)}')">
                                 Edit Config
                             </button>
+                            <button class="pure-button" onclick="duplicateStation('${escapeHtml(station.network_name)}')">
+                                Duplicate
+                            </button>
                         </div>
                     </div>
                 `;
@@ -192,6 +244,102 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Template selector modal functions
+        function showTemplateSelector() {
+            document.getElementById('template-modal').style.display = 'flex';
+        }
+
+        function hideTemplateSelector() {
+            document.getElementById('template-modal').style.display = 'none';
+        }
+
+        async function createFromTemplate(templateName) {
+            hideTemplateSelector();
+
+            try {
+                // Load the template
+                const response = await fetch(`/static/templates/${templateName}.json`);
+                if (!response.ok) {
+                    throw new Error(`Failed to load template: ${response.statusText}`);
+                }
+                const template = await response.json();
+
+                // Suggest next available channel number
+                const channelNumber = await findNextAvailableChannel();
+                template.station_conf.channel_number = channelNumber;
+
+                // Store template in sessionStorage and navigate to editor
+                sessionStorage.setItem('newStationTemplate', JSON.stringify(template));
+                window.location.href = 'station_editor.html?mode=create';
+
+            } catch (error) {
+                alert(`Error loading template: ${error.message}`);
+            }
+        }
+
+        async function duplicateStation(networkName) {
+            try {
+                // Fetch the existing station
+                const data = await window.fs42Api.get(`stations/${encodeURIComponent(networkName)}`);
+                const config = data.station_config;
+
+                // Create a copy with modified name and channel
+                const newName = generateDuplicateName(config.network_name);
+                const newChannel = await findNextAvailableChannel();
+
+                config.network_name = newName;
+                config.channel_number = newChannel;
+
+                // Store in sessionStorage and navigate to editor
+                sessionStorage.setItem('newStationTemplate', JSON.stringify(config));
+                window.location.href = 'station_editor.html?mode=create';
+
+            } catch (error) {
+                alert(`Error duplicating station: ${error.message}`);
+            }
+        }
+
+        function generateDuplicateName(originalName) {
+            // Check if name already ends with " 2", " 3", etc.
+            const match = originalName.match(/^(.*?)\s+(\d+)$/);
+
+            if (match) {
+                const baseName = match[1];
+                let num = parseInt(match[2]);
+
+                // Find next available number
+                while (allStations.some(s => s.network_name === `${baseName} ${num}`)) {
+                    num++;
+                }
+                return `${baseName} ${num}`;
+            } else {
+                // No number suffix, try " 2"
+                if (!allStations.some(s => s.network_name === `${originalName} 2`)) {
+                    return `${originalName} 2`;
+                }
+
+                // " 2" exists, find next available
+                let num = 3;
+                while (allStations.some(s => s.network_name === `${originalName} ${num}`)) {
+                    num++;
+                }
+                return `${originalName} ${num}`;
+            }
+        }
+
+        async function findNextAvailableChannel() {
+            const usedChannels = allStations.map(s => s.channel_number);
+
+            // Find first available channel starting from 1
+            for (let i = 1; i < 1000; i++) {
+                if (!usedChannels.includes(i)) {
+                    return i;
+                }
+            }
+
+            return 999; // Fallback
         }
     </script>
 </body>

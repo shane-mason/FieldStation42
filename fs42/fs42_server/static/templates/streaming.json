@@ -1,0 +1,8 @@
+{
+  "station_conf": {
+    "network_name": "New Streaming Channel",
+    "channel_number": 200,
+    "network_type": "streaming",
+    "streams": []
+  }
+}
