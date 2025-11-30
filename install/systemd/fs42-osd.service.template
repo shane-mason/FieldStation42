@@ -8,7 +8,7 @@ PartOf=fs42.service
 Type=simple
 WorkingDirectory=__INSTALL_DIR__
 Environment="DISPLAY=:0"
-ExecStartPre=/bin/bash -c 'if [ ! -f /tmp/fs42-osd-started ]; then sleep 5; touch /tmp/fs42-osd-started; fi'
+ExecStartPre=/bin/bash -c 'if [ ! -f /tmp/fs42-osd-started ]; then sleep 10; touch /tmp/fs42-osd-started; fi'
 ExecStart=__INSTALL_DIR__/env/bin/python3 fs42/osd/main.py
 Restart=always
 RestartSec=5
