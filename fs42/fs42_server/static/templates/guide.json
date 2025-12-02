@@ -4,8 +4,18 @@
     "channel_number": 0,
     "network_type": "guide",
     "messages": [
-      "Welcome to your channel guide"
+      "FS42\nIt's Up To You!",
+      "FieldStation42\nGroovy, right?",
+      "FS42\nRetro cable goodness.",
+      "FieldStation42\nTimeless entertainment.",
+      "FieldStation42\nMountain fresh cable."
     ],
-    "images": []
+    "images": [
+      "runtime/logo_images/gold42.png",
+      "runtime/logo_images/groove42.png", 
+      "runtime/logo_images/city42.png",
+      "runtime/logo_images/timeless42.png",
+      "runtime/logo_images/mountains42.png"
+    ]
   }
 }

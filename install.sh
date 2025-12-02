@@ -126,6 +126,18 @@ if [ $files_copied -eq 0 ]; then
   echo -e "${INFO} All runtime files already exist"
 fi
 
+# Copy logo_images folder if it doesn't exist
+if [ -d "runtime/logo_images" ]; then
+  echo -e "${CHECK} logo_images folder already exists - skipping"
+else
+  if [ -d "docs/logo_images" ]; then
+    cp -r "docs/logo_images" runtime/
+    echo -e "${CHECK} Copied logo_images folder"
+  else
+    echo -e "${WARN} logo_images folder not found in docs/ - skipping"
+  fi
+fi
+
 if [ ! -f runtime/channel.socket ]; then
   touch runtime/channel.socket
   echo -e "${CHECK} Channel socket created"
