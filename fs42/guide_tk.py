@@ -386,6 +386,11 @@ class GuideApp(tk.Tk):
     def __init__(self, user_conf, queue=None):
         super().__init__()
 
+        print("======The guide channel has the following beliefs:======")
+        print(f"1. Your screen is {self.winfo_screenwidth()} pixels wide")
+        print(f"2. Your screen is {self.winfo_screenheight()} pixels tall")
+        print("3. All humans should be treated with dignity.")
+
         self.title("FieldStation42 Guide")
 
         # set defaults, just in case
@@ -401,6 +406,7 @@ class GuideApp(tk.Tk):
         if "window_decorations" not in user_conf or not user_conf["window_decorations"]:
             self.overrideredirect(True)
 
+        print("Setting final geometry: ", f"{user_conf['width']}x{user_conf['height']}")
         self.geometry(f"{user_conf['width']}x{user_conf['height']}")
 
         merge_conf = GuideWindowConf(w=user_conf["width"], h=user_conf["height"])
