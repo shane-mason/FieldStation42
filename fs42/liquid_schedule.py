@@ -14,6 +14,7 @@ from fs42.sequence_api import SequenceAPI
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
 from fs42.marathon_agent import MarathonAgent
+from fs42.path_query import PathQuery
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -73,7 +74,7 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
-    def _fill(self, slot_config, tag_str, current_mark, break_strategy, break_info) -> LiquidBlock:
+    def _fill(self, slot_config, tag_str, current_mark) -> LiquidBlock:
         seq_key = None
         candidate = None
         new_block = None
@@ -91,16 +92,15 @@ class LiquidSchedule:
             candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
 
         if candidate:
-            # handle clip shows in regular dirs
-            from fs42.path_query import PathQuery
 
-            the_match =  PathQuery.path_matches_any_relative(candidate.realpath, self.conf["clip_shows"].keys())
+            the_match =  PathQuery.match_any_from_base(candidate.path, self.conf["content_dir"], self.conf["clip_shows"].keys())
+            
             if the_match:
                 raise ClipShowKickBack(the_match, the_match)
 
-            _increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
+            break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path)
 
-            target_duration = self._calc_target_duration(candidate.duration, _increment)
+            target_duration = self._calc_target_duration(candidate.duration, increment)
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
             new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
             # add sequence information
@@ -113,7 +113,7 @@ class LiquidSchedule:
             )
         return (new_block, next_mark)
 
-    def _clip_fill(self, tag_str, current_mark, break_strategy, break_info) -> LiquidClipBlock:
+    def _clip_fill(self, tag_str, current_mark, slot_config) -> LiquidClipBlock:
         new_block = None
         next_mark = None
         # handle clip show
@@ -126,6 +126,7 @@ class LiquidSchedule:
                 f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
             )
         else:
+            break_info, break_strategy, schedule_increment = self._break_info(slot_config, tag_str, clip_content[0].path)
             clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info)
             target_duration = self._calc_target_duration(clip_block.content_duration())
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
@@ -133,15 +134,17 @@ class LiquidSchedule:
             new_block = clip_block
         return (new_block, next_mark)
 
-    def _break_info(self, slot_config):
+    def _break_info(self, slot_config, tag_str, candidate_path):
         break_info = {
             "start_bump": None,
             "end_bump": None,
             "bump_dir": None,
             "commercial_dir": None,
             "break_strategy": None,
+            "increment" : None
         }
 
+        #first - extract slot level overrides
         # does this slot have a start bump?
         if "start_bump" in slot_config:
             break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
@@ -152,8 +155,29 @@ class LiquidSchedule:
         break_info["commercial_dir"] = slot_config.get("commercial_dir", self.conf.get("commercial_dir", None))
 
         break_strategy = slot_config.get("break_strategy", self.conf["break_strategy"])
+        increment = slot_config.get("schedule_increment", self.conf["schedule_increment"])
 
-        return (break_info, break_strategy)
+        #now determine if we have a tag level override
+        if "tag_overrides" in self.conf:
+            match = PathQuery.match_any_from_base(candidate_path, self.conf["content_dir"], self.conf["tag_overrides"].keys())
+            override = None
+            if match:
+                override = self.conf["tag_overrides"][match]
+            elif tag_str in self.conf["tag_overrides"]:
+                #direct match to tag string
+                override = self.conf["tag_overrides"][tag_str]
+
+            if override:
+                if "start_bump" in override:
+                    break_info["start_bump"] = self.catalog.get_start_bump(override["start_bump"])
+                if "end_bump" in override:
+                    break_info["end_bump"] = self.catalog.get_end_bump(override["end_bump"])            
+                break_info["bump_dir"] = override.get("bump_dir", break_info["bump_dir"])
+                break_info["commercial_dir"] = override.get("commercial_dir", break_info["commercial_dir"])
+                break_strategy = override.get("break_strategy", break_strategy)
+                increment = override.get("schedule_increment", increment)
+
+        return (break_info, break_strategy, increment)
 
     def _fluid(self, start_time, end_target):
         # this is the core of the scheduler.
@@ -180,7 +204,7 @@ class LiquidSchedule:
             onair_flag = True
             if tag_str is not None:
                 onair_flag = True
-                break_info, break_strategy = self._break_info(slot_config)
+                
                 
                 if MarathonAgent.detect_marathon(slot_config):
                     forward_buffer = MarathonAgent.fill_marathon(slot_config)
@@ -188,20 +212,19 @@ class LiquidSchedule:
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
                     try:
-                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, break_strategy, break_info)
+                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark)
                     except ClipShowKickBack as e:
-                        print("Got kickpath: ", e.clip_tag)
-                        new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, break_strategy, break_info)
+                        new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, slot_config)
                     except MatchingContentNotFound as e:
                         if "fallback_tag" in self.conf:
                             fb_config = {"tags": self.conf["fallback_tag"]}
-                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, break_strategy, break_info)
+                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark)
                         else:
                             self._l.warning("Content not found, but no fallback_tag specified.")
                             raise e
                 else:
                     #print("is clip show")
-                    new_block, next_mark = self._clip_fill(tag_str, current_mark, break_strategy, break_info)
+                    new_block, next_mark = self._clip_fill(tag_str, current_mark, slot_config)
 
             else:
                 # we are offair, but assume no sign_off video this slot

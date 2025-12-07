@@ -159,6 +159,18 @@ class ShowCatalog:
                     start_bumps[slots[k]["start_bump"]] = True
                 if "end_bump" in slots[k]:
                     end_bumps[slots[k]["end_bump"]] = True
+        
+        # check for tag overrides
+        tag_overrides = self.config.get("tag_overrides", {})
+        for override in tag_overrides.values():
+            if "bump_dir" in override:
+                bump_overrides[override["bump_dir"]] = True
+            if "commercial_dir" in override:
+                commercial_overrides[override["commercial_dir"]] = True
+            if "start_bump" in override:
+                start_bumps[override["start_bump"]] = True
+            if "end_bump" in override:
+                end_bumps[override["start_bump"]] = True
 
         # check for fallback tag
         if "fallback_tag" in self.config:

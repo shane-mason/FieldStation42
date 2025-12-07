@@ -28,3 +28,35 @@ class PathQuery:
             if PathQuery.path_ends_with_relative(full_path, relative_path):
                 return relative_path
         return None
+
+    @staticmethod
+    def get_dir_from_base(full_path, base_dir):
+        full = Path(full_path)
+        base = Path(base_dir)
+        try:
+            return full.parent.relative_to(base)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def path_starts_with(path, pattern):
+        if path is None:
+            return False
+
+        path_parts = Path(path).parts
+        pattern_parts = Path(pattern).parts
+
+        if len(pattern_parts) > len(path_parts):
+            return False
+
+        return path_parts[:len(pattern_parts)] == pattern_parts
+
+    @staticmethod
+    def match_any_from_base(full_path, base_dir, patterns):
+        path_from_base = PathQuery.get_dir_from_base(full_path, base_dir)
+
+        for pattern in patterns:
+            if PathQuery.path_starts_with(path_from_base, pattern):
+                return pattern
+
+        return None
