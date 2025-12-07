@@ -138,6 +138,13 @@
             "$ref": "#/$defs/timeSlotConfig"
           }
         },
+        "tag_overrides": {
+          "type": "object",
+          "description": "Tag-based override configurations applied when content from a specific tag path is selected",
+          "additionalProperties": {
+            "$ref": "#/$defs/timeSlotConfig"
+          }
+        },
         "autobump": {
           "type": "object",
           "description": "Auto-generated bump configuration",

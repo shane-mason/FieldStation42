@@ -362,6 +362,37 @@ For complete details on all available configuration options, see:
 }
 ```
 
+### Channel with Tag Overrides
+
+```json
+{
+  "station_conf": {
+    "network_name": "Sitcom Central",
+    "channel_number": 10,
+    "network_type": "standard",
+    "schedule_increment": 30,
+    "tag_overrides": {
+      "sitcoms/friends": {
+        "start_bump": "extra/friends_start.mp4",
+        "end_bump": "extra/friends_end.mp4",
+        "bump_dir": "extra/friends_bumps",
+        "commercial_dir": "extra/friends_commercials",
+        "break_strategy": "end"
+      }
+    },
+    "monday": {
+      "20": {"tags": "sitcoms"}
+    },
+    "tuesday": "monday",
+    "wednesday": "monday",
+    "thursday": "monday",
+    "friday": "monday",
+    "saturday": {},
+    "sunday": {}
+  }
+}
+```
+
 ### Loop Channel
 
 ```json

@@ -416,6 +416,61 @@ Define named override sets for reuse across multiple time slots:
 - `video_scramble_fx`
 - `marathon`
 
+### Tag Overrides
+
+Define tag-based overrides that are automatically applied when content from a specific tag path is selected:
+
+```json
+"tag_overrides": {
+  "sitcoms/friends": {
+    "start_bump": "extra/friends_start.mp4",
+    "end_bump": "extra/friends_end.mp4",
+    "bump_dir": "extra/friends_bumps",
+    "commercial_dir": "extra/friends_commercials",
+    "break_strategy": "end",
+    "schedule_increment": 30
+  },
+  "movies/action": {
+    "break_strategy": "center",
+    "schedule_increment": 120
+  }
+}
+```
+
+**How Tag Overrides Work:**
+
+Tag overrides work similarly to slot overrides, but are applied automatically based on the content tag of the selected episode/video. The system detects when selected content has a more specific tag than what was scheduled and applies the corresponding override.
+
+**Nested Tag Detection:**
+
+Tags can be hierarchical (e.g., `sitcoms/friends`). When a slot schedules content using tag `"sitcoms"` and an episode from `"sitcoms/friends"` is selected, the system detects the difference and applies the `"sitcoms/friends"` tag override if one is defined.
+
+**Example:**
+```json
+"tag_overrides": {
+  "sitcoms/friends": {
+    "start_bump": "friends_intro.mp4",
+    "commercial_dir": "friends_commercials"
+  }
+},
+"monday": {
+  "20": {"tags": "sitcoms"}
+}
+```
+
+If the scheduler picks an episode from `catalog/content/sitcoms/friends/`, the `"sitcoms/friends"` tag override will be applied automatically, using the Friends-specific bumps and commercials.
+
+**Overridable Properties:**
+Same as slot overrides:
+- `start_bump`, `end_bump`
+- `bump_dir`, `commercial_dir`
+- `break_strategy`
+- `sequence`, `sequence_start`, `sequence_end`
+- `schedule_increment`
+- `random_tags`
+- `video_scramble_fx`
+- `marathon`
+
 ### Random Tag Selection
 
 ```json
