@@ -102,7 +102,10 @@
             guideEndTime = new Date(guideStartTime.getTime() + (2 * 60 * 60 * 1000)); // 2 hours total
             
             // Load all stations
-            stations = await window.fs42Common.fetchStationSummary();
+            const allStations = await window.fs42Common.fetchStationSummary();
+
+            // Filter out hidden stations
+            stations = allStations.filter(station => !station.hidden);
 
             // Mark stations with/without schedules
             stations.forEach(station => {
