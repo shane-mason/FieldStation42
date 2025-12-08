@@ -155,7 +155,7 @@ class AdFrame(tk.Frame):
     def __init__(self, parent, conf):
         super().__init__(parent, bg=conf.top_bg)
 
-        self.lbl_v = tk.Label(self, text="Video Placeholder", bg="black", fg="white")
+        self.lbl_v = tk.Label(self, text="Video Placeholder", bg=conf.top_bg, fg="white")
 
         self.lbl_v.place(x=conf.pad, y=conf.pad, width=conf.half_w - conf.pad * 2, height=conf.top_section_height - conf.pad * 2)
 
@@ -408,6 +408,9 @@ class GuideApp(tk.Tk):
 
         print("Setting final geometry: ", f"{user_conf['width']}x{user_conf['height']}")
         self.geometry(f"{user_conf['width']}x{user_conf['height']}")
+
+        # Make cursor invisible
+        self.config(cursor="none")
 
         merge_conf = GuideWindowConf(w=user_conf["width"], h=user_conf["height"])
 
