@@ -23,12 +23,7 @@ class TMDBHelper:
     """Helper class for fetching movie metadata from TMDB."""
 
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Initialize TMDB helper.
 
-        Args:
-            api_key: Optional TMDB API key. If not provided, reads from main_config.json
-        """
         if api_key:
             self.api_key = api_key
         else:
@@ -118,15 +113,7 @@ class TMDBHelper:
             logger.warning(f"Failed to save cache for '{title}': {e}")
 
     def search_movie(self, title: str) -> Optional[Dict[str, Any]]:
-        """
-        Search for a movie by title and return the best match.
 
-        Args:
-            title: Movie title to search for (can include year in various formats)
-
-        Returns:
-            Dictionary with movie metadata or None if not found
-        """
         if not self.is_configured():
             logger.warning("TMDB API key not configured, skipping search")
             return None
@@ -198,15 +185,7 @@ class TMDBHelper:
             return None
 
     def get_movie_details(self, tmdb_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Get detailed movie information by TMDB ID.
 
-        Args:
-            tmdb_id: TMDB movie ID
-
-        Returns:
-            Dictionary with detailed movie metadata or None if not found
-        """
         if not self.is_configured():
             return None
 
