@@ -62,6 +62,10 @@ def input_check():
                     style = q_message.get("style", None)
                     iterations = q_message.get("iterations", None)
                     run_ticker(message, header, style, iterations)
+                case "play_file":
+                    file_path = q_message.get("file_path", None)
+                    return PlayerOutcome(PlayerState.PLAY_FILE, file_path)
+
 
     channel_socket = StationManager().server_conf["channel_socket"]
     with open(channel_socket, "r") as r_sock:
@@ -220,6 +224,11 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
 
             # long_change_effect(player, reception)
             transition_fn(player, reception)
+
+        elif player_state.status == PlayerState.PLAY_FILE:
+            print("Got playfile!", player_state.payload )
+            skip_play = True
+            player_state = player.play_and_wait(player_state.payload)
 
         elif player_state.status == PlayerState.FAILED:
             stuck_timer += 1

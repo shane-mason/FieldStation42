@@ -70,6 +70,7 @@ class PlayerState(Enum):
     SUCCESS = 3
     CHANNEL_CHANGE = 4
     EXIT_COMMAND = 5
+    PLAY_FILE = 6
 
 
 class PlayerOutcome:
@@ -238,18 +239,25 @@ class StationPlayer:
             )
             return False
 
+    def play_and_wait(self, file_path):
+        self._l.info(f"Play and wait on file {file_path}")
+        self.mpv.command("playlist-clear")
+        self.mpv.command("loadfile", file_path, "replace")
+        self.mpv.loop_playlist = "inf"
+        self.current_playing_file_path = file_path
+
+        keep_going = True
+        # this will keep going until channel change or other interrupt
+        while keep_going:
+            time.sleep(0.05)
+            response = self.input_check_fn()
+            if response:
+                return response
+
+        return PlayerOutcome(PlayerState.SUCCESS)
+
     def play_file_list(self, file_list):
-        """
-        Play a list of audio files in random shuffle order, looping indefinitely.
-        This is a simplified player for background music without duration constraints.
-        Note: Does not update status socket - caller is responsible for that.
 
-        Args:
-            file_list: List of file paths to play
-
-        Returns:
-            True if playlist started successfully, False otherwise
-        """
         try:
             # Filter out any files that don't exist
             valid_files = [f for f in file_list if os.path.exists(f)]
@@ -257,8 +265,7 @@ class StationPlayer:
             if not valid_files:
                 self._l.error("No valid audio files found in playlist")
                 return False
-            print(valid_files)
-            # Shuffle the file list so each invocation has a different order
+    
             random.shuffle(valid_files)
 
             self._l.info(f"Starting shuffle playlist with {len(valid_files)} files")
@@ -266,23 +273,17 @@ class StationPlayer:
             # Clear any existing playlist and load the files
             self.current_playing_file_path = "playlist"
 
-            # Clear existing playlist
             self.mpv.command("playlist-clear")
 
             # Load files using loadfile with 'append' flag
             for i, file_path in enumerate(valid_files):
                 self._l.debug(f"Adding to playlist: {file_path}")
                 if i == 0:
-                    # First file: replace current playlist
                     self.mpv.command("loadfile", file_path, "replace")
                 else:
-                    # Subsequent files: append to playlist
                     self.mpv.command("loadfile", file_path, "append")
 
-            # Set playlist to loop infinitely
             self.mpv.loop_playlist = "inf"
-
-            # Start playback - don't wait for duration to avoid blocking channel changes
             self._l.info("Starting playlist playback")
 
             return True
@@ -407,6 +408,8 @@ class StationPlayer:
                 return response
 
         return PlayerOutcome(PlayerState.SUCCESS)
+
+
 
     def show_web(self, web_config):
         if not WEB_RENDER_AVAILABLE:
