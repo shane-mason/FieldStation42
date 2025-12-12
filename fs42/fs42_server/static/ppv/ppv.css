@@ -1,0 +1,375 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;500;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #0f1b2d;
+    color: #ffffff;
+}
+
+.ppv-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: #0000cd;
+}
+
+.background-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.2;
+}
+
+/* ============================================
+   CONTENT AREA (Side-by-side layout)
+   ============================================ */
+.content-area {
+    position: relative;
+    z-index: 10;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    background: transparent;
+    overflow: hidden;
+}
+
+.side-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 20px;
+    background: #0000cd;
+}
+
+.ppv-branding {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.ppv-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #ffff00;
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+    line-height: 1.2;
+}
+
+.ppv-tagline {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 1px;
+    line-height: 1.3;
+}
+
+.image-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0000cd;
+    overflow: hidden;
+    padding: 20px;
+}
+
+.current-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: none;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.current-image.visible {
+    display: block;
+    opacity: 1;
+}
+
+.current-image.fade-out {
+    opacity: 0;
+}
+
+.no-image {
+    font-family: 'Orbitron', monospace;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #1F53AD;
+    text-align: center;
+    letter-spacing: 5px;
+    display: none;
+    text-shadow: 0 0 20px rgba(31, 83, 173, 0.5);
+}
+
+.no-image.visible {
+    display: block;
+}
+
+/* ============================================
+   INFO BANNER (Thin bottom banner)
+   ============================================ */
+.info-banner {
+    position: relative;
+    z-index: 20;
+    background: #00008b;
+    padding: 15px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    border-top: 1px solid #808080;
+}
+
+.content-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ffff00;
+    letter-spacing: 2px;
+    margin: 0;
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.content-details {
+    font-size: 1.8rem;
+    color: #ffffff;
+    font-weight: 700;
+    font-style: italic;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.content-description {
+    font-size: 1.6rem;
+    color: #ffffff;
+    line-height: 1.7;
+    font-weight: 400;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slideshow-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
+.slide-counter {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    font-weight: 900;
+    color: #ffff00;
+    white-space: nowrap;
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+}
+
+.nav-hint {
+    font-size: 1rem;
+    color: #ffffff;
+    font-weight: 600;
+    white-space: nowrap;
+    font-family: 'Orbitron', monospace;
+}
+
+/* ============================================
+   LOADING OVERLAY
+   ============================================ */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    background: #0000cd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.loading-overlay.hidden {
+    display: none;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffff00;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+/* ============================================
+   TRANSITIONS
+   ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.content-title,
+.content-details,
+.content-description {
+    animation: slideUp 0.5s ease-out;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 1024px) {
+    .content-area {
+        grid-template-columns: 180px 1fr;
+    }
+
+    .side-info {
+        padding: 15px;
+    }
+
+    .image-area {
+        padding: 15px;
+    }
+
+    .content-title {
+        font-size: 2.2rem;
+    }
+
+    .content-details {
+        font-size: 1.6rem;
+    }
+
+    .content-description {
+        font-size: 1.4rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .ppv-logo {
+        font-size: 1.4rem;
+        letter-spacing: 2px;
+    }
+
+    .ppv-tagline {
+        font-size: 0.65rem;
+        letter-spacing: 0.5px;
+    }
+
+    .content-area {
+        grid-template-columns: 160px 1fr;
+    }
+
+    .side-info {
+        padding: 12px;
+    }
+
+    .image-area {
+        padding: 12px;
+    }
+
+    .info-banner {
+        padding: 12px 20px;
+        max-height: 160px;
+    }
+
+    .content-title {
+        font-size: 2rem;
+    }
+
+    .content-details {
+        font-size: 1.5rem;
+    }
+
+    .content-description {
+        font-size: 1.3rem;
+        -webkit-line-clamp: 2;
+    }
+
+    .slide-counter {
+        font-size: 1.5rem;
+    }
+
+    .nav-hint {
+        font-size: 0.85rem;
+    }
+
+    .no-image {
+        font-size: 1.8rem;
+    }
+}
+
+/* ============================================
+   VARIATION SUPPORT
+   ============================================ */
+.ppv-container.variation-retro .slide-counter {
+    color: #ff00ff;
+    text-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+}
+
+.ppv-container.variation-terminal .slide-counter {
+    color: #00ff00;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+}
+
+.ppv-container.variation-terminal .info-banner {
+    font-family: 'Courier New', monospace;
+}

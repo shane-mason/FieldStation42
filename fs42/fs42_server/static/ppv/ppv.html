@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pay-Per-View</title>
+    <link rel="stylesheet" href="ppv.css">
+</head>
+<body>
+    <div class="ppv-container" id="ppvContainer">
+        <div class="background-layer" id="backgroundLayer"></div>
+
+        <!-- Main Content Area -->
+        <div class="content-area">
+            <!-- Side Info Box -->
+            <div class="side-info">
+                <div class="ppv-branding">
+                    <div class="ppv-logo">FS42<br>PPV</div>
+                    <div class="ppv-tagline">Select Your Entertainment</div>
+                </div>
+                <div class="slideshow-controls">
+                    <div class="slide-counter" id="slideCounter">1/1</div>
+                    <div class="nav-hint">◀ ▶ Navigate</div>
+                    <div class="nav-hint">ENTER Select</div>
+                </div>
+            </div>
+
+            <!-- Image Area -->
+            <div class="image-area">
+                <img id="currentImage" class="current-image" alt="Movie Poster" />
+                <div class="no-image" id="noImage">NO PREVIEW AVAILABLE</div>
+            </div>
+        </div>
+
+        <!-- Thin Bottom Banner -->
+        <div class="info-banner">
+            <div class="content-title" id="contentTitle">Select a title to view</div>
+            <div class="content-details" id="contentDetails"></div>
+            <div class="content-description" id="contentDescription"></div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading content...</div>
+        </div>
+
+        <!-- Background music audio element -->
+        <audio id="bgMusicPlayer" preload="auto" style="display: none;">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    <script src="../fs42_client.js"></script>
+    <script src="../common.js"></script>
+    <script src="ppv.js"></script>
+</body>
+</html>

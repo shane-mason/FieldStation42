@@ -106,7 +106,8 @@ class StationManager(object):
                     "db_path",
                     "server_host",
                     "server_port",
-                    "normalize_titles"
+                    "normalize_titles",
+                    "tmdb_api_key"
                 ]
 
                 for key in to_check:
