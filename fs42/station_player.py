@@ -241,6 +241,7 @@ class StationPlayer:
 
     def play_and_wait(self, file_path):
         self._l.info(f"Play and wait on file {file_path}")
+        self.mpv.vf = ""
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
