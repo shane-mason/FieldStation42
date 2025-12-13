@@ -205,12 +205,13 @@ def channel_up_pressed():
                 if status_response.ok:
                     status = status_response.json()
                     new_channel = status.get('channel_number')
+                    print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
                     # Only update last_channel if the channel actually changed
                     if new_channel != current_channel and current_channel is not None:
                         last_channel = current_channel
                         print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
                     else:
-                        print(f"Channel unchanged: {current_channel}")
+                        print(f"Channel unchanged: new={new_channel}, current={current_channel}")
                     current_channel = new_channel
                 else:
                     current_channel = None
@@ -241,12 +242,13 @@ def channel_down_pressed():
                 if status_response.ok:
                     status = status_response.json()
                     new_channel = status.get('channel_number')
+                    print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
                     # Only update last_channel if the channel actually changed
                     if new_channel != current_channel and current_channel is not None:
                         last_channel = current_channel
                         print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
                     else:
-                        print(f"Channel unchanged: {current_channel}")
+                        print(f"Channel unchanged: new={new_channel}, current={current_channel}")
                     current_channel = new_channel
                 else:
                     current_channel = None
