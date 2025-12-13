@@ -41,7 +41,7 @@ For testing, you can access at `http://localhost:4242/static/ppv/ppv.html?channe
 
 ## Controls
 
-- **← →** - Navigate movies
+- **Page-Up - Page-Down** - Navigate movies
 - **ENTER/SPACE** - Play selected movie
 - **P** - Pause/resume slideshow (10s auto-advance)
 
