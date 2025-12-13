@@ -26,6 +26,7 @@ class PPVViewer {
         this.contents = [];
         this.currentIndex = 0;
         this.slideshowTimer = null;
+        this.slideDirection = 'up'; // Track slide direction: 'up' or 'down'
 
         // Music playlist
         this.bgMusicPlayer = document.getElementById('bgMusicPlayer');
@@ -91,28 +92,45 @@ class PPVViewer {
         this.contentDetails.textContent = content.nfo?.info || '';
         this.contentDescription.textContent = content.nfo?.description || '';
 
-        // Update image with fade effect
+        // Update image with vertical slide effect
         if (content.has_image && content.image_url) {
-            // Fade out current image
-            this.currentImage.classList.add('fade-out');
+            // Slide out current image in the appropriate direction
+            const slideOutClass = this.slideDirection === 'up' ? 'slide-out-up' : 'slide-out-down';
+            const slideInClass = this.slideDirection === 'up' ? 'slide-in-up' : 'slide-in-down';
+
+            this.currentImage.classList.add(slideOutClass);
 
             setTimeout(() => {
+                // Reset all transition classes
+                this.currentImage.classList.remove('visible', 'slide-out-up', 'slide-out-down', 'slide-in-up', 'slide-in-down');
+
                 // Load new image
                 this.currentImage.src = content.image_url;
-                this.currentImage.classList.remove('fade-out');
-                this.currentImage.classList.add('visible');
+
+                // Start with slide-in position
+                this.currentImage.classList.add(slideInClass);
+                this.currentImage.style.display = 'block';
                 this.noImage.classList.remove('visible');
+
+                // Force reflow to ensure transition works
+                this.currentImage.offsetHeight;
+
+                // Slide in to visible position
+                this.currentImage.classList.remove(slideInClass);
+                this.currentImage.classList.add('visible');
 
                 // Handle image load errors
                 this.currentImage.onerror = () => {
                     console.warn('Failed to load image:', content.image_url);
                     this.currentImage.classList.remove('visible');
+                    this.currentImage.style.display = 'none';
                     this.noImage.classList.add('visible');
                 };
-            }, 500); // Wait for fade out
+            }, 500); // Wait for slide out
         } else {
             // No image available
             this.currentImage.classList.remove('visible');
+            this.currentImage.style.display = 'none';
             this.noImage.classList.add('visible');
         }
     }
@@ -138,12 +156,14 @@ class PPVViewer {
 
     nextSlide() {
         if (this.contents.length === 0) return;
+        this.slideDirection = 'up'; // Moving to next slides up
         const nextIndex = (this.currentIndex + 1) % this.contents.length;
         this.showSlide(nextIndex);
     }
 
     previousSlide() {
         if (this.contents.length === 0) return;
+        this.slideDirection = 'down'; // Moving to previous slides down
         const prevIndex = (this.currentIndex - 1 + this.contents.length) % this.contents.length;
         this.showSlide(prevIndex);
     }
@@ -151,20 +171,19 @@ class PPVViewer {
     setupKeyboardNavigation() {
         document.addEventListener('keydown', (e) => {
             switch (e.key) {
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    this.previousSlide();
-                    // Reset slideshow timer
-                    this.startSlideshow();
-                    break;
-                case 'ArrowRight':
+                case 'PageUp':
                     e.preventDefault();
                     this.nextSlide();
                     // Reset slideshow timer
                     this.startSlideshow();
                     break;
+                case 'PageDown':
+                    e.preventDefault();
+                    this.previousSlide();
+                    // Reset slideshow timer
+                    this.startSlideshow();
+                    break;
                 case 'Enter':
-                case ' ':
                     e.preventDefault();
                     this.confirmSelection();
                     break;

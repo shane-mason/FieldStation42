@@ -31,7 +31,7 @@ KEY_MAPPINGS = {
     'volume_down': 'left',       # Decrease volume  
     'channel_up': 'up',          # Next channel
     'channel_down': 'down',      # Previous channel
-    'last_channel': 'enter',     # Switch to last channel
+    'last_channel': 'backspace',     # Switch to last channel
     'power_stop': 'end',         # Stop player (power button)
     'exit': 'esc',               # Exit remote controller
     

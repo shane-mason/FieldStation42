@@ -97,16 +97,33 @@ body {
     max-height: 100%;
     object-fit: contain;
     display: none;
-    transition: opacity 0.5s ease-in-out;
+    transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
 }
 
 .current-image.visible {
     display: block;
     opacity: 1;
+    transform: translateY(0);
 }
 
-.current-image.fade-out {
+.current-image.slide-out-up {
     opacity: 0;
+    transform: translateY(-100%);
+}
+
+.current-image.slide-out-down {
+    opacity: 0;
+    transform: translateY(100%);
+}
+
+.current-image.slide-in-up {
+    opacity: 0;
+    transform: translateY(100%);
+}
+
+.current-image.slide-in-down {
+    opacity: 0;
+    transform: translateY(-100%);
 }
 
 .no-image {
