@@ -28,13 +28,14 @@ KEY_MAPPINGS = {
     # Remote control functions
     'show_guide': 'home',        # Show program guide
     'volume_up': 'right',        # Increase volume
-    'volume_down': 'left',       # Decrease volume  
+    'volume_down': 'left',       # Decrease volume
     'channel_up': 'up',          # Next channel
     'channel_down': 'down',      # Previous channel
-    'last_channel': 'backspace',     # Switch to last channel
+    'last_channel': 'backspace', # Switch to last channel
+    'mute': 'm',                 # Mute/unmute volume
     'power_stop': 'end',         # Stop player (power button)
     'exit': 'esc',               # Exit remote controller
-    
+
     # Alternative mappings (uncomment to use):
     # 'power_stop': 'space',     # Use spacebar for power/stop
     # 'show_guide': 'g',         # Use 'g' key for guide
@@ -166,6 +167,22 @@ def volume_down_pressed():
             print("Volume down failed")
     except Exception as e:
         print(f"Volume down error: {e}")
+
+
+def mute_pressed():
+    """Handle mute key press"""
+    if not should_allow_press('mute'):
+        return  # Debounced - ignore this press
+
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/volume/mute')
+        if response.ok:
+            data = response.json()
+            print(f"Mute toggled: {data.get('volume', 'success')}")
+        else:
+            print("Mute toggle failed")
+    except Exception as e:
+        print(f"Mute error: {e}")
 
 
 def channel_up_pressed():
@@ -371,6 +388,8 @@ def handle_key_event(event):
                     volume_up_pressed()
                 elif function_name == 'volume_down':
                     volume_down_pressed()
+                elif function_name == 'mute':
+                    mute_pressed()
                 elif function_name == 'channel_up':
                     channel_up_pressed()
                 elif function_name == 'channel_down':
