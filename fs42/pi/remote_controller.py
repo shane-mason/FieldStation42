@@ -350,8 +350,10 @@ def get_key_name_from_code(key_code):
     }
     
     # Add letter keys a-z
-    for i in range(26):
-        key_map[ecodes.KEY_A + i] = chr(ord('a') + i)
+    # Map each KEY_X constant to its corresponding letter
+    for letter in 'abcdefghijklmnopqrstuvwxyz':
+        key_code = getattr(ecodes, f'KEY_{letter.upper()}')
+        key_map[key_code] = letter
     
     return key_map.get(key_code)
 
