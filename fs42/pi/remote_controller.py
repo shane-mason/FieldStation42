@@ -28,13 +28,14 @@ KEY_MAPPINGS = {
     # Remote control functions
     'show_guide': 'home',        # Show program guide
     'volume_up': 'right',        # Increase volume
-    'volume_down': 'left',       # Decrease volume  
+    'volume_down': 'left',       # Decrease volume
     'channel_up': 'up',          # Next channel
     'channel_down': 'down',      # Previous channel
-    'last_channel': 'enter',     # Switch to last channel
+    'last_channel': 'backspace', # Switch to last channel
+    'mute': 'm',                 # Mute/unmute volume
     'power_stop': 'end',         # Stop player (power button)
     'exit': 'esc',               # Exit remote controller
-    
+
     # Alternative mappings (uncomment to use):
     # 'power_stop': 'space',     # Use spacebar for power/stop
     # 'show_guide': 'g',         # Use 'g' key for guide
@@ -83,8 +84,10 @@ def send_channel_change():
                 response = requests.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
                 if response.ok:
                     print(f"Changed to channel {channel_number}")
-                    # Update channel tracking
-                    last_channel = current_channel
+                    # Update channel tracking - only update last_channel if we know the current channel
+                    if current_channel is not None and current_channel != channel_number:
+                        last_channel = current_channel
+                        print(f"Updated last_channel: {last_channel} (was on {current_channel}, now on {channel_number})")
                     current_channel = channel_number
                 else:
                     print(f"Channel change to {channel_number} failed")
@@ -168,6 +171,22 @@ def volume_down_pressed():
         print(f"Volume down error: {e}")
 
 
+def mute_pressed():
+    """Handle mute key press"""
+    if not should_allow_press('mute'):
+        return  # Debounced - ignore this press
+
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/volume/mute')
+        if response.ok:
+            data = response.json()
+            print(f"Mute toggled: {data.get('volume', 'success')}")
+        else:
+            print("Mute toggle failed")
+    except Exception as e:
+        print(f"Mute error: {e}")
+
+
 def channel_up_pressed():
     """Handle up arrow key press"""
     if not should_allow_press('channel_up'):
@@ -178,9 +197,34 @@ def channel_up_pressed():
         response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
         if response.ok:
             print("Channel up success")
-            # Update channel tracking (we don't know the exact channel number for up/down)
-            last_channel = current_channel
-            current_channel = None  # Unknown after up/down
+            # Poll status to wait for channel change (max 1 second)
+            try:
+                old_channel = current_channel
+                new_channel = None
+                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                for attempt in range(max_attempts):
+                    time.sleep(0.05)
+                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    if status_response.ok:
+                        status = status_response.json()
+                        new_channel = status.get('channel_number')
+
+                        # If channel changed or we have a channel number, we're done
+                        if new_channel != old_channel:
+                            break
+
+                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
+                # Only update last_channel if the channel actually changed
+                if new_channel != current_channel and current_channel is not None:
+                    last_channel = current_channel
+                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
+                else:
+                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
+                current_channel = new_channel
+            except Exception as e:
+                print(f"Failed to get current channel: {e}")
+                current_channel = None
         else:
             print("Channel up failed")
     except Exception as e:
@@ -197,9 +241,34 @@ def channel_down_pressed():
         response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
         if response.ok:
             print("Channel down success")
-            # Update channel tracking (we don't know the exact channel number for up/down)
-            last_channel = current_channel
-            current_channel = None  # Unknown after up/down
+            # Poll status to wait for channel change (max 1 second)
+            try:
+                old_channel = current_channel
+                new_channel = None
+                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                for attempt in range(max_attempts):
+                    time.sleep(0.05)
+                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    if status_response.ok:
+                        status = status_response.json()
+                        new_channel = status.get('channel_number')
+
+                        # If channel changed or we have a channel number, we're done
+                        if new_channel != old_channel:
+                            break
+
+                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
+                # Only update last_channel if the channel actually changed
+                if new_channel != current_channel and current_channel is not None:
+                    last_channel = current_channel
+                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
+                else:
+                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
+                current_channel = new_channel
+            except Exception as e:
+                print(f"Failed to get current channel: {e}")
+                current_channel = None
         else:
             print("Channel down failed")
     except Exception as e:
@@ -298,9 +367,33 @@ def get_key_name_from_code(key_code):
         ecodes.KEY_LEFTALT: 'leftalt', ecodes.KEY_RIGHTALT: 'rightalt',
     }
     
-    # Add letter keys a-z
-    for i in range(26):
-        key_map[ecodes.KEY_A + i] = chr(ord('a') + i)
+    # Add letter keys a-z using ecodes constants
+    key_map[ecodes.KEY_A] = 'a'
+    key_map[ecodes.KEY_B] = 'b'
+    key_map[ecodes.KEY_C] = 'c'
+    key_map[ecodes.KEY_D] = 'd'
+    key_map[ecodes.KEY_E] = 'e'
+    key_map[ecodes.KEY_F] = 'f'
+    key_map[ecodes.KEY_G] = 'g'
+    key_map[ecodes.KEY_H] = 'h'
+    key_map[ecodes.KEY_I] = 'i'
+    key_map[ecodes.KEY_J] = 'j'
+    key_map[ecodes.KEY_K] = 'k'
+    key_map[ecodes.KEY_L] = 'l'
+    key_map[ecodes.KEY_M] = 'm'
+    key_map[ecodes.KEY_N] = 'n'
+    key_map[ecodes.KEY_O] = 'o'
+    key_map[ecodes.KEY_P] = 'p'
+    key_map[ecodes.KEY_Q] = 'q'
+    key_map[ecodes.KEY_R] = 'r'
+    key_map[ecodes.KEY_S] = 's'
+    key_map[ecodes.KEY_T] = 't'
+    key_map[ecodes.KEY_U] = 'u'
+    key_map[ecodes.KEY_V] = 'v'
+    key_map[ecodes.KEY_W] = 'w'
+    key_map[ecodes.KEY_X] = 'x'
+    key_map[ecodes.KEY_Y] = 'y'
+    key_map[ecodes.KEY_Z] = 'z'
     
     return key_map.get(key_code)
 
@@ -309,7 +402,7 @@ def handle_key_event(event):
     """Handle key press events from evdev"""
     if event.type == ecodes.EV_KEY and event.value == 1:  # Key press (not release)
         key_code = event.code
-        
+
         # Number keys (1-9, 0) - always handled the same way
         if key_code >= ecodes.KEY_1 and key_code <= ecodes.KEY_9:
             number = key_code - ecodes.KEY_1 + 1
@@ -318,21 +411,27 @@ def handle_key_event(event):
         elif key_code == ecodes.KEY_0:
             number_pressed(0)
             return True
-        
+
         # Get the key name and check if it's mapped to a function
         key_name = get_key_name_from_code(key_code)
         if not key_name:
+            print(f"DEBUG: Unknown key code: {key_code}")
             return True
-        
+
+        print(f"DEBUG: Key pressed: {key_name} (code: {key_code})")
+
         # Check mappings and call appropriate function
         for function_name, mapped_key in KEY_MAPPINGS.items():
             if key_name == mapped_key:
+                print(f"DEBUG: Matched function: {function_name}")
                 if function_name == 'show_guide':
                     show_guide_pressed()
                 elif function_name == 'volume_up':
                     volume_up_pressed()
                 elif function_name == 'volume_down':
                     volume_down_pressed()
+                elif function_name == 'mute':
+                    mute_pressed()
                 elif function_name == 'channel_up':
                     channel_up_pressed()
                 elif function_name == 'channel_down':
@@ -345,7 +444,7 @@ def handle_key_event(event):
                     print("Exiting remote controller...")
                     return False
                 break
-    
+
     return True
 
 
