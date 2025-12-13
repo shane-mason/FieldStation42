@@ -309,7 +309,7 @@ def handle_key_event(event):
     """Handle key press events from evdev"""
     if event.type == ecodes.EV_KEY and event.value == 1:  # Key press (not release)
         key_code = event.code
-        
+
         # Number keys (1-9, 0) - always handled the same way
         if key_code >= ecodes.KEY_1 and key_code <= ecodes.KEY_9:
             number = key_code - ecodes.KEY_1 + 1
@@ -318,15 +318,19 @@ def handle_key_event(event):
         elif key_code == ecodes.KEY_0:
             number_pressed(0)
             return True
-        
+
         # Get the key name and check if it's mapped to a function
         key_name = get_key_name_from_code(key_code)
         if not key_name:
+            print(f"DEBUG: Unknown key code: {key_code}")
             return True
-        
+
+        print(f"DEBUG: Key pressed: {key_name} (code: {key_code})")
+
         # Check mappings and call appropriate function
         for function_name, mapped_key in KEY_MAPPINGS.items():
             if key_name == mapped_key:
+                print(f"DEBUG: Matched function: {function_name}")
                 if function_name == 'show_guide':
                     show_guide_pressed()
                 elif function_name == 'volume_up':
@@ -345,7 +349,7 @@ def handle_key_event(event):
                     print("Exiting remote controller...")
                     return False
                 break
-    
+
     return True
 
 
