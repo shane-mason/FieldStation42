@@ -349,11 +349,33 @@ def get_key_name_from_code(key_code):
         ecodes.KEY_LEFTALT: 'leftalt', ecodes.KEY_RIGHTALT: 'rightalt',
     }
     
-    # Add letter keys a-z
-    # Map each KEY_X constant to its corresponding letter
-    for letter in 'abcdefghijklmnopqrstuvwxyz':
-        key_code = getattr(ecodes, f'KEY_{letter.upper()}')
-        key_map[key_code] = letter
+    # Add letter keys a-z using ecodes constants
+    key_map[ecodes.KEY_A] = 'a'
+    key_map[ecodes.KEY_B] = 'b'
+    key_map[ecodes.KEY_C] = 'c'
+    key_map[ecodes.KEY_D] = 'd'
+    key_map[ecodes.KEY_E] = 'e'
+    key_map[ecodes.KEY_F] = 'f'
+    key_map[ecodes.KEY_G] = 'g'
+    key_map[ecodes.KEY_H] = 'h'
+    key_map[ecodes.KEY_I] = 'i'
+    key_map[ecodes.KEY_J] = 'j'
+    key_map[ecodes.KEY_K] = 'k'
+    key_map[ecodes.KEY_L] = 'l'
+    key_map[ecodes.KEY_M] = 'm'
+    key_map[ecodes.KEY_N] = 'n'
+    key_map[ecodes.KEY_O] = 'o'
+    key_map[ecodes.KEY_P] = 'p'
+    key_map[ecodes.KEY_Q] = 'q'
+    key_map[ecodes.KEY_R] = 'r'
+    key_map[ecodes.KEY_S] = 's'
+    key_map[ecodes.KEY_T] = 't'
+    key_map[ecodes.KEY_U] = 'u'
+    key_map[ecodes.KEY_V] = 'v'
+    key_map[ecodes.KEY_W] = 'w'
+    key_map[ecodes.KEY_X] = 'x'
+    key_map[ecodes.KEY_Y] = 'y'
+    key_map[ecodes.KEY_Z] = 'z'
     
     return key_map.get(key_code)
 
