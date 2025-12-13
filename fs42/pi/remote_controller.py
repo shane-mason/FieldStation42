@@ -178,9 +178,19 @@ def channel_up_pressed():
         response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
         if response.ok:
             print("Channel up success")
-            # Update channel tracking (we don't know the exact channel number for up/down)
+            # Update channel tracking - get actual channel number from status
             last_channel = current_channel
-            current_channel = None  # Unknown after up/down
+            try:
+                status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                if status_response.ok:
+                    status = status_response.json()
+                    current_channel = status.get('channel_number')
+                    print(f"Current channel: {current_channel}, Last channel: {last_channel}")
+                else:
+                    current_channel = None
+            except Exception as e:
+                print(f"Failed to get current channel: {e}")
+                current_channel = None
         else:
             print("Channel up failed")
     except Exception as e:
@@ -197,9 +207,19 @@ def channel_down_pressed():
         response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
         if response.ok:
             print("Channel down success")
-            # Update channel tracking (we don't know the exact channel number for up/down)
+            # Update channel tracking - get actual channel number from status
             last_channel = current_channel
-            current_channel = None  # Unknown after up/down
+            try:
+                status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                if status_response.ok:
+                    status = status_response.json()
+                    current_channel = status.get('channel_number')
+                    print(f"Current channel: {current_channel}, Last channel: {last_channel}")
+                else:
+                    current_channel = None
+            except Exception as e:
+                print(f"Failed to get current channel: {e}")
+                current_channel = None
         else:
             print("Channel down failed")
     except Exception as e:
