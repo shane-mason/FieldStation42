@@ -148,11 +148,10 @@ body {
     position: relative;
     z-index: 20;
     background: #00008b;
-    padding: 15px 30px;
+    padding: 10px 30px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 180px;
+    gap: 4px;
     border-top: 1px solid #808080;
 }
 
@@ -163,7 +162,7 @@ body {
     color: #ffff00;
     letter-spacing: 2px;
     margin: 0;
-    line-height: 1.6;
+    line-height: 1.1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -174,7 +173,7 @@ body {
     color: #ffffff;
     font-weight: 700;
     font-style: italic;
-    line-height: 1.4;
+    line-height: 1.1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -183,7 +182,7 @@ body {
 .content-description {
     font-size: 1.6rem;
     color: #ffffff;
-    line-height: 1.7;
+    line-height: 1.2;
     font-weight: 400;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -344,8 +343,7 @@ body {
     }
 
     .info-banner {
-        padding: 12px 20px;
-        max-height: 160px;
+        padding: 8px 20px;
     }
 
     .content-title {
