@@ -197,24 +197,31 @@ def channel_up_pressed():
         response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
         if response.ok:
             print("Channel up success")
-            # Update channel tracking - get actual channel number from status
+            # Poll status to wait for channel change (max 1 second)
             try:
-                # Small delay to let the channel change complete
-                time.sleep(0.1)
-                status_response = requests.get(f'{FS42_BASE_URL}/player/status')
-                if status_response.ok:
-                    status = status_response.json()
-                    new_channel = status.get('channel_number')
-                    print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
-                    # Only update last_channel if the channel actually changed
-                    if new_channel != current_channel and current_channel is not None:
-                        last_channel = current_channel
-                        print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
-                    else:
-                        print(f"Channel unchanged: new={new_channel}, current={current_channel}")
-                    current_channel = new_channel
+                old_channel = current_channel
+                new_channel = None
+                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                for attempt in range(max_attempts):
+                    time.sleep(0.05)
+                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    if status_response.ok:
+                        status = status_response.json()
+                        new_channel = status.get('channel_number')
+
+                        # If channel changed or we have a channel number, we're done
+                        if new_channel != old_channel:
+                            break
+
+                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
+                # Only update last_channel if the channel actually changed
+                if new_channel != current_channel and current_channel is not None:
+                    last_channel = current_channel
+                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
                 else:
-                    current_channel = None
+                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
+                current_channel = new_channel
             except Exception as e:
                 print(f"Failed to get current channel: {e}")
                 current_channel = None
@@ -234,24 +241,31 @@ def channel_down_pressed():
         response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
         if response.ok:
             print("Channel down success")
-            # Update channel tracking - get actual channel number from status
+            # Poll status to wait for channel change (max 1 second)
             try:
-                # Small delay to let the channel change complete
-                time.sleep(0.1)
-                status_response = requests.get(f'{FS42_BASE_URL}/player/status')
-                if status_response.ok:
-                    status = status_response.json()
-                    new_channel = status.get('channel_number')
-                    print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
-                    # Only update last_channel if the channel actually changed
-                    if new_channel != current_channel and current_channel is not None:
-                        last_channel = current_channel
-                        print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
-                    else:
-                        print(f"Channel unchanged: new={new_channel}, current={current_channel}")
-                    current_channel = new_channel
+                old_channel = current_channel
+                new_channel = None
+                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                for attempt in range(max_attempts):
+                    time.sleep(0.05)
+                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    if status_response.ok:
+                        status = status_response.json()
+                        new_channel = status.get('channel_number')
+
+                        # If channel changed or we have a channel number, we're done
+                        if new_channel != old_channel:
+                            break
+
+                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
+                # Only update last_channel if the channel actually changed
+                if new_channel != current_channel and current_channel is not None:
+                    last_channel = current_channel
+                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
                 else:
-                    current_channel = None
+                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
+                current_channel = new_channel
             except Exception as e:
                 print(f"Failed to get current channel: {e}")
                 current_channel = None
