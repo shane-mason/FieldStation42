@@ -84,8 +84,10 @@ def send_channel_change():
                 response = requests.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
                 if response.ok:
                     print(f"Changed to channel {channel_number}")
-                    # Update channel tracking
-                    last_channel = current_channel
+                    # Update channel tracking - only update last_channel if we know the current channel
+                    if current_channel is not None and current_channel != channel_number:
+                        last_channel = current_channel
+                        print(f"Updated last_channel: {last_channel} (was on {current_channel}, now on {channel_number})")
                     current_channel = channel_number
                 else:
                     print(f"Channel change to {channel_number} failed")
