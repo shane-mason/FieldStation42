@@ -4,6 +4,7 @@ import argparse
 import time
 import datetime
 import json
+import shelve
 import signal
 import logging
 
@@ -33,8 +34,8 @@ try:
 except ModuleNotFoundError:
     logging.getLogger("FieldPlayer").warning("Error importing ticker - using the ticker will cause an error.")
 
+STATE_SHELVE = "runtime/player_state.bin"
 api_commands_queue: multiprocessing.Queue = None
-
 
 def input_check():
     if api_commands_queue:
@@ -78,6 +79,8 @@ def input_check():
     return None
 
 
+
+
 def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     manager = StationManager()
     reception = ReceptionStatus()
@@ -90,7 +93,13 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     with open(channel_socket, "w"):
         pass
 
+    
     channel_index = 0
+    use_saved = StationManager().server_conf.get("recall_last_channel", True)
+    if use_saved:
+        with shelve.open(STATE_SHELVE) as s:
+            channel_index = s.get("channel_index", 0)
+        
     if not len(manager.stations):
         logger.error(
             "Could not find any station runtimes - do you have your channels configured?"
@@ -190,6 +199,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                                     )
                                 else:
                                     channel_index = new_index
+
                             else:
                                 logger.critical(
                                     "Got direct tune command, but no channel specified"
@@ -203,11 +213,12 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                             found = False
                             while not found:
                                 channel_index -= 1
-                                # channel_index = channel_index if channel_index >= 0 else len(manager.stations)-1
+                                
                                 if channel_index < 0:
                                     channel_index = stations_len-1
                                 if not station_cache[channel_index]["hidden"]:
                                     found = True
+
 
                 except Exception as e:
                     logger.exception(e)
@@ -223,7 +234,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                     channel_index = channel_index if channel_index < stations_len else 0
                     found = not station_cache[channel_index]["hidden"]
 
-
+            # save the player state
+            with shelve.open(STATE_SHELVE) as s:
+                s["channel_index"] = channel_index
             channel_conf = station_cache[channel_index]
             player.station_config = channel_conf
 

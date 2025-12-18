@@ -107,7 +107,8 @@ class StationManager(object):
                     "server_host",
                     "server_port",
                     "normalize_titles",
-                    "tmdb_api_key"
+                    "tmdb_api_key",
+                    "recall_last_channel"
                 ]
 
                 for key in to_check:
