@@ -95,7 +95,28 @@ fi
 
 echo ""
 echo -e "${INFO} Installing python modules..."
-pip install -r install/requirements.in
+
+# Install packages one at a time to prevent one failure from blocking everything
+failed_packages=""
+while IFS= read -r package || [ -n "$package" ]; do
+  # skipping blank lines
+  [[ -z "$package" || "$package" =~ ^[[:space:]]*# ]] && continue
+
+  echo -e "${INFO} Installing ${CYAN}$package${NC}..."
+  if pip install "$package"; then
+    echo -e "${CHECK} Installed $package"
+  else
+    echo -e "${WARN} Failed to install $package - continuing with other packages"
+    failed_packages="${failed_packages}  • $package\n"
+  fi
+done < install/requirements.in
+
+if [ -n "$failed_packages" ]; then
+  echo ""
+  echo -e "${WARN} The following packages failed to install:"
+  echo -e "$failed_packages"
+  echo -e "${WARN} You may need to install these manually or find alternatives for your platform"
+fi
 
 echo ""
 echo -e "${INFO} Creating folders..."
