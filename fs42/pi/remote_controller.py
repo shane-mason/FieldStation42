@@ -22,11 +22,13 @@ FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
 DEBOUNCE_TIME = 0.25  # 250ms default debounce time
 
 # Services to toggle when power button is pressed (remote-controller is never toggled)
-SERVICES_TO_TOGGLE = [
+SYSTEMCTL_TO_TOGGLE = [
     'fs42.service',           # Field Player
     'fs42-cable-box.service', # Cable Box
     'fs42-osd.service',       # On-Screen Display
 ]
+
+USE_SYSTEMCTL = True
 
 # Key Mappings - Change these to customize which keys do what
 # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
@@ -340,7 +342,7 @@ def toggle_services():
 
         if services_active:
             # Services are running, stop them
-            for service in SERVICES_TO_TOGGLE:
+            for service in SYSTEMCTL_TO_TOGGLE:
                 try:
                     subprocess.run(
                         ['systemctl', '--user', 'stop', service],
@@ -352,7 +354,7 @@ def toggle_services():
                     print(f"Error stopping {service}: {e}")
         else:
             # Services are not running, start them
-            for service in SERVICES_TO_TOGGLE:
+            for service in SYSTEMCTL_TO_TOGGLE:
                 try:
                     subprocess.run(
                         ['systemctl', '--user', 'start', service],
@@ -494,8 +496,11 @@ def handle_key_event(event):
                 elif function_name == 'last_channel':
                     last_channel_pressed()
                 elif function_name == 'power_stop':
-                    #end_pressed()
-                    toggle_services()
+                    
+                    if USE_SYSTEMCTL:
+                        toggle_services()
+                    else:
+                        end_pressed()
                 elif function_name == 'exit':
                     print("Exiting remote controller...")
                     return False
