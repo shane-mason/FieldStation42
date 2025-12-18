@@ -27,6 +27,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
 )
 
+
 try:
     from fs42.overlay.ticker import run_ticker
 except ModuleNotFoundError:
@@ -103,8 +104,12 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         return
 
     player = StationPlayer(manager.stations[channel_index], input_check)
+    stand_by = StationManager().server_conf.get("standby_image", "runtime/standby.png")
     reception.degrade()
     player.update_filters()
+    player.play_file(stand_by)
+
+    player.load_up()
 
     def signal_handler(sig, frame):
         logger.critical("Received sig-int signal, attempting to exit gracefully...")

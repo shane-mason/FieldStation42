@@ -164,6 +164,7 @@ class StationManager(object):
                                 hour += 1
                             new_parts[key] = hours
                     self.server_conf["day_parts"] = new_parts
+                    
 
                 if "date_time_format" not in d:
                     # check the environment variable or set default then

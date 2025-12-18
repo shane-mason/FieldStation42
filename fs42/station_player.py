@@ -9,6 +9,7 @@ import os
 import glob
 import random
 import logging
+import time
 from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
@@ -125,6 +126,12 @@ class StationPlayer:
         self.web_process = None
         self.web_queue = None
         self.scrambler = None
+
+    def load_up(self):
+        start_time = time.perf_counter()
+        liquid = LiquidManager()
+        liquid_init_time = time.perf_counter() - start_time
+        self._l.info(f"LiquidManager() initialization took {liquid_init_time:.3f} seconds")
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
@@ -492,11 +499,7 @@ class StationPlayer:
         LiquidManager().reload_schedules()
 
     def play_slot(self, network_name, when):
-        import time
-        start_time = time.perf_counter()
         liquid = LiquidManager()
-        liquid_init_time = time.perf_counter() - start_time
-        self._l.info(f"LiquidManager() initialization took {liquid_init_time:.3f} seconds")
 
         try:
             play_point = liquid.get_play_point(network_name, when)
