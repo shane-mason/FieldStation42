@@ -7,6 +7,7 @@ import subprocess
 import threading
 import sys
 import time
+import json
 
 
 # ======================================
@@ -52,7 +53,7 @@ KEY_MAPPINGS = {
     # 'volume_up': 'pageup',     # Use page up for volume up
     # 'volume_down': 'pagedown', # Use page down for volume down
 }
-
+CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
 # Channel input state
 channel_input = ''
 channel_input_timer = None
@@ -66,6 +67,20 @@ last_channel = None
 last_press_time = {}
 debounce_lock = threading.Lock()
 
+def read_exec_mappings():
+    mappings = {}
+    if not os.path.exists(CALLBACK_MAP_FILE):
+        return mappings
+    with open(CALLBACK_MAP_FILE, "r") as f:
+        contents = f.read()
+        try:
+            mappings = json.loads(contents)
+        except Exception as e:
+            print(e)
+            pass
+        return mappings
+
+exec_mappings = read_exec_mappings()
 
 def should_allow_press(function_name, debounce_time=DEBOUNCE_TIME):
     """Check if enough time has passed since last press of this function"""
@@ -457,6 +472,47 @@ def get_key_name_from_code(key_code):
     return key_map.get(key_code)
 
 
+def handle_key_name(key_name):
+    """Handle a key press by key name (common logic for evdev and test mode)"""
+    # Check mappings and call appropriate function
+    for function_name, mapped_key in KEY_MAPPINGS.items():
+        if key_name == mapped_key:
+            print(f"DEBUG: Matched function: {function_name}")
+            if function_name == 'show_guide':
+                show_guide_pressed()
+            elif function_name == 'volume_up':
+                volume_up_pressed()
+            elif function_name == 'volume_down':
+                volume_down_pressed()
+            elif function_name == 'mute':
+                mute_pressed()
+            elif function_name == 'channel_up':
+                channel_up_pressed()
+            elif function_name == 'channel_down':
+                channel_down_pressed()
+            elif function_name == 'last_channel':
+                last_channel_pressed()
+            elif function_name == 'power_stop':
+                if USE_SYSTEMCTL:
+                    toggle_services()
+                else:
+                    end_pressed()
+            elif function_name == 'exit':
+                print("Exiting remote controller...")
+                return False
+            break
+
+    if key_name in exec_mappings:
+        try:
+            print("Executing key callback: ", exec_mappings[key_name])
+            os.system(exec_mappings[key_name])
+        except Exception as e:
+            print("Error executing key callback")
+            print(e)
+
+    return True
+
+
 def handle_key_event(event):
     """Handle key press events from evdev"""
     if event.type == ecodes.EV_KEY and event.value == 1:  # Key press (not release)
@@ -478,58 +534,92 @@ def handle_key_event(event):
             return True
 
         print(f"DEBUG: Key pressed: {key_name} (code: {key_code})")
-
-        # Check mappings and call appropriate function
-        for function_name, mapped_key in KEY_MAPPINGS.items():
-            if key_name == mapped_key:
-                print(f"DEBUG: Matched function: {function_name}")
-                if function_name == 'show_guide':
-                    show_guide_pressed()
-                elif function_name == 'volume_up':
-                    volume_up_pressed()
-                elif function_name == 'volume_down':
-                    volume_down_pressed()
-                elif function_name == 'mute':
-                    mute_pressed()
-                elif function_name == 'channel_up':
-                    channel_up_pressed()
-                elif function_name == 'channel_down':
-                    channel_down_pressed()
-                elif function_name == 'last_channel':
-                    last_channel_pressed()
-                elif function_name == 'power_stop':
-                    
-                    if USE_SYSTEMCTL:
-                        toggle_services()
-                    else:
-                        end_pressed()
-                elif function_name == 'exit':
-                    print("Exiting remote controller...")
-                    return False
-                break
+        return handle_key_name(key_name)
 
     return True
+
+
+def test_mode():
+    """Run in test mode using stdin for input (for WSL/development)"""
+    print("\n" + "="*60)
+    print("TEST MODE - Running without input device")
+    print("="*60)
+    print("\nAvailable commands:")
+    print("  0-9: Channel selection")
+    print("  h: Home/Guide")
+    print("  u: Channel up")
+    print("  d: Channel down")
+    print("  l: Volume down (left)")
+    print("  r: Volume up (right)")
+    print("  m: Mute")
+    print("  b: Last channel")
+    print("  e: Power/End (toggle services)")
+    print("  q: Quit")
+    print("\nType a command and press Enter:")
+    print("="*60 + "\n")
+
+    while True:
+        try:
+            cmd = input("> ").strip().lower()
+
+            if not cmd:
+                continue
+
+            # Handle numbers
+            if cmd.isdigit():
+                for digit in cmd:
+                    number_pressed(int(digit))
+                continue
+
+            # Map single character commands to key names
+            key_map = {
+                'h': 'home',
+                'u': 'up',
+                'd': 'down',
+                'l': 'left',
+                'r': 'right',
+                'm': 'm',
+                'b': 'backspace',
+                'e': 'end',
+                'q': 'esc',
+            }
+
+            key_name = key_map.get(cmd)
+            if key_name:
+                if not handle_key_name(key_name):
+                    break
+            else:
+                print(f"Unknown command: {cmd}")
+
+        except KeyboardInterrupt:
+            print("\nExiting remote controller...")
+            break
+        except EOFError:
+            break
 
 
 def main():
     """Main function to start the input device listener"""
     print(f"Remote Controller started. Connecting to {FS42_BASE_URL}")
-    print("Press ESC to exit.")
-    
+
     # Find input device
     device_path = find_input_device()
     if not device_path:
-        sys.exit(1)
-    
+        # No device found - use test mode
+        test_mode()
+        return
+
+    print("Press ESC to exit.")
+
     try:
         device = InputDevice(device_path)
         print(f"Listening for remote control commands from: {device.name}")
-        
+
         # Read events from the device
         for event in device.read_loop():
             if not handle_key_event(event):
                 break
-                
+
     except PermissionError:
         print("Permission denied. Try running with: sudo python3 remote_controller.py")
         sys.exit(1)
