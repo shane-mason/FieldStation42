@@ -344,24 +344,26 @@ def toggle_services():
             # Services are running, stop them
             for service in SYSTEMCTL_TO_TOGGLE:
                 try:
-                    subprocess.run(
+                    # Fire and forget - don't wait for completion since services may have delays
+                    subprocess.Popen(
                         ['systemctl', '--user', 'stop', service],
-                        capture_output=True,
-                        timeout=10
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
                     )
-                    print(f"Stopped {service}")
+                    print(f"Stopping {service}")
                 except Exception as e:
                     print(f"Error stopping {service}: {e}")
         else:
             # Services are not running, start them
             for service in SYSTEMCTL_TO_TOGGLE:
                 try:
-                    subprocess.run(
+                    # Fire and forget - don't wait for completion since services have startup delays
+                    subprocess.Popen(
                         ['systemctl', '--user', 'start', service],
-                        capture_output=True,
-                        timeout=10
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
                     )
-                    print(f"Started {service}")
+                    print(f"Starting {service}")
                 except Exception as e:
                     print(f"Error starting {service}: {e}")
 
