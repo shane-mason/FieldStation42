@@ -3,6 +3,7 @@
 from evdev import InputDevice, ecodes
 import requests
 import os
+import subprocess
 import threading
 import sys
 import time
@@ -19,6 +20,13 @@ FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
 
 # Debounce Configuration - Time in seconds to wait between repeated button presses
 DEBOUNCE_TIME = 0.25  # 250ms default debounce time
+
+# Services to toggle when power button is pressed (remote-controller is never toggled)
+SERVICES_TO_TOGGLE = [
+    'fs42.service',           # Field Player
+    'fs42-cable-box.service', # Cable Box
+    'fs42-osd.service',       # On-Screen Display
+]
 
 # Key Mappings - Change these to customize which keys do what
 # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
@@ -314,6 +322,53 @@ def end_pressed():
         print(f"Stop error: {e}")
 
 
+def toggle_services():
+    """Toggle FieldStation42 services on/off - true power button behavior"""
+    if not should_allow_press('power_stop'):
+        return  # Debounced - ignore this press
+
+    try:
+        # Check if fs42.service is active to determine current state
+        result = subprocess.run(
+            ['systemctl', '--user', 'is-active', 'fs42.service'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        services_active = result.stdout.strip() == 'active'
+
+        if services_active:
+            # Services are running, stop them
+            for service in SERVICES_TO_TOGGLE:
+                try:
+                    subprocess.run(
+                        ['systemctl', '--user', 'stop', service],
+                        capture_output=True,
+                        timeout=10
+                    )
+                    print(f"Stopped {service}")
+                except Exception as e:
+                    print(f"Error stopping {service}: {e}")
+        else:
+            # Services are not running, start them
+            for service in SERVICES_TO_TOGGLE:
+                try:
+                    subprocess.run(
+                        ['systemctl', '--user', 'start', service],
+                        capture_output=True,
+                        timeout=10
+                    )
+                    print(f"Started {service}")
+                except Exception as e:
+                    print(f"Error starting {service}: {e}")
+
+    except subprocess.TimeoutExpired:
+        print("Error: systemctl command timed out")
+    except Exception as e:
+        print(f"Error toggling services: {e}")
+
+
 def find_input_device():
     """Find the Flirc or keyboard input device"""
     import glob
@@ -366,7 +421,7 @@ def get_key_name_from_code(key_code):
         ecodes.KEY_LEFTCTRL: 'leftctrl', ecodes.KEY_RIGHTCTRL: 'rightctrl',
         ecodes.KEY_LEFTALT: 'leftalt', ecodes.KEY_RIGHTALT: 'rightalt',
     }
-    
+
     # Add letter keys a-z using ecodes constants
     key_map[ecodes.KEY_A] = 'a'
     key_map[ecodes.KEY_B] = 'b'
@@ -439,7 +494,8 @@ def handle_key_event(event):
                 elif function_name == 'last_channel':
                     last_channel_pressed()
                 elif function_name == 'power_stop':
-                    end_pressed()
+                    #end_pressed()
+                    toggle_services()
                 elif function_name == 'exit':
                     print("Exiting remote controller...")
                     return False
