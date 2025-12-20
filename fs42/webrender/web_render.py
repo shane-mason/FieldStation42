@@ -95,20 +95,37 @@ class WebRender(QMainWindow):
 class WebRenderApp(QApplication):
     def __init__(self, user_conf, queue=None):
         super().__init__([])
-        
+
         self.queue = queue
-        
+
         self.window = WebRender()
-        
-        # Set window properties similar to GuideApp
+
+        # Set window properties
         if "width" in user_conf and "height" in user_conf:
             # Use specified dimensions
-            self.window.resize(user_conf["width"], user_conf["height"])
-            if "window_decorations" not in user_conf or not user_conf["window_decorations"]:
-                self.window.setWindowFlags(Qt.FramelessWindowHint)
+            width = user_conf["width"]
+            height = user_conf["height"]
+
+            # Always use frameless window (no decorations)
+            self.window.setWindowFlags(Qt.FramelessWindowHint)
+            self.window.resize(width, height)
+
+            # Calculate position
+            if "x" in user_conf and "y" in user_conf:
+                # Use specified position
+                x = user_conf["x"]
+                y = user_conf["y"]
+            else:
+                # Center on screen
+                screen = self.primaryScreen().availableGeometry()
+                x = screen.center().x() - width // 2
+                y = screen.center().y() - height // 2
+
+            # Show window and position it (delay needed for X11 window managers)
             self.window.show()
+            QTimer.singleShot(100, lambda: self.window.move(x, y))
         else:
-            # Go fullscreen by default
+            # Go fullscreen by default (no decorations)
             self.window.showFullScreen()
         
         # Set up timer for queue processing
