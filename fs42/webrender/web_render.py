@@ -4,7 +4,6 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
-QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)
 
 class WebRender(QMainWindow):
     def __init__(self):
@@ -123,7 +122,13 @@ class WebRenderApp(QApplication):
 
             # Show window and position it (delay needed for X11 window managers)
             self.window.show()
-            QTimer.singleShot(100, lambda: self.window.move(x, y))
+
+            # Store position for delayed move
+            def delayed_move():
+                if self.window and not self.window.isHidden():
+                    self.window.move(x, y)
+
+            QTimer.singleShot(100, delayed_move)
         else:
             # Go fullscreen by default (no decorations)
             self.window.showFullScreen()
@@ -155,21 +160,28 @@ def web_render_runner(user_conf, queue):
         print("WebRender process received SIGINT, exiting...")
         import sys
         sys.exit(0)
-    
+
     signal.signal(signal.SIGINT, web_sigint_handler)
-    
+
     # Set environment variables to enable autoplay
     import os
     os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--autoplay-policy=no-user-gesture-required --disable-web-security --allow-running-insecure-content --disable-features=VizDisplayCompositor'
-    
+
+    # Set graphics API before creating QApplication
+    QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)
+
     app = WebRenderApp(user_conf, queue)
-    url = user_conf.get("web_url", "http://localhost:4242/static/diagnostics.html")
-    # Set default URL if specified in config
-    if "url" in user_conf:
-        app.window.navigate(user_conf["url"])
-    else:
-        app.window.navigate(url)
-    
+
+    # Navigate to URL after a short delay to ensure Qt is fully initialized
+    def delayed_navigate():
+        url = user_conf.get("web_url", "http://localhost:4242/static/diagnostics.html")
+        if "url" in user_conf:
+            app.window.navigate(user_conf["url"])
+        else:
+            app.window.navigate(url)
+
+    QTimer.singleShot(100, delayed_navigate)
+
     app.exec()
 
 if __name__ == "__main__":
