@@ -230,8 +230,30 @@ class StationPlayer:
 
                 # self.mpv.vf = "lavfi=[]"
                 self._l.info(f"playing {file_path}")
+                self.mpv.command("playlist-clear")
                 self.mpv.play(file_path)
-                self.mpv.wait_for_property("duration")
+                
+                
+                # Wait for video to load with timeout to prevent blocking on invalid streams
+                ready_to_return = False
+                timeout_seconds = 2
+                start_time = time.time()
+
+                while not ready_to_return:
+                    try:
+                        got_duration = self.mpv.duration  # Uses __getattr__ internally
+                        if got_duration is not None:
+                            ready_to_return = True
+                        else:
+                            if time.time() - start_time > timeout_seconds:
+                                self._l.error(f"Timeout waiting for duration on {file_path}")
+                                return False
+                            time.sleep(0.05)
+                    except Exception as e:
+                        if time.time() - start_time > timeout_seconds:
+                            self._l.error(f"Error getting duration: {e}")
+                            return False
+                        time.sleep(0.05)
 
                 return True
             else:
@@ -540,8 +562,9 @@ class StationPlayer:
 
                 title = play_point.block_title
                 content_type = getattr(entry, 'content_type', 'feature')  # Get content_type from entry, default to 'feature'
-                self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type)
-
+                worked = self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type)
+                if not worked:
+                    return PlayerOutcome(PlayerState.FAILED)
                 if not is_stream:
                     try:
                         self.mpv.seek(total_skip)
