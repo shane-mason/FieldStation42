@@ -114,6 +114,7 @@ class StationPlayer:
                 idle=True,
                 force_window=True,
                 script_opts="osc-idlescreen=no",
+                hr_seek="yes",
             )
 
         self.station_config = station_config
