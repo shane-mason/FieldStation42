@@ -127,6 +127,7 @@ class StationPlayer:
         self.web_process = None
         self.web_queue = None
         self.scrambler = None
+        self.now_playing_process = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -136,6 +137,43 @@ class StationPlayer:
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
+
+    def _close_now_playing(self):
+        """Terminate the Now Playing overlay if it's running"""
+        if self.now_playing_process and self.now_playing_process.is_alive():
+            try:
+                self.now_playing_process.terminate()
+                self.now_playing_process.join(timeout=1.0)
+
+                # Force kill if still alive
+                if self.now_playing_process.is_alive():
+                    self.now_playing_process.kill()
+                    self.now_playing_process.join(timeout=0.5)
+
+                self._l.debug("Closed Now Playing overlay")
+            except Exception as e:
+                self._l.warning(f"Error terminating overlay: {e}")
+
+            self.now_playing_process = None
+
+    def _show_now_playing(self, file_path):
+        """Show the Now Playing overlay for an audio file"""
+        import time
+
+        # Close any existing overlay first
+        self._close_now_playing()
+
+        # Give a brief moment for cleanup
+        time.sleep(0.1)
+
+        # Start new overlay
+        try:
+            from fs42.overlay.now_playing import run_now_playing
+            db_path = StationManager().server_conf["db_path"]
+            self.now_playing_process = run_now_playing(file_path, db_path)
+            self._l.info(f"Started Now Playing overlay for {file_path}")
+        except Exception as e:
+            self._l.error(f"Failed to start Now Playing overlay: {e}")
 
     def shutdown(self):
         self.current_playing_file_path = None
@@ -148,7 +186,7 @@ class StationPlayer:
                 self.web_process.join(timeout=2)
             except Exception:
                 pass
-            
+
             # Check if process is still alive and has valid _popen
             if self.web_process and hasattr(self.web_process, '_popen') and self.web_process._popen and self.web_process.is_alive():
                 try:
@@ -156,9 +194,14 @@ class StationPlayer:
                     self.web_process.join(timeout=1)
                 except Exception:
                     pass
-                    
+
         self.web_process = None
         self.web_queue = None
+
+        # Terminate any running now playing overlay
+        self._l.info("Terminating now playing overlay")
+        self._close_now_playing()
+
         self.mpv.terminate()
 
     def update_filters(self):
@@ -173,7 +216,7 @@ class StationPlayer:
             else:
                 self.mpv.vf = self.reception.filter()
 
-    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown", content_type=None):
+    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown", content_type=None, media_type=None):
         try:
             if os.path.exists(file_path) or is_stream or AutoBumpAgent.is_autobump_url(file_path):
                 self._l.debug(f"%%%Attempting to play {file_path}")
@@ -255,6 +298,11 @@ class StationPlayer:
                             self._l.error(f"Error getting duration: {e}")
                             return False
                         time.sleep(0.05)
+
+                # Show Now Playing overlay for audio feature files
+                self._l.info(f"Media type: {media_type}, Content type: {content_type}")
+                if media_type == 'audio' and content_type == 'feature':
+                    self._show_now_playing(file_path)
 
                 return True
             else:
@@ -540,11 +588,14 @@ class StationPlayer:
         
         return self._play_from_point(play_point)
 
-    # returns true if play is interrupted
     def _play_from_point(self, play_point: PlayPoint):
         # Fade to black duration before commercial breaks (in seconds)
         FADE_DURATION = 0.5
         fade_active = False
+
+        # Close any existing now playing overlay when starting a new play point
+        # This handles channel changes and ensures clean state
+        self._close_now_playing()
 
         if len(play_point.plan):
             initial_skip = play_point.offset
@@ -563,7 +614,8 @@ class StationPlayer:
 
                 title = play_point.block_title
                 content_type = getattr(entry, 'content_type', 'feature')  # Get content_type from entry, default to 'feature'
-                worked = self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type)
+                media_type = getattr(entry, 'media_type', 'video')  # Get media_type from entry, default to 'video'
+                worked = self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type, media_type=media_type)
                 if not worked:
                     return PlayerOutcome(PlayerState.FAILED)
                 if not is_stream:

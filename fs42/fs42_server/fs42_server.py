@@ -37,9 +37,17 @@ for router in routers:
 
 
 def run_with_shutdown_queue(shutdown_queue, command_queue):
+    import logging
+
+    class PlayerStatusFilter(logging.Filter):
+        def filter(self, record):
+            return ('/player/status' not in record.getMessage())
+
+    logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
+
     global player_command_queue
     player_command_queue = command_queue
-    fapi.state.player_command_queue = command_queue 
+    fapi.state.player_command_queue = command_queue
 
     def start_shutdown_monitor():
         async def shutdown_monitor():

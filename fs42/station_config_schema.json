@@ -100,6 +100,11 @@
           "type": "number",
           "description": "MPV panscan value (e.g., 1.0) to fill screen by cropping edges"
         },
+        "media_filter": {
+          "type": "string",
+          "enum": ["video", "audio", "mixed"],
+          "description": "Filter media by type: video only, audio only, or mixed (default: video)"
+        },
         "video_scramble_fx": {
           "type": "string",
           "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble"],

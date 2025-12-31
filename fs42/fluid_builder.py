@@ -18,11 +18,11 @@ class FluidBuilder:
         with sqlite3.connect(self.db_path) as connection:
             FluidStatements.init_db(connection)
 
-    def scan_file_cache(self, content_dir):
+    def scan_file_cache(self, content_dir, media_filter="video"):
         with sqlite3.connect(self.db_path) as connection:
             # read all the files in the content dir
-            self._l.info(f"Fluid file cache scan - reading {content_dir}")
-            file_list = MediaProcessor.rich_find_media(content_dir)
+            self._l.info(f"Fluid file cache scan - reading {content_dir} with media_filter={media_filter}")
+            file_list = MediaProcessor.rich_find_media(content_dir, media_filter)
             self._l.info(f"Comparing cache against {len(file_list)} files")
             # add any that aren't there yet
             FluidStatements.iterate_file_entries(connection, file_list)

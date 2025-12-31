@@ -102,8 +102,9 @@ class ShowCatalog:
                     from fs42.fluid_builder import FluidBuilder
 
                     self.__fluid_builder = FluidBuilder()
+                    media_filter = self.config.get("media_filter", "video")
                     self._l.info("Initializing fluid file cache...")
-                    self.__fluid_builder.scan_file_cache(self.config["content_dir"])
+                    self.__fluid_builder.scan_file_cache(self.config["content_dir"], media_filter)
                     self._l.info("Fluid file cache updated - continuing build")
 
                 return self._build_standard()
@@ -119,8 +120,9 @@ class ShowCatalog:
         self.clip_index = {}
         self.tags = []
         # for station types with all files in a single directory
-        self._l.info(f"Checking for media in {self.config['content_dir']} for single directory")
-        file_list = MediaProcessor._find_media(self.config["content_dir"])
+        media_filter = self.config.get("media_filter", "video")
+        self._l.info(f"Checking for media in {self.config['content_dir']} for single directory with filter={media_filter}")
+        file_list = MediaProcessor._find_media(self.config["content_dir"], media_filter)
         self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, content_type="feature")
         self._l.info(f"Building complete - processed {len(file_list)} files")
         self._write_catalog()
@@ -254,9 +256,10 @@ class ShowCatalog:
         count_added = 0
         if tag not in self.clip_index:
             self.clip_index[tag] = []
-            self._l.info(f"Checking for media with tag={tag} in content folder")
+            media_filter = self.config.get("media_filter", "video")
+            self._l.info(f"Checking for media with tag={tag} in content folder with filter={media_filter}")
             tag_dir = f"{self.config['content_dir']}/{tag}"
-            file_list = MediaProcessor._find_media(tag_dir)
+            file_list = MediaProcessor._find_media(tag_dir, media_filter)
 
             self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, fluid=self.__fluid_builder, content_type=content_type)
             self._l.info(f"--Found {len(self.clip_index[tag])} videos in {tag} folder")

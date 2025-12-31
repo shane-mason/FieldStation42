@@ -66,6 +66,12 @@ class CatalogIO:
                 connection.commit()
                 self._l.info("Added content_type column to catalog_entries table")
 
+            if "media_type" not in columns:
+                self._l.info("Adding media_type column to catalog_entries table")
+                cursor.execute("ALTER TABLE catalog_entries ADD COLUMN media_type TEXT DEFAULT 'video'")
+                connection.commit()
+                self._l.info("Added media_type column to catalog_entries table")
+
             # Create indexes
             cursor.execute("""CREATE INDEX IF NOT EXISTS idx_catalog_station 
                             ON catalog_entries(station)""")
@@ -139,8 +145,8 @@ class CatalogIO:
 
                     cursor.execute(
                         """INSERT OR REPLACE INTO catalog_entries
-                                    (station, path, realpath, title, duration, tag, count, hints, content_type, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                                    (station, path, realpath, title, duration, tag, count, hints, content_type, media_type, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
                         (
                             station_name,
                             entry.path,
@@ -151,6 +157,7 @@ class CatalogIO:
                             entry.count,
                             hints_json,
                             entry.content_type,
+                            entry.media_type,
                         ),
                     )
 

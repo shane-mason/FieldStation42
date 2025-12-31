@@ -14,7 +14,7 @@ class NoFillerContentFound(Exception):
 
 class CatalogEntry:
     # CatalogEntry(row[2], row[3], float(row[4]), json.loads(row[6]) if row[6] else [])
-    def __init__(self, path, duration, tag, hints=[], count=0, content_type="feature"):
+    def __init__(self, path, duration, tag, hints=[], count=0, content_type="feature", media_type="video"):
         self.path = path
         self.realpath = None
         # get the show name from the path
@@ -24,6 +24,7 @@ class CatalogEntry:
         self.count = count
         self.hints = hints
         self.content_type = content_type
+        self.media_type = media_type
         self.station = None
         self.dbid = None
         self.created_at = None
@@ -43,6 +44,7 @@ class CatalogEntry:
             "tag": self.tag,
             "count": self.count,
             "content_type": self.content_type,
+            "media_type": self.media_type,
             "hints": [hint.toJSON() for hint in self.hints],  # Convert each hint to JSON
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -64,24 +66,30 @@ class CatalogEntry:
             json_data.get("updated_at", None),
             json_data.get("realpath", None),
             json_data.get("content_type", "feature"),
+            json_data.get("media_type", "video"),
         )
         return CatalogEntry.from_db_row(tup)
 
     @staticmethod
     def from_db_row(row):
 
-        if len(row) == 12:  # New schema with realpath and content_type
+        if len(row) == 13:  # New schema with realpath, content_type, and media_type
+            (dbid, station, path, title, duration, tag, count, hints_str, created, updated, realpath, content_type, media_type) = row
+        elif len(row) == 12:  # Schema with realpath and content_type but no media_type
             (dbid, station, path, title, duration, tag, count, hints_str, created, updated, realpath, content_type) = row
-        elif len(row) == 11:  # Schema with realpath but no content_type
+            media_type = "video"  # Default for backward compatibility
+        elif len(row) == 11:  # Schema with realpath but no content_type or media_type
             (dbid, station, path, title, duration, tag, count, hints_str, created, updated, realpath) = row
             content_type = "feature"  # Default for backward compatibility
+            media_type = "video"  # Default for backward compatibility
         else:  # Old schema without realpath
             (dbid, station, path, title, duration, tag, count, hints_str, created, updated) = row
             realpath = None
             content_type = "feature"  # Default for backward compatibility
+            media_type = "video"  # Default for backward compatibility
 
 
-        entry = CatalogEntry(path, duration, tag, None, count, content_type)
+        entry = CatalogEntry(path, duration, tag, None, count, content_type, media_type)
         entry.realpath = realpath
         entry.count = count
         entry.dbid = dbid
