@@ -37,14 +37,24 @@ class FluidStatements:
                 repo_entry = FileRepoEntry()
                 repo_entry.from_db_row(row)
 
-                # compare it to the stats in the repo
+                # Check if we need to update this entry
+                needs_update = False
+
+                # Update if file stats changed
                 if entry != repo_entry:
-                    # then the stats match
-                    
+                    needs_update = True
+
+                # Also update if this is an audio file with empty metadata
+                # (happens when catalog was built before mutagen was installed)
+                if repo_entry.media_type == 'audio' and not repo_entry.meta:
+                    logging.getLogger("FLUID").info(f"Audio file missing metadata, will refresh: {entry.path}")
+                    needs_update = True
+
+                if needs_update:
                     FluidStatements.update_file_entry(connection, entry)
 
             else:
-                
+
                 FluidStatements.add_file_entry(connection, entry)
         cursor.close()
 
