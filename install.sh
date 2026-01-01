@@ -96,7 +96,7 @@ fi
 echo ""
 echo -e "${INFO} Installing python modules..."
 
-# Install packages one at a time to prevent one failure from blocking everything
+# Install packages one at a time and track failures
 failed_packages=""
 while IFS= read -r package || [ -n "$package" ]; do
   # skipping blank lines

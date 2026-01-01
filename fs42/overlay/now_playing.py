@@ -245,7 +245,6 @@ def signal_handler(sig, frame):
 
 def run_now_playing_app(file_path, db_path):
     """Run the now playing overlay application"""
-    print(f"Running Now Playing overlay for: {file_path}")
 
     # Set up signal handler for Ctrl+C
     signal.signal(signal.SIGINT, signal_handler)
