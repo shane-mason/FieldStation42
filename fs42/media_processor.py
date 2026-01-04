@@ -256,12 +256,12 @@ class MediaProcessor:
         return hints
 
     @staticmethod
-    def _process_subs(dir_path, tag, bumpdir=False, fluid=None, content_type="feature"):
+    def _process_subs(dir_path, tag, bumpdir=False, fluid=None, content_type="feature", media_filter="video"):
         """Process all subdirectories recursively, collecting hints from all levels"""
         from collections import defaultdict
 
         # Get all media files recursively
-        all_files = MediaProcessor._rfind_media(dir_path)
+        all_files = MediaProcessor._rfind_media(dir_path, media_filter)
 
         # Group files by their immediate parent directory
         files_by_dir = defaultdict(list)

@@ -269,7 +269,7 @@ class ShowCatalog:
             if self.__fluid_builder and not self.skip_chapter_scan:
                 self.__fluid_builder.scan_chapters_for_entries(self.clip_index[tag])
 
-            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder, content_type=content_type)
+            subdir_clips = MediaProcessor._process_subs(tag_dir, tag, bumpdir=is_bumps, fluid=self.__fluid_builder, content_type=content_type, media_filter=media_filter)
 
             self._l.info(f"--Found {len(subdir_clips)} videos in {tag} subfolders")
             self._l.debug(f"---- {tag} sub folder media listing: {subdir_clips}")
