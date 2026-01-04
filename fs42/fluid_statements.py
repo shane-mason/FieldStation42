@@ -37,14 +37,24 @@ class FluidStatements:
                 repo_entry = FileRepoEntry()
                 repo_entry.from_db_row(row)
 
-                # compare it to the stats in the repo
+                # Check if we need to update this entry
+                needs_update = False
+
+                # Update if file stats changed
                 if entry != repo_entry:
-                    # then the stats match
-                    
+                    needs_update = True
+
+                # Also update if this is an audio file with empty metadata
+                # (happens when catalog was built before mutagen was installed)
+                if repo_entry.media_type == 'audio' and not repo_entry.meta:
+                    logging.getLogger("FLUID").info(f"Audio file missing metadata, will refresh: {entry.path}")
+                    needs_update = True
+
+                if needs_update:
                     FluidStatements.update_file_entry(connection, entry)
 
             else:
-                
+
                 FluidStatements.add_file_entry(connection, entry)
         cursor.close()
 
@@ -83,12 +93,20 @@ class FluidStatements:
             return False
         entry.duration = processed.duration
 
+        # Extract audio metadata if this is an audio file
+        media_type = MediaProcessor.get_media_type(entry.path)
+        if media_type == 'audio':
+            metadata = MediaProcessor.extract_audio_metadata(entry.path)
+            entry.meta = json.dumps(metadata) if metadata else ""
+        else:
+            entry.meta = ""
+
         logging.getLogger("FLUID").info(f"Updating existing file entry: {entry.path}")
 
-        update = """UPDATE file_meta SET duration=?, size=?, last_mod=?, last_updated=?, last_checked=? 
+        update = """UPDATE file_meta SET duration=?, size=?, last_mod=?, last_updated=?, last_checked=?, meta=?, media_type=?
         WHERE path=?;
         """
-        values = (entry.duration, entry.size, entry.last_mod, now, now, entry.path)
+        values = (entry.duration, entry.size, entry.last_mod, now, now, entry.meta, media_type, entry.path)
         cursor.execute(update, values)
         cursor.close()
         connection.commit()
@@ -109,9 +127,18 @@ class FluidStatements:
 
         entry.duration = processed.duration
 
+        # Extract audio metadata if this is an audio file
+        media_type = MediaProcessor.get_media_type(entry.path)
+        if media_type == 'audio':
+            metadata = MediaProcessor.extract_audio_metadata(entry.path)
+            entry.meta = json.dumps(metadata) if metadata else ""
+        else:
+            entry.meta = ""
+
         logging.getLogger("FLUID").info(f"Caching new file entry: {entry}")
 
-        cursor.execute("INSERT INTO file_meta VALUES (?, ?, ?, ?, ?, ?, ?, ?);", entry.to_db_row())
+        # Note: to_db_row() should now include media_type column
+        cursor.execute("INSERT INTO file_meta VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);", entry.to_db_row() + (media_type,))
         cursor.close()
         connection.commit()
 
@@ -180,7 +207,7 @@ class FluidStatements:
     @staticmethod
     def init_db(connection: sqlite3.Connection):
         cursor = connection.cursor()
-        cursor.execute("""CREATE TABLE IF NOT EXISTS file_meta ( 
+        cursor.execute("""CREATE TABLE IF NOT EXISTS file_meta (
                             path TEXT PRIMARY KEY,
                             duration REAL,
                             size INTEGER,
@@ -191,7 +218,17 @@ class FluidStatements:
                             meta TEXT
                             )
                             """)
-        
+
+        # Check if media_type column exists, add it if it doesn't
+        cursor.execute("PRAGMA table_info(file_meta)")
+        columns = [column[1] for column in cursor.fetchall()]
+
+        if "media_type" not in columns:
+            logging.getLogger("FLUID").info("Adding media_type column to file_meta table")
+            cursor.execute("ALTER TABLE file_meta ADD COLUMN media_type TEXT DEFAULT 'video'")
+            connection.commit()
+            logging.getLogger("FLUID").info("Added media_type column to file_meta table")
+
         cursor.execute("""CREATE TABLE IF NOT EXISTS break_points (
                             path TEXT REFERENCES file_meta(path) PRIMARY KEY,
                             points TEXT,

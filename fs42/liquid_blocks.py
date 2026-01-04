@@ -202,7 +202,7 @@ class LiquidOffAirBlock(LiquidBlock):
                 delta = current_mark - self.end_time
                 duration -= delta.total_seconds()
 
-            self.plan.append(BlockPlanEntry(_content.path, 0, duration, content_type=_content.content_type))
+            self.plan.append(BlockPlanEntry(_content.path, 0, duration, content_type=_content.content_type, media_type=_content.media_type))
 
 
 class LiquidLoopBlock(LiquidBlock):
@@ -229,7 +229,7 @@ class LiquidLoopBlock(LiquidBlock):
                 keep_going = False
                 duration = (self.end_time - current_mark).total_seconds()
 
-            entries.append(BlockPlanEntry(clip.path, 0, duration, content_type=clip.content_type))
+            entries.append(BlockPlanEntry(clip.path, 0, duration, content_type=clip.content_type, media_type=clip.media_type))
 
             current_mark = next_mark
         self.plan = entries
@@ -258,9 +258,9 @@ class ReelBlock:
     def make_plan(self):
         entries = []
         if self.start_bump is not None:
-            entries.append(BlockPlanEntry(self.start_bump.path, 0, self.start_bump.duration, content_type="bump"))
+            entries.append(BlockPlanEntry(self.start_bump.path, 0, self.start_bump.duration, content_type="bump", media_type=self.start_bump.media_type))
         for comm in self.comms:
-            entries.append(BlockPlanEntry(comm.path, 0, comm.duration, content_type="commercial"))
+            entries.append(BlockPlanEntry(comm.path, 0, comm.duration, content_type="commercial", media_type=comm.media_type))
         if self.end_bump is not None:
-            entries.append(BlockPlanEntry(self.end_bump.path, 0, self.end_bump.duration, content_type="bump"))
+            entries.append(BlockPlanEntry(self.end_bump.path, 0, self.end_bump.duration, content_type="bump", media_type=self.end_bump.media_type))
         return entries

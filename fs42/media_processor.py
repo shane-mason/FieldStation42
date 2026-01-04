@@ -1,6 +1,7 @@
 import logging
 import os
 import glob
+import json
 import ffmpeg
 from fs42.fluid_objects import FileRepoEntry
 from fs42 import timings
@@ -12,12 +13,82 @@ except ImportError:
     # fall back to import from version 1.0
     from moviepy.editor import VideoFileClip  # type: ignore
 
+try:
+    import mutagen
+except ImportError:
+    mutagen = None
+
 from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint
 from fs42.catalog_entry import CatalogEntry
 
 
 class MediaProcessor:
-    supported_formats = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v", "webm", "wmv"]
+    # Define media type extensions
+    VIDEO_FORMATS = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v", "webm", "wmv"]
+    AUDIO_FORMATS = ["mp3", "m4a", "flac", "wav", "aac", "ogg", "opus", "wma"]
+
+    # For backward compatibility, default to all formats
+    supported_formats = VIDEO_FORMATS + AUDIO_FORMATS
+
+    @staticmethod
+    def get_media_type(file_path: str) -> str:
+        ext = os.path.splitext(file_path)[1].lower().lstrip('.')
+        if ext in MediaProcessor.AUDIO_FORMATS:
+            return 'audio'
+        else:
+            return 'video'
+
+    @staticmethod
+    def extract_audio_metadata(file_path: str) -> dict:
+        if mutagen is None:
+            logging.getLogger("MEDIA").warning("mutagen library not available, skipping audio metadata extraction")
+            return {}
+
+        try:
+            audio = mutagen.File(file_path)
+            if audio is None:
+                return {}
+
+            metadata = {}
+
+            # Extract common tags - mutagen returns lists for most values
+            if hasattr(audio, 'tags') and audio.tags:
+                # Map of ID3v2 frame names to our simple tag names
+                # Different formats use different tag names:
+                # MP3 uses ID3v2 (TIT2, TPE1, etc)
+                # MP4/M4A uses \xa9nam, \xa9ART, etc
+                # FLAC/OGG use vorbis comments (title, artist, etc)
+                tag_mappings = {
+                    'title': ['TIT2', 'title', '\xa9nam'],
+                    'artist': ['TPE1', 'artist', '\xa9ART'],
+                    'album': ['TALB', 'album', '\xa9alb'],
+                    'date': ['TDRC', 'date', '\xa9day', 'year'],
+                    'genre': ['TCON', 'genre', '\xa9gen']
+                }
+
+                for tag_name, possible_keys in tag_mappings.items():
+                    for key in possible_keys:
+                        value = audio.tags.get(key)
+                        if value:
+                            # Convert to string, handle list values
+                            if isinstance(value, list) and len(value) > 0:
+                                metadata[tag_name] = str(value[0])
+                            else:
+                                metadata[tag_name] = str(value)
+                            break  # Found it, move to next tag
+
+            # Fallback to filename if no title
+            if 'title' not in metadata:
+                metadata['title'] = os.path.splitext(os.path.basename(file_path))[0]
+
+            return metadata
+
+        except Exception as e:
+            logging.getLogger("MEDIA").debug(f"Could not extract metadata from {file_path}: {e}")
+            # Return basic metadata from filename
+            return {
+                'title': os.path.splitext(os.path.basename(file_path))[0]
+            }
 
     def process_one(fname, tag, hints, fluid=None, content_type="feature") -> CatalogEntry:
         _l = logging.getLogger("MEDIA")
@@ -50,7 +121,9 @@ class MediaProcessor:
                 _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
                 _l.warning("Files with 0 length can't be added to the catalog.")
             else:
-                show_clip = CatalogEntry(fname, duration, tag, hints, content_type=content_type)
+                # Detect media type from file extension
+                media_type = MediaProcessor.get_media_type(fname)
+                show_clip = CatalogEntry(fname, duration, tag, hints, content_type=content_type, media_type=media_type)
                 result = show_clip
                 result.realpath = full_path
                 _l.debug(f"--_process_media is done with {fname}: {show_clip}")
@@ -105,10 +178,19 @@ class MediaProcessor:
             return -1
 
     @staticmethod
-    def _find_media(path) -> list[str]:
-        logging.getLogger("MEDIA").debug(f"_find_media scanning for media in {path}")
+    def _find_media(path, media_filter="video") -> list[str]:
+        logging.getLogger("MEDIA").debug(f"_find_media scanning for media in {path} with filter={media_filter}")
+
+        # Determine which formats to scan based on filter
+        if media_filter == "audio":
+            formats_to_scan = MediaProcessor.AUDIO_FORMATS
+        elif media_filter == "video":
+            formats_to_scan = MediaProcessor.VIDEO_FORMATS
+        else:  # "mixed"
+            formats_to_scan = MediaProcessor.supported_formats
+
         file_list = []
-        for ext in MediaProcessor.supported_formats:
+        for ext in formats_to_scan:
             this_format = glob.glob(f"{path}/*.{ext}")
             file_list += this_format
             logging.getLogger("MEDIA").debug(
@@ -119,8 +201,8 @@ class MediaProcessor:
         return file_list
 
     @staticmethod
-    def rich_find_media(path: str) -> list[FileRepoEntry]:
-        file_list = MediaProcessor._rfind_media(path)
+    def rich_find_media(path: str, media_filter="video") -> list[FileRepoEntry]:
+        file_list = MediaProcessor._rfind_media(path, media_filter)
         found_list = []
 
         for fp in file_list:
@@ -134,12 +216,20 @@ class MediaProcessor:
         return found_list
 
     @staticmethod
-    def _rfind_media(path) -> list[str]:
-        logging.getLogger("MEDIA").debug(f"_rfind_media scanning for media in {path}")
-        file_list = []
+    def _rfind_media(path, media_filter="video") -> list[str]:
+        logging.getLogger("MEDIA").debug(f"_rfind_media scanning for media in {path} with filter={media_filter}")
 
+        # Determine which formats to scan based on filter
+        if media_filter == "audio":
+            formats_to_scan = MediaProcessor.AUDIO_FORMATS
+        elif media_filter == "video":
+            formats_to_scan = MediaProcessor.VIDEO_FORMATS
+        else:  # "mixed"
+            formats_to_scan = MediaProcessor.supported_formats
+
+        file_list = []
         # get all the files
-        for ext in MediaProcessor.supported_formats:
+        for ext in formats_to_scan:
             # this_format = directory.rglob(f"*.{ext}")
             this_format = glob.glob(f"{path}/**/*.{ext}", recursive=True)
             file_list += this_format
@@ -166,12 +256,12 @@ class MediaProcessor:
         return hints
 
     @staticmethod
-    def _process_subs(dir_path, tag, bumpdir=False, fluid=None, content_type="feature"):
+    def _process_subs(dir_path, tag, bumpdir=False, fluid=None, content_type="feature", media_filter="video"):
         """Process all subdirectories recursively, collecting hints from all levels"""
         from collections import defaultdict
 
         # Get all media files recursively
-        all_files = MediaProcessor._rfind_media(dir_path)
+        all_files = MediaProcessor._rfind_media(dir_path, media_filter)
 
         # Group files by their immediate parent directory
         files_by_dir = defaultdict(list)

@@ -12,6 +12,7 @@ class FileRepoEntry:
             self.last_checked: datetime.datetime = None
             self.last_updates: datetime.datetime = None
             self.meta = ""
+            self.media_type = "video"
         else:
             self.from_db_row(db_row)
 
@@ -22,16 +23,31 @@ class FileRepoEntry:
         return self.to_stat_check() == value.to_stat_check()
 
     def from_db_row(self, row):
-        (
-            self.path,
-            self.duration,
-            self.size,
-            self.first_added,
-            self.last_mod,
-            self.last_checked,
-            self.last_updates,
-            self.meta,
-        ) = row
+        # Handle both old (8 columns) and new (9 columns with media_type) schemas
+        if len(row) == 9:
+            (
+                self.path,
+                self.duration,
+                self.size,
+                self.first_added,
+                self.last_mod,
+                self.last_checked,
+                self.last_updates,
+                self.meta,
+                self.media_type,
+            ) = row
+        else:  # Old schema with 8 columns
+            (
+                self.path,
+                self.duration,
+                self.size,
+                self.first_added,
+                self.last_mod,
+                self.last_checked,
+                self.last_updates,
+                self.meta,
+            ) = row
+            self.media_type = "video"  # Default for backward compatibility
 
     def to_db_row(self):
         return (

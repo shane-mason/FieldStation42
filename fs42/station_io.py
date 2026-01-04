@@ -23,6 +23,7 @@ class StationIO:
         "clip_shows": [],
         "break_duration": 120,
         "hidden": False,
+        "media_filter": "video",
     }
 
     # Fields that reference files that should exist
