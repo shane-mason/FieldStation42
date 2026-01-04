@@ -299,6 +299,15 @@ class StationPlayer:
                             return False
                         time.sleep(0.05)
 
+                # Perform seek if needed (before showing overlay)
+                if not is_stream and current_time is not None and current_time > 0:
+                    try:
+                        self.mpv.seek(current_time)
+                        self._l.info(f"Seeking for: {current_time}")
+                    except Exception as e:
+                        self._l.error(f"Failed seeking {current_time} on {file_path}: {e}")
+                        return False
+
                 # Show Now Playing overlay for audio feature files
                 self._l.info(f"Media type: {media_type}, Content type: {content_type}")
                 if media_type == 'audio' and content_type == 'feature':
@@ -618,14 +627,7 @@ class StationPlayer:
                 worked = self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type, media_type=media_type)
                 if not worked:
                     return PlayerOutcome(PlayerState.FAILED)
-                if not is_stream:
-                    try:
-                        self.mpv.seek(total_skip)
-                    except Exception:
-                        self._l.error(f"Failed seeking {total_skip} on {entry.path}")
-                        return PlayerOutcome(PlayerState.FAILED)
-
-                    self._l.info(f"Seeking for: {total_skip}")
+                # Seek now happens inside play_file() before overlay is shown
 
                 # Detect if this video is being clipped (stopping before natural end)
                 is_clipped = False
