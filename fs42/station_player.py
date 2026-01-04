@@ -143,12 +143,12 @@ class StationPlayer:
         if self.now_playing_process and self.now_playing_process.is_alive():
             try:
                 self.now_playing_process.terminate()
-                self.now_playing_process.join(timeout=1.0)
+                self.now_playing_process.join(timeout=0.2)
 
                 # Force kill if still alive
                 if self.now_playing_process.is_alive():
                     self.now_playing_process.kill()
-                    self.now_playing_process.join(timeout=0.5)
+                    self.now_playing_process.join(timeout=0.1)
 
                 self._l.debug("Closed Now Playing overlay")
             except Exception as e:
