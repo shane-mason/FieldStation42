@@ -75,6 +75,7 @@ The `network_type` property determines how the station operates:
 | `channel_number` | integer | **Required.** Channel number | Any positive integer |
 | `network_type` | string | Type of network operation | `"standard"`, `"web"`, `"guide"`, `"loop"`, `"streaming"` |
 | `hidden` | boolean | Hide channel from guide listings | `true`, `false` |
+| `active_rules` | object | Availability rules for when this config should be active | See [Active Rules](#active-rules) below |
 
 ### Scheduling Properties (Standard Networks)
 
@@ -131,6 +132,33 @@ Example:
 ```
 
 The system automatically adjusts durations based on `break_strategy` to account for commercial time.
+
+### Active Rules
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `active_rules` | object | Rules that determine when this configuration should be active |
+
+Active rules allow you to conditionally load a station configuration based on date ranges. If the active rules are not met, the configuration file will not be loaded on startup.
+
+**Supported Rules:**
+
+| Rule Property | Type | Description |
+|---------------|------|-------------|
+| `date_range` | string | Date range in the format: "Month Day - Month Day" (e.g., "December 1 - January 2") |
+
+When `date_range` is specified, the configuration will only be loaded if the current date falls within the specified range (inclusive). The format uses full month names (capitalized) followed by the day of month, separated by a space-hyphen-space sequence.
+
+Example:
+```json
+"active_rules": {
+  "date_range": "December 1 - January 2"
+}
+```
+
+This would make the configuration active only during the holiday season from December 1st through January 2nd.
+
+**Note:** If the date range does not parse correctly, a warning will be logged and the configuration will still be loaded.
 
 ### Fallback Content
 

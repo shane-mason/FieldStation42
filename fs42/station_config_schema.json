@@ -377,6 +377,17 @@
           "type": "string",
           "description": "Tag/folder to use when no content is found for scheduled slot. Useful for content that only plays when all other content is filtered out."
         },
+        "active_rules": {
+          "type": "object",
+          "description": "Availability rules that determine when this configuration should be active",
+          "properties": {
+            "date_range": {
+              "type": "string",
+              "description": "Date range in format 'Month Day - Month Day' (e.g., 'December 1 - January 2'). Configuration only loads if current date falls within this range.",
+              "pattern": "^[A-Z][a-z]+ \\d+ - [A-Z][a-z]+ \\d+$"
+            }
+          }
+        },
         "streams": {
           "type": "array",
           "description": "Stream configurations for streaming networks",

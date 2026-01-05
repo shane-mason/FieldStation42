@@ -4,7 +4,9 @@ import os
 import glob
 import re
 import shutil
+import datetime
 from fs42.config_processor import ConfigProcessor
+from fs42 import schedule_hint
 from fs42 import timings
 
 
@@ -220,6 +222,23 @@ class StationIO:
 
         station_conf = config_data["station_conf"]
 
+        #first thing, check if there are availability rules:
+        active_rules = station_conf.get("active_rules", None)
+        if active_rules:
+            if "date_range" in active_rules:
+                print("FOUND ACTIVE RULE")
+                # then, use scheduling hints and see this station should be available
+                parses = schedule_hint.RangeHint.test_pattern(active_rules["date_range"])
+                if parses:
+                    hint = schedule_hint.RangeHint(active_rules["date_range"])
+                    if not hint.hint(datetime.datetime.now()):
+                        #then, the active rule doesn't match, so this station isn't active
+                        print("DOESN'T FIT THE MOLD")
+                        return None
+                else:
+                    self._l.warning(f"Active rule date_range doesn't parse as a range {active_rules['date_range']}")
+            else:
+                self._l.warning("Active rule set, but no date_range hint. Passing.")
         # Apply defaults for optional fields
         for key in StationIO.OVERWATCH_DEFAULTS:
             if key not in station_conf:
@@ -293,7 +312,8 @@ class StationIO:
 
             try:
                 processed_conf = self._process_single_config(config, fname)
-                processed_stations.append(processed_conf)
+                if processed_conf:
+                    processed_stations.append(processed_conf)
             except Exception as e:
                 self._l.error("*" * 60)
                 self._l.error(f"Error loading station configuration: {fname}")
