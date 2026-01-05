@@ -107,7 +107,7 @@
         },
         "video_scramble_fx": {
           "type": "string",
-          "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble"],
+          "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble", "spicy"],
           "description": "Preset video scrambling effect"
         },
         "station_fx": {
@@ -507,7 +507,7 @@
           "oneOf": [
             {
               "type": "string",
-              "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble"],
+              "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble", "spicy"],
               "description": "Video scrambling effect"
             },
             {

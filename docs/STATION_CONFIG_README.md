@@ -203,6 +203,7 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 - `wavy` - Wavy distortion pattern
 - `random_block` - Random block replacement distortion
 - `chunky_scramble` - Complex realistic scramble effect
+- `spicy` - Spicy scrambling effect
 
 ### On-Screen Display (Logo) Properties
 
