@@ -21,7 +21,7 @@
         let guideEndTime = new Date();
         let scrollInterval = null;
         let verticalScrollInterval = null;
-        const autoScrollEnabled = true;
+        let autoScrollEnabled = true; // Will be initialized from localStorage
         let virtualScrollPosition = 0;
         const TIME_SLOT_WIDTH = 120; // pixels per 30-minute slot
         const SCROLL_SPEED = 0.033; // pixels per second (1 pixel per 30 seconds = slow realistic scroll)
@@ -51,6 +51,10 @@
         }
         
         document.addEventListener('DOMContentLoaded', async function () {
+            // Initialize auto-scroll setting from localStorage
+            const savedSetting = localStorage.getItem('fs42-autoscroll');
+            autoScrollEnabled = savedSetting !== 'false'; // Default to true if not set
+
             const content = `
                 <div class="guide-container">
                     <div class="guide-timeline" id="timeline"></div>
@@ -410,17 +414,20 @@
             if (verticalScrollInterval) {
                 clearInterval(verticalScrollInterval);
             }
-            
+
             verticalScrollInterval = setInterval(() => {
                 if (autoScrollEnabled) {
                     const stationsColumn = document.getElementById('stations-column');
                     const guideGridContainer = document.querySelector('.guide-grid-container');
-                    
+
                     if (stationsColumn && guideGridContainer) {
                         const maxScroll = stationsColumn.scrollHeight - stationsColumn.clientHeight;
-                        
-                        // Only scroll if there's content to scroll through
-                        if (maxScroll > 0) {
+                        const containerHeight = window.innerHeight - 40;
+                        const stationsHeight = stations.length * 60;
+
+                        // Only scroll if there are enough stations to warrant scrolling
+                        // (stations must fill more than the visible container height)
+                        if (maxScroll > 0 && stationsHeight > containerHeight) {
                             // Get current scroll position
                             const currentScroll = stationsColumn.scrollTop;
                             let nextScroll = currentScroll + VERTICAL_SCROLL_SPEED;

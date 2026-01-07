@@ -8,6 +8,14 @@
     <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
     <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
     <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <style>
+        /* Ensure checkbox works properly */
+        input[type="checkbox"] {
+            appearance: auto;
+            -webkit-appearance: checkbox;
+            -moz-appearance: checkbox;
+        }
+    </style>
     <script>
         // Theme management
         async function loadThemes() {
@@ -44,6 +52,18 @@
             localStorage.setItem('fs42-theme', themeName);
         }
 
+        function toggleAutoScroll(enabled) {
+            localStorage.setItem('fs42-autoscroll', enabled ? 'true' : 'false');
+        }
+
+        function initAutoScrollCheckbox() {
+            const checkbox = document.getElementById('autoscroll-checkbox');
+            if (checkbox) {
+                const savedSetting = localStorage.getItem('fs42-autoscroll');
+                checkbox.checked = savedSetting !== 'false'; // Default to true if not set
+            }
+        }
+
         // Initialize page layout
         document.addEventListener('DOMContentLoaded', async function () {
             initTheme();
@@ -58,6 +78,16 @@
                             <select id="theme-select" class="pure-input-1-2" onchange="setTheme(this.value)">
                                 <option>Loading themes...</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="settings-section" style="margin-top: 2em;">
+                        <h3>Guide Auto-Scroll</h3>
+                        <p>Enable or disable automatic scrolling in the TV Guide:</p>
+                        <div style="margin-top: 1em;">
+                            <label style="display: inline-flex; align-items: center; gap: 0.5em; cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="autoscroll-checkbox" onchange="toggleAutoScroll(this.checked)" style="width: 18px; height: 18px; cursor: pointer; margin: 0; flex-shrink: 0;">
+                                <span style="line-height: 18px;">Enable auto-scroll</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -95,9 +125,12 @@
             `;
 
             document.body.innerHTML = await window.fs42Common.createPageLayout('About FieldStation42', content);
-            
+
             // Load themes after the HTML is inserted
             loadThemes();
+
+            // Initialize auto-scroll checkbox
+            initAutoScrollCheckbox();
         });
     </script>
 </head>
