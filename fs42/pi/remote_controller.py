@@ -8,6 +8,7 @@ import threading
 import sys
 import time
 import json
+import argparse
 
 
 # ======================================
@@ -388,11 +389,19 @@ def toggle_services():
         print(f"Error toggling services: {e}")
 
 
-def find_input_device():
-    """Find the Flirc or keyboard input device"""
+def find_input_device(device_spec=None):
+    """Find the Flirc or keyboard input device
+
+    Args:
+        device_spec: Optional device specifier. Can be:
+            - Device path (e.g., '/dev/input/event3')
+            - Device index (e.g., '0', '1', '2')
+            - Device name pattern (e.g., 'flirc', 'keyboard')
+            - None to auto-detect
+    """
     import glob
     devices = []
-    
+
     # Look for input devices
     for device_path in glob.glob('/dev/input/event*'):
         try:
@@ -402,22 +411,51 @@ def find_input_device():
                 devices.append((device_path, device.name))
         except (OSError, PermissionError):
             continue
-    
+
     if not devices:
         print("No keyboard/remote devices found. Run with sudo?")
         return None
-    
+
     print("Available input devices:")
     for i, (path, name) in enumerate(devices):
         print(f"{i}: {name} ({path})")
+
+    # If device_spec is provided, try to match it
+    if device_spec:
+        # Check if it's a direct device path
+        if device_spec.startswith('/dev/input/'):
+            if os.path.exists(device_spec):
+                print(f"Using specified device path: {device_spec}")
+                return device_spec
+            else:
+                print(f"Warning: Device path '{device_spec}' not found, falling back to auto-detect")
+
+        # Check if it's a numeric index
+        elif device_spec.isdigit():
+            index = int(device_spec)
+            if 0 <= index < len(devices):
+                path, name = devices[index]
+                print(f"Using device at index {index}: {name} ({path})")
+                return path
+            else:
+                print(f"Warning: Device index {index} out of range (0-{len(devices)-1}), falling back to auto-detect")
+
+        # Treat it as a name pattern
+        else:
+            device_spec = device_spec.lower()
+
+    if not device_spec:
+        device_spec = "flirc"
     
-    # Try to find Flirc first
+
+    # Auto-detect: Try to find Flirc first
     for path, name in devices:
-        if 'flirc' in name.lower():
-            print(f"Found Flirc device: {name}")
+        if device_spec in name.lower():
+            print(f"Found device: {name}")
             return path
-    
+
     # Use first keyboard-like device
+    print(f"Using default device: {devices[0][1]}")
     return devices[0][0]
 
 
@@ -600,10 +638,48 @@ def test_mode():
 
 def main():
     """Main function to start the input device listener"""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description='FieldStation42 Remote Controller',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Device specification examples:
+  -d /dev/input/event3      Use specific device path
+  -d 0                      Use device at index 0 from the device list
+  -d flirc                  Use first device with 'flirc' in its name
+  -d keyboard               Use first device with 'keyboard' in its name
+
+Environment variables:
+  FS42_INPUT_DEVICE         Device specification (same format as -d)
+  FS42_HOST                 Server host (default: 127.0.0.1)
+  FS42_PORT                 Server port (default: 4242)
+        """
+    )
+    parser.add_argument(
+        '-d', '--device',
+        help='Input device to use (path, index, or name pattern)',
+        default=None
+    )
+    parser.add_argument(
+        '--list-devices',
+        action='store_true',
+        help='List available input devices and exit'
+    )
+
+    args = parser.parse_args()
+
+    # Get device spec from args or environment variable
+    device_spec = args.device or os.getenv('FS42_INPUT_DEVICE')
+
     print(f"Remote Controller started. Connecting to {FS42_BASE_URL}")
 
+    # If --list-devices, just show devices and exit
+    if args.list_devices:
+        find_input_device(device_spec)
+        return
+
     # Find input device
-    device_path = find_input_device()
+    device_path = find_input_device(device_spec)
     if not device_path:
         # No device found - use test mode
         test_mode()

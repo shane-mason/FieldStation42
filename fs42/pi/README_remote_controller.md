@@ -100,6 +100,41 @@ FS42_HOST = '192.168.1.100'
 FS42_PORT = '8080'
 ```
 
+### Input Device Selection
+
+By default, the remote controller automatically finds your Flirc device. If you have multiple input devices or want to use a specific keyboard, you can specify which one to use:
+
+**Command-line options:**
+```bash
+# List all available input devices
+sudo python3 remote_controller.py --list-devices
+
+# Use a specific device path
+sudo python3 remote_controller.py -d /dev/input/event3
+
+# Use device by index (from --list-devices output)
+sudo python3 remote_controller.py -d 0
+
+# Use device by name pattern (finds first match)
+sudo python3 remote_controller.py -d flirc
+sudo python3 remote_controller.py -d keyboard
+```
+
+**Environment variable:**
+```bash
+# Set device persistently via environment variable
+FS42_INPUT_DEVICE=keyboard sudo python3 remote_controller.py
+
+# Combine with other settings
+FS42_HOST=192.168.1.100 FS42_INPUT_DEVICE=1 sudo python3 remote_controller.py
+```
+
+**How device selection works:**
+1. **Device path** (`/dev/input/event3`) - Uses exact device path
+2. **Device index** (`0`, `1`, `2`) - Uses device at that position in the list
+3. **Name pattern** (`flirc`, `keyboard`) - Finds first device containing that text
+4. **Auto-detect** (default) - Automatically finds Flirc, or uses first available device
+
 ## 📺 Remote Functions
 
 | Function | Default Key | Description |
@@ -152,6 +187,7 @@ sudo python3 remote_controller.py
 - Check that Flirc USB is plugged in
 - Verify with: `ls /dev/input/event*`
 - Try running with sudo
+- Use `--list-devices` to see all available input devices
 
 ### Remote Not Responding
 1. **Check Flirc programming**: Use Flirc GUI to verify key mappings
