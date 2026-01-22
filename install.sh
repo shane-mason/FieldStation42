@@ -1,4 +1,4 @@
-#! /usr/bin/bash
+#!/usr/bin/env bash
 
 # ANSI Color Codes
 RED='\033[0;31m'
