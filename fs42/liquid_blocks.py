@@ -37,7 +37,7 @@ class LiquidBlock:
         self.break_strategy = break_strategy
 
     def __str__(self):
-        content = os.path.basename(self.content)
+        content = os.path.basename(self.content.path)
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title} - {content}"
 
     def content_duration(self):
