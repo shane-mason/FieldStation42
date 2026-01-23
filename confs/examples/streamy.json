@@ -2,7 +2,7 @@
     "network_name" : "Streamy",
     "network_type" : "streaming",
     "channel_number": 1,
-    "runtime_dir" : "runtime/steamy",
+    "runtime_dir" : "runtime/streamy",
     "network_long_name": "My Streamy Channel",
     "streams": [
         {"url": "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8", "duration": 30, "title": "Tears of Steel"},

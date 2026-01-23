@@ -106,7 +106,7 @@ def build_parser():
         "-w",
         "--add_week",
         nargs="*",
-        help="Add one week to the specifided stations, or all stations if none are specified.",
+        help="Add one week to the specified stations, or all stations if none are specified.",
     )
     parser.add_argument(
         "-m",
@@ -141,7 +141,7 @@ def build_parser():
         "-f",
         "--force",
         action="store_true",
-        help="With -r or -x will force deletion of schedules and catalogs if they are failing. Wont reset sequences, file cache or breakpoints",
+        help="With -r or -x will force deletion of schedules and catalogs if they are failing. Won't reset sequences, file cache or breakpoints",
     )
     parser.add_argument(
         "--skip_chapter_scan",
@@ -327,7 +327,7 @@ def main():
         return
 
     if args.schedule:
-        _l.info("Printing shedule summary.")
+        _l.info("Printing schedule summary.")
         print(LiquidManager().get_summary())
         success_messages.append("I printed the schedule summary")
         print_outcome(success_messages, failure_messages, console)
@@ -593,7 +593,7 @@ def main():
     if args.server or len(sys.argv) <= 1:
         info = "\nFS42 web server is running on this machine. You can log into the web gui at http://localhost:4242 to manage catalogs and schedules\n"
         print()
-        console.print(Panel.fit(info, title="FieldStation42", subtitle="Its Up To You.", border_style=style.Style(color="blue")))
+        console.print(Panel.fit(info, title="FieldStation42", subtitle="It's Up To You.", border_style=style.Style(color="blue")))
         print()
         mount_fs42_api()
         
