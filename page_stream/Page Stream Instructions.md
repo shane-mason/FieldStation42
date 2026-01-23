@@ -10,7 +10,7 @@ This module enables live webpage streaming inside your FieldStation42 cable box 
 
     Integrates directly with FieldStation42’s channel switcher
 
-    Auto-generates configuration files and uses location metadata
+    Auto-generates configuration files with automatic location detection for WeatherStar
 
     Supports multiple simultaneous web streams
 
@@ -103,7 +103,7 @@ This will:
 
     Create: confs/web_80s.json
 
-    Auto-detect your location using ipinfo.io
+    Auto-detect your location using ipinfo.io (for WeatherStar URLs)
 
     Create: page_stream/web_urls/80s.json
 
