@@ -1,6 +1,9 @@
 import logging
+import os.path
 import sys
 import random
+from pathlib import Path
+
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.catalog_api import CatalogAPI
 from fs42.timings import MIN_5, DAYS
@@ -190,22 +193,10 @@ class ShowCatalog:
 
         # collect start and end bumps first
         for fp in start_bumps:
-            path = f"{self.config['content_dir']}/{fp}"
-            sb = MediaProcessor._process_media([path], "start_bumps", fluid=self.__fluid_builder, content_type="bump")
-            if len(sb) == 1:
-                self.clip_index["start_bumps"].append(sb[0])
-            else:
-                self._l.error("Start bump specified but not found {fp}")
-                self._l.error("File paths for start_bump should be relative to the content_dir")
+            self.__bump_collector("start_bumps", fp)
 
         for fp in end_bumps:
-            path = f"{self.config['content_dir']}/{fp}"
-            eb = MediaProcessor._process_media([path], "end_bumps", fluid=self.__fluid_builder, content_type="bump")
-            if len(eb) == 1:
-                self.clip_index["end_bumps"].append(eb[0])
-            else:
-                self._l.error("Start bump specified but not found {fp}")
-                self._l.error("File paths for end_bump should be relative to the content_dir")
+            self.__bump_collector("end_bumps", fp)
 
         # now inspect the tags and scan corresponding folders for media
         self.tags = list(tags.keys())
@@ -299,6 +290,8 @@ class ShowCatalog:
                 count_added += len(self.clip_index[tag])
         return count_added
 
+
+
     def get_text_listing(self):
         content = "TITLE                | TAG        | Duration  | Hints\n"
         for tag in self.clip_index:
@@ -336,18 +329,53 @@ class ShowCatalog:
             candidate = all_offair[0]
         return candidate
 
+    def __bump_collector(self, tag, fp):
+        bump_path = f"{self.config['content_dir']}/{fp}"
+
+        to_process = [bump_path]
+        # check if this is a dir
+        if os.path.isdir(bump_path):
+            to_process = MediaProcessor._find_media(bump_path)
+
+        bumps = MediaProcessor._process_media(to_process, tag, fluid=self.__fluid_builder, content_type="bump")
+
+        if len(bumps):
+            for fp in bumps:
+                self.clip_index[tag].append(fp)
+        else:
+            self._l.error(f"{tag} specified but not found: {fp}")
+            self._l.error(f"File paths for {tag} should be relative to the content_dir")
+
     def get_start_bump(self, fp):
-        for bump in self.clip_index["start_bumps"]:
-            if bump.path.endswith(fp):
-                return {"path": bump.path, "duration": bump.duration}
-        return None
+        return self.__bump_finder("start_bumps", fp)
 
     def get_end_bump(self, fp):
-        for bump in self.clip_index["end_bumps"]:
-            if bump.path.endswith(fp):
-                return {"path": bump.path, "duration": bump.duration}
+        return self.__bump_finder("end_bumps", fp)
 
-        return None
+
+    def __bump_finder(self, bump_tag, fp):
+        candidates = []
+
+        # first, was it directly referenced?
+        for bump in self.clip_index[bump_tag]:
+            if bump.path.endswith(fp):
+                candidates.append(bump)
+                break
+
+        if not len(candidates):
+            clean_match = fp.removesuffix("/")
+            for bump in self.clip_index[bump_tag]:
+                path_obj = Path(bump.path)
+                parent_path = path_obj.parent.name
+
+                if parent_path == clean_match:
+                    candidates.append(bump)
+
+        if len(candidates):
+            winner = random.choice(candidates)
+            return {"path": winner.path, "duration": winner.duration}
+        else:
+            return None
 
     def entry_by_fpath(self, fpath):
         results = CatalogAPI.get_by_path(self.config, fpath)
