@@ -1,4 +1,5 @@
 import datetime
+import os.path
 
 from fs42 import timings
 from fs42.reel_cutter import ReelCutter
@@ -36,7 +37,8 @@ class LiquidBlock:
         self.break_strategy = break_strategy
 
     def __str__(self):
-        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title}"
+        content = os.path.basename(self.content)
+        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title} - {content}"
 
     def content_duration(self):
         return self.content.duration
