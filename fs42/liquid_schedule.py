@@ -33,7 +33,7 @@ class LiquidSchedule:
         self._load_blocks()
 
     def _calc_target_duration(self, duration, increment=None):
-        # get the target duration for the show based on the shedule increment
+        # get the target duration for the show based on the schedule increment
         if increment is None:
             increment = self.conf["schedule_increment"]
         multiple = increment * 60

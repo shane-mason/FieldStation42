@@ -111,7 +111,7 @@ Use this to create catalogs and generate schedules. Catalogs are used to store m
 ### field_player.py
 This is the main TV interface. On startup, it will read the schedule and open the correct video file and skip to the correct position based on the current time. It will re-perform this step each time the channel is changed. If you tune back to a previous channel, it will pick up the current time and start playing as though it had been playing the whole time.
 
-The player writes its status and current channel to `runtime/play_status.socket` - this can be monitored by an external program if needed. See [this page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`.
+The player writes its status and current channel to `runtime/play_status.socket` - this can be monitored by an external program if needed. See [this page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on integrating with `channel.socket` and `play_status.socket`.
 
 ## Using hotstart.sh
 This file is for use on a running system that has been configured and testing, because it swallows output so you'll never know what's going wrong. This file is intended to be used to start the player running on system boot up.
@@ -120,7 +120,7 @@ This file is for use on a running system that has been configured and testing, b
 The Raspberry Pi has an HDMI output, but if you want to connect it to a vintage TV, you will need to convert that to an input signal your TV can understand. If your TV has composite or RF, you can use an HDMI->Composite or HDMI->RF adapter. These units are available online or at an electronics retailer.
 
 ## Connecting a remote control or other device
-Since the player can recieve external commands and publishes its status as described above, it's easy to connect external devices of all kinds. See [this wiki page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on intgrating with `channel.socket` and `play_status.socket`. For a detailed guide on setting up a Bluetooth remote control, [see this page in the discussion boards](https://github.com/shane-mason/FieldStation42/discussions/47).
+Since the player can receive external commands and publishes its status as described above, it's easy to connect external devices of all kinds. See [this wiki page](https://github.com/shane-mason/FieldStation42/wiki/Changing-Channel-From-Script) for more information on integrating with `channel.socket` and `play_status.socket`. For a detailed guide on setting up a Bluetooth remote control, [see this page in the discussion boards](https://github.com/shane-mason/FieldStation42/discussions/47).
 
 
 ## 🤝 How to Contribute
