@@ -43,13 +43,36 @@ if ! [[ "$CHANNEL_NUMBER" =~ ^[0-9]+$ ]]; then
 fi
 
 # ---------------------
+# Location Detection (for WeatherStar)
+# ---------------------
+LOCATION=""
+if [[ "$URL" == *"weatherstar"* ]] && [[ "$URL" != *"latLonQuery"* ]] && [[ "$URL" != *"lat="* ]]; then
+  echo "[INFO] WeatherStar URL detected, fetching location..."
+  LOCATION_JSON=$(curl -s --max-time 5 "https://ipinfo.io/json" 2>/dev/null || echo "{}")
+  CITY=$(echo "$LOCATION_JSON" | jq -r '.city // empty')
+  REGION=$(echo "$LOCATION_JSON" | jq -r '.region // empty')
+  if [[ -n "$CITY" && -n "$REGION" ]]; then
+    LOCATION="${CITY}, ${REGION}"
+    # Append location to URL
+    if [[ "$URL" == *"?"* ]]; then
+      URL="${URL}&latLonQuery=${LOCATION// /+}"
+    else
+      URL="${URL}?latLonQuery=${LOCATION// /+}"
+    fi
+    echo "[INFO] Added location: $LOCATION"
+  else
+    echo "[WARN] Could not detect location, using URL as-is"
+  fi
+fi
+
+# ---------------------
 # Paths
 # ---------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF_DIR="$SCRIPT_DIR/../confs"
 URL_STORE_DIR="$SCRIPT_DIR/web_urls"
-HLS_DIR="$SCRIPT_DIR/../page_stream/hls/${CHANNEL_NAME,,}"
 CHANNEL_ID=$(echo "$CHANNEL_NAME" | tr '[:upper:] ' '[:lower:]_' | tr -cd 'a-z0-9_')
+HLS_DIR="$SCRIPT_DIR/../page_stream/hls/${CHANNEL_ID}"
 CONF_FILE="${CONF_DIR}/web_${CHANNEL_ID}.json"
 URL_STORE_FILE="${URL_STORE_DIR}/${CHANNEL_ID}.json"
 PORT=$((8000 + CHANNEL_NUMBER))
