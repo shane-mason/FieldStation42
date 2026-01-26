@@ -406,8 +406,14 @@ class GuideApp(tk.Tk):
         if "window_decorations" not in user_conf or not user_conf["window_decorations"]:
             self.overrideredirect(True)
 
-        print("Setting final geometry: ", f"{user_conf['width']}x{user_conf['height']}")
-        self.geometry(f"{user_conf['width']}x{user_conf['height']}")
+        if "fullscreen" in user_conf and user_conf["fullscreen"]:
+            print("Setting final geometry: ", f"{user_conf['width']}x{user_conf['height']}+0+0")
+            self.geometry(f"{user_conf['width']}x{user_conf['height']}+0+0")
+        else:
+            x = (self.winfo_screenwidth() - user_conf['width']) // 2
+            y = (self.winfo_screenheight() - user_conf['height']) // 2
+            print("Setting final geometry: ", f"{user_conf['width']}x{user_conf['height']}+{x}+{y}")
+            self.geometry(f"{user_conf['width']}x{user_conf['height']}+{x}+{y}")
 
         # Make cursor invisible
         self.config(cursor="none")
