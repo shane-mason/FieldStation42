@@ -184,6 +184,12 @@ class ShowCatalog:
         # add any clip show not already in it
         for clip_tag in self.config["clip_shows"]:
             tags[clip_tag] = True
+            # include clip show start and end clips
+            if "start_clip" in self.config["clip_shows"][clip_tag]:
+                tags[self.config["clip_shows"][clip_tag]["start_clip"]] = True
+            if "end_clip" in self.config["clip_shows"][clip_tag]:
+                tags[self.config["clip_shows"][clip_tag]["end_clip"]] = True
+
         
 
         SequenceAPI.scan_sequences(self.config)
@@ -568,8 +574,13 @@ class ShowCatalog:
         if start_clip is not None:
             try:
                 candidate = self.find_candidate(start_clip, duration, when)
+                if not candidate:
+                    print(f"Unable to find suitable start_clip candidate for clip show {tag}.")
+                    print(start_clip, duration, duration - current_duration, when)                
+                    raise MatchingContentNotFound()
                 current_duration += candidate.duration
                 clips.append(candidate)
+                print("Inserted intro clip")
             except MatchingContentNotFound as e:
                 # No suitable start clip even though one was requested
                 raise e
@@ -577,8 +588,11 @@ class ShowCatalog:
         final_clip = None
         if end_clip is not None:
             try:
-                final_clip = self.find_candidate(start_clip, duration, when)
+                final_clip = self.find_candidate(end_clip, duration, when)
+                if not final_clip:
+                    raise MatchingContentNotFound()
                 current_duration += final_clip.duration
+                print("Inserted outro clip")
             except MatchingContentNotFound as e:
                 # No suitable end clip even though one was requested
                 raise e
