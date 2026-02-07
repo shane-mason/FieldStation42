@@ -561,10 +561,28 @@ class ShowCatalog:
 
         return blocks
 
-    def gather_clip_content(self, tag, duration, when):
+    def gather_clip_content(self, tag, duration, when, start_clip, end_clip):
         current_duration = 0
         keep_going = True
         clips = []
+        if start_clip is not None:
+            try:
+                candidate = self.find_candidate(start_clip, duration, when)
+                current_duration += candidate.duration
+                clips.append(candidate)
+            except MatchingContentNotFound as e:
+                # No suitable start clip even though one was requested
+                raise e
+
+        final_clip = None
+        if end_clip is not None:
+            try:
+                final_clip = self.find_candidate(start_clip, duration, when)
+                current_duration += final_clip.duration
+            except MatchingContentNotFound as e:
+                # No suitable end clip even though one was requested
+                raise e
+
         while keep_going:
             try:
                 # if it is a small or negative number, this will throw an exception when a candidate isn't found
@@ -579,6 +597,9 @@ class ShowCatalog:
                     raise e
                 # then there are no more clips, so exit the loop
                 keep_going = False
+
+        if final_clip is not None:
+            clips.append(final_clip)
         return clips
 
     def summary(self):
