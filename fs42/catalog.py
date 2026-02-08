@@ -580,7 +580,6 @@ class ShowCatalog:
                     raise MatchingContentNotFound()
                 current_duration += candidate.duration
                 clips.append(candidate)
-                print("Inserted intro clip")
             except MatchingContentNotFound as e:
                 # No suitable start clip even though one was requested
                 raise e
