@@ -29,12 +29,11 @@ class StationIO:
     }
 
     # Fields that reference files that should exist
-    FILE_CHECKS = ["sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
+    FILE_CHECKS = ["content_dir", "sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
 
     # Network types that don't have catalogs or schedules
     NO_CATALOG = {"guide", "streaming", "web"}
     NO_SCHEDULE = {"guide", "streaming", "web"}
-    
 
     def __init__(self):
         self._l = logging.getLogger("STATIONIO")
@@ -222,7 +221,7 @@ class StationIO:
 
         station_conf = config_data["station_conf"]
 
-        #first thing, check if there are availability rules:
+        # first thing, check if there are availability rules:
         active_rules = station_conf.get("active_rules", None)
         if active_rules:
             if "date_range" in active_rules:
@@ -232,7 +231,7 @@ class StationIO:
                 if parses:
                     hint = schedule_hint.RangeHint(active_rules["date_range"])
                     if not hint.hint(datetime.datetime.now()):
-                        #then, the active rule doesn't match, so this station isn't active
+                        # then, the active rule doesn't match, so this station isn't active
                         print("DOESN'T FIT THE MOLD")
                         return None
                 else:
@@ -258,8 +257,8 @@ class StationIO:
 
         # Normalize clip shows
         station_conf["clip_shows"] = self._normalize_clip_shows(station_conf["clip_shows"],
-                                                                  station_conf["schedule_increment"],
-                                                                  filename)
+                                                                station_conf["schedule_increment"],
+                                                                filename)
 
         # Add metadata flags
         station_conf["_has_catalog"] = station_conf["network_type"] not in StationIO.NO_CATALOG
