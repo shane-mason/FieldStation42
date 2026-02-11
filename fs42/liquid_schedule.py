@@ -117,8 +117,9 @@ class LiquidSchedule:
         new_block = None
         next_mark = None
         # handle clip show
+        clip_config = self.conf["clip_shows"][tag_str]
         clip_content = self.catalog.gather_clip_content(
-            tag_str, self.conf["clip_shows"][tag_str]["duration"], current_mark
+            tag_str, clip_config.get("duration"), current_mark, clip_config.get("start_clip", None), clip_config.get("end_clip", None)
         )
         if len(clip_content) == 0:
             # this should only happen on an error (have a tag, but no candidate)
