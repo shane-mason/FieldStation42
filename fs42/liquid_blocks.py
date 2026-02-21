@@ -54,12 +54,27 @@ class LiquidBlock:
         # ensure start ordering
         break_points = MediaProcessor.calc_black_segments(break_points, content_duration)
 
-        # then remove the ones with the shortest segment duration until we have fewer than max_breaks
-        sorted_breaks = sorted(break_points, key=lambda k: k["segment_duration"], reverse=True)
-        clipped_breaks = sorted_breaks[: int(max_breaks)]
-        # and put it back in place
-        break_points = sorted(clipped_breaks, key=lambda k: k["chapter_start"])
-        return break_points
+        if len(break_points) <= max_breaks:
+            return break_points
+
+        # Select chapters that are evenly distributed across the content duration
+        # This ensures commercial breaks are spread throughout the movie
+        max_breaks = int(max_breaks)
+        selected_indices = []
+
+        # Calculate the ideal spacing between selected chapters
+        step = len(break_points) / max_breaks
+
+        # Select chapters at evenly-spaced intervals
+        for i in range(max_breaks):
+            index = int(i * step)
+            # Make sure we don't go out of bounds
+            if index < len(break_points):
+                selected_indices.append(index)
+
+        # Return the selected break points in chronological order
+        clipped_breaks = [break_points[i] for i in selected_indices]
+        return clipped_breaks
 
     def make_plan(self, catalog):
         # first, collect any reels (commercials and bumps) we might need to buffer to the requested duration
@@ -75,15 +90,39 @@ class LiquidBlock:
 
         strict_count = None
         if break_points:
-            # the maximum number of breaks points should be no more than every 2 minutes
-            max_breaks = self.playback_duration() / timings.MIN_2
-            # or the max breaks points should make them last at least one minute each
-            # max_breaks = diff/timings.MIN_1
+            # Calculate how many breaks we need based on break_duration config
+            # If break_duration is configured, use it to determine break count
+            break_duration = self.break_info.get("break_duration", None)
+            if break_duration is None:
+                # Try to get from catalog config if not in break_info
+                break_duration = catalog.config.get("break_duration", None)
 
-            if len(break_points) > max_breaks:
-                break_points = self.clip_break_points(break_points, max_breaks, self.content_duration())
+            if break_duration and break_duration > 0:
+                # Calculate desired number of breaks based on total buffer and break_duration
+                # This respects the user's break_duration setting
+                desired_breaks = max(1, int(diff / break_duration))
 
-            strict_count = len(break_points) + 1
+                # break_points contains content segments, so we need desired_breaks + 1 segments
+                desired_segments = desired_breaks + 1
+
+                # If we have more chapter markers than needed, select the best-positioned ones
+                if len(break_points) > desired_segments:
+                    break_points = self.clip_break_points(break_points, desired_segments, self.content_duration())
+
+                # strict_count is the number of reel blocks (commercial breaks) to create
+                # This is one less than the number of content segments
+                strict_count = len(break_points) - 1 if len(break_points) > 0 else 0
+            else:
+                # Fallback: limit breaks to no more than every 2 minutes of playback
+                max_breaks = self.playback_duration() / timings.MIN_2
+                # We need max_breaks + 1 content segments to create max_breaks commercial breaks
+                max_segments = int(max_breaks) + 1
+
+                if len(break_points) > max_segments:
+                    break_points = self.clip_break_points(break_points, max_segments, self.content_duration())
+
+                # strict_count is the number of reel blocks (one less than content segments)
+                strict_count = len(break_points) - 1 if len(break_points) > 0 else 0
 
         # is there a start bump?
         if self.start_bump:
