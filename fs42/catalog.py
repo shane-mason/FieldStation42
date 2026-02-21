@@ -578,12 +578,22 @@ class ShowCatalog:
         current_duration = 0
         keep_going = True
         clips = []
+
+        # industry standard content ratios for television shows
+        # 40 minutes per hour (0.67) to 48 minutes per hour (0.80)
+        CONTENT_RATIO_MIN = 0.67
+        CONTENT_RATIO_MAX = 0.80
+
+        # Calculate target content duration range
+        target_content_min = duration * CONTENT_RATIO_MIN
+        target_content_max = duration * CONTENT_RATIO_MAX
+
         if start_clip is not None:
             try:
                 candidate = self.find_candidate(start_clip, duration, when)
                 if not candidate:
                     print(f"Unable to find suitable start_clip candidate for clip show {tag}.")
-                    print(start_clip, duration, duration - current_duration, when)                
+                    print(start_clip, duration, duration - current_duration, when)
                     raise MatchingContentNotFound()
                 current_duration += candidate.duration
                 clips.append(candidate)
@@ -592,13 +602,14 @@ class ShowCatalog:
                 raise e
 
         final_clip = None
+        final_clip_duration = 0
         if end_clip is not None:
             try:
                 final_clip = self.find_candidate(end_clip, duration, when)
                 if not final_clip:
                     raise MatchingContentNotFound()
-                current_duration += final_clip.duration
-                print("Inserted outro clip")
+                final_clip_duration = final_clip.duration
+                current_duration += final_clip_duration
             except MatchingContentNotFound as e:
                 # No suitable end clip even though one was requested
                 raise e
@@ -608,9 +619,23 @@ class ShowCatalog:
                 # if it is a small or negative number, this will throw an exception when a candidate isn't found
                 candidate = self.find_candidate(tag, duration - current_duration, when)
                 if not candidate:
-                    print(tag, duration, duration - current_duration, when)                
-                current_duration += candidate.duration
-                clips.append(candidate)
+                    print(tag, duration, duration - current_duration, when)
+
+                # check if adding this clip would exceed our maximum content ratio
+                projected_duration = current_duration + candidate.duration
+
+                # NEVER add a clip if it would exceed the maximum ratio
+                if projected_duration > target_content_max:
+                    keep_going = False
+                elif current_duration >= target_content_min:
+                    # we're at or above minimum and under maximum - add the clip
+                    current_duration += candidate.duration
+                    clips.append(candidate)
+                else:
+                    # we're still below minimum and won't exceed maximum - add the clip
+                    current_duration += candidate.duration
+                    clips.append(candidate)
+
             except MatchingContentNotFound as e:
                 if len(clips) == 0:
                     # then there isn't any valid content at all.
