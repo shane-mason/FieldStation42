@@ -2,7 +2,37 @@ import logging
 import os
 import glob
 import json
-import ffmpeg
+import sys
+
+# Validate ffmpeg-python package
+try:
+    import ffmpeg
+    # Check if this is the correct ffmpeg-python package
+    if not hasattr(ffmpeg, 'probe'):
+        print("\n" + "="*70)
+        print("ERROR: Incorrect ffmpeg package detected!")
+        print("="*70)
+        print("\nYou have the wrong 'ffmpeg' package installed.")
+        print("\nThis might be because you haven't activated your virtual environment.")
+        print("Please activate the virtual environment and try again:")
+        print("  source env/bin/activate  (Linux/Mac)")
+        print("\nIf the issue persists, you need to:")
+        print("  1. Uninstall the wrong package: pip uninstall ffmpeg")
+        print("  2. Install the correct package: pip install ffmpeg-python")
+        print("="*70 + "\n")
+        sys.exit(1)
+except ImportError:
+    print("\n" + "="*70)
+    print("ERROR: ffmpeg-python package not found!")
+    print("="*70)
+    print("\nThis is likely because you haven't activated your virtual environment.")
+    print("Please activate the virtual environment and try again:")
+    print("  source env/bin/activate  (Linux/Mac)")
+    print("\nIf the virtual environment is activated, install the package:")
+    print("  pip install ffmpeg-python")
+    print("="*70 + "\n")
+    sys.exit(1)
+
 from fs42.fluid_objects import FileRepoEntry
 from fs42 import timings
 
@@ -168,13 +198,26 @@ class MediaProcessor:
 
     @staticmethod
     def _get_duration(file_name) -> float:
-        probed = ffmpeg.probe(file_name)
+        _l = logging.getLogger("MEDIA")
+        try:
+            probed = ffmpeg.probe(file_name)
 
-        if "streams" in probed and len(probed["streams"]) and "duration" in probed["streams"][0]:
-            return float(probed["streams"][0]["duration"])
-        elif "format" in probed and "duration" in probed["format"]:
-            return float(probed['format']['duration'])
-        else:
+            if "streams" in probed and len(probed["streams"]) and "duration" in probed["streams"][0]:
+                return float(probed["streams"][0]["duration"])
+            elif "format" in probed and "duration" in probed["format"]:
+                return float(probed['format']['duration'])
+            else:
+                return -1
+        except AttributeError as e:
+            # This should never happen now due to startup check, but just in case
+            _l.error(f"ffmpeg module error - you may have the wrong package installed: {e}")
+            _l.error("Please ensure you have activated the virtual environment and have ffmpeg-python installed")
+            return -1
+        except ffmpeg.Error as e:
+            _l.debug(f"FFmpeg error probing {file_name}: {e}")
+            return -1
+        except Exception as e:
+            _l.debug(f"Unexpected error probing {file_name}: {e}")
             return -1
 
     @staticmethod

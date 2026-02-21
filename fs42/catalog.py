@@ -148,6 +148,13 @@ class ShowCatalog:
         for day in DAYS:
             slots = self.config[day]
             for k in slots:
+                # Validate that slots[k] is a dictionary
+                if not isinstance(slots[k], dict):
+                    self._l.error(f"Invalid slot configuration for {day}[{k}]: expected dict, got {type(slots[k]).__name__}")
+                    self._l.error(f"This may be caused by media processing failures. Check logs above for errors.")
+                    self._l.error(f"Slot value: {slots[k]}")
+                    raise TypeError(f"Invalid slot configuration for {day}[{k}]: expected dict, got {type(slots[k]).__name__}. Check media processing logs for errors.")
+
                 if "tags" in slots[k]:
                     if type(slots[k]["tags"]) is list:
                         for m in slots[k]["tags"]:
