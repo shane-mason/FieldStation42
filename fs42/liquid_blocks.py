@@ -161,7 +161,13 @@ class LiquidBlock:
             if strict_count == len(self.reel_blocks):
                 pass
             elif strict_count > len(self.reel_blocks):
-                break_points = self.clip_break_points(break_points, len(self.reel_blocks), self.content_duration())
+                # only clip break_points if we have reel blocks to work with
+                # if reel_blocks is empty (e.g., diff <= 2), we don't need chapter-based breaks
+                if len(self.reel_blocks) > 0:
+                    break_points = self.clip_break_points(break_points, len(self.reel_blocks), self.content_duration())
+                else:
+                    # no reel blocks = no buffer time = no breaks needed, clear break_points
+                    break_points = []
             else:
                 # do nothing for now, they will play at end
                 pass
