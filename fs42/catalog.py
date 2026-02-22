@@ -624,8 +624,14 @@ class ShowCatalog:
                 # check if adding this clip would exceed our maximum content ratio
                 projected_duration = current_duration + candidate.duration
 
-                # NEVER add a clip if it would exceed the maximum ratio
-                if projected_duration > target_content_max:
+                # always add at least one clip, even if it exceeds maximum
+                # this prevents returning empty clip lists
+                if len(clips) == 0:
+                    # first clip - always add it regardless of ratio
+                    current_duration += candidate.duration
+                    clips.append(candidate)
+                elif projected_duration > target_content_max:
+                    # would exceed maximum - stop here
                     keep_going = False
                 elif current_duration >= target_content_min:
                     # we're at or above minimum and under maximum - add the clip
