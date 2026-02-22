@@ -54,6 +54,10 @@ class LiquidBlock:
         # ensure start ordering
         break_points = MediaProcessor.calc_black_segments(break_points, content_duration)
 
+        # Handle edge cases
+        if max_breaks <= 0 or len(break_points) == 0:
+            return []
+
         if len(break_points) <= max_breaks:
             return break_points
 
