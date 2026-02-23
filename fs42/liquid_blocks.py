@@ -212,6 +212,16 @@ class LiquidClipBlock(LiquidBlock):
         if self.end_bump:
             diff -= self.end_bump["duration"]
 
+        # calculate desired number of breaks based on break_duration
+        strict_count = None
+        break_duration = self.break_info.get("break_duration", None)
+        if break_duration is None:
+            break_duration = catalog.config.get("break_duration", None)
+
+        if break_duration and break_duration > 0 and diff > 2:
+            # calculate how many breaks we want based on total buffer time and break_duration
+            strict_count = max(1, int(diff / break_duration))
+
         self.reel_blocks = None
         if diff < -2:
             err = f"Schedule logic error: duration requested {self.playback_duration()} is less than content {self.content_duration()}"
@@ -219,7 +229,7 @@ class LiquidClipBlock(LiquidBlock):
             raise (ValueError(err))
         if diff > 2:
             self.reel_blocks = catalog.make_reel_fill(
-                self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override
+                self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override, strict_count=strict_count
             )
         else:
             self.reel_blocks = []
