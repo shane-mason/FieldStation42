@@ -584,7 +584,7 @@ class ShowCatalog:
         CONTENT_RATIO_MIN = 0.67
         CONTENT_RATIO_MAX = 0.80
 
-        # Calculate target content duration range
+        # calculate target content duration range
         target_content_min = duration * CONTENT_RATIO_MIN
         target_content_max = duration * CONTENT_RATIO_MAX
 
