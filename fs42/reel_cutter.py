@@ -86,6 +86,7 @@ class ReelCutter:
             break_count = len(reel_blocks)
         else:
             break_count = 0
+
         if break_count <= 1 or break_stategy == "end":
             # then don't cut the base at all
             for clip in clips:
@@ -111,17 +112,36 @@ class ReelCutter:
                 clip = clips[i]
                 entries.append(BlockPlanEntry(clip.path, 0, clip.duration, content_type=clip.content_type, media_type=clip.media_type))
         else:
-            clips_per_segment = 1
+            # distribute breaks as evenly as possible across clips
             if len(clips) > break_count:
+                # more clips than breaks - insert break every N clips
                 clips_per_segment = round(len(clips) / break_count)
+                for i in range(len(clips)):
+                    clip = clips[i]
+                    entries.append(BlockPlanEntry(clip.path, 0, clip.duration, content_type=clip.content_type, media_type=clip.media_type))
+                    if len(reel_blocks) and i > 0 and (i % clips_per_segment) == 0:
+                        reel_b = reel_blocks.pop(0)
+                        entries += reel_b.make_plan()
+            else:
+                # more breaks than clips - distribute breaks evenly between/after clips
+                breaks_per_position = break_count // (len(clips) + 1)  # +1 for position after last clip
+                remaining_breaks = break_count % (len(clips) + 1)
 
-            for i in range(len(clips)):
-                clip = clips[i]
-                entries.append(BlockPlanEntry(clip.path, 0, clip.duration, content_type=clip.content_type, media_type=clip.media_type))
-                if len(reel_blocks) and i > 0 and (i % clips_per_segment) == 0:
-                    reel_b = reel_blocks.pop(0)
-                    entries += reel_b.make_plan()
+                for i in range(len(clips)):
+                    clip = clips[i]
+                    entries.append(BlockPlanEntry(clip.path, 0, clip.duration, content_type=clip.content_type, media_type=clip.media_type))
 
+                    # insert breaks after this clip
+                    breaks_to_insert = breaks_per_position
+                    if i < remaining_breaks:
+                        breaks_to_insert += 1
+
+                    for _ in range(breaks_to_insert):
+                        if len(reel_blocks):
+                            reel_b = reel_blocks.pop(0)
+                            entries += reel_b.make_plan()
+
+            # insert any remaining breaks at the end
             while len(reel_blocks):
                 reel_b = reel_blocks.pop(0)
                 entries += reel_b.make_plan()
