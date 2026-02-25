@@ -61,24 +61,43 @@ class LiquidBlock:
         if len(break_points) <= max_breaks:
             return break_points
 
-        # Select chapters that are evenly distributed across the content duration
-        # This ensures commercial breaks are spread throughout the movie
+        # Merge adjacent chapters to create evenly-distributed segments
+        # This ensures no content is skipped, just fewer commercial breaks
         max_breaks = int(max_breaks)
-        selected_indices = []
 
-        # Calculate the ideal spacing between selected chapters
-        step = len(break_points) / max_breaks
+        # Calculate which chapter boundaries to keep as break insertion points
+        # For max_breaks segments, we need (max_breaks - 1) commercial breaks
+        num_breaks = max_breaks - 1
 
-        # Select chapters at evenly-spaced intervals
-        for i in range(max_breaks):
-            index = int(i * step)
-            # Make sure we don't go out of bounds
-            if index < len(break_points):
-                selected_indices.append(index)
+        # Select evenly-distributed break positions
+        step = (len(break_points) - 1) / num_breaks if num_breaks > 0 else 0
+        break_indices = []
+        for i in range(1, max_breaks):  # Start from 1, not 0 (skip the first chapter start)
+            index = round(i * step)
+            if index not in break_indices and index < len(break_points):
+                break_indices.append(index)
 
-        # Return the selected break points in chronological order
-        clipped_breaks = [break_points[i] for i in selected_indices]
-        return clipped_breaks
+        # Create merged segments by combining chapters between selected break points
+        merged_segments = []
+        segment_start_idx = 0
+
+        for break_idx in break_indices:
+            # Merge all chapters from segment_start_idx to break_idx into one segment
+            merged_segment = {
+                "chapter_start": break_points[segment_start_idx]["chapter_start"],
+                "chapter_end": break_points[break_idx]["chapter_start"],
+            }
+            merged_segments.append(merged_segment)
+            segment_start_idx = break_idx
+
+        # Add the final segment (from last break to end)
+        final_segment = {
+            "chapter_start": break_points[segment_start_idx]["chapter_start"],
+            "chapter_end": break_points[-1]["chapter_end"],
+        }
+        merged_segments.append(final_segment)
+
+        return merged_segments
 
     def make_plan(self, catalog):
         # first, collect any reels (commercials and bumps) we might need to buffer to the requested duration
