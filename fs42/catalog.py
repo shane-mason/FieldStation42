@@ -231,6 +231,34 @@ class ShowCatalog:
         for override_dir in commercial_overrides:
             total_count += self._scan_directory(override_dir, content_type="commercial")
 
+        # scan next/ folder for coming-up-next bumpers
+        # folder naming convention (-- is the separator between show tags):
+        #   --ShowB                        = next is ShowB (no current show context)
+        #   --ShowB--ShowC                 = next ShowB, then ShowC
+        #   --ShowB--ShowC--ShowD          = next ShowB, then ShowC, then ShowD
+        #   ShowA--ShowB                   = watching ShowA, next ShowB
+        #   ShowA--ShowB--ShowC            = watching ShowA, next ShowB, then ShowC
+        #   ShowA--ShowB--ShowC--ShowD     = watching ShowA, next ShowB, then ShowC, then ShowD
+        next_dir = f"{self.config['content_dir']}/next"
+        if os.path.isdir(next_dir):
+            media_filter = self.config.get("media_filter", "video")
+            for subfolder in os.listdir(next_dir):
+                subfolder_path = f"{next_dir}/{subfolder}"
+                if os.path.isdir(subfolder_path):
+                    tag_key = f"next/{subfolder}"
+                    if tag_key not in self.clip_index:
+                        self.clip_index[tag_key] = []
+                    file_list = MediaProcessor._find_media(subfolder_path, media_filter)
+                    clips = MediaProcessor._process_media(file_list, tag_key, content_type="bump")
+                    subdir_clips = MediaProcessor._process_subs(
+                        subfolder_path, tag_key, bumpdir=True,
+                        fluid=self.__fluid_builder, content_type="bump",
+                        media_filter=media_filter
+                    )
+                    self.clip_index[tag_key] = clips + subdir_clips
+                    total_count += len(self.clip_index[tag_key])
+                    self._l.info(f"Found {len(self.clip_index[tag_key])} coming-up-next bumpers in {tag_key}")
+
         # add sign-off and off-air videos to the clip index
         if "sign_off_video" in self.config:
             self._l.debug("Adding sign-off video")
@@ -435,8 +463,17 @@ class ShowCatalog:
             # CatalogAPI.set_play_count(self.config, result.path, result.count)
             return result
 
+    def _augment_candidates(self, candidates, key, seconds, when):
+        """Helper to merge coming-up-next bump folder candidates into an existing pool if the key exists."""
+        if key in self.clip_index:
+            extras = [c for c in self.clip_index[key]
+                      if c.duration < seconds and c.duration >= 1
+                      and MediaProcessor._test_candidate_hints(c.hints, when)]
+            candidates += extras
+        return candidates
 
-    def find_bump(self, seconds, when, position=None, bump_tag=None):
+    def find_bump(self, seconds, when, position=None, bump_tag=None,
+                  current_tag=None, next_tag=None, next_next_tag=None, next_next_next_tag=None):
         if not bump_tag:
             bump_tag = self.config["bump_dir"]
 
@@ -447,14 +484,44 @@ class ShowCatalog:
             pre_key = f"{bump_tag}-{ShowCatalog.prebump}"
             post_key = f"{bump_tag}-{ShowCatalog.postbump}"
             if position == ShowCatalog.prebump and pre_key in self.clip_index and len(self.clip_index[pre_key]):
-                return self.find_candidate(pre_key, seconds, when)
+                base_tag = pre_key
             elif position == ShowCatalog.postbump and post_key in self.clip_index and len(self.clip_index[post_key]):
-                return self.find_candidate(post_key, seconds, when)
+                base_tag = post_key
             else:
                 # then none were specified, so use regular bumps
-                return self.find_candidate(bump_tag, seconds, when)
+                base_tag = bump_tag
         else:
-            return self.find_candidate(bump_tag, seconds, when)
+            base_tag = bump_tag
+
+        # build candidate pool from normal bumps
+        candidates = [c for c in self.clip_index[base_tag]
+                      if c.duration < seconds and c.duration >= 1
+                      and MediaProcessor._test_candidate_hints(c.hints, when)]
+
+        # augment pool with any matching coming-up-next bumpers from the next/ folder.
+        # all matching folders are merged into the pool - they are not prioritized,
+        # just additional candidates alongside normal bumps.
+        if next_tag:
+            # next-only keys (no current show context)
+            candidates = self._augment_candidates(candidates, f"next/--{next_tag}", seconds, when)
+            if next_next_tag:
+                candidates = self._augment_candidates(candidates, f"next/--{next_tag}--{next_next_tag}", seconds, when)
+                if next_next_next_tag:
+                    candidates = self._augment_candidates(candidates, f"next/--{next_tag}--{next_next_tag}--{next_next_next_tag}", seconds, when)
+            # keys with current show context
+            if current_tag:
+                candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}", seconds, when)
+                if next_next_tag:
+                    candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}--{next_next_tag}", seconds, when)
+                    if next_next_next_tag:
+                        candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}--{next_next_tag}--{next_next_next_tag}", seconds, when)
+
+        if not candidates:
+            raise MatchingContentNotFound(
+                f"Could not find candidate video for tag={base_tag} under {seconds} in len - maybe add some shorter content?"
+            )
+
+        return self._lowest_count(candidates)
 
     def find_commercial(self, seconds, when, commercial_dir):
         com_tag = commercial_dir if commercial_dir else self.config["commercial_dir"]
@@ -464,7 +531,8 @@ class ShowCatalog:
         return self.find_candidate(com_tag, seconds, when)
 
     # makes blocks of reels in bump-commercial-commercial-bump format
-    def make_reel_block(self, when, bumpers=True, target_duration=120, commercial_dir=None, bump_dir=None):
+    def make_reel_block(self, when, bumpers=True, target_duration=120, commercial_dir=None, bump_dir=None,
+                        current_tag=None, next_tag=None, next_next_tag=None, next_next_next_tag=None):
         reels = []
         remaining = target_duration
         start_candidate = None
@@ -473,8 +541,12 @@ class ShowCatalog:
         # INSERT AUTO BUMPER LOGIC HERE
         if bumpers:
             if "autobump" not in self.config:
-                start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
-                end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir)
+                start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
+                                                 current_tag=current_tag, next_tag=next_tag,
+                                                 next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
+                end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir,
+                                               current_tag=current_tag, next_tag=next_tag,
+                                               next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
             else:
                 # then what kind of autobumps?
                 autoconf = self.config["autobump"]
@@ -488,9 +560,13 @@ class ShowCatalog:
                 end_candidate = autos.get("next_bump", None)                
                 
                 if strategy == "start":
-                    end_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
+                    end_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
+                                                   current_tag=current_tag, next_tag=next_tag,
+                                                   next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
                 elif strategy == "end":
-                    start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir)
+                    start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
+                                                     current_tag=current_tag, next_tag=next_tag,
+                                                     next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
             
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
@@ -500,7 +576,9 @@ class ShowCatalog:
             if not self.config["commercial_free"]:
                 candidate = self.find_commercial(target_duration, when, commercial_dir)
             else:
-                candidate = self.find_bump(target_duration, when, None, bump_dir)
+                candidate = self.find_bump(target_duration, when, None, bump_dir,
+                                           current_tag=current_tag, next_tag=next_tag,
+                                           next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
             remaining -= candidate.duration
             reels.append(candidate)
 
@@ -508,7 +586,8 @@ class ShowCatalog:
 
 
 
-    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None):
+    def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None,
+                       current_tag=None, next_tag=None, next_next_tag=None, next_next_next_tag=None):
         target_break_duration = self.config["break_duration"]
 
         strategy =  self.config.get("break_strategy", None)
@@ -524,7 +603,9 @@ class ShowCatalog:
             block = None
             try:
                 block = self.make_reel_block(
-                    when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir
+                    when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
+                    current_tag=current_tag, next_tag=next_tag,
+                    next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag
                 )
             except MatchingContentNotFound:
                 self._l.debug(
