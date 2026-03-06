@@ -292,7 +292,7 @@ class StationPlayer:
                 
                 # Wait for video to load with timeout to prevent blocking on invalid streams
                 ready_to_return = False
-                timeout_seconds = 2
+                timeout_seconds = 10
                 start_time = time.time()
 
                 while not ready_to_return:
