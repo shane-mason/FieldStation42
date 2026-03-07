@@ -2,6 +2,7 @@ from datetime import datetime
 import copy
 
 import random
+import math
 from fs42 import timings
 
 class SlotReader:
@@ -36,10 +37,16 @@ class SlotReader:
                 if is_random:
                     response = random.choice(tags)
                 else:
-                    if len(tags) == 1 or when.minute < 30:
-                        response = tags[0]
-                    else:
-                        response = tags[1]
+                    # first, figure out what our segments are
+                    num_tags = len(tags)
+                    # get the duration of the segmentations in minutes
+                    segment_duration = math.floor(60/num_tags)
+                    # figure out what segment we are in
+                    current_segment = math.floor(when.minute/segment_duration)
+                    # make sure its not too long
+                    if current_segment >= num_tags:
+                        current_segment = num_tags-1
+                    return tags[current_segment]
             else:
                 response = tags
 
