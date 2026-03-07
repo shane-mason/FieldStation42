@@ -180,6 +180,20 @@ class LiquidSchedule:
 
         return (break_info, break_strategy, increment)
 
+    @staticmethod
+    def _get_block_tag(block):
+        """Safely extract the content tag from a block, returning None for
+        off-air, loop, or clip blocks where a single tag doesn't apply."""
+        if isinstance(block, (LiquidOffAirBlock, LiquidLoopBlock)):
+            return None
+        if isinstance(block, LiquidClipBlock):
+            # clip blocks have a list of content - use the block title which is set to the tag string
+            return block.title if block.title else None
+        if isinstance(block, LiquidBlock):
+            if block.content and not isinstance(block.content, list):
+                return block.content.tag
+        return None
+
     def _fluid(self, start_time, end_target):
         # this is the core of the scheduler.
         new_blocks = []
@@ -260,7 +274,18 @@ class LiquidSchedule:
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
         play_counts = []
 
-        for block in new_blocks:
+        for i, block in enumerate(new_blocks):
+            # set lookahead tags for coming-up-next bump support
+            block.current_tag = self._get_block_tag(block)
+
+            n = new_blocks[i + 1] if i + 1 < len(new_blocks) else None
+            nn = new_blocks[i + 2] if i + 2 < len(new_blocks) else None
+            nnn = new_blocks[i + 3] if i + 3 < len(new_blocks) else None
+
+            block.next_tag = self._get_block_tag(n) if n else None
+            block.next_next_tag = self._get_block_tag(nn) if nn else None
+            block.next_next_next_tag = self._get_block_tag(nnn) if nnn else None
+
             block.make_plan(self.catalog)
             if block.content:
                 # if the block has content, then we need to increment the play count
