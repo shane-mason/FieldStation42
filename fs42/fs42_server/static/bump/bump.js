@@ -155,7 +155,7 @@ class StationBump {
         try {
             const now = new Date();
             const endTime = new Date(now.getTime() + (4 * 60 * 60 * 1000)); // 4 hours from now
-            
+
             // Format dates for API (YYYY-MM-DDTHH:MM:SS)
             const formatDateForAPI = (date) => {
                 const year = date.getFullYear();
@@ -166,39 +166,57 @@ class StationBump {
                 const seconds = String(date.getSeconds()).padStart(2, '0');
                 return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
             };
-            
+
             // Fetch schedule blocks using common.js function
             const scheduleBlocks = await window.fs42Common.fetchSchedule(
                 this.config.nextUp,
                 formatDateForAPI(now),
                 formatDateForAPI(endTime)
             );
-            
+
             if (scheduleBlocks && scheduleBlocks.length > 0) {
-                // Filter to upcoming shows (not currently airing)
-                const upcomingShows = scheduleBlocks.filter(block => {
-                    const blockStart = new Date(block.start_time);
-                    return blockStart > now;
-                }).slice(0, 3); // Take first 3 upcoming shows
-                
+                const currentShow = scheduleBlocks.find(block => new Date(block.start_time) <= now);
+                const upcomingShows = scheduleBlocks.filter(block => new Date(block.start_time) > now);
+
+                // Check if we're within 5 minutes of the current show ending
+                let nearEnd = false;
+                if (currentShow) {
+                    const currentEnd = currentShow.end_time
+                        ? new Date(currentShow.end_time)
+                        : (upcomingShows.length > 0 ? new Date(upcomingShows[0].start_time) : null);
+                    if (currentEnd) {
+                        nearEnd = (currentEnd - now) <= (5 * 60 * 1000);
+                    }
+                }
+
                 const detailElements = [this.detailLine1, this.detailLine2, this.detailLine3];
-                
-                upcomingShows.forEach((show, index) => {
+                let showsToDisplay = [];
+
+                if (currentShow && !nearEnd) {
+                    // Show current show labeled "NOW" plus next 2
+                    showsToDisplay.push({ label: 'Now', show: currentShow });
+                    upcomingShows.slice(0, 2).forEach(show => showsToDisplay.push({ label: null, show }));
+                } else {
+                    // Near end or no current show: show next 3 upcoming
+                    upcomingShows.slice(0, 3).forEach(show => showsToDisplay.push({ label: null, show }));
+                }
+
+                showsToDisplay.forEach(({ label, show }, index) => {
                     if (detailElements[index]) {
                         const startTime = new Date(show.start_time);
-                        const timeStr = startTime.toLocaleTimeString('en-US', { 
-                            hour: 'numeric', 
+                        const timeStr = label || startTime.toLocaleTimeString('en-US', {
+                            hour: 'numeric',
                             minute: '2-digit',
                             hour12: true
                         });
-                        
+
                         detailElements[index].textContent = `${timeStr} - ${show.title || 'Untitled'}`;
                         detailElements[index].style.display = 'block';
                     }
                 });
-                
+
                 // Hide unused detail lines
-                for (let i = upcomingShows.length; i < detailElements.length; i++) {
+                for (let i = showsToDisplay.length; i < detailElements.length; i++) {
                     if (detailElements[i]) {
                         detailElements[i].style.display = 'none';
                     }
