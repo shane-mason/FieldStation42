@@ -403,14 +403,20 @@ class StationIO:
         if not is_unique:
             return False, uniqueness_error, None
 
-        # Get file path
-        file_path = self.get_config_file_path(network_name)
-
-        # For updates, check if we're renaming
+        # Get file path - for updates, find the actual file on disk rather than
+        # deriving the name, so we write back to the same file regardless of
+        # whether the filename matches the network_name inside the config.
         old_file_path = None
-        if is_update and network_name != station_conf["network_name"]:
-            old_file_path = self.get_config_file_path(network_name)
-            file_path = self.get_config_file_path(station_conf["network_name"])
+        if is_update:
+            actual_path = self.find_config_by_network_name(network_name)
+            file_path = actual_path if actual_path else self.get_config_file_path(network_name)
+
+            # Check if we're also renaming the network_name
+            if network_name != station_conf["network_name"]:
+                old_file_path = file_path
+                file_path = self.get_config_file_path(station_conf["network_name"])
+        else:
+            file_path = self.get_config_file_path(network_name)
 
         # Write the configuration
         success, message = self.write_station_config(file_path, config_data)
