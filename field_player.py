@@ -112,6 +112,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         )
         return
 
+    if channel_index >= len(manager.stations):
+        logger.warning("Saved channel index %d is out of range, resetting to 0", channel_index)
+        channel_index = 0
     player = StationPlayer(manager.stations[channel_index], input_check)
     stand_by = StationManager().server_conf.get("standby_image", "runtime/standby.png")
     reception.degrade()
