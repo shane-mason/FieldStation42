@@ -19,16 +19,20 @@ class TemporalHint:
         return True
 
 class DayofWeekHint:
-    def __init__(self, part_name):
-        self.part_name = part_name
+    def __init__(self, day_name):
+        self.day_name = day_name
         self.type = "day_of_week"
 
     @staticmethod
     def test_pattern(to_test):
         return to_test in timings.DAYS
+
+    def hint(self, when):
+        return  when.strftime("%A").lower() == self.day_name
+
     
     def toJSON(self):
-        return {"type": self.type, "day": self.day}
+        return {"type": self.type, "day": self.day_name}
 
     def fromJSON(json_data):
         return MonthHint(json_data["day"])

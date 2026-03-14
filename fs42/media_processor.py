@@ -48,7 +48,7 @@ try:
 except ImportError:
     mutagen = None
 
-from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint
+from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint, DayofWeekHint
 from fs42.catalog_entry import CatalogEntry
 
 
@@ -292,6 +292,8 @@ class MediaProcessor:
             hints.append(RangeHint(base))
         if DayPartHint.test_pattern(base):
             hints.append(DayPartHint(base))
+        if DayofWeekHint.test_pattern(base):
+            hints.append(DayofWeekHint(base))
         if bumpdir:
             if BumpHint.test_pattern(base):
                 hints.append(BumpHint(base))

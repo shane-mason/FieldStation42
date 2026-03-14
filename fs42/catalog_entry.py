@@ -121,6 +121,8 @@ class CatalogEntry:
                             hints.append(schedule_hint.QuarterHint(hint["quarter"]))
                         elif hint["type"] == "month":
                             hints.append(schedule_hint.MonthHint(hint["month"]))
+                        elif hint["type"] == "day_of_week":
+                            hints.append(schedule_hint.DayofWeekHint(hint["day"]))
                         else:
                             print(f"Warning: Unknown hint type {hint['type']}. Skipping.")
                     else:
