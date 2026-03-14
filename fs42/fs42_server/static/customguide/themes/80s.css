@@ -1,0 +1,26 @@
+:root {
+
+  --header-position: top;            /* top | bottom */
+  --channel-position: before;        /* before | after title */
+
+  --continued-indicator: " (cont)";
+  --offair-text: "Offair";
+
+  --bg-color: #000080;
+  --text-color: #ffffff;
+  --header-bg: #000000;
+  --header-text-color: #ffffff;
+  --time-heading-color: #ffff00;
+  --channel-number-color: #00ffff;
+  --channel-name-color: #00ff00;
+  --show-title-color: #ffffff;
+
+
+  --font-family: monospace;
+  --font-size: 1.2rem;
+
+  --scroll-pause: 5s;
+  --scroll-speed: 0.8;
+
+  --music-volume: 0.3;
+}

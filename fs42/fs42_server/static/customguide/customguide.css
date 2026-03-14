@@ -1,0 +1,121 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+#guide-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Header position: top (default) or bottom via order */
+#guide-header {
+  order: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5em 1em;
+  background-color: var(--header-bg);
+  color: var(--header-text-color);
+  flex-shrink: 0;
+}
+
+#guide-wrapper.header-bottom #guide-header {
+  order: 2;
+}
+
+#header-text {
+  font-weight: bold;
+  font-size: 1.4em;
+}
+
+#clock {
+  font-size: 1.2em;
+}
+
+#guide-listings {
+  order: 1;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+#guide-scroll-strip {
+  padding: 0.5em 1em;
+}
+
+.time-slot-heading {
+  color: var(--time-heading-color);
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-top: 0.6em;
+  margin-bottom: 0.4em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--time-heading-color);
+}
+
+.time-slot-heading:first-child {
+  margin-top: 0;
+}
+
+.listing-row {
+  display: flex;
+  align-items: baseline;
+  padding: 0.15em 0;
+  gap: 0.6em;
+}
+
+/* Channel position: before (default) or after title via order */
+.listing-row .channel-info {
+  order: 0;
+  display: flex;
+  gap: 0.4em;
+  flex-shrink: 0;
+  min-width: 10em;
+}
+
+.listing-row .show-title {
+  order: 1;
+  flex: 1;
+}
+
+.listing-row.channel-after .channel-info {
+  order: 1;
+}
+
+.listing-row.channel-after .show-title {
+  order: 0;
+}
+
+.channel-number {
+  color: var(--channel-number-color);
+  min-width: 3em;
+  text-align: right;
+}
+
+.channel-name {
+  color: var(--channel-name-color);
+}
+
+.show-title {
+  color: var(--show-title-color);
+}
+
+/* Continued indicator appended via CSS */
+.listing-row.continued .show-title::after {
+  content: var(--continued-indicator);
+  opacity: 0.7;
+}
