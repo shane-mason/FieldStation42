@@ -3,9 +3,12 @@ const THEME = params.get('theme') || '80s';
 const SLOT_COUNT = parseInt(params.get('slots')) || 3;
 const HEADER_TEXT = params.get('header') || 'TV Guide';
 const PAUSE_OVERRIDE = params.get('pause');
+const MOCK = params.get('mock') === '1';
 
 let stations = [];
-let scrollInterval = null;
+let animFrame = null;
+let scrollY = 0;
+let pauseUntil = 0;
 let musicPlaylist = [];
 let currentMusicIndex = 0;
 let bgPlayer = null;
@@ -60,6 +63,47 @@ function computeSlotTimes() {
     slots.push({ start, end: new Date(start.getTime() + 30 * 60 * 1000) });
   }
   return slots;
+}
+
+// mock data for local scroll testing (?mock=1)
+const MOCK_SHOWS = [
+  'Late Night Movie', 'The Evening News', 'Sports Center', 'Nature Documentary',
+  'Sitcom Reruns', 'Talk Show', 'Crime Drama', 'Cooking Hour', 'Saturday Morning Cartoons',
+  'Local Weather Update', 'Classic Film', 'Music Videos', 'Game Show Marathon',
+  'Science Fiction Theater', 'Western Double Feature', 'Home Shopping', 'News Magazine',
+  'Children\'s Programming', 'Live Sports', 'Comedy Special'
+];
+
+function mockFetchStations() {
+  stations = Array.from({ length: 24 }, function (_, i) {
+    const num = i + 2;
+    return {
+      channel_number: num,
+      network_name: 'ch' + num,
+      network_long_name: 'Channel ' + num,
+      has_schedule: true,
+      schedule_summary: { start: 1, end: 1 }
+    };
+  });
+}
+
+function mockFetchAllSchedules(slots) {
+  const schedules = {};
+  const slotMs = 30 * 60 * 1000;
+  for (const station of stations) {
+    const blocks = [];
+    // build a run of 30-90 min blocks spanning all slots
+    let t = slots[0].start.getTime();
+    const end = slots[slots.length - 1].end.getTime();
+    while (t < end) {
+      const duration = (Math.floor(Math.random() * 3) + 1) * slotMs; // 30, 60, or 90 min
+      const title = MOCK_SHOWS[Math.floor(Math.random() * MOCK_SHOWS.length)];
+      blocks.push({ start_time: new Date(t).toISOString(), end_time: new Date(t + duration).toISOString(), title });
+      t += duration;
+    }
+    schedules[station.network_name] = blocks;
+  }
+  return schedules;
 }
 
 async function fetchStations() {
@@ -163,40 +207,68 @@ function buildScrollStrip(slots, schedules) {
 }
 
 function stopScrolling() {
-  if (scrollInterval) {
-    clearInterval(scrollInterval);
-    scrollInterval = null;
+  if (animFrame) {
+    cancelAnimationFrame(animFrame);
+    animFrame = null;
   }
 }
 
 async function buildGuide() {
   const slots = computeSlotTimes();
-  const schedules = await fetchAllSchedules(slots);
+  const schedules = MOCK ? mockFetchAllSchedules(slots) : await fetchAllSchedules(slots);
   const listings = document.getElementById('guide-listings');
   listings.innerHTML = '';
-  listings.scrollTop = 0;
   listings.appendChild(buildScrollStrip(slots, schedules));
 }
 
 function startScrolling() {
   stopScrolling();
+
   const listings = document.getElementById('guide-listings');
-  const speed = getScrollSpeed();
+  const strip = document.getElementById('guide-scroll-strip');
+  if (!strip) return;
+
+  // speed CSS var is px per 50ms tick — convert to px/ms for rAF
+  const pxPerMs = getScrollSpeed() / 50;
   const pauseMs = getPauseDuration();
 
-  listings.scrollTop = 0;
+  scrollY = 0;
+  strip.style.transform = 'translateY(0)';
+  pauseUntil = performance.now() + pauseMs;
 
-  setTimeout(function () {
-    scrollInterval = setInterval(function () {
-      const maxScroll = listings.scrollHeight - listings.clientHeight;
-      if (maxScroll <= 0 || listings.scrollTop >= maxScroll) {
-        stopScrolling();
-        setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
-        return;
-      }
-      listings.scrollTop += speed;
-    }, 50);
-  }, pauseMs);
+  let lastTime = null;
+
+  function tick(now) {
+    if (now < pauseUntil) {
+      animFrame = requestAnimationFrame(tick);
+      return;
+    }
+
+    const maxScroll = strip.offsetHeight - listings.clientHeight;
+
+    if (maxScroll <= 0) {
+      // content fits in viewport — wait then rebuild
+      setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
+      return;
+    }
+
+    if (lastTime !== null) {
+      scrollY += pxPerMs * (now - lastTime);
+    }
+    lastTime = now;
+
+    if (scrollY >= maxScroll) {
+      strip.style.transform = `translateY(-${maxScroll}px)`;
+      lastTime = null;
+      setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
+      return;
+    }
+
+    strip.style.transform = `translateY(-${scrollY}px)`;
+    animFrame = requestAnimationFrame(tick);
+  }
+
+  animFrame = requestAnimationFrame(tick);
 }
 
 function startClock() {
@@ -247,7 +319,7 @@ async function init() {
   document.getElementById('header-text').textContent = HEADER_TEXT;
   startClock();
 
-  await fetchStations();
+  if (MOCK) mockFetchStations(); else await fetchStations();
   await loadMusicPlaylist();
   await buildGuide();
   startScrolling();
