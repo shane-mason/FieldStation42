@@ -19,6 +19,9 @@
   --font-family: monospace;
   --font-size: 1.2rem;
 
+  --h-padding: 5%;
+  --v-padding: 4%;
+
   --scroll-pause: 5s;
   --scroll-speed: 0.8;
 

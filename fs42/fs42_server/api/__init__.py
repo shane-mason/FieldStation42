@@ -7,6 +7,7 @@ from .build import router as build_router
 from .themes import router as themes_router
 from .stations import router as stations_router
 from .ppv import router as ppv_router
+from .media import router as media_router
 
 # Create a list of all routers to be included
 routers = [
@@ -18,4 +19,5 @@ routers = [
     themes_router,
     stations_router,
     ppv_router,
+    media_router,
 ]

@@ -27,7 +27,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5em 1em;
+  padding: var(--v-padding, 0.5em) var(--h-padding, 1em) 0.5em;
   background-color: var(--header-bg);
   color: var(--header-text-color);
   flex-shrink: 0;
@@ -54,7 +54,7 @@ body {
 }
 
 #guide-scroll-strip {
-  padding: 0.5em 1em;
+  padding: 0.5em var(--h-padding, 1em) var(--v-padding, 0.5em);
 }
 
 .time-slot-heading {

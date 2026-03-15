@@ -4,6 +4,7 @@ const SLOT_COUNT = parseInt(params.get('slots')) || 3;
 const HEADER_TEXT = params.get('header') || 'TV Guide';
 const PAUSE_OVERRIDE = params.get('pause');
 const MOCK = params.get('mock') === '1';
+const MUSIC_PATH = params.get('music');
 
 let stations = [];
 let animFrame = null;
@@ -92,11 +93,10 @@ function mockFetchAllSchedules(slots) {
   const slotMs = 30 * 60 * 1000;
   for (const station of stations) {
     const blocks = [];
-    // build a run of 30-90 min blocks spanning all slots
     let t = slots[0].start.getTime();
     const end = slots[slots.length - 1].end.getTime();
     while (t < end) {
-      const duration = (Math.floor(Math.random() * 3) + 1) * slotMs; // 30, 60, or 90 min
+      const duration = (Math.floor(Math.random() * 3) + 1) * slotMs;
       const title = MOCK_SHOWS[Math.floor(Math.random() * MOCK_SHOWS.length)];
       blocks.push({ start_time: new Date(t).toISOString(), end_time: new Date(t + duration).toISOString(), title });
       t += duration;
@@ -228,7 +228,6 @@ function startScrolling() {
   const strip = document.getElementById('guide-scroll-strip');
   if (!strip) return;
 
-  // speed CSS var is px per 50ms tick — convert to px/ms for rAF
   const pxPerMs = getScrollSpeed() / 50;
   const pauseMs = getPauseDuration();
 
@@ -247,7 +246,6 @@ function startScrolling() {
     const maxScroll = strip.offsetHeight - listings.clientHeight;
 
     if (maxScroll <= 0) {
-      // content fits in viewport — wait then rebuild
       setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
       return;
     }
@@ -280,10 +278,17 @@ function startClock() {
 
 async function loadMusicPlaylist() {
   try {
-    const resp = await fetch('music_playlist.json');
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    musicPlaylist = data.music_files || [];
+    if (MUSIC_PATH) {
+      const resp = await fetch('/media/list?path=' + encodeURIComponent(MUSIC_PATH));
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      musicPlaylist = data.files || [];
+    } else {
+      const resp = await fetch('music_playlist.json');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      musicPlaylist = data.music_files || [];
+    }
   } catch (e) {
     console.warn('no music playlist:', e.message);
   }
