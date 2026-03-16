@@ -6,7 +6,8 @@
   --continued-indicator: " (cont)";
   --offair-text: "Offair";
 
-  --bg-color: #000080;
+  --bg-color: #00003a;
+  --row-divider-color: #0000aa;
   --text-color: #ffffff;
   --header-bg: #000000;
   --header-text-color: #ffffff;
@@ -17,7 +18,7 @@
 
 
   --font-family: monospace;
-  --font-size: 1.2rem;
+  --font-size: 1.6rem;
 
   --h-padding: 5%;
   --v-padding: 4%;

@@ -76,6 +76,7 @@ body {
   align-items: baseline;
   padding: 0.15em 0;
   gap: 0.6em;
+  border-bottom: 1px solid var(--row-divider-color, transparent);
 }
 
 /* Channel position: before (default) or after title via order */
