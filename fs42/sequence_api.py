@@ -124,6 +124,7 @@ class SequenceAPI:
         # check if the sequence already exists
 
         existing = SequenceIO().get_sequence(station_config["network_name"], seq_name, seq_tag)
+        file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{seq_tag}")
 
         if not existing:
             seq_start = 0
@@ -132,8 +133,23 @@ class SequenceAPI:
                 seq_start = slot["sequence_start"]
             if "sequence_end" in slot:
                 seq_end = slot["sequence_end"]
-            
-            file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{seq_tag}")
-            
+
             ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list)
             SequenceIO().put_sequence(station_config["network_name"], ns)
+        else:
+            disk_files = set(str(f) for f in file_list)
+            stored_files = set(entry.fpath for entry in existing.episodes)
+            if disk_files != stored_files:
+                new_on_disk = disk_files - stored_files
+                removed_from_disk = stored_files - disk_files
+                _l.info(f"Content changed for sequence {seq_name}: +{len(new_on_disk)} new, -{len(removed_from_disk)} removed.")
+                current_file = None
+                if existing.current_index < len(existing.episodes):
+                    current_file = existing.episodes[existing.current_index].fpath
+                    _l.debug(f"Sequence {seq_name}: current_index={existing.current_index}, current_file={current_file}")
+                else:
+                    _l.debug(f"Sequence {seq_name}: current_index={existing.current_index} is out of bounds for {len(existing.episodes)} stored episodes")
+                SequenceIO().update_sequence_entries(
+                    station_config["network_name"], seq_name, seq_tag,
+                    list(disk_files), current_file, existing.current_index
+                )

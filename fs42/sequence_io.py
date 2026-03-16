@@ -180,6 +180,53 @@ class SequenceIO:
                 return True
             return False
 
+    def update_sequence_entries(self, station_name: str, sequence_name: str, tag_path: str, file_list: list, current_file: str, fallback_index: int):
+        """
+        Replace sequence entries with a new file list while preserving playback position.
+        - If current_file is still in the new list, current_index moves to its new sorted position.
+        - If current_file is gone but fallback_index is still in bounds, keep it (different file is there now).
+        - If fallback_index is out of bounds, reset to 0.
+        """
+        with sqlite3.connect(self.db_path) as connection:
+            cursor = connection.cursor()
+
+            cursor.execute(
+                "SELECT id FROM named_sequence WHERE station = ? AND sequence_name = ? AND tag_path = ?",
+                (station_name, sequence_name, tag_path),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return
+
+            named_sequence_id = row[0]
+            sorted_files = sorted(str(f) for f in file_list)
+
+            import logging
+            _l = logging.getLogger("SEQUENCE")
+            if current_file and current_file in sorted_files:
+                new_index = sorted_files.index(current_file)
+                _l.debug(f"update_sequence_entries: current file still present, index {fallback_index} -> {new_index} ({sorted_files[new_index]})")
+            elif fallback_index < len(sorted_files):
+                new_index = fallback_index
+                _l.debug(f"update_sequence_entries: current file removed, keeping index {new_index} (now points to {sorted_files[new_index]})")
+            else:
+                new_index = 0
+                _l.debug(f"update_sequence_entries: index {fallback_index} out of bounds for {len(sorted_files)} files, resetting to 0")
+
+            cursor.execute("DELETE FROM sequence_entries WHERE named_sequence_id = ?", (named_sequence_id,))
+
+            for idx, fpath in enumerate(sorted_files):
+                cursor.execute(
+                    "INSERT INTO sequence_entries (fpath, sequence_index, named_sequence_id) VALUES (?, ?, ?)",
+                    (fpath, idx, named_sequence_id),
+                )
+
+            cursor.execute(
+                "UPDATE named_sequence SET current_index = ? WHERE id = ?",
+                (new_index, named_sequence_id),
+            )
+            connection.commit()
+
     def clean_sequences(self):
         """
         Clean up sequences by removing entries that are no longer valid.
