@@ -181,7 +181,8 @@ function buildScrollStrip(slots, schedules) {
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'channel-name';
-      nameSpan.textContent = station.network_long_name || station.network_name;
+      const name = station.network_long_name || station.network_name;
+      nameSpan.textContent = name.length > 10 ? name.slice(0, 10) + '…' : name;
 
       channelInfo.appendChild(numSpan);
       channelInfo.appendChild(nameSpan);
@@ -191,7 +192,8 @@ function buildScrollStrip(slots, schedules) {
 
       const result = findBlockForSlot(schedules[station.network_name] || [], slot.start);
       if (result) {
-        titleSpan.textContent = result.block.title || offairText;
+        const t = result.block.title || offairText;
+        titleSpan.textContent = t.length > 20 ? t.slice(0, 20) + '…' : t;
         if (result.continued) row.classList.add('continued');
       } else {
         titleSpan.textContent = offairText;
