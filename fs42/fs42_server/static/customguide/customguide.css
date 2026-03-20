@@ -160,6 +160,8 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  text-align: center;
   padding: 1em var(--h-padding, 1em);
   overflow: hidden;
   gap: 0.6em;
@@ -195,12 +197,13 @@ body {
   flex-direction: row;
   flex-shrink: 0;
   background-color: var(--grid-header-bg, #1a0828);
-  padding: 0.25em 0;
 }
 
 .grid-channel-stub {
   width: var(--grid-channel-width, 6.5em);
   flex-shrink: 0;
+  box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
+              inset -3px -3px 0 var(--program-block-shadow, transparent);
 }
 
 .grid-time-slot {
@@ -208,10 +211,12 @@ body {
   color: var(--time-heading-color);
   font-weight: bold;
   font-size: 0.9em;
-  padding: 0.1em 0.4em;
-  border-left: 1px solid var(--row-divider-color, transparent);
+  padding: 0.2em 0.4em;
   white-space: nowrap;
   overflow: hidden;
+  align-self: stretch;
+  box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
+              inset -3px -3px 0 var(--program-block-shadow, transparent);
 }
 
 #grid-listings {
@@ -232,7 +237,7 @@ body {
   display: flex;
   flex-direction: row;
   height: var(--grid-row-height, 2.2em);
-  border-bottom: 1px solid var(--row-divider-color, transparent);
+  box-shadow: 0 1px 0 var(--row-divider-color, transparent);
   overflow: hidden;
 }
 
@@ -253,7 +258,7 @@ body {
   align-items: flex-start;
   padding: 0 0.4em;
   background-color: var(--grid-channel-bg, #0a0018);
-  border-right: 1px solid var(--row-divider-color, transparent);
+  box-shadow: 1px 0 0 var(--row-divider-color, transparent);
   overflow: hidden;
 }
 
@@ -287,18 +292,21 @@ body {
   padding: 0 0.4em;
   overflow: hidden;
   background-color: var(--program-block-bg, #0f1c0f);
-  border: 1px solid var(--program-block-border, #1a2e1a);
+  box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
+              inset -3px -3px 0 var(--program-block-shadow, #000055);
   box-sizing: border-box;
 }
 
 .grid-row:nth-child(even) .grid-program-block {
   background-color: var(--program-block-even-bg, #1c0f0f);
-  border-color: var(--program-block-even-border, #2e1a1a);
+  box-shadow: inset 3px 3px 0 var(--program-block-even-border, transparent),
+              inset -3px -3px 0 var(--program-block-shadow, #000055);
 }
 
 .grid-program-block.current {
   background-color: var(--program-current-bg, #003830) !important;
-  border-color: var(--program-current-border, #006655) !important;
+  box-shadow: inset 3px 3px 0 var(--program-current-border, transparent),
+              inset -3px -3px 0 var(--program-block-shadow, #000055) !important;
 }
 
 .grid-program-block .program-title {

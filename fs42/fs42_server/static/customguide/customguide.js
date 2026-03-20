@@ -1,7 +1,7 @@
 const params = new URLSearchParams(window.location.search);
 const THEME = params.get('theme') || '80s';
 const SLOT_COUNT = parseInt(params.get('slots')) || 3;
-const HEADER_TEXT = params.get('header') || 'TV Guide';
+const HEADER_TEXT = params.get('header') || null;
 const PAUSE_OVERRIDE = params.get('pause');
 const MOCK = params.get('mock') === '1';
 const MUSIC_PATH = params.get('music');
@@ -683,7 +683,8 @@ async function init() {
   const headerPos = getCSSVar('--header-position').replace(/["']/g, '');
   if (headerPos === 'bottom') document.getElementById('guide-wrapper').classList.add('header-bottom');
 
-  document.getElementById('header-text').textContent = HEADER_TEXT;
+  const themeHeader = getCSSVar('--header-text').replace(/["']/g, '');
+  document.getElementById('header-text').textContent = HEADER_TEXT || themeHeader || 'TV Guide';
   startClock();
 
   const layoutMode = getCSSVar('--layout-mode').replace(/["']/g, '') || 'list';

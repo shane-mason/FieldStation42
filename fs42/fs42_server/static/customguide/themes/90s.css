@@ -8,46 +8,48 @@
   --continued-indicator: " ◄";
   --offair-text: "No Info";
 
-  /* core */
-  --bg-color: #000033;
+  /* core — blue3/blue4 palette from the existing guide config */
+  --bg-color: #00008b;
   --text-color: #ffffff;
-  --header-bg: #00001a;
+  --header-text: "FS42 Guide";
+  --header-bg: #000044;
   --header-text-color: #ffff00;
 
   /* grid chrome */
   --time-heading-color: #ffff00;
-  --channel-number-color: #ffff00;
+  --channel-number-color: #ffffff;
   --channel-name-color: #ffff00;
   --show-title-color: #ffffff;
-  --row-divider-color: #000066;
+  --row-divider-color: transparent;
 
-  /* top panel */
+  /* top panel — blue3 for the top half */
   --top-panel-height: 42%;
   --video-side: left;
   --video-width: 45%;
-  --text-panel-bg: #00001a;
+  --text-panel-bg: #0000cd;
   --text-panel-color: #ffffff;
   --text-panel-title-color: #ffff00;
   --text-carousel-speed: 10;
 
-  /* grid rows */
-  --grid-header-bg: #00001a;
-  --grid-channel-bg: #00002a;
+  /* grid rows — blue4 base, raised-relief block borders */
+  --grid-header-bg: #0000cd;
+  --grid-channel-bg: #00008b;
   --grid-channel-width: 7em;
   --grid-row-height: 3.0em;
-  --grid-row-odd-bg: #000044;
-  --grid-row-even-bg: #000033;
-  --program-block-bg: #000055;
-  --program-block-border: #000088;
-  --program-block-even-bg: #000044;
-  --program-block-even-border: #000077;
-  --program-current-bg: #004488;
-  --program-current-border: #0066cc;
-  --program-current-color: #ffffff;
+  --grid-row-odd-bg: #00008b;
+  --grid-row-even-bg: #00008b;
+  --program-block-bg: #00008b;
+  --program-block-border: #9999ff;
+  --program-block-even-bg: #00008b;
+  --program-block-even-border: #9999ff;
+  --program-current-bg: #00008b;
+  --program-current-border: #9999ff;
+  --program-current-color: #ffff00;
+  --program-block-shadow: #000055;
 
   /* type */
   --font-family: 'Arial', 'Helvetica Neue', sans-serif;
-  --font-size: 1.0rem;
+  --font-size: 1.3rem;
   --h-padding: 1.5%;
   --v-padding: 1.5%;
 
