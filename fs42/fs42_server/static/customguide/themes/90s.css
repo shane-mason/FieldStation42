@@ -26,6 +26,7 @@
   --top-panel-height: 42%;
   --video-side: left;
   --video-width: 45%;
+  --video-panel-bg: #0000cd;
   --text-panel-bg: #0000cd;
   --text-panel-color: #ffffff;
   --text-panel-title-color: #ffff00;
@@ -49,7 +50,7 @@
 
   /* type */
   --font-family: 'Arial', 'Helvetica Neue', sans-serif;
-  --font-size: 1.3rem;
+  --font-size: 1.6rem;
   --h-padding: 1.5%;
   --v-padding: 1.5%;
 

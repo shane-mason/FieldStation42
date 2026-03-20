@@ -140,10 +140,10 @@ body {
 #video-panel {
   width: var(--video-width, 45%);
   flex-shrink: 0;
-  background-color: #000;
+  background-color: var(--video-panel-bg, #000);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   overflow: hidden;
 }
 
@@ -256,7 +256,7 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  padding: 0 0.4em;
+  padding: 0 0.4em 0 0.8em;
   background-color: var(--grid-channel-bg, #0a0018);
   box-shadow: 1px 0 0 var(--row-divider-color, transparent);
   overflow: hidden;
