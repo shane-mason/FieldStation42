@@ -35,7 +35,7 @@
   /* grid rows — blue4 base, raised-relief block borders */
   --grid-header-bg: #0000cd;
   --grid-channel-bg: #00008b;
-  --grid-channel-width: 7em;
+  --grid-channel-width: 5.25em;
   --grid-row-height: 3.0em;
   --grid-row-odd-bg: #00008b;
   --grid-row-even-bg: #00008b;
