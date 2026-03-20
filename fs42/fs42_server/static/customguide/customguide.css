@@ -120,3 +120,196 @@ body {
   content: var(--continued-indicator);
   opacity: 0.7;
 }
+
+/* ===== GRID LAYOUT (90s / 00s themes) ===== */
+
+#guide-listings.grid-mode {
+  display: flex;
+  flex-direction: column;
+}
+
+#top-panel {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  height: var(--top-panel-height, 42%);
+  overflow: hidden;
+  background-color: #000;
+}
+
+#video-panel {
+  width: var(--video-width, 45%);
+  flex-shrink: 0;
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#video-panel video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#text-panel {
+  flex: 1;
+  background-color: var(--text-panel-bg, #0d0015);
+  color: var(--text-panel-color, #f0f0f0);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1em var(--h-padding, 1em);
+  overflow: hidden;
+  gap: 0.6em;
+}
+
+#text-message-title {
+  color: var(--text-panel-title-color, #ff2d6e);
+  font-size: 1.3em;
+  font-weight: bold;
+  transition: opacity 0.4s ease;
+  overflow: hidden;
+}
+
+#text-message-body {
+  color: var(--text-panel-color, #f0f0f0);
+  font-size: 1em;
+  line-height: 1.5;
+  transition: opacity 0.4s ease;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+#grid-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#grid-header {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  background-color: var(--grid-header-bg, #1a0828);
+  padding: 0.25em 0;
+}
+
+.grid-channel-stub {
+  width: var(--grid-channel-width, 6.5em);
+  flex-shrink: 0;
+}
+
+.grid-time-slot {
+  flex: 1;
+  color: var(--time-heading-color);
+  font-weight: bold;
+  font-size: 0.9em;
+  padding: 0.1em 0.4em;
+  border-left: 1px solid var(--row-divider-color, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+#grid-listings {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+#grid-scroll-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.grid-row {
+  display: flex;
+  flex-direction: row;
+  height: var(--grid-row-height, 2.2em);
+  border-bottom: 1px solid var(--row-divider-color, transparent);
+  overflow: hidden;
+}
+
+.grid-row:nth-child(odd) {
+  background-color: var(--grid-row-odd-bg, #060b06);
+}
+
+.grid-row:nth-child(even) {
+  background-color: var(--grid-row-even-bg, #0b0606);
+}
+
+.grid-channel {
+  width: var(--grid-channel-width, 6.5em);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 0.4em;
+  background-color: var(--grid-channel-bg, #0a0018);
+  border-right: 1px solid var(--row-divider-color, transparent);
+  overflow: hidden;
+}
+
+.grid-channel .channel-name {
+  color: var(--channel-name-color);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  width: 100%;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.grid-channel .channel-number {
+  color: var(--channel-number-color);
+  font-size: 0.78em;
+}
+
+.grid-programs {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.grid-program-block {
+  position: absolute;
+  top: 2px;
+  height: calc(100% - 4px);
+  display: flex;
+  align-items: center;
+  padding: 0 0.4em;
+  overflow: hidden;
+  background-color: var(--program-block-bg, #0f1c0f);
+  border: 1px solid var(--program-block-border, #1a2e1a);
+  box-sizing: border-box;
+}
+
+.grid-row:nth-child(even) .grid-program-block {
+  background-color: var(--program-block-even-bg, #1c0f0f);
+  border-color: var(--program-block-even-border, #2e1a1a);
+}
+
+.grid-program-block.current {
+  background-color: var(--program-current-bg, #003830) !important;
+  border-color: var(--program-current-border, #006655) !important;
+}
+
+.grid-program-block .program-title {
+  color: var(--show-title-color);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.88em;
+  width: 100%;
+}
+
+.grid-program-block.current .program-title {
+  color: var(--program-current-color, #b0ffe8);
+}

@@ -5,24 +5,52 @@ const HEADER_TEXT = params.get('header') || 'TV Guide';
 const PAUSE_OVERRIDE = params.get('pause');
 const MOCK = params.get('mock') === '1';
 const MUSIC_PATH = params.get('music');
+const VIDEOS = params.get('videos') !== 'false';
+const MESSAGES_PATH = params.get('messages');
 
 let stations = [];
+
+// list-mode scroll state
 let animFrame = null;
 let scrollY = 0;
 let pauseUntil = 0;
+
+// grid-mode scroll state
+let gridAnimFrame = null;
+let gridScrollY = 0;
+let gridPauseUntil = 0;
+
+// music
 let musicPlaylist = [];
 let currentMusicIndex = 0;
 let bgPlayer = null;
 
+// video
+let videoPlaylist = [];
+let currentVideoIndex = 0;
+let bgVideoPlayer = null;
+
+// text carousel
+let messages = [];
+let messageCarouselTimer = null;
+
+
 function loadTheme(name) {
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = 'themes/' + name + '.css';
-  link.addEventListener('error', function () {
-    console.warn('theme "' + name + '" not found, falling back to 80s.');
-    if (name !== '80s') loadTheme('80s');
+  return new Promise(function (resolve) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'themes/' + name + '.css';
+    link.addEventListener('load', resolve);
+    link.addEventListener('error', function () {
+      console.warn('theme "' + name + '" not found, falling back to 80s.');
+      if (name !== '80s') {
+        loadTheme('80s').then(resolve);
+      } else {
+        resolve();
+      }
+    });
+    document.head.insertBefore(link, document.head.firstChild);
   });
-  document.head.insertBefore(link, document.head.firstChild);
 }
 
 function getCSSVar(name) {
@@ -142,6 +170,9 @@ async function fetchAllSchedules(slots) {
   }
   return schedules;
 }
+
+
+// ===== LIST MODE (80s) =====
 
 function findBlockForSlot(blocks, slotStart) {
   for (const block of blocks) {
@@ -271,12 +302,228 @@ function startScrolling() {
   animFrame = requestAnimationFrame(tick);
 }
 
+
+// ===== GRID MODE (90s / 00s) =====
+
+function buildGridDOM() {
+  const listings = document.getElementById('guide-listings');
+  listings.classList.add('grid-mode');
+  listings.innerHTML = `
+    <div id="top-panel">
+      <div id="video-panel"><video id="bgVideoPlayer" preload="auto"></video></div>
+      <div id="text-panel">
+        <div id="text-message-title"></div>
+        <div id="text-message-body"></div>
+      </div>
+    </div>
+    <div id="grid-wrapper">
+      <div id="grid-header"><div class="grid-channel-stub"></div></div>
+      <div id="grid-listings"></div>
+    </div>
+  `;
+
+  const videoSide = getCSSVar('--video-side').replace(/["']/g, '') || 'left';
+  if (videoSide === 'right') {
+    document.getElementById('video-panel').style.order = '1';
+    document.getElementById('text-panel').style.order = '0';
+  }
+
+  bgVideoPlayer = document.getElementById('bgVideoPlayer');
+}
+
+function updateGridHeader(slots) {
+  const header = document.getElementById('grid-header');
+  if (!header) return;
+  // Remove old slot labels, keep the channel stub
+  const stub = header.querySelector('.grid-channel-stub');
+  header.innerHTML = '';
+  if (stub) {
+    header.appendChild(stub);
+  } else {
+    const newStub = document.createElement('div');
+    newStub.className = 'grid-channel-stub';
+    header.appendChild(newStub);
+  }
+  for (const slot of slots) {
+    const slotEl = document.createElement('div');
+    slotEl.className = 'grid-time-slot';
+    slotEl.textContent = formatTime12(slot.start);
+    header.appendChild(slotEl);
+  }
+}
+
+function createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now) {
+  const bStart = new Date(block.start_time);
+  const bEnd = new Date(block.end_time);
+
+  if (bEnd.getTime() <= guideStartMs || bStart.getTime() >= guideEndMs) return null;
+
+  const visStart = Math.max(bStart.getTime(), guideStartMs);
+  const visEnd = Math.min(bEnd.getTime(), guideEndMs);
+
+  const leftPct = (visStart - guideStartMs) / totalMs * 100;
+  const widthPct = (visEnd - visStart) / totalMs * 100;
+
+  const el = document.createElement('div');
+  el.className = 'grid-program-block';
+  if (bStart <= now && bEnd > now) el.classList.add('current');
+
+  el.style.left = leftPct + '%';
+  el.style.width = `calc(${widthPct}% - 2px)`;
+
+  const titleSpan = document.createElement('span');
+  titleSpan.className = 'program-title';
+  titleSpan.textContent = block.title || 'Untitled';
+  el.appendChild(titleSpan);
+
+  return el;
+}
+
+function buildGridStrip(slots, schedules) {
+  const strip = document.createElement('div');
+  strip.id = 'grid-scroll-strip';
+
+  const guideStartMs = slots[0].start.getTime();
+  const guideEndMs = slots[slots.length - 1].end.getTime();
+  const totalMs = guideEndMs - guideStartMs;
+  const now = new Date();
+  const offairText = getCSSVar('--offair-text').replace(/^["']|["']$/g, '') || 'No Info';
+
+  for (const station of stations) {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+
+    const channelDiv = document.createElement('div');
+    channelDiv.className = 'grid-channel';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'channel-name';
+    nameSpan.textContent = station.network_long_name || station.network_name;
+
+    const numSpan = document.createElement('span');
+    numSpan.className = 'channel-number';
+    numSpan.textContent = 'Ch ' + (station.channel_number || '?');
+
+    channelDiv.appendChild(nameSpan);
+    channelDiv.appendChild(numSpan);
+    row.appendChild(channelDiv);
+
+    const programsDiv = document.createElement('div');
+    programsDiv.className = 'grid-programs';
+
+    const blocks = schedules[station.network_name] || [];
+
+    if (!station.has_schedule || !blocks.length) {
+      const noInfo = document.createElement('div');
+      noInfo.className = 'grid-program-block';
+      noInfo.style.left = '0';
+      noInfo.style.width = '100%';
+      const t = document.createElement('span');
+      t.className = 'program-title';
+      t.textContent = offairText;
+      noInfo.appendChild(t);
+      programsDiv.appendChild(noInfo);
+    } else {
+      for (const block of blocks) {
+        const blockEl = createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now);
+        if (blockEl) programsDiv.appendChild(blockEl);
+      }
+    }
+
+    row.appendChild(programsDiv);
+    strip.appendChild(row);
+  }
+
+  return strip;
+}
+
+async function buildGrid() {
+  const slots = computeSlotTimes();
+  updateGridHeader(slots);
+  const schedules = MOCK ? mockFetchAllSchedules(slots) : await fetchAllSchedules(slots);
+  const gridListings = document.getElementById('grid-listings');
+  gridListings.innerHTML = '';
+  gridListings.appendChild(buildGridStrip(slots, schedules));
+}
+
+function startGridScrolling() {
+  if (gridAnimFrame) {
+    cancelAnimationFrame(gridAnimFrame);
+    gridAnimFrame = null;
+  }
+
+  const listings = document.getElementById('grid-listings');
+  const strip = document.getElementById('grid-scroll-strip');
+  if (!strip || !listings) return;
+
+  const pxPerMs = getScrollSpeed() / 50;
+  const pauseMs = getPauseDuration();
+
+  gridScrollY = 0;
+  strip.style.transform = 'translateY(0)';
+  gridPauseUntil = performance.now() + pauseMs;
+
+  let lastTime = null;
+
+  function tick(now) {
+    if (now < gridPauseUntil) {
+      gridAnimFrame = requestAnimationFrame(tick);
+      return;
+    }
+
+    const maxScroll = strip.offsetHeight - listings.clientHeight;
+
+    if (maxScroll <= 0) {
+      setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
+      return;
+    }
+
+    if (lastTime !== null) {
+      gridScrollY += pxPerMs * (now - lastTime);
+    }
+    lastTime = now;
+
+    if (gridScrollY >= maxScroll) {
+      strip.style.transform = `translateY(-${maxScroll}px)`;
+      lastTime = null;
+      setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
+      return;
+    }
+
+    strip.style.transform = `translateY(-${gridScrollY}px)`;
+    gridAnimFrame = requestAnimationFrame(tick);
+  }
+
+  gridAnimFrame = requestAnimationFrame(tick);
+}
+
+async function initGridMode() {
+  buildGridDOM();
+  if (MOCK) mockFetchStations(); else await fetchStations();
+  await Promise.all([
+    loadMusicPlaylist(),
+    loadVideoPlaylist(),
+    loadMessages()
+  ]);
+  setupMusic();
+  setupVideo();
+  startTextCarousel();
+  await buildGrid();
+  startGridScrolling();
+}
+
+
+// ===== CLOCK =====
+
 function startClock() {
   const el = document.getElementById('clock');
   const tick = () => { el.textContent = formatTime12(new Date()); };
   tick();
   setInterval(tick, 1000);
 }
+
+
+// ===== MUSIC =====
 
 async function loadMusicPlaylist() {
   try {
@@ -286,6 +533,9 @@ async function loadMusicPlaylist() {
       const data = await resp.json();
       musicPlaylist = data.files || [];
     } else {
+      // Only fall back to the bundled json if the theme allows it
+      const autoload = getCSSVar('--music-autoload').replace(/["']/g, '');
+      if (autoload === 'false') return;
       const resp = await fetch('music_playlist.json');
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
@@ -301,7 +551,6 @@ function playMusicTrack(index) {
   currentMusicIndex = index % musicPlaylist.length;
   bgPlayer.src = musicPlaylist[currentMusicIndex];
   bgPlayer.play().catch(function () {
-    // autoplay blocked - resume on first interaction
     document.addEventListener('click', () => bgPlayer.play(), { once: true });
   });
 }
@@ -317,8 +566,119 @@ function setupMusic() {
   playMusicTrack(0);
 }
 
+
+// ===== VIDEO =====
+
+async function loadVideoPlaylist() {
+  if (!VIDEOS) return;
+  try {
+    const resp = await fetch('/media/list_videos');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    videoPlaylist = data.files || [];
+  } catch (e) {
+    console.warn('no video playlist:', e.message);
+  }
+}
+
+function playVideoTrack(index) {
+  if (!bgVideoPlayer || !videoPlaylist.length) return;
+  currentVideoIndex = index % videoPlaylist.length;
+  bgVideoPlayer.src = videoPlaylist[currentVideoIndex];
+  bgVideoPlayer.play().catch(function (e) {
+    console.warn('video play failed:', e.message);
+  });
+}
+
+function setupVideo() {
+  bgVideoPlayer = document.getElementById('bgVideoPlayer');
+  if (!bgVideoPlayer) return;
+
+  if (!videoPlaylist.length) {
+    const videoPanel = document.getElementById('video-panel');
+    if (videoPanel) videoPanel.style.display = 'none';
+    return;
+  }
+
+  let consecutiveErrors = 0;
+
+  bgVideoPlayer.addEventListener('ended', function () {
+    consecutiveErrors = 0;
+    playVideoTrack(currentVideoIndex + 1);
+  });
+
+  bgVideoPlayer.addEventListener('error', function () {
+    consecutiveErrors++;
+    if (consecutiveErrors >= videoPlaylist.length) {
+      console.warn('all video tracks failed to load, hiding video panel');
+      const videoPanel = document.getElementById('video-panel');
+      if (videoPanel) videoPanel.style.display = 'none';
+      return;
+    }
+    setTimeout(() => playVideoTrack(currentVideoIndex + 1), 1000);
+  });
+
+  playVideoTrack(0);
+}
+
+
+// ===== TEXT CAROUSEL =====
+
+async function loadMessages() {
+  if (!MESSAGES_PATH) return;
+  try {
+    const resp = await fetch('/media/json?path=' + encodeURIComponent(MESSAGES_PATH));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    messages = data.messages || [];
+  } catch (e) {
+    console.warn('no messages:', e.message);
+  }
+}
+
+function showNextMessage(index) {
+  const titleEl = document.getElementById('text-message-title');
+  const bodyEl = document.getElementById('text-message-body');
+  if (!titleEl || !bodyEl) return;
+
+  const msg = messages[index % messages.length];
+
+  titleEl.style.opacity = '0';
+  bodyEl.style.opacity = '0';
+
+  setTimeout(function () {
+    titleEl.innerHTML = msg.title || '';
+    bodyEl.textContent = msg.body || '';
+    titleEl.style.opacity = '1';
+    bodyEl.style.opacity = '1';
+  }, 400);
+
+  const defaultDuration = parseFloat(getCSSVar('--text-carousel-speed')) || 10;
+  const duration = ((msg.duration || defaultDuration) * 1000) + 400;
+  messageCarouselTimer = setTimeout(function () {
+    showNextMessage(index + 1);
+  }, duration);
+}
+
+function startTextCarousel() {
+  const titleEl = document.getElementById('text-message-title');
+  const bodyEl = document.getElementById('text-message-body');
+  if (!titleEl || !bodyEl) return;
+
+  if (!messages.length) {
+    titleEl.textContent = 'FieldStation42';
+    bodyEl.textContent = '';
+    return;
+  }
+
+  showNextMessage(0);
+}
+
+
+// ===== INIT =====
+
 async function init() {
-  loadTheme(THEME);
+  await loadTheme(THEME);
 
   const headerPos = getCSSVar('--header-position').replace(/["']/g, '');
   if (headerPos === 'bottom') document.getElementById('guide-wrapper').classList.add('header-bottom');
@@ -326,11 +686,17 @@ async function init() {
   document.getElementById('header-text').textContent = HEADER_TEXT;
   startClock();
 
-  if (MOCK) mockFetchStations(); else await fetchStations();
-  await loadMusicPlaylist();
-  await buildGuide();
-  startScrolling();
-  setupMusic();
+  const layoutMode = getCSSVar('--layout-mode').replace(/["']/g, '') || 'list';
+
+  if (layoutMode === 'grid') {
+    await initGridMode();
+  } else {
+    if (MOCK) mockFetchStations(); else await fetchStations();
+    await loadMusicPlaylist();
+    await buildGuide();
+    startScrolling();
+    setupMusic();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

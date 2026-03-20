@@ -65,6 +65,8 @@ def run_with_shutdown_queue(shutdown_queue, command_queue):
         loop.create_task(shutdown_monitor())
 
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
+    os.makedirs("runtime/guide_videos", exist_ok=True)
+    fapi.mount("/guide_videos", StaticFiles(directory="runtime/guide_videos"), name="guide_videos")
     fapi.add_event_handler("startup", start_shutdown_monitor)
     conf = StationManager().server_conf
     uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
@@ -81,6 +83,8 @@ def mount_fs42_api():
     
     fapi.state.player_command_queue = None
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
+    os.makedirs("runtime/guide_videos", exist_ok=True)
+    fapi.mount("/guide_videos", StaticFiles(directory="runtime/guide_videos"), name="guide_videos")
     conf = StationManager().server_conf
     uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
 

@@ -1,5 +1,8 @@
 :root {
 
+  --layout-mode: "list";
+  --music-autoload: true;
+
   --header-position: top;            /* top | bottom */
   --channel-position: before;        /* before | after title */
 
