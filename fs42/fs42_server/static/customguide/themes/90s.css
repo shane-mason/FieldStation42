@@ -1,0 +1,61 @@
+:root {
+
+  --layout-mode: "grid";
+  --music-autoload: false;
+
+  --header-position: bottom;
+  --channel-position: before;
+  --continued-indicator: " ◄";
+  --offair-text: "No Info";
+
+  /* core */
+  --bg-color: #000033;
+  --text-color: #ffffff;
+  --header-bg: #00001a;
+  --header-text-color: #ffff00;
+
+  /* grid chrome */
+  --time-heading-color: #ffff00;
+  --channel-number-color: #ffff00;
+  --channel-name-color: #ffff00;
+  --show-title-color: #ffffff;
+  --row-divider-color: #000066;
+
+  /* top panel */
+  --top-panel-height: 42%;
+  --video-side: left;
+  --video-width: 45%;
+  --text-panel-bg: #00001a;
+  --text-panel-color: #ffffff;
+  --text-panel-title-color: #ffff00;
+  --text-carousel-speed: 10;
+
+  /* grid rows */
+  --grid-header-bg: #00001a;
+  --grid-channel-bg: #00002a;
+  --grid-channel-width: 7em;
+  --grid-row-height: 3.0em;
+  --grid-row-odd-bg: #000044;
+  --grid-row-even-bg: #000033;
+  --program-block-bg: #000055;
+  --program-block-border: #000088;
+  --program-block-even-bg: #000044;
+  --program-block-even-border: #000077;
+  --program-current-bg: #004488;
+  --program-current-border: #0066cc;
+  --program-current-color: #ffffff;
+
+  /* type */
+  --font-family: 'Arial', 'Helvetica Neue', sans-serif;
+  --font-size: 1.0rem;
+  --h-padding: 1.5%;
+  --v-padding: 1.5%;
+
+  /* scroll */
+  --scroll-pause: 4s;
+  --scroll-speed: 0.55;
+
+  /* audio */
+  --music-volume: 0.4;
+
+}
