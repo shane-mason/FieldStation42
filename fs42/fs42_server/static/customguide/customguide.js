@@ -317,7 +317,7 @@ function buildGridDOM() {
       </div>
     </div>
     <div id="grid-wrapper">
-      <div id="grid-header"><div class="grid-channel-stub"></div></div>
+      <div id="grid-header"><div class="grid-channel-stub"><span id="clock"></span></div></div>
       <div id="grid-listings"></div>
     </div>
   `;
@@ -396,16 +396,16 @@ function buildGridStrip(slots, schedules) {
     const channelDiv = document.createElement('div');
     channelDiv.className = 'grid-channel';
 
+    const numSpan = document.createElement('span');
+    numSpan.className = 'channel-number';
+    numSpan.textContent = station.channel_number || '?';
+
     const nameSpan = document.createElement('span');
     nameSpan.className = 'channel-name';
     nameSpan.textContent = station.network_long_name || station.network_name;
 
-    const numSpan = document.createElement('span');
-    numSpan.className = 'channel-number';
-    numSpan.textContent = 'Ch ' + (station.channel_number || '?');
-
-    channelDiv.appendChild(nameSpan);
     channelDiv.appendChild(numSpan);
+    channelDiv.appendChild(nameSpan);
     row.appendChild(channelDiv);
 
     const programsDiv = document.createElement('div');
@@ -498,7 +498,11 @@ function startGridScrolling() {
 }
 
 async function initGridMode() {
+  document.getElementById('guide-header').style.display = 'none';
+  const oldClock = document.getElementById('clock');
+  if (oldClock) oldClock.remove();
   buildGridDOM();
+  startClock();
   if (MOCK) mockFetchStations(); else await fetchStations();
   await Promise.all([
     loadMusicPlaylist(),
@@ -685,13 +689,13 @@ async function init() {
 
   const themeHeader = getCSSVar('--header-text').replace(/["']/g, '');
   document.getElementById('header-text').textContent = HEADER_TEXT || themeHeader || 'TV Guide';
-  startClock();
 
   const layoutMode = getCSSVar('--layout-mode').replace(/["']/g, '') || 'list';
 
   if (layoutMode === 'grid') {
     await initGridMode();
   } else {
+    startClock();
     if (MOCK) mockFetchStations(); else await fetchStations();
     await loadMusicPlaylist();
     await buildGuide();

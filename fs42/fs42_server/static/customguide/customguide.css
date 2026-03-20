@@ -202,8 +202,15 @@ body {
 .grid-channel-stub {
   width: var(--grid-channel-width, 6.5em);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
               inset -3px -3px 0 var(--program-block-shadow, transparent);
+}
+
+.grid-channel-stub #clock {
+  font-size: 0.75em;
 }
 
 .grid-time-slot {
@@ -255,11 +262,17 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
-  padding: 0 0.4em 0 0.8em;
+  align-items: center;
+  padding: 0 0.4em;
   background-color: var(--grid-channel-bg, #0a0018);
   box-shadow: 1px 0 0 var(--row-divider-color, transparent);
   overflow: hidden;
+}
+
+.grid-channel .channel-number {
+  color: var(--channel-number-color);
+  font-weight: bold;
+  text-align: center;
 }
 
 .grid-channel .channel-name {
@@ -267,14 +280,9 @@ body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  width: 100%;
-  font-size: 0.85em;
-  font-weight: bold;
-}
-
-.grid-channel .channel-number {
-  color: var(--channel-number-color);
   font-size: 0.78em;
+  text-align: center;
+  width: 100%;
 }
 
 .grid-programs {
