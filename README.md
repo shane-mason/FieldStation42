@@ -90,6 +90,12 @@ For a complete, step-by-step guide to setting up and administering FieldStation4
 * Add your own content (videos)
 * Configure your stations
     * Copy an example json file from `confs/examples` into `confs/`
+* Activate the Virtual Environment
+   * To run FieldStation42 and its tools, you must first activate the virtual environment that was created by the install script with the following command: 
+   ```bash
+   source env/bin/activate
+   ```
+   * While the virtual environment is active, your terminal will show "(env)" at the beginning. 
 * Generate a weekly schedule
     * Run `python3 station_42.py` on the command line
         * Use `--rebuild_catalog` option if content has changed
