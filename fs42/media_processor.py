@@ -143,6 +143,7 @@ class MediaProcessor:
                 try:
                     video_clip = VideoFileClip(fname)
                     duration = video_clip.duration
+                    video_clip.close()
                 except Exception as e:
                     _l.error(f"Error in moviepy attempting to get duration for {fname}")
                     _l.exception(e)
