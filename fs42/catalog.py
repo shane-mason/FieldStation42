@@ -236,6 +236,7 @@ class ShowCatalog:
             self._l.debug("Adding sign-off video")
             video_clip = VideoFileClip(self.config["sign_off_video"])
             self.clip_index["sign_off"] = [CatalogEntry(self.config["sign_off_video"], video_clip.duration, "sign_off", content_type="sign_off")]
+            video_clip.close()
             self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
             total_count += 1
 
@@ -243,6 +244,7 @@ class ShowCatalog:
             self._l.debug("Adding off air video")
             video_clip = VideoFileClip(self.config["off_air_video"])
             self.clip_index["off_air"] = [CatalogEntry(self.config["off_air_video"], video_clip.duration, "off_air", content_type="off_air")]
+            video_clip.close()
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count += 1
 

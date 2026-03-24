@@ -15,11 +15,16 @@ class FluidBuilder:
             self.db_path = StationManager().server_conf["db_path"]
 
         self._l = logging.getLogger("FLUID")
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             FluidStatements.init_db(connection)
+            connection.commit()
+        finally:
+            connection.close()
 
     def scan_file_cache(self, content_dir, media_filter="video"):
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             # read all the files in the content dir
             self._l.info(f"Fluid file cache scan - reading {content_dir} with media_filter={media_filter}")
             file_list = MediaProcessor.rich_find_media(content_dir, media_filter)
@@ -27,21 +32,28 @@ class FluidBuilder:
             # add any that aren't there yet
             FluidStatements.iterate_file_entries(connection, file_list)
             self._l.info("Checking file meta for stale entries.")
+        finally:
+            connection.close()
 
     def check_file_cache(self, full_path):
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             results = FluidStatements.check_file_cache(connection, full_path)
-
+        finally:
+            connection.close()
         return results
 
     def trim_file_cache(self, from_time):
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             self._l.info("Trimming fluid file cache")
             FluidStatements.trim_file_entries(connection, from_time)
+        finally:
+            connection.close()
 
     def scan_breaks(self, dir_path):
-        with sqlite3.connect(self.db_path) as connection:
-            
+        connection = sqlite3.connect(self.db_path)
+        try:
             self._l.info(f"Scanning directory {dir_path} for breaks")
             if not os.path.isdir(dir_path):
                 raise FileNotFoundError(f"Directory does not exist {dir_path}")
@@ -68,16 +80,21 @@ class FluidBuilder:
                 else:
                     self._l.warning(f"{rfp} is not in catalog cache - not adding break points.")
             connection.commit()
+        finally:
+            connection.close()
 
     def get_breaks(self, full_path):
         #fname = os.path.realpath(fname)
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             results = FluidStatements.get_break_points(connection, full_path)
+        finally:
+            connection.close()
         return results
 
     def scan_chapters(self, dir_path):
-        with sqlite3.connect(self.db_path) as connection:
-
+        connection = sqlite3.connect(self.db_path)
+        try:
             self._l.info(f"Scanning directory {dir_path} for chapters")
             if not os.path.isdir(dir_path):
                 raise FileNotFoundError(f"Directory does not exist {dir_path}")
@@ -107,15 +124,21 @@ class FluidBuilder:
                 else:
                     self._l.warning(f"{rfp} is not in catalog cache - not adding chapter points.")
             connection.commit()
+        finally:
+            connection.close()
 
     def get_chapters(self, full_path):
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             results = FluidStatements.get_chapter_points(connection, full_path)
+        finally:
+            connection.close()
         return results
 
     def scan_chapters_for_entries(self, entries):
         """Scan chapter markers for a list of catalog entries that don't have them yet"""
-        with sqlite3.connect(self.db_path) as connection:
+        connection = sqlite3.connect(self.db_path)
+        try:
             cursor = connection.cursor()
             for entry in entries:
                 if hasattr(entry, 'realpath') and entry.realpath:
@@ -130,6 +153,8 @@ class FluidBuilder:
                             self._l.info(f"Added {len(chapters)} chapters for {entry.realpath}")
             cursor.close()
             connection.commit()
+        finally:
+            connection.close()
 
 
 if __name__ == "__main__":
