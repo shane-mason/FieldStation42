@@ -269,7 +269,7 @@ class StationPlayer:
                     }
                     if file_duration:
                         conf["duration"] = file_duration
-                    self.show_web(conf)
+                    self.show_web(conf, blocking=False)
                     return True
 
                 if "panscan" in self.station_config:
@@ -511,7 +511,7 @@ class StationPlayer:
 
 
 
-    def show_web(self, web_config):
+    def show_web(self, web_config, blocking=True):
         if not WEB_RENDER_AVAILABLE:
             self._l.error("Web rendering not available - PySide6 not installed")
             msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
@@ -541,6 +541,9 @@ class StationPlayer:
             timestamp=StationManager().server_conf["date_time_format"],
             content_type="web",
         )
+
+        if not blocking:
+            return PlayerOutcome(PlayerState.SUCCESS)
 
         # Check if duration is specified for auto-bumps
         duration = web_config.get("duration")
@@ -688,6 +691,19 @@ class StationPlayer:
                             fade_active = True
 
                         if time_remaining <= 0:
+                            if self.web_process:
+                                try:
+                                    self.web_queue.put("hide_window")
+                                    self.web_process.join(timeout=3)
+                                    if self.web_process.is_alive():
+                                        self._l.warning("Web process did not terminate gracefully, forcing termination")
+                                        self.web_process.terminate()
+                                        self.web_process.join(timeout=1)
+                                except Exception as e:
+                                    self._l.error(f"Error shutting down web process: {e}")
+                                finally:
+                                    self.web_process = None
+                                    self.web_queue = None
                             keep_waiting = False
                         else:
                             # debounce time
