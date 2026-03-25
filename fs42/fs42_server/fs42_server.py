@@ -2,6 +2,7 @@ import os
 import sys
 import asyncio
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -15,9 +16,26 @@ sys.path.append(parent)
 from fs42.station_manager import StationManager
 from .api import routers
 
-# Create FastAPI app
-fapi = FastAPI(title="FieldStation42 API")
+_shutdown_queue = None
 player_command_queue = None
+
+@asynccontextmanager
+async def _lifespan(app):
+    if _shutdown_queue is not None:
+        async def shutdown_monitor():
+            while True:
+                await asyncio.sleep(1)
+                try:
+                    msg = _shutdown_queue.get_nowait()
+                    if msg == "shutdown":
+                        os._exit(0)
+                except Exception:
+                    pass
+        asyncio.get_event_loop().create_task(shutdown_monitor())
+    yield
+
+# Create FastAPI app
+fapi = FastAPI(title="FieldStation42 API", lifespan=_lifespan)
 
 @fapi.get("/")
 async def root():
@@ -45,29 +63,14 @@ def run_with_shutdown_queue(shutdown_queue, command_queue):
 
     logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
 
-    global player_command_queue
+    global player_command_queue, _shutdown_queue
     player_command_queue = command_queue
+    _shutdown_queue = shutdown_queue
     fapi.state.player_command_queue = command_queue
-
-    def start_shutdown_monitor():
-        async def shutdown_monitor():
-            while True:
-                await asyncio.sleep(1)
-                try:
-                    msg = shutdown_queue.get_nowait()
-                    if msg == "shutdown":
-                        import os
-                        os._exit(0)
-                except Exception:
-                    pass
-
-        loop = asyncio.get_event_loop()
-        loop.create_task(shutdown_monitor())
 
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
     os.makedirs("runtime/guide_videos", exist_ok=True)
     fapi.mount("/guide_videos", StaticFiles(directory="runtime/guide_videos"), name="guide_videos")
-    fapi.add_event_handler("startup", start_shutdown_monitor)
     conf = StationManager().server_conf
     uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
 
