@@ -472,8 +472,7 @@ class ShowCatalog:
             candidates += extras
         return candidates
 
-    def find_bump(self, seconds, when, position=None, bump_tag=None,
-                  current_tag=None, next_tag=None, next_next_tag=None, next_next_next_tag=None):
+    def find_bump(self, seconds, when, position=None, bump_tag=None, lookahead=None):
         if not bump_tag:
             bump_tag = self.config["bump_dir"]
 
@@ -501,20 +500,26 @@ class ShowCatalog:
         # augment pool with any matching coming-up-next bumpers from the next/ folder.
         # all matching folders are merged into the pool - they are not prioritized,
         # just additional candidates alongside normal bumps.
-        if next_tag:
-            # next-only keys (no current show context)
-            candidates = self._augment_candidates(candidates, f"next/--{next_tag}", seconds, when)
-            if next_next_tag:
-                candidates = self._augment_candidates(candidates, f"next/--{next_tag}--{next_next_tag}", seconds, when)
-                if next_next_next_tag:
-                    candidates = self._augment_candidates(candidates, f"next/--{next_tag}--{next_next_tag}--{next_next_next_tag}", seconds, when)
-            # keys with current show context
-            if current_tag:
-                candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}", seconds, when)
+        if lookahead:
+            current_tag     = lookahead[0] if len(lookahead) > 0 else None
+            next_tag        = lookahead[1] if len(lookahead) > 1 else None
+            next_next_tag   = lookahead[2] if len(lookahead) > 2 else None
+            next_next_next_tag = lookahead[3] if len(lookahead) > 3 else None
+
+            if next_tag:
+                # next-only keys (no current show context)
+                candidates = self._augment_candidates(candidates, f"next/--{next_tag}", seconds, when)
                 if next_next_tag:
-                    candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}--{next_next_tag}", seconds, when)
+                    candidates = self._augment_candidates(candidates, f"next/--{next_tag}--{next_next_tag}", seconds, when)
                     if next_next_next_tag:
-                        candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}--{next_next_tag}--{next_next_next_tag}", seconds, when)
+                        candidates = self._augment_candidates(candidates, f"next/--{next_tag}--{next_next_tag}--{next_next_next_tag}", seconds, when)
+                # keys with current show context
+                if current_tag:
+                    candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}", seconds, when)
+                    if next_next_tag:
+                        candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}--{next_next_tag}", seconds, when)
+                        if next_next_next_tag:
+                            candidates = self._augment_candidates(candidates, f"next/{current_tag}--{next_tag}--{next_next_tag}--{next_next_next_tag}", seconds, when)
 
         if not candidates:
             raise MatchingContentNotFound(
@@ -532,42 +537,38 @@ class ShowCatalog:
 
     # makes blocks of reels in bump-commercial-commercial-bump format
     def make_reel_block(self, when, bumpers=True, target_duration=120, commercial_dir=None, bump_dir=None,
-                        current_tag=None, next_tag=None, next_next_tag=None, next_next_next_tag=None):
+                        lookahead=None):
         reels = []
         remaining = target_duration
         start_candidate = None
         end_candidate = None
-        
+
         # INSERT AUTO BUMPER LOGIC HERE
         if bumpers:
             if "autobump" not in self.config:
                 start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
-                                                 current_tag=current_tag, next_tag=next_tag,
-                                                 next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
+                                                 lookahead=lookahead)
                 end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir,
-                                               current_tag=current_tag, next_tag=next_tag,
-                                               next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
+                                               lookahead=lookahead)
             else:
                 # then what kind of autobumps?
                 autoconf = self.config["autobump"]
                 strategy = "both"
                 if "strategy" in autoconf:
                     strategy = autoconf["strategy"]
-                
+
                 autos = AutoBumpAgent.gen_bumps(self.config)
-                
+
                 start_candidate = autos.get("message_bump", None)
-                end_candidate = autos.get("next_bump", None)                
-                
+                end_candidate = autos.get("next_bump", None)
+
                 if strategy == "start":
                     end_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
-                                                   current_tag=current_tag, next_tag=next_tag,
-                                                   next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
+                                                   lookahead=lookahead)
                 elif strategy == "end":
                     start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
-                                                     current_tag=current_tag, next_tag=next_tag,
-                                                     next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
-            
+                                                     lookahead=lookahead)
+
             remaining -= start_candidate.duration
             remaining -= end_candidate.duration
 
@@ -576,9 +577,7 @@ class ShowCatalog:
             if not self.config["commercial_free"]:
                 candidate = self.find_commercial(target_duration, when, commercial_dir)
             else:
-                candidate = self.find_bump(target_duration, when, None, bump_dir,
-                                           current_tag=current_tag, next_tag=next_tag,
-                                           next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag)
+                candidate = self.find_bump(target_duration, when, None, bump_dir, lookahead=lookahead)
             remaining -= candidate.duration
             reels.append(candidate)
 
@@ -587,10 +586,10 @@ class ShowCatalog:
 
 
     def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None,
-                       current_tag=None, next_tag=None, next_next_tag=None, next_next_next_tag=None):
+                       lookahead=None):
         target_break_duration = self.config["break_duration"]
 
-        strategy =  self.config.get("break_strategy", None)
+        strategy = self.config.get("break_strategy", None)
         if strategy == "end":
             target_break_duration = length
         elif strict_count:
@@ -604,8 +603,7 @@ class ShowCatalog:
             try:
                 block = self.make_reel_block(
                     when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
-                    current_tag=current_tag, next_tag=next_tag,
-                    next_next_tag=next_next_tag, next_next_next_tag=next_next_next_tag
+                    lookahead=lookahead
                 )
             except MatchingContentNotFound:
                 self._l.debug(

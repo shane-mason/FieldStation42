@@ -276,15 +276,15 @@ class LiquidSchedule:
 
         for i, block in enumerate(new_blocks):
             # set lookahead tags for coming-up-next bump support
-            block.current_tag = self._get_block_tag(block)
-
-            n = new_blocks[i + 1] if i + 1 < len(new_blocks) else None
-            nn = new_blocks[i + 2] if i + 2 < len(new_blocks) else None
+            n   = new_blocks[i + 1] if i + 1 < len(new_blocks) else None
+            nn  = new_blocks[i + 2] if i + 2 < len(new_blocks) else None
             nnn = new_blocks[i + 3] if i + 3 < len(new_blocks) else None
-
-            block.next_tag = self._get_block_tag(n) if n else None
-            block.next_next_tag = self._get_block_tag(nn) if nn else None
-            block.next_next_next_tag = self._get_block_tag(nnn) if nnn else None
+            block.lookahead = [
+                self._get_block_tag(block),
+                self._get_block_tag(n)   if n   else None,
+                self._get_block_tag(nn)  if nn  else None,
+                self._get_block_tag(nnn) if nnn else None,
+            ]
 
             block.make_plan(self.catalog)
             if block.content:

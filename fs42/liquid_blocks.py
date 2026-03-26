@@ -37,10 +37,8 @@ class LiquidBlock:
         self.break_strategy = break_strategy
 
         # set by liquid_schedule before make_plan() is called
-        self.current_tag = None
-        self.next_tag = None
-        self.next_next_tag = None
-        self.next_next_next_tag = None
+        # index 0=current, 1=next, 2=next-next, 3=next-next-next
+        self.lookahead = []
 
     def __str__(self):
         content = os.path.basename(self.content.path)
@@ -173,10 +171,7 @@ class LiquidBlock:
                 commercial_dir=self.commercial_override,
                 bump_dir=self.bump_override,
                 strict_count=strict_count,
-                current_tag=self.current_tag,
-                next_tag=self.next_tag,
-                next_next_tag=self.next_next_tag,
-                next_next_next_tag=self.next_next_next_tag,
+                lookahead=self.lookahead,
             )
             
         else:
@@ -260,10 +255,7 @@ class LiquidClipBlock(LiquidBlock):
             self.reel_blocks = catalog.make_reel_fill(
                 self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override,
                 strict_count=strict_count,
-                current_tag=self.current_tag,
-                next_tag=self.next_tag,
-                next_next_tag=self.next_next_tag,
-                next_next_next_tag=self.next_next_next_tag,
+                lookahead=self.lookahead,
             )
         else:
             self.reel_blocks = []
