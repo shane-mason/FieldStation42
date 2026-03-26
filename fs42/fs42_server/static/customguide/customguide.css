@@ -138,7 +138,8 @@ body {
 }
 
 #video-panel {
-  width: var(--video-width, 45%);
+  width: var(--video-width, auto);
+  aspect-ratio: var(--video-aspect-ratio, auto);
   flex-shrink: 0;
   background-color: var(--video-panel-bg, #000);
   display: flex;
@@ -200,7 +201,7 @@ body {
 }
 
 .grid-channel-stub {
-  width: var(--grid-channel-width, 6.5em);
+  width: calc(var(--grid-channel-width, 6.5em) + var(--channel-pill-margin-h, 0px) * 2);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -222,6 +223,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   align-self: stretch;
+  border-radius: var(--time-slot-radius, 0);
+  background-color: var(--time-slot-bg, transparent);
   box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
               inset -3px -3px 0 var(--program-block-shadow, transparent);
 }
@@ -264,9 +267,11 @@ body {
   justify-content: center;
   align-items: center;
   padding: 0 0.4em;
+  margin: var(--channel-pill-margin-v, 0) var(--channel-pill-margin-h, 0);
+  border-radius: var(--channel-pill-radius, 0);
   background-color: var(--grid-channel-bg, #0a0018);
-  box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
-              inset -3px -3px 0 var(--program-block-shadow, transparent);
+  box-shadow: inset 3px 3px 0 var(--channel-block-border, var(--program-block-border, transparent)),
+              inset -3px -3px 0 var(--channel-block-shadow, var(--program-block-shadow, transparent));
   overflow: hidden;
 }
 
@@ -300,6 +305,7 @@ body {
   align-items: center;
   padding: 0 0.4em;
   overflow: hidden;
+  border-radius: var(--program-block-radius, 0);
   background-color: var(--program-block-bg, #0f1c0f);
   box-shadow: inset 3px 3px 0 var(--program-block-border, transparent),
               inset -3px -3px 0 var(--program-block-shadow, #000055);

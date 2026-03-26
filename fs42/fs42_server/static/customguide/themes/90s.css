@@ -25,12 +25,22 @@
   /* top panel — blue3 for the top half */
   --top-panel-height: 42%;
   --video-side: left;
-  --video-width: 45%;
+  --video-width: auto;
+  --video-aspect-ratio: 4/3;
   --video-panel-bg: #0000cd;
   --text-panel-bg: #0000cd;
   --text-panel-color: #ffffff;
   --text-panel-title-color: #ffff00;
   --text-carousel-speed: 10;
+
+  /* pill/radius (flat, boxy look for 90s) */
+  --channel-pill-radius: 0;
+  --channel-pill-margin-v: 0px;
+  --channel-pill-margin-h: 0px;
+  --channel-block-border: var(--program-block-border);
+  --channel-block-shadow: var(--program-block-shadow);
+  --program-block-radius: 0;
+  --time-slot-radius: 0;
 
   /* grid rows — blue4 base, raised-relief block borders */
   --grid-header-bg: #0000cd;
