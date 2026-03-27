@@ -604,6 +604,9 @@ function setupVideo() {
     return;
   }
 
+  const vol = parseFloat(getCSSVar('--video-volume'));
+  bgVideoPlayer.volume = isNaN(vol) ? 0.8 : vol;
+
   let consecutiveErrors = 0;
 
   bgVideoPlayer.addEventListener('ended', function () {
