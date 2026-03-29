@@ -23,6 +23,7 @@ from fs42.reception import (
     short_change_effect,
     none_change_effect,
 )
+from fs42.live_schedule_agent import LiveScheduleAgent
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
@@ -81,11 +82,20 @@ def input_check():
 
 
 
-def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
+def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=None):
     manager = StationManager()
     reception = ReceptionStatus()
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
+
+    # set up the live schedule agent if configured
+    schedule_agent = None
+    agent_conf = manager.server_conf.get("schedule_agent")
+    if agent_conf and schedule_lock:
+        schedule_agent = LiveScheduleAgent(agent_conf, schedule_lock)
+        logger.info("Live schedule agent is active")
+    else:
+        logger.info("Live schedule agent is not configured")
 
     channel_socket = StationManager().server_conf["channel_socket"]
 
@@ -116,6 +126,8 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
         logger.warning("Saved channel index %d is out of range, resetting to 0", channel_index)
         channel_index = 0
     player = StationPlayer(manager.stations[channel_index], input_check)
+    if schedule_lock:
+        player.schedule_lock = schedule_lock
     stand_by = StationManager().server_conf.get("standby_image", "runtime/standby.png")
     reception.degrade()
     player.update_filters()
@@ -147,6 +159,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     stuck_timer = 0
 
     while True:
+        if schedule_agent:
+            schedule_agent.tick()
+
         logger.info(f"Playing station: {channel_conf['network_name']}")
 
         if channel_conf["network_type"] == "guide" and not skip_play:
@@ -354,8 +369,10 @@ if __name__ == "__main__":
         api_commands_queue = None
         api_proc = None
 
+    schedule_lock = multiprocessing.Lock()
+
     try:
-        main_loop(trans_fn, shutdown_queue=shutdown_queue, api_proc=api_proc)
+        main_loop(trans_fn, shutdown_queue=shutdown_queue, api_proc=api_proc, schedule_lock=schedule_lock)
     finally:
         if shutdown_queue is not None:
             shutdown_queue.put("shutdown")

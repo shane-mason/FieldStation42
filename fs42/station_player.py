@@ -140,6 +140,7 @@ class StationPlayer:
         self.web_queue = None
         self.scrambler = None
         self.now_playing_process = None
+        self.schedule_lock = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -588,10 +589,16 @@ class StationPlayer:
     def schedule_panic(self, network_name):
         self._l.critical("*********************Schedule Panic*********************")
         self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
-        schedule = LiquidSchedule(StationManager().station_by_name(network_name))
-        schedule.add_days(1)
-        self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
-        LiquidManager().reload_schedules()
+        if self.schedule_lock:
+            self.schedule_lock.acquire()
+        try:
+            schedule = LiquidSchedule(StationManager().station_by_name(network_name))
+            schedule.add_days(1)
+            self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
+            LiquidManager().reload_schedules()
+        finally:
+            if self.schedule_lock:
+                self.schedule_lock.release()
 
     def play_slot(self, network_name, when):
         liquid = LiquidManager()
