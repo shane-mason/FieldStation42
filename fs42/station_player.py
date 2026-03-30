@@ -596,6 +596,8 @@ class StationPlayer:
             schedule.add_days(1)
             self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
             LiquidManager().reload_schedules()
+        except Exception as e:
+            self._l.error(f"Schedule panic failed for {network_name}: {e}")
         finally:
             if self.schedule_lock:
                 self.schedule_lock.release()
