@@ -155,10 +155,14 @@ def show_guide_pressed():
     if not should_allow_press('show_guide'):
         return  # Debounced - ignore this press
 
+    global current_channel, last_channel
     try:
         response = requests.post(f'{FS42_BASE_URL}/player/channels/guide')
         if response.ok:
             print("Guide displayed")
+            if current_channel is not None:
+                last_channel = current_channel
+                print(f"Stored last_channel: {last_channel} before guide")
         else:
             print("Guide command failed")
     except Exception as e:
