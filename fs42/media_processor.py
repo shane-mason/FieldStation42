@@ -367,6 +367,14 @@ class MediaProcessor:
     def calc_black_segments(break_points, content_duration):
         # ensure start ordering
         break_points = sorted(break_points, key=lambda k: k["chapter_start"])
+
+        # ensure coverage starts at 0 - handles containers (e.g. MKV) where
+        # the first chapter marker doesn't have to start at 0
+        if break_points and break_points[0]["chapter_start"] > 0:
+            break_points.insert(0, {
+                "chapter_start": 0.0,
+                "chapter_end": break_points[0]["chapter_start"],
+            })
         for i in range(len(break_points)):
             if i < len(break_points) - 1:
                 break_points[i]["segment_duration"] = (
@@ -508,6 +516,14 @@ class MediaProcessor:
                     chapters.append(chapter_info)
 
                 _l.info(f"Found {len(chapters)} chapter markers in {fname}")
+
+                # ensure coverage starts at 0 - handles containers (e.g. MKV) where
+                # the first chapter marker doesn't have to start at 0
+                if chapters[0]["chapter_start"] > 0:
+                    chapters.insert(0, {
+                        "chapter_start": 0.0,
+                        "chapter_end": chapters[0]["chapter_start"],
+                    })
 
                 # Calculate segment durations
                 for i in range(len(chapters)):
