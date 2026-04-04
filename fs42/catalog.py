@@ -633,7 +633,7 @@ class ShowCatalog:
                 if not self.config["commercial_free"]:
                     candidate = self.find_commercial(seconds=remaining, when=when, commercial_dir=commercial_dir)
                 else:
-                    candidate = self.find_bump(remaining, when, "fill")
+                    candidate = self.find_bump(remaining, when, "fill", bump_tag=bump_dir)
             except MatchingContentNotFound:
                 if remaining > self.min_gap:
                     self._l.debug(
