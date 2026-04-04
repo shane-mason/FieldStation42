@@ -489,6 +489,11 @@ class MediaProcessor:
         import json
 
         _l = logging.getLogger("MEDIA")
+
+        if base_duration < timings.MIN_5:
+            _l.info(f"Skipping chapter markers in less than 5 minutes: {fname}")
+            return None
+
         _l.info(f"Detecting chapter markers in {fname}")
 
         try:
