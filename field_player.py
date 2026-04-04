@@ -68,6 +68,9 @@ def input_check():
                 case "play_file":
                     file_path = q_message.get("file_path", None)
                     return PlayerOutcome(PlayerState.PLAY_FILE, file_path)
+                case "web_key":
+                    key = q_message.get("key", "")
+                    return PlayerOutcome(PlayerState.SUCCESS, f"web_key:{key}")
 
 
     channel_socket = StationManager().server_conf["channel_socket"]

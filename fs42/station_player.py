@@ -578,12 +578,19 @@ class StationPlayer:
 
             response = self.input_check_fn()
             if response:
-                self._l.info("Sending the web channel shutdown command")
-                self.web_queue.put("hide_window")
-                self.web_process.join()
-                self.web_process = None
-                self.web_queue = None
-                return response
+                # Check if this is a web_key command - forward to web process
+                if response.payload and isinstance(response.payload, str) and response.payload.startswith("web_key:"):
+                    key_name = response.payload[8:]
+                    if self.web_queue:
+                        self.web_queue.put(f"key:{key_name}")
+                        self._l.info(f"Forwarded key '{key_name}' to web process")
+                else:
+                    self._l.info("Sending the web channel shutdown command")
+                    self.web_queue.put("hide_window")
+                    self.web_process.join()
+                    self.web_process = None
+                    self.web_queue = None
+                    return response
         return PlayerOutcome(PlayerState.SUCCESS)
 
     def schedule_panic(self, network_name):
