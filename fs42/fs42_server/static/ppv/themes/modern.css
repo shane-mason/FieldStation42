@@ -1,0 +1,25 @@
+/* Modern theme — deep blue, Orbitron font, yellow accents (default look) */
+:root {
+    --ppv-body-bg: #0f1b2d;
+    --ppv-bg: #0000cd;
+    --ppv-side-bg: #0000cd;
+    --ppv-image-bg: #0000cd;
+    --ppv-banner-bg: #00008b;
+    --ppv-banner-border: #808080;
+    --ppv-logo-color: #ffff00;
+    --ppv-logo-font: 'Orbitron', monospace;
+    --ppv-tagline-color: #ffffff;
+    --ppv-title-color: #ffff00;
+    --ppv-details-color: #ffffff;
+    --ppv-description-color: #ffffff;
+    --ppv-counter-color: #ffff00;
+    --ppv-nav-color: #ffffff;
+    --ppv-no-image-color: #1F53AD;
+    --ppv-loading-bg: #0000cd;
+    --ppv-spinner-color: #ffff00;
+    --ppv-loading-text-color: #ffffff;
+    --ppv-side-width: 220px;
+    --ppv-font: 'Roboto', sans-serif;
+    --ppv-mono-font: 'Orbitron', monospace;
+    --ppv-bg-opacity: 0.2;
+}

@@ -37,12 +37,27 @@ class PPVViewer {
     }
 
     async init() {
+        await this.loadTheme(this.config.variation);
         await this.loadContent();
         await this.loadMusicPlaylist();
         this.setupKeyboardNavigation();
         this.applyConfiguration();
         this.setupBackgroundMusic();
         this.startSlideshow();
+    }
+
+    loadTheme(name) {
+        return new Promise((resolve) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = `themes/${name}.css`;
+            link.addEventListener('load', resolve);
+            link.addEventListener('error', () => {
+                console.warn(`PPV theme "${name}" not found, using defaults.`);
+                resolve();
+            });
+            document.head.appendChild(link);
+        });
     }
 
     async loadContent() {
@@ -237,53 +252,21 @@ class PPVViewer {
     }
 
     applyConfiguration() {
-        // Apply variation styling
-        this.applyVariation();
-
-        // Set background
+        // Set background image or color from URL params
         if (this.config.backgroundImage) {
             this.backgroundLayer.style.backgroundImage = `url(${this.config.backgroundImage})`;
         } else if (this.config.bgColor) {
             this.container.style.background = this.config.bgColor;
         }
 
-        // Load custom CSS override if provided
+        // Load optional CSS override on top of the theme
         if (this.config.cssOverride) {
-            this.loadCSSOverride();
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = this.config.cssOverride;
+            link.onerror = () => console.warn('Failed to load CSS override:', this.config.cssOverride);
+            document.head.appendChild(link);
         }
-    }
-
-    applyVariation() {
-        // Remove any existing variation classes
-        this.container.classList.remove('variation-modern', 'variation-retro', 'variation-corporate', 'variation-terminal');
-
-        // Add the selected variation class
-        this.container.classList.add(`variation-${this.config.variation}`);
-    }
-
-    loadCSSOverride() {
-        // Remove any existing override CSS
-        const existingOverride = document.getElementById('css-override');
-        if (existingOverride) {
-            existingOverride.remove();
-        }
-
-        // Create and load new override CSS
-        const link = document.createElement('link');
-        link.id = 'css-override';
-        link.rel = 'stylesheet';
-        link.type = 'text/css';
-        link.href = this.config.cssOverride;
-
-        link.onerror = () => {
-            console.warn('Failed to load CSS override:', this.config.cssOverride);
-        };
-
-        link.onload = () => {
-            console.log('CSS override loaded successfully:', this.config.cssOverride);
-        };
-
-        document.head.appendChild(link);
     }
 
     showError(message) {

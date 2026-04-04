@@ -1,0 +1,27 @@
+/* Terminal theme — black background, green phosphor text, monospace */
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+:root {
+    --ppv-body-bg: #000000;
+    --ppv-bg: #000000;
+    --ppv-side-bg: #000000;
+    --ppv-image-bg: #000000;
+    --ppv-banner-bg: #001100;
+    --ppv-banner-border: #00ff00;
+    --ppv-logo-color: #00ff00;
+    --ppv-logo-font: 'Share Tech Mono', 'Courier New', monospace;
+    --ppv-tagline-color: #00aa00;
+    --ppv-title-color: #00ff00;
+    --ppv-details-color: #00cc00;
+    --ppv-description-color: #009900;
+    --ppv-counter-color: #00ff00;
+    --ppv-nav-color: #00aa00;
+    --ppv-no-image-color: #003300;
+    --ppv-loading-bg: #000000;
+    --ppv-spinner-color: #00ff00;
+    --ppv-loading-text-color: #00ff00;
+    --ppv-side-width: 220px;
+    --ppv-font: 'Share Tech Mono', 'Courier New', monospace;
+    --ppv-mono-font: 'Share Tech Mono', 'Courier New', monospace;
+    --ppv-bg-opacity: 0.1;
+}

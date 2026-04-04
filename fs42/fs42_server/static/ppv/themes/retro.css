@@ -1,0 +1,25 @@
+/* Retro theme — dark background, magenta/cyan accents, terminal feel */
+:root {
+    --ppv-body-bg: #0a0a0a;
+    --ppv-bg: #0d0d1a;
+    --ppv-side-bg: #0d0d1a;
+    --ppv-image-bg: #000000;
+    --ppv-banner-bg: #0d0d1a;
+    --ppv-banner-border: #ff00ff;
+    --ppv-logo-color: #ff00ff;
+    --ppv-logo-font: 'Orbitron', monospace;
+    --ppv-tagline-color: #00ffff;
+    --ppv-title-color: #ff00ff;
+    --ppv-details-color: #00ffff;
+    --ppv-description-color: #cccccc;
+    --ppv-counter-color: #ff00ff;
+    --ppv-nav-color: #00ffff;
+    --ppv-no-image-color: #440044;
+    --ppv-loading-bg: #0d0d1a;
+    --ppv-spinner-color: #ff00ff;
+    --ppv-loading-text-color: #00ffff;
+    --ppv-side-width: 220px;
+    --ppv-font: 'Roboto', sans-serif;
+    --ppv-mono-font: 'Orbitron', monospace;
+    --ppv-bg-opacity: 0.15;
+}

@@ -1,5 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;500;700&display=swap');
 
+:root {
+    --ppv-body-bg: #0f1b2d;
+    --ppv-bg: #0000cd;
+    --ppv-side-bg: #0000cd;
+    --ppv-image-bg: #0000cd;
+    --ppv-banner-bg: #00008b;
+    --ppv-banner-border: #808080;
+    --ppv-logo-color: #ffff00;
+    --ppv-logo-font: 'Orbitron', monospace;
+    --ppv-tagline-color: #ffffff;
+    --ppv-title-color: #ffff00;
+    --ppv-details-color: #ffffff;
+    --ppv-description-color: #ffffff;
+    --ppv-counter-color: #ffff00;
+    --ppv-nav-color: #ffffff;
+    --ppv-no-image-color: #1F53AD;
+    --ppv-loading-bg: #0000cd;
+    --ppv-spinner-color: #ffff00;
+    --ppv-loading-text-color: #ffffff;
+    --ppv-side-width: 220px;
+    --ppv-font: 'Roboto', sans-serif;
+    --ppv-mono-font: 'Orbitron', monospace;
+    --ppv-bg-opacity: 0.2;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -7,11 +32,11 @@
 }
 
 body {
-    font-family: 'Roboto', sans-serif;
+    font-family: var(--ppv-font);
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #0f1b2d;
+    background: var(--ppv-body-bg);
     color: #ffffff;
 }
 
@@ -21,7 +46,7 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    background: #0000cd;
+    background: var(--ppv-bg);
 }
 
 .background-layer {
@@ -34,7 +59,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.2;
+    opacity: var(--ppv-bg-opacity);
 }
 
 /* ============================================
@@ -45,7 +70,7 @@ body {
     z-index: 10;
     flex: 1;
     display: grid;
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: var(--ppv-side-width) 1fr;
     background: transparent;
     overflow: hidden;
 }
@@ -56,7 +81,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 30px 20px;
-    background: #0000cd;
+    background: var(--ppv-side-bg);
 }
 
 .ppv-branding {
@@ -65,20 +90,20 @@ body {
 }
 
 .ppv-logo {
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
     font-size: 1.8rem;
     font-weight: 900;
-    color: #ffff00;
+    color: var(--ppv-logo-color);
     letter-spacing: 3px;
     margin-bottom: 10px;
     line-height: 1.2;
 }
 
 .ppv-tagline {
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
     font-size: 0.75rem;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--ppv-tagline-color);
     letter-spacing: 1px;
     line-height: 1.3;
 }
@@ -87,7 +112,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0000cd;
+    background: var(--ppv-image-bg);
     overflow: hidden;
     padding: 20px;
 }
@@ -127,10 +152,10 @@ body {
 }
 
 .no-image {
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
     font-size: 3rem;
     font-weight: 700;
-    color: #1F53AD;
+    color: var(--ppv-no-image-color);
     text-align: center;
     letter-spacing: 5px;
     display: none;
@@ -147,19 +172,19 @@ body {
 .info-banner {
     position: relative;
     z-index: 20;
-    background: #00008b;
+    background: var(--ppv-banner-bg);
     padding: 10px 30px;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    border-top: 1px solid #808080;
+    border-top: 1px solid var(--ppv-banner-border);
 }
 
 .content-title {
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
     font-size: 2.5rem;
     font-weight: 900;
-    color: #ffff00;
+    color: var(--ppv-title-color);
     letter-spacing: 2px;
     margin: 0;
     line-height: 1.1;
@@ -170,7 +195,7 @@ body {
 
 .content-details {
     font-size: 1.8rem;
-    color: #ffffff;
+    color: var(--ppv-details-color);
     font-weight: 700;
     font-style: italic;
     line-height: 1.1;
@@ -181,7 +206,7 @@ body {
 
 .content-description {
     font-size: 1.6rem;
-    color: #ffffff;
+    color: var(--ppv-description-color);
     line-height: 1.2;
     font-weight: 400;
     display: -webkit-box;
@@ -199,10 +224,10 @@ body {
 }
 
 .slide-counter {
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
     font-size: 2rem;
     font-weight: 900;
-    color: #ffff00;
+    color: var(--ppv-counter-color);
     white-space: nowrap;
     margin-bottom: 20px;
     letter-spacing: 3px;
@@ -210,10 +235,10 @@ body {
 
 .nav-hint {
     font-size: 1rem;
-    color: #ffffff;
+    color: var(--ppv-nav-color);
     font-weight: 600;
     white-space: nowrap;
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
 }
 
 /* ============================================
@@ -226,7 +251,7 @@ body {
     width: 100%;
     height: 100%;
     z-index: 100;
-    background: #0000cd;
+    background: var(--ppv-loading-bg);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -242,7 +267,7 @@ body {
     width: 60px;
     height: 60px;
     border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #ffff00;
+    border-top-color: var(--ppv-spinner-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -254,9 +279,9 @@ body {
 }
 
 .loading-text {
-    font-family: 'Orbitron', monospace;
+    font-family: var(--ppv-mono-font);
     font-size: 1.5rem;
-    color: #ffffff;
+    color: var(--ppv-loading-text-color);
     font-weight: 700;
     letter-spacing: 2px;
 }
@@ -370,21 +395,4 @@ body {
     .no-image {
         font-size: 1.8rem;
     }
-}
-
-/* ============================================
-   VARIATION SUPPORT
-   ============================================ */
-.ppv-container.variation-retro .slide-counter {
-    color: #ff00ff;
-    text-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
-}
-
-.ppv-container.variation-terminal .slide-counter {
-    color: #00ff00;
-    text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
-}
-
-.ppv-container.variation-terminal .info-banner {
-    font-family: 'Courier New', monospace;
 }
