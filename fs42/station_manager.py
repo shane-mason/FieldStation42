@@ -109,7 +109,8 @@ class StationManager(object):
                     "normalize_titles",
                     "tmdb_api_key",
                     "recall_last_channel",
-                    "schedule_agent"
+                    "schedule_agent",
+                    "video_seek_timeout"
                 ]
 
                 for key in to_check:
