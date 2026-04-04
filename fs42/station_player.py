@@ -294,7 +294,7 @@ class StationPlayer:
                 # Wait for video to load with timeout to prevent blocking on invalid streams
                 ready_to_return = False
                 timeout_seconds = StationManager().server_conf.get( "video_seek_timeout", 10)
-                print("video_seek_timeout", timeout_seconds, "-----------------------------------------------------")
+
                 start_time = time.time()
 
                 while not ready_to_return:
