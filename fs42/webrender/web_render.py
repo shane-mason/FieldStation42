@@ -153,6 +153,22 @@ class WebRenderApp(QApplication):
                 self.quit()
                 print("WebRender shutdown complete")
                 return
+            # Handle key injection commands
+            if isinstance(msg, str) and msg.startswith("key:"):
+                key_name = msg[4:]
+                if key_name not in {"PageUp", "PageDown", "Enter"}:
+                    print(f"WebRender: rejected disallowed key '{key_name}'")
+                    return
+                js = f"""
+                document.dispatchEvent(new KeyboardEvent('keydown', {{
+                    key: '{key_name}',
+                    code: '{key_name}',
+                    bubbles: true,
+                    cancelable: true
+                }}));
+                """
+                self.window.browser.page().runJavaScript(js)
+                return
 
 def web_render_runner(user_conf, queue):
     # Set up signal handler for web process - just exit cleanly
