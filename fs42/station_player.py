@@ -291,36 +291,34 @@ class StationPlayer:
                 self.mpv.play(file_path)
                 
                 
-                # Wait for video to load with timeout to prevent blocking on invalid streams
-                ready_to_return = False
-                timeout_seconds = StationManager().server_conf.get( "video_seek_timeout", 10)
-
+                # Wait for video to load with timeout to prevent blocking on invalid streams.
+                # We wait for time_pos (not just duration) because duration can be populated
+                # from file headers before the demuxer is ready to seek — time_pos being
+                # non-None means MPV has actually started decoding and a seek will be honored.
+                timeout_seconds = StationManager().server_conf.get("video_seek_timeout", 10)
                 start_time = time.time()
 
-                while not ready_to_return:
+                while True:
                     try:
-                        got_duration = self.mpv.duration  # Uses __getattr__ internally
-                        if got_duration is not None:
-                            ready_to_return = True
-                        else:
-                            if time.time() - start_time > timeout_seconds:
-                                self._l.error(f"Timeout waiting for duration on {file_path}")
-                                return False
-                            time.sleep(0.05)
+                        if self.mpv.time_pos is not None:
+                            break
+                        if time.time() - start_time > timeout_seconds:
+                            self._l.error(f"Timeout waiting for playback to start on {file_path}")
+                            return False
+                        time.sleep(0.05)
                     except Exception as e:
                         if time.time() - start_time > timeout_seconds:
-                            self._l.error(f"Error getting duration: {e}")
+                            self._l.error(f"Error waiting for playback: {e}")
                             return False
                         time.sleep(0.05)
 
                 # Perform seek if needed (before showing overlay)
                 if not is_stream and current_time is not None and current_time > 0:
                     try:
-                        self.mpv.seek(current_time)
-                        self._l.info(f"Seeking for: {current_time}")
+                        self.mpv.command("seek", current_time, "absolute")
+                        self._l.info(f"Seeking to: {current_time}")
                     except Exception as e:
                         self._l.error(f"Failed seeking {current_time} on {file_path}: {e}")
-                        return False
 
                 # Show Now Playing overlay for audio feature files
                 self._l.info(f"Media type: {media_type}, Content type: {content_type}")
