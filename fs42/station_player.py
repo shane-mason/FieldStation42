@@ -288,19 +288,12 @@ class StationPlayer:
                 # self.mpv.vf = "lavfi=[]"
                 self._l.info(f"playing {file_path}")
                 self.mpv.command("playlist-clear")
-                # Use loadfile with start position to atomically load and seek.
-                # A separate seek after play() races with MPV's file initialization —
-                # MPV can return a non-None duration from headers before the demuxer
-                # is ready, causing the seek to be silently ignored.
-                if not is_stream and current_time is not None and current_time > 0:
-                    self._l.info(f"Loading with start position: {current_time}")
-                    self.mpv.command("loadfile", file_path, "replace", f"start={current_time}")
-                else:
-                    self.mpv.play(file_path)
-
+                self.mpv.play(file_path)
+                
+                
                 # Wait for video to load with timeout to prevent blocking on invalid streams
                 ready_to_return = False
-                timeout_seconds = StationManager().server_conf.get("video_seek_timeout", 10)
+                timeout_seconds = StationManager().server_conf.get( "video_seek_timeout", 10)
 
                 start_time = time.time()
 
@@ -319,6 +312,15 @@ class StationPlayer:
                             self._l.error(f"Error getting duration: {e}")
                             return False
                         time.sleep(0.05)
+
+                # Perform seek if needed (before showing overlay)
+                if not is_stream and current_time is not None and current_time > 0:
+                    try:
+                        self.mpv.seek(current_time)
+                        self._l.info(f"Seeking for: {current_time}")
+                    except Exception as e:
+                        self._l.error(f"Failed seeking {current_time} on {file_path}: {e}")
+                        return False
 
                 # Show Now Playing overlay for audio feature files
                 self._l.info(f"Media type: {media_type}, Content type: {content_type}")
