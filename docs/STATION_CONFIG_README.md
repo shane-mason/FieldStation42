@@ -220,6 +220,7 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 | Property | Type | Description |
 |----------|------|-------------|
 | `web_url` | string | URL to display (e.g., `"http://localhost:4242/diagnostics.html"`) |
+| `refresh_interval` | number | Seconds between automatic page reloads. Omit or set to `0` to disable. |
 
 ### Guide Network Properties
 
