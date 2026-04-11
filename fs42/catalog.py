@@ -292,7 +292,12 @@ class ShowCatalog:
             self.clip_index[tag] = []
             media_filter = self.config.get("media_filter", "video")
             self._l.info(f"Checking for media with tag={tag} in content folder with filter={media_filter}")
-            tag_dir = f"{self.config['content_dir']}/{tag}"
+
+            if os.path.isabs(tag):
+                tag_dir = tag
+            else:
+                tag_dir = f"{self.config['content_dir']}/{tag}"
+
             file_list = MediaProcessor._find_media(tag_dir, media_filter)
 
             self.clip_index[tag] = MediaProcessor._process_media(file_list, tag, fluid=self.__fluid_builder, content_type=content_type)
