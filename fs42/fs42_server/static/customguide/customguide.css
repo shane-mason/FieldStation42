@@ -169,6 +169,7 @@ body {
 }
 
 #text-message-title {
+  font-family: var(--title-font), var(--font-family);
   color: var(--text-panel-title-color, #ff2d6e);
   font-size: 1.3em;
   font-weight: bold;
@@ -177,6 +178,7 @@ body {
 }
 
 #text-message-body {
+  font-family: var(--body-font), var(--font-family);
   color: var(--text-panel-color, #f0f0f0);
   font-size: 1em;
   line-height: 1.5;
@@ -211,10 +213,12 @@ body {
 }
 
 .grid-channel-stub #clock {
+  font-family: var(--clock-font), var(--font-family);
   font-size: 0.75em;
 }
 
 .grid-time-slot {
+  font-family: var(--time-font), var(--font-family);
   flex: 1;
   color: var(--time-heading-color);
   font-weight: bold;
@@ -276,12 +280,14 @@ body {
 }
 
 .grid-channel .channel-number {
+  font-family: var(--channel-number-font), var(--font-family);
   color: var(--channel-number-color);
   font-weight: bold;
   text-align: center;
 }
 
 .grid-channel .channel-name {
+  font-family: var(--channel-name-font), var(--font-family);
   color: var(--channel-name-color);
   overflow: hidden;
   white-space: nowrap;
@@ -325,6 +331,7 @@ body {
 }
 
 .grid-program-block .program-title {
+  font-family: var(--show-title-font), var(--font-family);
   color: var(--show-title-color);
   overflow: hidden;
   white-space: nowrap;
