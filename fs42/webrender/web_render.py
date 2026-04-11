@@ -138,6 +138,12 @@ class WebRenderApp(QApplication):
         self.timer.timeout.connect(self.tick)
         self.timer.start(250)  # Check every 250ms
 
+        # Set up page refresh timer if configured
+        if user_conf.get("refresh_interval", 0) > 0:
+            self.refresh_timer = QTimer()
+            self.refresh_timer.timeout.connect(self.window.browser.reload)
+            self.refresh_timer.start(int(user_conf["refresh_interval"] * 1000))
+
     def tick(self):
         if self.queue and self.queue.qsize() > 0:
             msg = self.queue.get_nowait()
@@ -147,6 +153,8 @@ class WebRenderApp(QApplication):
                 print("WebRender window is shutting down now.")
                 print("Stopping timer...")
                 self.timer.stop()
+                if hasattr(self, 'refresh_timer'):
+                    self.refresh_timer.stop()
                 print("Closing window...")
                 self.window.close()
                 print("Quitting application...")

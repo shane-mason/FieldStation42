@@ -300,6 +300,11 @@
           "type": "string",
           "description": "URL for web-type networks"
         },
+        "refresh_interval": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Interval in seconds to automatically reload the web page (web networks only). Set to 0 or omit to disable."
+        },
         "messages": {
           "type": "array",
           "description": "Messages to display (guide networks)",
