@@ -70,6 +70,11 @@ class StationManager(object):
                         exit(-1)
                     else:
                         logging.getLogger().info("Guide channel checks completed.")
+                elif station["network_type"] == "web":
+                    #determine if the URL is to a custom guide
+                    if "static/customguide/customguide.html" in station["web_url"]:
+                        self.guide_config = station
+                        logging.getLogger().info("Setting web channel as guide channel")
 
     def station_by_name(self, name):
         if name in self._name_index:

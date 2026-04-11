@@ -56,9 +56,12 @@ def input_check():
                 case "reload_data":
                     LiquidManager().reload_schedules()
                 case "guide":
-                    c_number = StationManager().guide_config["channel_number"]
-                    change_request = {"command": "direct", "channel": c_number}
-                    return PlayerOutcome(PlayerState.CHANNEL_CHANGE, json.dumps(change_request))
+                    try:
+                        c_number = StationManager().guide_config["channel_number"]
+                        change_request = {"command": "direct", "channel": c_number}
+                        return PlayerOutcome(PlayerState.CHANNEL_CHANGE, json.dumps(change_request))
+                    except TypeError:
+                        logging.getLogger("InputCheck").warning("Guide channel not configured")
                 case "ticker":
                     message = q_message.get("message", None)
                     header = q_message.get("header", None)
