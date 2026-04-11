@@ -1,4 +1,5 @@
 import threading
+import traceback
 import uuid
 from fastapi import APIRouter, Request
 from fs42.station_manager import StationManager
@@ -59,7 +60,7 @@ async def rebuild_catalog(network_name: str, request: Request):
         except Exception as e:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "error"
-                rebuild_tasks[task_id]["log"] += f"Error: {e}\n"
+                rebuild_tasks[task_id]["log"] += f"Error: {e}\n\nDetailed Error Message:\n{traceback.format_exc()}"
 
     thread = threading.Thread(target=rebuild_worker, daemon=True)
     thread.start()
@@ -110,7 +111,7 @@ async def add_time_to_schedule(amount: str, network_name: str, request: Request)
         except Exception as e:
             with add_time_tasks_lock:
                 add_time_tasks[task_id]["status"] = "error"
-                add_time_tasks[task_id]["log"] += f"Error: {e}\n"
+                add_time_tasks[task_id]["log"] += f"Error: {e}\n\nDetailed Error Message:\n{traceback.format_exc()}"
 
     thread = threading.Thread(target=add_time_worker, daemon=True)
     thread.start()
@@ -160,7 +161,7 @@ async def rebuild_schedule(network_name: str, request: Request):
         except Exception as e:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "error"
-                rebuild_tasks[task_id]["log"] += f"Error: {e}\n"
+                rebuild_tasks[task_id]["log"] += f"Error: {e}\n\nDetailed Error Message:\n{traceback.format_exc()}"
 
     thread = threading.Thread(target=rebuild_schedule_worker, daemon=True)
     thread.start()
