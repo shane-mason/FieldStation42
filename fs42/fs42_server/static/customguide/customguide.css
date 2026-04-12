@@ -171,7 +171,10 @@ body {
 #text-message-title {
   font-family: var(--title-font), var(--font-family);
   color: var(--text-panel-title-color, #ff2d6e);
-  font-size: 1.3em;
+  font-size: if(
+    style(--title-font-size: null): 1.3em;
+    else: var(--title-font-size)
+    );
   font-weight: bold;
   transition: opacity 0.4s ease;
   overflow: hidden;
@@ -180,7 +183,10 @@ body {
 #text-message-body {
   font-family: var(--body-font), var(--font-family);
   color: var(--text-panel-color, #f0f0f0);
-  font-size: 1em;
+  font-size: if(
+    style(--body-font-size: null): 1em;
+    else: var(--body-font-size)
+    );
   line-height: 1.5;
   transition: opacity 0.4s ease;
   overflow: hidden;
@@ -336,10 +342,16 @@ body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 0.88em;
+  font-size: if(
+    style(--show-title-size: null): 0.88em;
+    else: var(--show-title-size)
+  );
   width: 100%;
 }
 
 .grid-program-block.current .program-title {
-  color: var(--program-current-color, #b0ffe8);
+  color: if(
+    style(--current-show-title-color: null): var(--program-current-color, #b0ffe8);
+    else: var(--current-show-title-color)
+    );
 }
