@@ -2,6 +2,7 @@ import sqlite3
 import json
 import os
 import logging
+from contextlib import contextmanager
 
 from fs42.station_manager import StationManager
 from fs42.catalog_entry import CatalogEntry
@@ -13,12 +14,24 @@ class CatalogIO:
         self._l = logging.getLogger("CATIO")
         self._init_catalog_table()
 
+    @contextmanager
+    def _get_connection(self):
+        connection = sqlite3.connect(self.db_path)
+        try:
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def _init_catalog_table(self):
         """
         Creates a database table to hold CatalogEntry records.
         Each record is associated with a station (text string).
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
 
             # Create the table with new schema
@@ -85,7 +98,7 @@ class CatalogIO:
             cursor.close()
 
     def entry_by_id(self, entry_id: int):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT * FROM catalog_entries
@@ -108,7 +121,7 @@ class CatalogIO:
         if not entry_ids:
             return {}
 
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             # Create placeholders for IN clause
             placeholders = ','.join('?' * len(entry_ids))
@@ -129,7 +142,7 @@ class CatalogIO:
             return result
 
     def put_catalog_entries(self, station_name: str, catalog_entries: list[CatalogEntry]):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
 
             for entry in catalog_entries:
@@ -168,7 +181,7 @@ class CatalogIO:
             cursor.close()
 
     def get_catalog_entries(self, station_name: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
 
             cursor.execute(
@@ -191,7 +204,7 @@ class CatalogIO:
             return catalog_entries
 
     def search_catalog_entries(self, station_name: str, query: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT * FROM catalog_entries 
@@ -209,14 +222,14 @@ class CatalogIO:
             return catalog_entries
 
     def delete_all_entries_for_station(self, station_name: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute("""DELETE FROM catalog_entries WHERE station = ?""", (station_name,))
             connection.commit()
             cursor.close()
 
     def get_entry_by_path(self, station_name: str, path: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT * FROM catalog_entries 
@@ -233,7 +246,7 @@ class CatalogIO:
             return None
 
     def get_by_tag(self, station_name: str, tag: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT * FROM catalog_entries 
@@ -250,7 +263,7 @@ class CatalogIO:
             return catalog_entries
 
     def update_entry_count(self, station_name: str, path: str, new_count: int):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """UPDATE catalog_entries 
@@ -263,7 +276,7 @@ class CatalogIO:
 
     # make a function to batch increment counts for multiple entries
     def batch_increment_counts(self, station_name: str, entries: list[CatalogEntry]):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             for entry in entries:
                 if isinstance(entry, CatalogEntry):
@@ -279,7 +292,7 @@ class CatalogIO:
             cursor.close()
 
     def find_best_candidates(self, station_name: str, tag: str, max_duration: float):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT * FROM catalog_entries 

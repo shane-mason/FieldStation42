@@ -124,6 +124,8 @@ class NowPlayingWindow(QWidget):
                     (real_path,)
                 )
                 row = cursor.fetchone()
+                cursor.close()
+                conn.close()
 
                 if row and row[0]:
                     # Parse the JSON metadata

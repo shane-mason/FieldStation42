@@ -1,5 +1,6 @@
 import sqlite3
 import json
+from contextlib import contextmanager
 from datetime import datetime
 from fs42.station_manager import StationManager
 from fs42.liquid_blocks import LiquidBlock, LiquidLoopBlock, LiquidClipBlock, LiquidOffAirBlock
@@ -18,11 +19,23 @@ class LiquidIO:
         self.db_path = StationManager().server_conf["db_path"]
         self._init_liquid_table()
 
+    @contextmanager
+    def _get_connection(self):
+        connection = sqlite3.connect(self.db_path)
+        try:
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def _init_liquid_table(self):
         """
         Creates a database table to hold liquid data.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute("""CREATE TABLE IF NOT EXISTS liquid_blocks (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +64,7 @@ class LiquidIO:
         """
         Retrieve liquid blocks from the database for a given station.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM liquid_blocks WHERE station = ? ORDER BY start_time", (station_name,))
             rows = cursor.fetchall()
@@ -79,7 +92,7 @@ class LiquidIO:
             return liquid_blocks
 
     def query_liquid_blocks(self, station_name: str, start: str, end: str) -> list[LiquidBlock]:
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 "SELECT * FROM liquid_blocks WHERE station = ? AND start_time < ? AND end_time > ? ORDER BY start_time",
@@ -113,7 +126,7 @@ class LiquidIO:
         """
         Store liquid blocks in the database.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
 
             for block in liquid_blocks:
@@ -154,7 +167,7 @@ class LiquidIO:
             connection.commit()
 
     def delete_liquid_blocks(self, station_name: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute("DELETE FROM liquid_blocks WHERE station = ?", (station_name,))
             cursor.close()
@@ -241,7 +254,7 @@ class LiquidIO:
         """
         Search liquid blocks by title for a given station.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 "SELECT * FROM liquid_blocks WHERE station = ? AND title LIKE ? ORDER BY start_time", 
@@ -261,7 +274,7 @@ class LiquidIO:
         Search liquid blocks by title across all stations.
         Returns a dictionary with station names as keys and lists of blocks as values.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 "SELECT * FROM liquid_blocks WHERE title LIKE ? ORDER BY station, start_time", 

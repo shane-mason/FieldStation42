@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import contextmanager
 
 from fs42.station_manager import StationManager
 from fs42.sequence import NamedSequence
@@ -9,12 +10,24 @@ class SequenceIO:
         self.db_path = StationManager().server_conf["db_path"]
         self._init_sequence_table()
 
+    @contextmanager
+    def _get_connection(self):
+        connection = sqlite3.connect(self.db_path)
+        try:
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
     def _init_sequence_table(self):
         """
         Creates a database table to hold SeriesIndex records.
         Each record is associated with a series (text string).
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute("""CREATE TABLE IF NOT EXISTS named_sequence (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +55,7 @@ class SequenceIO:
         """
         Store a SeriesIndex in the database.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             # Insert or update the named sequence
             cursor.execute(
@@ -71,7 +84,7 @@ class SequenceIO:
             connection.commit()
 
     def get_sequence(self, station_name: str, sequence_name: str, tag_path: str) -> NamedSequence:
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT id, start_perc, end_perc, current_index 
@@ -99,7 +112,7 @@ class SequenceIO:
             return ns
 
     def get_all_sequences_for_station(self, station_name: str) -> list[NamedSequence]:
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """SELECT id, sequence_name, tag_path, start_perc, end_perc, current_index 
@@ -131,7 +144,7 @@ class SequenceIO:
 
 
     def delete_sequences_for_station(self, station_name: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             # Delete all sequence entries for the station
             cursor.execute(
@@ -146,7 +159,7 @@ class SequenceIO:
 
     
     def update_current_index(self, station_name: str, sequence_name: str, tag_path: str, new_index: int):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """UPDATE named_sequence 
@@ -158,7 +171,7 @@ class SequenceIO:
             connection.commit()
 
     def update_sequence_index_by_path(self, station_name: str, sequence_name: str, tag_path: str, episode_path: str):
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             # Get the sequence_index for the episode_path
             cursor.execute("""
@@ -187,7 +200,7 @@ class SequenceIO:
         - If current_file is gone but fallback_index is still in bounds, keep it (different file is there now).
         - If fallback_index is out of bounds, reset to 0.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
 
             cursor.execute(
@@ -232,7 +245,7 @@ class SequenceIO:
         Clean up sequences by removing entries that are no longer valid.
         This can be used to remove entries that have been deleted from the filesystem.
         """
-        with sqlite3.connect(self.db_path) as connection:
+        with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
                 """DELETE FROM sequence_entries
