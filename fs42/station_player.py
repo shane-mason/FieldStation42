@@ -152,7 +152,7 @@ class StationPlayer:
         self.mpv.command("show-text", text, duration)
 
     def _close_now_playing(self):
-        """Terminate the Now Playing overlay if it's running"""
+        # terminate the Now Playing overlay if it's running
         if self.now_playing_process and self.now_playing_process.is_alive():
             try:
                 self.now_playing_process.terminate()
@@ -170,13 +170,10 @@ class StationPlayer:
             self.now_playing_process = None
 
     def _show_now_playing(self, file_path):
-        """Show the Now Playing overlay for an audio file"""
+        # show the Now Playing overlay for an audio file
         import time
-
-        # Close any existing overlay first
         self._close_now_playing()
-
-        # Give a brief moment for cleanup
+        # give a brief moment for cleanup
         time.sleep(0.1)
 
         # Start new overlay
@@ -324,6 +321,20 @@ class StationPlayer:
                 self._l.info(f"Media type: {media_type}, Content type: {content_type}")
                 if media_type == 'audio' and content_type == 'feature':
                     self._show_now_playing(file_path)
+                elif media_type == 'video':
+                    # Always close any existing overlay when a new video starts,
+                    # then spawn a new one only if this video has an NFO sidecar.
+                    self._close_now_playing()
+                    try:
+                        from fs42.nfo_agent import NFOAgent
+                        nfo_data = NFOAgent.read_nfo(file_path)
+                        if nfo_data:
+                            play_duration = None
+                            if file_duration is not None:
+                                play_duration = file_duration - (current_time or 0)
+                            self.now_playing_process = NFOAgent.show_overlay(nfo_data, play_duration=play_duration)
+                    except Exception as e:
+                        self._l.warning(f"Could not start NFO overlay: {e}")
 
                 return True
             else:
@@ -340,21 +351,29 @@ class StationPlayer:
 
     def play_and_wait(self, file_path):
         self._l.info(f"Play and wait on file {file_path}")
+        self._close_now_playing()
         self.mpv.vf = ""
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
         self.current_playing_file_path = file_path
 
-        keep_going = True
+        # show NFO overlay if a sidecar file exists alongside the video
+        try:
+            from fs42.nfo_agent import NFOAgent
+            nfo_data = NFOAgent.read_nfo(file_path)
+            if nfo_data:
+                self.now_playing_process = NFOAgent.show_overlay(nfo_data)
+        except Exception as e:
+            self._l.warning(f"Could not start NFO overlay: {e}")
+
         # this will keep going until channel change or other interrupt
-        while keep_going:
+        while True:
             time.sleep(0.05)
             response = self.input_check_fn()
             if response:
+                self._close_now_playing()
                 return response
-
-        return PlayerOutcome(PlayerState.SUCCESS)
 
     def play_file_list(self, file_list):
 

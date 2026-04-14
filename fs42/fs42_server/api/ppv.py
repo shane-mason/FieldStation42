@@ -6,6 +6,7 @@ import os
 import logging
 import mimetypes
 from fs42.station_manager import StationManager
+from fs42.nfo_agent import NFOAgent
 from .tmdb_helper import get_tmdb_helper
 
 router = APIRouter(prefix="/ppv", tags=["ppv"])
@@ -114,29 +115,17 @@ async def get_ppv_content(channel_number: int, variation: Optional[str] = None):
                 base_name = os.path.splitext(filename)[0]
 
                 # Look for corresponding NFO file
-                nfo_path = base_path + '.nfo'
                 nfo_data = None
                 has_nfo = False
 
-                if os.path.exists(nfo_path):
-                    try:
-                        with open(nfo_path, 'r', encoding='utf-8') as f:
-                            lines = f.readlines()
-                            # NFO format: 3 lines - title, info, description
-                            title = lines[0].strip() if len(lines) > 0 else base_name
-                            info = lines[1].strip() if len(lines) > 1 else ""
-                            description = lines[2].strip() if len(lines) > 2 else ""
-
-                            nfo_data = NFOData(
-                                title=title,
-                                info=info,
-                                description=description
-                            )
-                            has_nfo = True
-                    except Exception as e:
-                        logger.warning(f"Failed to read NFO file {nfo_path}: {e}")
-                        # Continue without NFO data
-                        pass
+                file_nfo = NFOAgent.read_nfo(file_path)
+                if file_nfo:
+                    nfo_data = NFOData(
+                        title=file_nfo.title,
+                        info=file_nfo.info,
+                        description=file_nfo.description,
+                    )
+                    has_nfo = True
 
                 # Look for corresponding image file (jpg, jpeg, png)
                 image_url = None
