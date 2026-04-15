@@ -527,6 +527,16 @@ function startClock() {
 }
 
 
+// ===== RANDOM PLAYBACK =====
+
+function randomOtherIndex(playlist, current) {
+  if (playlist.length <= 1) return 0;
+  let next;
+  do { next = Math.floor(Math.random() * playlist.length); } while (next === current);
+  return next;
+}
+
+
 // ===== MUSIC =====
 
 async function loadMusicPlaylist() {
@@ -565,9 +575,9 @@ function setupMusic() {
 
   const vol = parseFloat(getCSSVar('--music-volume'));
   bgPlayer.volume = isNaN(vol) ? 0.3 : vol;
-  bgPlayer.addEventListener('ended', () => playMusicTrack(currentMusicIndex + 1));
-  bgPlayer.addEventListener('error', () => playMusicTrack(currentMusicIndex + 1));
-  playMusicTrack(0);
+  bgPlayer.addEventListener('ended', () => playMusicTrack(randomOtherIndex(musicPlaylist, currentMusicIndex)));
+  bgPlayer.addEventListener('error', () => playMusicTrack(randomOtherIndex(musicPlaylist, currentMusicIndex)));
+  playMusicTrack(Math.floor(Math.random() * musicPlaylist.length));
 }
 
 
@@ -611,7 +621,7 @@ function setupVideo() {
 
   bgVideoPlayer.addEventListener('ended', function () {
     consecutiveErrors = 0;
-    playVideoTrack(currentVideoIndex + 1);
+    playVideoTrack(randomOtherIndex(videoPlaylist, currentVideoIndex));
   });
 
   bgVideoPlayer.addEventListener('error', function () {
@@ -622,10 +632,10 @@ function setupVideo() {
       if (videoPanel) videoPanel.style.display = 'none';
       return;
     }
-    setTimeout(() => playVideoTrack(currentVideoIndex + 1), 1000);
+    setTimeout(() => playVideoTrack(randomOtherIndex(videoPlaylist, currentVideoIndex)), 1000);
   });
 
-  playVideoTrack(0);
+  playVideoTrack(Math.floor(Math.random() * videoPlaylist.length));
 }
 
 
