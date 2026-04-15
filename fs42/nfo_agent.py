@@ -1,10 +1,26 @@
 import os
+import json
 import multiprocessing
 import logging
 
 _logger = logging.getLogger("NFOAgent")
 
 MAX_NFO_LINES = 5
+
+_MAIN_CONFIG_PATH = "confs/main_config.json"
+
+_OVERLAY_DEFAULTS = {
+    "overlay_effect": "outline",
+    "overlay_offset_px": 2,
+    "overlay_font_path": None,
+    "overlay_text_color": [255, 255, 255, 255],
+    "overlay_shadow_colour": [0, 0, 0, 255],
+    "overlay_title_size": 30,
+    "overlay_body_size": 20,
+    "overlay_title_weight": "bold",
+    "overlay_body_weight": "normal",
+    "overlay_type": "normal",
+}
 
 
 class NFOData:
@@ -28,13 +44,35 @@ class NFOData:
 DEFAULT_SHOW_SECONDS = 10
 
 
-def _run_overlay_app(lines, play_duration, show_seconds):
+def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
 
     import sys
     import signal
     from PySide6.QtWidgets import QApplication, QWidget
-    from PySide6.QtGui import QColor, QPainter, QFont, QFontMetrics
+    from PySide6.QtGui import QColor, QPainter, QFont, QFontMetrics, QFontDatabase
     from PySide6.QtCore import Qt, QTimer
+
+    effect = overlay_cfg["overlay_effect"]
+    offset_px = overlay_cfg["overlay_offset_px"]
+    font_path = overlay_cfg["overlay_font_path"]
+    text_color = overlay_cfg["overlay_text_color"]
+    shadow_colour = overlay_cfg["overlay_shadow_colour"]
+    title_size = overlay_cfg["overlay_title_size"]
+    body_size = overlay_cfg["overlay_body_size"]
+    title_weight = overlay_cfg["overlay_title_weight"]
+    body_weight = overlay_cfg["overlay_body_weight"]
+    overlay_type = overlay_cfg["overlay_type"]
+
+    font_family = "Arial"
+    if font_path and os.path.exists(font_path):
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id >= 0:
+            families = QFontDatabase.applicationFontFamilies(font_id)
+            if families:
+                font_family = families[0]
+
+    def _qt_weight(weight_str):
+        return QFont.Bold if weight_str == "bold" else QFont.Normal
 
     class NFOOverlayWindow(QWidget):
         def __init__(self, nfo_lines):
@@ -57,26 +95,43 @@ def _run_overlay_app(lines, play_duration, show_seconds):
                 screen_height = 1080
 
             self.scale = screen_height / 1080.0
-            self.lines = nfo_lines
 
-            self.title_font = QFont("Arial", int(30 * self.scale), QFont.Bold)
-            self.body_font = QFont("Arial", int(20 * self.scale), QFont.Normal)
+            if overlay_type == "minimal":
+                self.lines = nfo_lines[:2]
+            else:
+                self.lines = nfo_lines
 
-            self.white = QColor(255, 255, 255)
-            self.outline = QColor(0, 0, 0)
+            self.title_font = QFont(font_family, int(title_size * self.scale), _qt_weight(title_weight))
+            self.body_font = QFont(font_family, int(body_size * self.scale), _qt_weight(body_weight))
 
-        def _draw_outlined_text(self, painter, x, y, text, font, outline_px=2):
+            self.text_color = QColor(*text_color)
+            self.effect_color = QColor(*shadow_colour)
+
+        def _draw_drop_shadow(self, painter, x, y, text, font, px):
+            painter.setFont(font)
+            painter.setPen(self.effect_color)
+            painter.drawText(x + px, y + px, text)
+            painter.setPen(self.text_color)
+            painter.drawText(x, y, text)
+
+        def _draw_outline(self, painter, x, y, text, font, px):
             painter.setFont(font)
             offsets = [
-                (-outline_px, -outline_px), (0, -outline_px), (outline_px, -outline_px),
-                (-outline_px,  0),                             (outline_px,  0),
-                (-outline_px,  outline_px), (0,  outline_px), (outline_px,  outline_px),
+                (-px, -px), (0, -px), (px, -px),
+                (-px,   0),           (px,   0),
+                (-px,  px), (0,  px), (px,  px),
             ]
-            painter.setPen(self.outline)
+            painter.setPen(self.effect_color)
             for dx, dy in offsets:
                 painter.drawText(x + dx, y + dy, text)
-            painter.setPen(self.white)
+            painter.setPen(self.text_color)
             painter.drawText(x, y, text)
+
+        def _draw_text(self, painter, x, y, text, font, px):
+            if effect == "drop_shadow":
+                self._draw_drop_shadow(painter, x, y, text, font, px)
+            else:
+                self._draw_outline(painter, x, y, text, font, px)
 
         def paintEvent(self, event):
             if not self.lines:
@@ -89,7 +144,7 @@ def _run_overlay_app(lines, play_duration, show_seconds):
             scale = self.scale
             margin_x = int(80 * scale)
             margin_y = int(80 * scale)
-            outline_px = max(2, int(2 * scale))
+            px = max(1, int(offset_px * scale))
 
             title_metrics = QFontMetrics(self.title_font)
             body_metrics = QFontMetrics(self.body_font)
@@ -97,17 +152,17 @@ def _run_overlay_app(lines, play_duration, show_seconds):
             title_line_h = int(title_metrics.height() * 1.2)
             body_line_h = int(body_metrics.height() * 1.2)
 
-            # Calculate total block height so we can anchor to the bottom
+            # Anchor to the bottom of the screen
             total_h = title_line_h + body_line_h * (len(self.lines) - 1)
             start_y = self.height() - margin_y - total_h
 
             x = margin_x
             y = start_y + title_metrics.ascent()
-            self._draw_outlined_text(painter, x, y, self.lines[0], self.title_font, outline_px)
+            self._draw_text(painter, x, y, self.lines[0], self.title_font, px)
 
             y += title_line_h
             for line in self.lines[1:]:
-                self._draw_outlined_text(painter, x, y, line, self.body_font, outline_px)
+                self._draw_text(painter, x, y, line, self.body_font, px)
                 y += body_line_h
 
             painter.end()
@@ -140,6 +195,20 @@ def _run_overlay_app(lines, play_duration, show_seconds):
 
 class NFOAgent:
     """Static utility for NFO sidecar files and their now-playing overlay."""
+
+    @staticmethod
+    def _load_overlay_config():
+        cfg = dict(_OVERLAY_DEFAULTS)
+        try:
+            if os.path.exists(_MAIN_CONFIG_PATH):
+                with open(_MAIN_CONFIG_PATH, "r", encoding="utf-8") as f:
+                    main_cfg = json.load(f)
+                for key in _OVERLAY_DEFAULTS:
+                    if key in main_cfg:
+                        cfg[key] = main_cfg[key]
+        except Exception as e:
+            _logger.warning(f"Could not load overlay config from {_MAIN_CONFIG_PATH}: {e}")
+        return cfg
 
     @staticmethod
     def _parse_xml_nfo(content):
@@ -212,9 +281,10 @@ class NFOAgent:
         if nfo_data is None:
             return None
         try:
+            overlay_cfg = NFOAgent._load_overlay_config()
             process = multiprocessing.Process(
                 target=_run_overlay_app,
-                args=(nfo_data.lines, play_duration, show_seconds),
+                args=(nfo_data.lines, play_duration, show_seconds, overlay_cfg),
                 daemon=True,
             )
             process.start()
