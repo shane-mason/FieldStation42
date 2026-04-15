@@ -20,6 +20,7 @@ _OVERLAY_DEFAULTS = {
     "overlay_title_weight": "bold",
     "overlay_body_weight": "normal",
     "overlay_type": "normal",
+    "overlay_fade_duration_ms": 600,
 }
 
 
@@ -106,6 +107,7 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
 
             self.text_color = QColor(*text_color)
             self.effect_color = QColor(*shadow_color)
+            self.opacity = 1.0
 
         def _draw_drop_shadow(self, painter, x, y, text, font, px):
             painter.setFont(font)
@@ -138,9 +140,17 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
             if not self.lines:
                 return
 
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setRenderHint(QPainter.TextAntialiasing)
+            from PySide6.QtGui import QPixmap
+
+            # Render text and effect to an off-screen pixmap at full opacity so
+            # overlapping shadow copies composite correctly, then draw the whole
+            # pixmap onto the widget at self.opacity so everything fades as one.
+            pixmap = QPixmap(self.size())
+            pixmap.fill(Qt.transparent)
+
+            pm = QPainter(pixmap)
+            pm.setRenderHint(QPainter.Antialiasing)
+            pm.setRenderHint(QPainter.TextAntialiasing)
 
             scale = self.scale
             margin_x = int(80 * scale)
@@ -159,14 +169,56 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
 
             x = margin_x
             y = start_y + title_metrics.ascent()
-            self._draw_text(painter, x, y, self.lines[0], self.title_font, px)
+            self._draw_text(pm, x, y, self.lines[0], self.title_font, px)
 
             y += title_line_h
             for line in self.lines[1:]:
-                self._draw_text(painter, x, y, line, self.body_font, px)
+                self._draw_text(pm, x, y, line, self.body_font, px)
                 y += body_line_h
 
+            pm.end()
+
+            painter = QPainter(self)
+            painter.setOpacity(self.opacity)
+            painter.drawPixmap(0, 0, pixmap)
             painter.end()
+
+    FADE_DURATION_MS = overlay_cfg["overlay_fade_duration_ms"]
+    FADE_INTERVAL_MS = 30  # ~33 fps
+
+    def fade_out(on_done=None):
+        steps = max(1, FADE_DURATION_MS // FADE_INTERVAL_MS)
+        step_size = 1.0 / steps
+        timer = QTimer()
+
+        def tick():
+            window.opacity = max(0.0, window.opacity - step_size)
+            window.update()
+            if window.opacity <= 0.0:
+                timer.stop()
+                if on_done:
+                    on_done()
+
+        window._fade_timer = timer  # prevent GC
+        timer.timeout.connect(tick)
+        timer.start(FADE_INTERVAL_MS)
+
+    def fade_in():
+        window.opacity = 0.0
+        window.show()
+        steps = max(1, FADE_DURATION_MS // FADE_INTERVAL_MS)
+        step_size = 1.0 / steps
+        timer = QTimer()
+
+        def tick():
+            window.opacity = min(1.0, window.opacity + step_size)
+            window.update()
+            if window.opacity >= 1.0:
+                timer.stop()
+
+        window._fade_timer = timer  # prevent GC
+        timer.timeout.connect(tick)
+        timer.start(FADE_INTERVAL_MS)
 
     def signal_handler(sig, frame):
         QApplication.quit()
@@ -183,12 +235,12 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
     if play_duration is not None and play_duration > show_seconds * 2:
         hide_timer = QTimer()
         hide_timer.setSingleShot(True)
-        hide_timer.timeout.connect(window.hide)
+        hide_timer.timeout.connect(lambda: fade_out(on_done=window.hide))
         hide_timer.start(int(show_seconds * 1000))
 
         show_timer = QTimer()
         show_timer.setSingleShot(True)
-        show_timer.timeout.connect(window.show)
+        show_timer.timeout.connect(fade_in)
         show_timer.start(int((play_duration - show_seconds) * 1000))
 
     sys.exit(app.exec())
