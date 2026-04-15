@@ -110,7 +110,8 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
         def _draw_drop_shadow(self, painter, x, y, text, font, px):
             painter.setFont(font)
             painter.setPen(self.effect_color)
-            painter.drawText(x + px, y + px, text)
+            for i in range(1, px + 1):
+                painter.drawText(x + i, y + i, text)
             painter.setPen(self.text_color)
             painter.drawText(x, y, text)
 
