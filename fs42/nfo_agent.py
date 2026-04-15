@@ -63,14 +63,6 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
     body_weight = overlay_cfg["overlay_body_weight"]
     overlay_type = overlay_cfg["overlay_type"]
 
-    font_family = "Arial"
-    if font_path and os.path.exists(font_path):
-        font_id = QFontDatabase.addApplicationFont(font_path)
-        if font_id >= 0:
-            families = QFontDatabase.applicationFontFamilies(font_id)
-            if families:
-                font_family = families[0]
-
     def _qt_weight(weight_str):
         return QFont.Bold if weight_str == "bold" else QFont.Normal
 
@@ -100,6 +92,14 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
                 self.lines = nfo_lines[:2]
             else:
                 self.lines = nfo_lines
+
+            font_family = "Arial"
+            if font_path and os.path.exists(font_path):
+                font_id = QFontDatabase.addApplicationFont(font_path)
+                if font_id >= 0:
+                    families = QFontDatabase.applicationFontFamilies(font_id)
+                    if families:
+                        font_family = families[0]
 
             self.title_font = QFont(font_family, int(title_size * self.scale), _qt_weight(title_weight))
             self.body_font = QFont(font_family, int(body_size * self.scale), _qt_weight(body_weight))
