@@ -14,7 +14,7 @@ _OVERLAY_DEFAULTS = {
     "overlay_offset_px": 2,
     "overlay_font_path": None,
     "overlay_text_color": [255, 255, 255, 255],
-    "overlay_shadow_colour": [0, 0, 0, 255],
+    "overlay_shadow_color": [0, 0, 0, 255],
     "overlay_title_size": 30,
     "overlay_body_size": 20,
     "overlay_title_weight": "bold",
@@ -56,7 +56,7 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
     offset_px = overlay_cfg["overlay_offset_px"]
     font_path = overlay_cfg["overlay_font_path"]
     text_color = overlay_cfg["overlay_text_color"]
-    shadow_colour = overlay_cfg["overlay_shadow_colour"]
+    shadow_color = overlay_cfg["overlay_shadow_color"]
     title_size = overlay_cfg["overlay_title_size"]
     body_size = overlay_cfg["overlay_body_size"]
     title_weight = overlay_cfg["overlay_title_weight"]
@@ -105,7 +105,7 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
             self.body_font = QFont(font_family, int(body_size * self.scale), _qt_weight(body_weight))
 
             self.text_color = QColor(*text_color)
-            self.effect_color = QColor(*shadow_colour)
+            self.effect_color = QColor(*shadow_color)
 
         def _draw_drop_shadow(self, painter, x, y, text, font, px):
             painter.setFont(font)
