@@ -1,13 +1,10 @@
 import os
-import json
 import multiprocessing
 import logging
 
 _logger = logging.getLogger("NFOAgent")
 
 MAX_NFO_LINES = 5
-
-_MAIN_CONFIG_PATH = "confs/main_config.json"
 
 _OVERLAY_DEFAULTS = {
     "overlay_effect": "outline",
@@ -53,17 +50,6 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
     from PySide6.QtGui import QColor, QPainter, QFont, QFontMetrics, QFontDatabase
     from PySide6.QtCore import Qt, QTimer
 
-    effect = overlay_cfg["overlay_effect"]
-    offset_px = overlay_cfg["overlay_offset_px"]
-    font_path = overlay_cfg["overlay_font_path"]
-    text_color = overlay_cfg["overlay_text_color"]
-    shadow_color = overlay_cfg["overlay_shadow_color"]
-    title_size = overlay_cfg["overlay_title_size"]
-    body_size = overlay_cfg["overlay_body_size"]
-    title_weight = overlay_cfg["overlay_title_weight"]
-    body_weight = overlay_cfg["overlay_body_weight"]
-    overlay_type = overlay_cfg["overlay_type"]
-
     def _qt_weight(weight_str):
         return QFont.Bold if weight_str == "bold" else QFont.Normal
 
@@ -89,12 +75,13 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
 
             self.scale = screen_height / 1080.0
 
-            if overlay_type == "minimal":
+            if overlay_cfg["overlay_type"] == "minimal":
                 self.lines = nfo_lines[:2]
             else:
                 self.lines = nfo_lines
 
             font_family = "Arial"
+            font_path = overlay_cfg["overlay_font_path"]
             if font_path and os.path.exists(font_path):
                 font_id = QFontDatabase.addApplicationFont(font_path)
                 if font_id >= 0:
@@ -102,11 +89,11 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
                     if families:
                         font_family = families[0]
 
-            self.title_font = QFont(font_family, int(title_size * self.scale), _qt_weight(title_weight))
-            self.body_font = QFont(font_family, int(body_size * self.scale), _qt_weight(body_weight))
+            self.title_font = QFont(font_family, int(overlay_cfg["overlay_title_size"] * self.scale), _qt_weight(overlay_cfg["overlay_title_weight"]))
+            self.body_font = QFont(font_family, int(overlay_cfg["overlay_body_size"] * self.scale), _qt_weight(overlay_cfg["overlay_body_weight"]))
 
-            self.text_color = QColor(*text_color)
-            self.effect_color = QColor(*shadow_color)
+            self.text_color = QColor(*overlay_cfg["overlay_text_color"])
+            self.effect_color = QColor(*overlay_cfg["overlay_shadow_color"])
             self.opacity = 1.0
 
         def _draw_drop_shadow(self, painter, x, y, text, font, px):
@@ -131,7 +118,7 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
             painter.drawText(x, y, text)
 
         def _draw_text(self, painter, x, y, text, font, px):
-            if effect == "drop_shadow":
+            if overlay_cfg["overlay_effect"] == "drop_shadow":
                 self._draw_drop_shadow(painter, x, y, text, font, px)
             else:
                 self._draw_outline(painter, x, y, text, font, px)
@@ -155,7 +142,7 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
             scale = self.scale
             margin_x = int(80 * scale)
             margin_y = int(80 * scale)
-            px = max(1, int(offset_px * scale))
+            px = max(1, int(overlay_cfg["overlay_offset_px"] * scale))
 
             title_metrics = QFontMetrics(self.title_font)
             body_metrics = QFontMetrics(self.body_font)
@@ -183,11 +170,10 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
             painter.drawPixmap(0, 0, pixmap)
             painter.end()
 
-    FADE_DURATION_MS = overlay_cfg["overlay_fade_duration_ms"]
     FADE_INTERVAL_MS = 30  # ~33 fps
 
     def fade_out(on_done=None):
-        steps = max(1, FADE_DURATION_MS // FADE_INTERVAL_MS)
+        steps = max(1, overlay_cfg["overlay_fade_duration_ms"] // FADE_INTERVAL_MS)
         step_size = 1.0 / steps
         timer = QTimer()
 
@@ -206,7 +192,7 @@ def _run_overlay_app(lines, play_duration, show_seconds, overlay_cfg):
     def fade_in():
         window.opacity = 0.0
         window.show()
-        steps = max(1, FADE_DURATION_MS // FADE_INTERVAL_MS)
+        steps = max(1, overlay_cfg["overlay_fade_duration_ms"] // FADE_INTERVAL_MS)
         step_size = 1.0 / steps
         timer = QTimer()
 
@@ -253,14 +239,14 @@ class NFOAgent:
     def _load_overlay_config():
         cfg = dict(_OVERLAY_DEFAULTS)
         try:
-            if os.path.exists(_MAIN_CONFIG_PATH):
-                with open(_MAIN_CONFIG_PATH, "r", encoding="utf-8") as f:
-                    main_cfg = json.load(f)
-                for key in _OVERLAY_DEFAULTS:
-                    if key in main_cfg:
-                        cfg[key] = main_cfg[key]
+            from fs42.station_manager import StationManager
+            main_conf = StationManager().server_conf
+            overlay_conf = main_conf.get("overlay_conf", {})
+            for key in _OVERLAY_DEFAULTS:
+                if key in overlay_conf:
+                    cfg[key] = overlay_conf[key]
         except Exception as e:
-            _logger.warning(f"Could not load overlay config from {_MAIN_CONFIG_PATH}: {e}")
+            _logger.warning(f"Could not load overlay config from StationManager: {e}")
         return cfg
 
     @staticmethod
