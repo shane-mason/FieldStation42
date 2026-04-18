@@ -722,7 +722,10 @@ class ShowCatalog:
                     current_duration += candidate.duration
                     clips.append(candidate)
                 elif projected_duration > target_content_max:
-                    # would exceed maximum - stop here
+                    # for "end" strategy, add the clip if it lands closer to the target than stopping here
+                    if break_strategy == "end" and abs(projected_duration - target_content_max) < abs(current_duration - target_content_max):
+                        current_duration += candidate.duration
+                        clips.append(candidate)
                     keep_going = False
                 elif current_duration >= target_content_min:
                     # we're at or above minimum and under maximum - add the clip
