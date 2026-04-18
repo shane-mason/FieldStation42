@@ -160,6 +160,7 @@ class StationPlayer:
         self.scrambler = None
         self.now_playing_process = None
         self.schedule_lock = None
+        self._base_af = self.mpv.af or ""
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -479,7 +480,7 @@ class StationPlayer:
             else:
                 self._l.warning(f"Audio scramble effect '{afx}' does not exist.")
         else:
-            self.mpv.af = ""
+            self.mpv.af = self._base_af
 
     def play_image(self, duration):
         pass
