@@ -118,8 +118,11 @@ class LiquidSchedule:
         next_mark = None
         # handle clip show
         clip_config = self.conf["clip_shows"][tag_str]
+        break_duration = clip_config.get("break_duration", self.conf.get("break_duration", None))
+        break_strategy = clip_config.get("break_strategy", self.conf.get("break_strategy", None))
         clip_content = self.catalog.gather_clip_content(
-            tag_str, clip_config.get("duration"), current_mark, clip_config.get("start_clip", None), clip_config.get("end_clip", None)
+            tag_str, clip_config.get("duration"), current_mark, clip_config.get("start_clip", None), clip_config.get("end_clip", None),
+            break_duration=break_duration, break_strategy=break_strategy
         )
         if len(clip_content) == 0:
             # this should only happen on an error (have a tag, but no candidate)
