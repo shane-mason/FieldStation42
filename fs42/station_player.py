@@ -160,7 +160,7 @@ class StationPlayer:
         self.scrambler = None
         self.now_playing_process = None
         self.schedule_lock = None
-        self._base_af = self.mpv.af or ""
+        self._active_afx = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -476,11 +476,14 @@ class StationPlayer:
             afx = slot["audio_scramble_fx"]
         if afx:
             if afx in self.audio_scramble_effects:
-                self.mpv.af = self.audio_scramble_effects[afx]
+                self.mpv.command("af", "add", self.audio_scramble_effects[afx])
+                self._active_afx = self.audio_scramble_effects[afx]
             else:
                 self._l.warning(f"Audio scramble effect '{afx}' does not exist.")
         else:
-            self.mpv.af = self._base_af
+            if self._active_afx:
+                self.mpv.command("af", "remove", self._active_afx)
+                self._active_afx = None
 
     def play_image(self, duration):
         pass
