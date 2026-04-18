@@ -102,7 +102,26 @@ class StationPlayer:
             "b='p(X + 24*sin(2*PI*Y/68) +  8*sin(2*PI*N/12), Y)',"
             "scale=640:480:flags=neighbor"
             "]"
+        ),
+        "special_sauce" : (
+            "lavfi=["
+            "scale=360:240:flags=fast_bilinear,"
+            "format=gbrp,"
+            "geq="
+            "r='p(mod(X + 80*sin(2*PI*Y/45 + N*0.4) + 20*sin(2*PI*Y/13 + N*0.7),W), Y)':"
+            "g='p(mod(X + 70*sin(2*PI*Y/48 + N*0.43) + 17*sin(2*PI*Y/14 + N*0.73),W), Y)':"
+            "b='p(mod(X + 60*sin(2*PI*Y/50 + N*0.46) + 13*sin(2*PI*Y/15 + N*0.76),W), Y)'"
+            ":interpolation=nearest,"
+            "noise=alls=15:allf=t,"
+            "eq=contrast=1.2:brightness=-0.05:saturation=1.2,"
+            "format=yuv420p,"
+            "scale=640:480:flags=neighbor"
+            "]"
         )
+    }
+
+    audio_scramble_effects = {
+        "special_sauce": "lavfi=[afreqshift=shift=-2000,vibrato=f=2.5:d=0.4,volume=0.8]"
     }
 
     def __init__(self, station_config, input_check_fn, mpv=None):
@@ -353,6 +372,7 @@ class StationPlayer:
         self._l.info(f"Play and wait on file {file_path}")
         self._close_now_playing()
         self.mpv.vf = ""
+        self.mpv.af = ""
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
@@ -446,6 +466,20 @@ class StationPlayer:
             self.skip_reception_check = False
             self.mpv.vf = ""
             self.scrambler = None
+
+        # Apply audio scramble filter if configured
+        afx = None
+        if "audio_scramble_fx" in self.station_config:
+            afx = self.station_config["audio_scramble_fx"]
+        if slot and "audio_scramble_fx" in slot:
+            afx = slot["audio_scramble_fx"]
+        if afx:
+            if afx in self.audio_scramble_effects:
+                self.mpv.af = self.audio_scramble_effects[afx]
+            else:
+                self._l.warning(f"Audio scramble effect '{afx}' does not exist.")
+        else:
+            self.mpv.af = ""
 
     def play_image(self, duration):
         pass
