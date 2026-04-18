@@ -115,7 +115,8 @@ class StationManager(object):
                     "tmdb_api_key",
                     "recall_last_channel",
                     "schedule_agent",
-                    "video_seek_timeout"
+                    "video_seek_timeout",
+                    "overlay_conf",
                 ]
 
                 for key in to_check:
