@@ -153,16 +153,23 @@ class LogoDisplay(object):
         else:
             return None
 
+        stripped = first_tag.strip()
         safe = (
-            first_tag.strip()
+            stripped
             .replace(" ", "_")
             .replace("/", "_")
             .replace("\\", "_")
             .replace(":", "_")
         )
         candidate = base_dir / safe
+
         if candidate.exists() and candidate.is_dir():
             return candidate
+
+        if stripped != safe:
+            candidate_orig = base_dir / stripped
+            if candidate_orig.exists() and candidate_orig.is_dir():
+                return candidate_orig
         return None
 
     # -------------------------------------------------------------------------
@@ -445,9 +452,9 @@ class LogoDisplay(object):
             if prev_type != ContentType.FEATURE and new_type == ContentType.FEATURE:
                 self.time_since_change = 0.0
 
-            # For multi-logo stations, reshuffle on each title change
-            if multi_setting in ("multi",):
-                self.load_logo_for_channel(status)
+            # Reload logo on any title change — show-specific (tag-based) logos
+            # may differ between shows, and multi-logo stations should reshuffle
+            self.load_logo_for_channel(status)
 
             return
 

@@ -660,7 +660,7 @@ class ShowCatalog:
 
         return blocks
 
-    def gather_clip_content(self, tag, duration, when, start_clip, end_clip):
+    def gather_clip_content(self, tag, duration, when, start_clip, end_clip, break_duration=None, break_strategy=None):
         current_duration = 0
         keep_going = True
         clips = []
@@ -671,8 +671,13 @@ class ShowCatalog:
         CONTENT_RATIO_MAX = 0.80
 
         # calculate target content duration range
-        target_content_min = duration * CONTENT_RATIO_MIN
-        target_content_max = duration * CONTENT_RATIO_MAX
+        # for "end" strategy, break_duration is the total commercial time, so use it directly
+        if break_strategy == "end" and break_duration is not None and break_duration > 0 and break_duration < duration:
+            target_content_max = duration - break_duration
+            target_content_min = target_content_max * CONTENT_RATIO_MIN / CONTENT_RATIO_MAX
+        else:
+            target_content_min = duration * CONTENT_RATIO_MIN
+            target_content_max = duration * CONTENT_RATIO_MAX
 
         if start_clip is not None:
             try:
@@ -717,7 +722,10 @@ class ShowCatalog:
                     current_duration += candidate.duration
                     clips.append(candidate)
                 elif projected_duration > target_content_max:
-                    # would exceed maximum - stop here
+                    # for "end" strategy, add the clip if it lands closer to the target than stopping here
+                    if break_strategy == "end" and abs(projected_duration - target_content_max) < abs(current_duration - target_content_max):
+                        current_duration += candidate.duration
+                        clips.append(candidate)
                     keep_going = False
                 elif current_duration >= target_content_min:
                     # we're at or above minimum and under maximum - add the clip
