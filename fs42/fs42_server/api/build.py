@@ -23,6 +23,11 @@ async def rebuild_catalog(network_name: str, request: Request):
         rebuild_tasks[task_id] = {"status": "starting", "log": ""}
 
     def rebuild_worker():
+        # Clear the fluid file cache dedup set so scan_file_cache runs fresh
+        # for each unique content_dir in this rebuild pass.  Without this, a
+        # second rebuild request in the same server process would silently skip
+        # all directory scans, missing any files added since the first request.
+        ShowCatalog.clear_fluid_cache()
         try:
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "running"
