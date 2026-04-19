@@ -121,7 +121,11 @@ class StationPlayer:
     }
 
     audio_scramble_effects = {
-        "special_sauce": "lavfi=[afreqshift=shift=-2000,vibrato=f=2.5:d=0.4,volume=0.8]"
+        "special_sauce": "lavfi=[afreqshift=shift=-2000,vibrato=f=2.5:d=0.4,volume=0.8]",
+        "the_jitters": "lavfi=[afreqshift=shift=-3000,aecho=0.6:0.5:50|80:0.4|0.3,tremolo=f=8:d=0.9,volume=0.7]",
+        "possessed": "lavfi=[chorus=0.3:0.3:40|60|80:0.4|0.3|0.2:0.8|1.2|1.6:3|4|5,afreqshift=shift=-1500,lowpass=f=2500,volume=0.8]",
+        "demonic": "lavfi=[rubberband=pitch=0.5,chorus=0.3:0.3:40|60:0.4|0.3:1.0|1.4:3|4,volume=1.0]",
+        "slightly_borked": "lavfi=[acrusher=bits=3:samples=12:lfo=true:lforange=50:lforate=0.3,vibrato=f=3:d=0.5,volume=0.25]"
     }
 
     def __init__(self, station_config, input_check_fn, mpv=None):
