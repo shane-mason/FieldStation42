@@ -474,16 +474,15 @@ class StationPlayer:
             afx = self.station_config["audio_scramble_fx"]
         if slot and "audio_scramble_fx" in slot:
             afx = slot["audio_scramble_fx"]
-        if afx:
-            if afx in self.audio_scramble_effects:
-                self.mpv.command("af", "add", self.audio_scramble_effects[afx])
-                self._active_afx = self.audio_scramble_effects[afx]
-            else:
-                self._l.warning(f"Audio scramble effect '{afx}' does not exist.")
-        else:
-            if self._active_afx:
-                self.mpv.command("af", "remove", self._active_afx)
-                self._active_afx = None
+        new_afx = self.audio_scramble_effects.get(afx) if afx else None
+        if self._active_afx and self._active_afx != new_afx:
+            self.mpv.command("af", "remove", self._active_afx)
+            self._active_afx = None
+        if new_afx and new_afx != self._active_afx:
+            self.mpv.command("af", "add", new_afx)
+            self._active_afx = new_afx
+        elif afx and afx not in self.audio_scramble_effects:
+            self._l.warning(f"Audio scramble effect '{afx}' does not exist.")
 
     def play_image(self, duration):
         pass
