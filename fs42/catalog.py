@@ -550,6 +550,12 @@ class ShowCatalog:
         start_candidate = None
         end_candidate = None
 
+        # first, is it a filler reel?
+        if AutoBumpAgent.do_fill(self.config):
+            fill = AutoBumpAgent.fill_block(self.config, target_duration)
+            return ReelBlock(fill, [], None)
+
+
         # INSERT AUTO BUMPER LOGIC HERE
         if bumpers:
             if "autobump" not in self.config:
@@ -632,31 +638,35 @@ class ShowCatalog:
         # discard that block and fill using the tightest technique possible
         additional_reels = []
 
-        while remaining and keep_going:
-            candidate = None
-            try:
-                if not self.config["commercial_free"]:
-                    candidate = self.find_commercial(seconds=remaining, when=when, commercial_dir=commercial_dir)
+        if AutoBumpAgent.do_fill(self.config):
+            fill = AutoBumpAgent.fill_block(self.config, remaining)
+            blocks.append(ReelBlock(fill, [], None))
+        else:
+            while remaining and keep_going:
+                candidate = None
+                try:
+                    if not self.config["commercial_free"]:
+                        candidate = self.find_commercial(seconds=remaining, when=when, commercial_dir=commercial_dir)
+                    else:
+                        candidate = self.find_bump(remaining, when, "fill", bump_tag=bump_dir)
+                except MatchingContentNotFound:
+                    if remaining > self.min_gap:
+                        self._l.debug(
+                            f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
+                        )
+
+                if candidate:
+                    additional_reels.append(candidate)
+                    remaining -= candidate.duration
                 else:
-                    candidate = self.find_bump(remaining, when, "fill", bump_tag=bump_dir)
-            except MatchingContentNotFound:
-                if remaining > self.min_gap:
-                    self._l.debug(
-                        f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
-                    )
+                    # If BRB is enabled, we'll use that to fill the remaining gap
+                    if remaining > self.min_gap and "be_right_back_media" in self.config:
+                        brb = CatalogEntry(self.config["be_right_back_media"], duration=remaining, tag="brb")
+                        additional_reels.append(brb)
+                    keep_going = False
+                    remaining = 0
 
-            if candidate:
-                additional_reels.append(candidate)
-                remaining -= candidate.duration
-            else:
-                # If BRB is enabled, we'll use that to fill the remaining gap
-                if remaining > self.min_gap and "be_right_back_media" in self.config:
-                    brb = CatalogEntry(self.config["be_right_back_media"], duration=remaining, tag="brb")
-                    additional_reels.append(brb)
-                keep_going = False
-                remaining = 0
-
-        blocks.append(ReelBlock(None, additional_reels, None))
+            blocks.append(ReelBlock(None, additional_reels, None))
 
         return blocks
 

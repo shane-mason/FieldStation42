@@ -8,7 +8,9 @@ class StationBump {
         this.detailLine2 = document.getElementById('detailLine2');
         this.detailLine3 = document.getElementById('detailLine3');
         this.bgMusicPlayer = document.getElementById('bgMusicPlayer');
-        
+        this.countdownTimer = document.getElementById('countdownTimer');
+        this.countdownDisplay = document.getElementById('countdownDisplay');
+
         this.config = {
             title: 'FieldStation42',
             subtitle: 'Big Time Watching Is Here!',
@@ -24,6 +26,8 @@ class StationBump {
             variation: 'modern',
             cssOverride: null,
             bgMusic: null,
+            loopMusic: true,
+            countdown: false,
             ...config
         };
         
@@ -33,6 +37,7 @@ class StationBump {
     async init() {
         await this.applyConfiguration();
         this.setupAutoHide();
+        this.setupCountdown();
     }
     
     async applyConfiguration() {
@@ -238,6 +243,30 @@ class StationBump {
         }
     }
     
+    setupCountdown() {
+        if (!this.config.countdown || this.config.duration <= 0) return;
+
+        this.countdownTimer.style.display = 'block';
+
+        const totalMs = this.config.duration;
+        const startTime = Date.now();
+
+        const update = () => {
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, totalMs - elapsed);
+            const totalSecs = Math.ceil(remaining / 1000);
+            const mins = Math.floor(totalSecs / 60);
+            const secs = totalSecs % 60;
+            this.countdownDisplay.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+
+            if (remaining > 0) {
+                requestAnimationFrame(update);
+            }
+        };
+
+        requestAnimationFrame(update);
+    }
+
     setupAutoHide() {
         if (this.config.duration > 0) {
             // Enforce minimum duration of 2 seconds (2000ms)
@@ -264,6 +293,7 @@ class StationBump {
     setupBackgroundMusic() {
         if (this.config.bgMusic && this.bgMusicPlayer) {
             this.bgMusicPlayer.src = this.config.bgMusic;
+            this.bgMusicPlayer.loop = this.config.loopMusic;
             this.bgMusicPlayer.volume = 0.3; // Set a reasonable default volume
 
             // Try to play the music
@@ -319,7 +349,9 @@ class StationBump {
             nextUp: params.get('next_network') || null,
             variation: params.get('variation') || 'modern',
             cssOverride: params.get('css') || null,
-            bgMusic: params.get('bg_music') || null
+            bgMusic: params.get('bg_music') || null,
+            loopMusic: params.get('loopmusic') !== 'false',
+            countdown: params.get('countdown') === 'true'
         };
         
         return new StationBump(config);

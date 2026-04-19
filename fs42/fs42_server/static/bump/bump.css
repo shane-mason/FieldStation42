@@ -127,6 +127,24 @@ body {
     }
 }
 
+.countdown-timer {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+    z-index: 20;
+    font-family: 'JetBrains Mono', 'Roboto', monospace;
+    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.9);
+    letter-spacing: 2px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 6px 14px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+    animation: fadeInUp 1s ease-out both;
+}
+
 .ntsc-safe {
     width: 640px;
     height: 400px;

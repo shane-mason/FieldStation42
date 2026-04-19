@@ -1,3 +1,4 @@
+import random
 import sys
 import os
 
@@ -9,6 +10,27 @@ import urllib.parse
 class AutoBumpAgent:
     base_url = "http://127.0.0.1:4242/static/bump/bump.html"
     url_prefix = ":autobump:="
+
+
+    @staticmethod
+    def do_fill(station_config):
+        if "autobump" not in station_config:
+            return False
+        if "fill_break" not in station_config["autobump"]:
+            return False
+        if random.random() < station_config["autobump"]["fill_break"]:
+            return True
+        return False
+
+    @staticmethod
+    def fill_block(station_config, duration):
+        if "autobump" not in station_config:
+            return None
+        ab_config = station_config["autobump"]
+        ab_config["duration"] = duration
+        fill_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.base_url, station_config["network_name"], False, True)
+        return fill_bump
+
 
     @staticmethod
     def gen_bumps(station_config):
@@ -34,16 +56,20 @@ class AutoBumpAgent:
         return prefixed_url.removeprefix(AutoBumpAgent.url_prefix)
 
     @staticmethod
-    def message_bump(ab_config, base_url):
+    def message_bump(ab_config, base_url, loopmusic=True, show_countdown=False):
+        ab_config["loopmusic"] = "true" if loopmusic else "false"
+        ab_config["countdown"] = "true" if show_countdown else "false"
         message_qs = AutoBumpAgent.generate_bump_query(ab_config)
         message_url = f"{AutoBumpAgent.url_prefix}{base_url}?{message_qs}"
         block = CatalogEntry(message_url, ab_config["duration"], ":autobump:")
         return block
 
     @staticmethod
-    def next_up_bump(ab_config, base_url, network_name):
+    def next_up_bump(ab_config, base_url, network_name, loopmusic=True, show_countdown=False):
         ab_config["subtitle"] = f"Coming up on {network_name}"
         ab_config["next_network"] = network_name
+        ab_config["loopmusic"] = "true" if loopmusic else "false"
+        ab_config["countdown"] = "true" if show_countdown else "false"
         message_qs = AutoBumpAgent.generate_bump_query(ab_config)
         message_url = f"{AutoBumpAgent.url_prefix}{base_url}?{message_qs}"
         block = CatalogEntry(message_url, ab_config["duration"], ":autobump:")
@@ -91,6 +117,8 @@ class AutoBumpAgent:
             "next_network": "next_network",
             "duration": "duration",
             "bg_music": "bg_music",
+            "loopmusic": "loopmusic",
+            "countdown": "countdown"
         }
 
         # Process each config item
@@ -141,7 +169,7 @@ def main():
         "bg_color": "#ff0000",
         "fg_color": "#ffffff",
         "next_network": "testtv",
-        "duration": 15000,
+        "duration": 15000
     }
     print("Complete configuration:")
     print(f"Query: {AutoBumpAgent.generate_bump_query(complete_config)}")
