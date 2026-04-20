@@ -117,6 +117,30 @@ class StationPlayer:
             "format=yuv420p,"
             "scale=640:480:flags=neighbor"
             "]"
+        ),
+        "glitchtastic" : (
+            "lavfi=["
+            "scale=360:240:flags=fast_bilinear,"
+            "format=gbrp,"
+            "geq="
+            "r='if(gt(pow(abs(sin(N*0.08)*sin(N*0.11)),0.15),0.7),"
+            "p(mod(X+80*sin(2*PI*Y/45+N*0.4)+20*sin(2*PI*Y/13+N*0.7),W),Y),"
+            "if(gt(mod(Y+N*4,H),H-30),255-p(X,Y),"
+            "p(X+15*sin(2*PI*Y/45+N*0.4),Y)))':"
+            "g='if(gt(pow(abs(sin(N*0.08)*sin(N*0.11)),0.15),0.7),"
+            "p(mod(X+70*sin(2*PI*Y/48+N*0.43)+17*sin(2*PI*Y/14+N*0.73),W),Y),"
+            "if(gt(mod(Y+N*4,H),H-30),255-p(X,Y),"
+            "p(X+12*sin(2*PI*Y/48+N*0.43),Y)))':"
+            "b='if(gt(pow(abs(sin(N*0.08)*sin(N*0.11)),0.15),0.7),"
+            "p(mod(X+60*sin(2*PI*Y/50+N*0.46)+13*sin(2*PI*Y/15+N*0.76),W),Y),"
+            "if(gt(mod(Y+N*4,H),H-30),255-p(X,Y),"
+            "p(X+10*sin(2*PI*Y/50+N*0.46),Y)))'"
+            ":interpolation=nearest,"
+            "noise=alls=15:allf=t,"
+            "eq=contrast=1.2:brightness=-0.05:saturation=1.2,"
+            "format=yuv420p,"
+            "scale=640:480:flags=neighbor"
+            "]"
         )
     }
 
