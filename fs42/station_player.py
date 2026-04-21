@@ -102,7 +102,54 @@ class StationPlayer:
             "b='p(X + 24*sin(2*PI*Y/68) +  8*sin(2*PI*N/12), Y)',"
             "scale=640:480:flags=neighbor"
             "]"
+        ),
+        "special_sauce" : (
+            "lavfi=["
+            "scale=360:240:flags=fast_bilinear,"
+            "format=gbrp,"
+            "geq="
+            "r='p(mod(X + 80*sin(2*PI*Y/45 + N*0.4) + 20*sin(2*PI*Y/13 + N*0.7),W), Y)':"
+            "g='p(mod(X + 70*sin(2*PI*Y/48 + N*0.43) + 17*sin(2*PI*Y/14 + N*0.73),W), Y)':"
+            "b='p(mod(X + 60*sin(2*PI*Y/50 + N*0.46) + 13*sin(2*PI*Y/15 + N*0.76),W), Y)'"
+            ":interpolation=nearest,"
+            "noise=alls=15:allf=t,"
+            "eq=contrast=1.2:brightness=-0.05:saturation=1.2,"
+            "format=yuv420p,"
+            "scale=640:480:flags=neighbor"
+            "]"
+        ),
+        "glitchtastic" : (
+            "lavfi=["
+            "scale=360:240:flags=fast_bilinear,"
+            "format=gbrp,"
+            "geq="
+            "r='if(gt(pow(abs(sin(N*0.08)*sin(N*0.11)),0.15),0.7),"
+            "p(mod(X+80*sin(2*PI*Y/45+N*0.4)+20*sin(2*PI*Y/13+N*0.7),W),Y),"
+            "if(gt(mod(Y+N*4,H),H-30),255-p(X,Y),"
+            "p(X+15*sin(2*PI*Y/45+N*0.4),Y)))':"
+            "g='if(gt(pow(abs(sin(N*0.08)*sin(N*0.11)),0.15),0.7),"
+            "p(mod(X+70*sin(2*PI*Y/48+N*0.43)+17*sin(2*PI*Y/14+N*0.73),W),Y),"
+            "if(gt(mod(Y+N*4,H),H-30),255-p(X,Y),"
+            "p(X+12*sin(2*PI*Y/48+N*0.43),Y)))':"
+            "b='if(gt(pow(abs(sin(N*0.08)*sin(N*0.11)),0.15),0.7),"
+            "p(mod(X+60*sin(2*PI*Y/50+N*0.46)+13*sin(2*PI*Y/15+N*0.76),W),Y),"
+            "if(gt(mod(Y+N*4,H),H-30),255-p(X,Y),"
+            "p(X+10*sin(2*PI*Y/50+N*0.46),Y)))'"
+            ":interpolation=nearest,"
+            "noise=alls=15:allf=t,"
+            "eq=contrast=1.2:brightness=-0.05:saturation=1.2,"
+            "format=yuv420p,"
+            "scale=640:480:flags=neighbor"
+            "]"
         )
+    }
+
+    audio_scramble_effects = {
+        "special_sauce": "lavfi=[afreqshift=shift=-2000,vibrato=f=2.5:d=0.4,volume=0.8]",
+        "the_jitters": "lavfi=[afreqshift=shift=-3000,aecho=0.6:0.5:50|80:0.4|0.3,tremolo=f=8:d=0.9,volume=0.7]",
+        "possessed": "lavfi=[chorus=0.3:0.3:40|60|80:0.4|0.3|0.2:0.8|1.2|1.6:3|4|5,afreqshift=shift=-1500,lowpass=f=2500,volume=0.8]",
+        "demonic": "lavfi=[rubberband=pitch=0.5,chorus=0.3:0.3:40|60:0.4|0.3:1.0|1.4:3|4,volume=1.0]",
+        "slightly_borked": "lavfi=[acrusher=bits=3:samples=12:lfo=true:lforange=50:lforate=0.3,vibrato=f=3:d=0.5,volume=0.25]"
     }
 
     def __init__(self, station_config, input_check_fn, mpv=None):
@@ -141,6 +188,7 @@ class StationPlayer:
         self.scrambler = None
         self.now_playing_process = None
         self.schedule_lock = None
+        self._active_afx = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -353,6 +401,7 @@ class StationPlayer:
         self._l.info(f"Play and wait on file {file_path}")
         self._close_now_playing()
         self.mpv.vf = ""
+        self.mpv.af = ""
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
@@ -446,6 +495,22 @@ class StationPlayer:
             self.skip_reception_check = False
             self.mpv.vf = ""
             self.scrambler = None
+
+        # Apply audio scramble filter if configured
+        afx = None
+        if "audio_scramble_fx" in self.station_config:
+            afx = self.station_config["audio_scramble_fx"]
+        if slot and "audio_scramble_fx" in slot:
+            afx = slot["audio_scramble_fx"]
+        new_afx = self.audio_scramble_effects.get(afx) if afx else None
+        if self._active_afx and self._active_afx != new_afx:
+            self.mpv.command("af", "remove", self._active_afx)
+            self._active_afx = None
+        if new_afx and new_afx != self._active_afx:
+            self.mpv.command("af", "add", new_afx)
+            self._active_afx = new_afx
+        elif afx and afx not in self.audio_scramble_effects:
+            self._l.warning(f"Audio scramble effect '{afx}' does not exist.")
 
     def play_image(self, duration):
         pass
