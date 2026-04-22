@@ -7,6 +7,8 @@ const MOCK = params.get('mock') === '1';
 const MUSIC_PATH = params.get('music');
 const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');
+const LOOP = params.get('loop') === '1';
+const RANDOM_START = params.get('random_start') === '1';
 
 let stations = [];
 
@@ -264,9 +266,31 @@ function startScrolling() {
   const pxPerMs = getScrollSpeed() / 50;
   const pauseMs = getPauseDuration();
 
-  scrollY = 0;
+  // Clean up any previous clone
+  const existingClone = document.getElementById('guide-scroll-strip-clone');
+  if (existingClone) existingClone.remove();
+
+  let originalHeight, clone;
+  
+  // Loop guide if true
+  if (LOOP) {
+    clone = strip.cloneNode(true);
+    clone.id = 'guide-scroll-strip-clone';
+    clone.setAttribute('aria-hidden', 'true');
+    strip.parentElement.appendChild(clone);
+    originalHeight = strip.scrollHeight;
+    clone.style.transform = `translateY(${originalHeight}px)`;
+  }
+
+    // Random channel start
+    if (RANDOM_START) {
+    scrollY = RANDOM_START ? Math.random() * originalHeight : 0;
+    } else {
+        scrollY = 0;
+    }
+    
   strip.style.transform = 'translateY(0)';
-  pauseUntil = performance.now() + pauseMs;
+  pauseUntil = LOOP ? 0 : performance.now() + pauseMs;
 
   let lastTime = null;
 
@@ -276,27 +300,43 @@ function startScrolling() {
       return;
     }
 
-    const maxScroll = strip.offsetHeight - listings.clientHeight;
+    // Loop guide if true
+    if (LOOP) {
+      if (lastTime !== null) scrollY += pxPerMs * (now - lastTime);
+      lastTime = now;
 
-    if (maxScroll <= 0) {
-      setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
-      return;
+      if (scrollY >= originalHeight) {
+        scrollY -= originalHeight;
+        stopScrolling();
+        buildGuide().then(startScrolling);
+        return;
+      }
+
+      strip.style.transform = `translateY(-${scrollY}px)`;
+      clone.style.transform = `translateY(${originalHeight - scrollY}px)`;
+      animFrame = requestAnimationFrame(tick);
+
+    } else {
+      const maxScroll = strip.offsetHeight - listings.clientHeight;
+
+      if (maxScroll <= 0) {
+        setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
+        return;
+      }
+
+      if (lastTime !== null) scrollY += pxPerMs * (now - lastTime);
+      lastTime = now;
+
+      if (scrollY >= maxScroll) {
+        strip.style.transform = `translateY(-${maxScroll}px)`;
+        lastTime = null;
+        setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
+        return;
+      }
+
+      strip.style.transform = `translateY(-${scrollY}px)`;
+      animFrame = requestAnimationFrame(tick);
     }
-
-    if (lastTime !== null) {
-      scrollY += pxPerMs * (now - lastTime);
-    }
-    lastTime = now;
-
-    if (scrollY >= maxScroll) {
-      strip.style.transform = `translateY(-${maxScroll}px)`;
-      lastTime = null;
-      setTimeout(async function () { await buildGuide(); startScrolling(); }, pauseMs);
-      return;
-    }
-
-    strip.style.transform = `translateY(-${scrollY}px)`;
-    animFrame = requestAnimationFrame(tick);
   }
 
   animFrame = requestAnimationFrame(tick);
@@ -459,9 +499,31 @@ function startGridScrolling() {
   const pxPerMs = getScrollSpeed() / 50;
   const pauseMs = getPauseDuration();
 
-  gridScrollY = 0;
+  // Clean up any previous clone
+  const existingClone = document.getElementById('grid-scroll-strip-clone');
+  if (existingClone) existingClone.remove();
+
+  let originalHeight, clone;
+  
+  // Loop guide if true.
+  if (LOOP) {
+    clone = strip.cloneNode(true);
+    clone.id = 'grid-scroll-strip-clone';
+    clone.setAttribute('aria-hidden', 'true');
+    strip.parentElement.appendChild(clone);
+    originalHeight = strip.scrollHeight;
+    clone.style.transform = `translateY(${originalHeight}px)`;
+  }
+
+    // Random channel start
+    if (RANDOM_START) {
+     gridScrollY = RANDOM_START ? Math.random() * originalHeight : 0;
+    } else {
+        gridScrollY = 0;
+        }
+        
   strip.style.transform = 'translateY(0)';
-  gridPauseUntil = performance.now() + pauseMs;
+  gridPauseUntil = LOOP ? 0 : performance.now() + pauseMs;
 
   let lastTime = null;
 
@@ -471,27 +533,46 @@ function startGridScrolling() {
       return;
     }
 
-    const maxScroll = strip.offsetHeight - listings.clientHeight;
+    // Loop guide if true.
+    if (LOOP) {
+      if (lastTime !== null) gridScrollY += pxPerMs * (now - lastTime);
+      lastTime = now;
 
-    if (maxScroll <= 0) {
-      setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
-      return;
+      if (gridScrollY >= originalHeight) {
+        gridScrollY -= originalHeight;
+        if (gridAnimFrame) {
+          cancelAnimationFrame(gridAnimFrame);
+          gridAnimFrame = null;
+        }
+        buildGrid().then(startGridScrolling);
+        return;
+      }
+
+      strip.style.transform = `translateY(-${gridScrollY}px)`;
+      clone.style.transform = `translateY(${originalHeight - gridScrollY}px)`;
+      gridAnimFrame = requestAnimationFrame(tick);
+
+    } else {
+      const maxScroll = strip.offsetHeight - listings.clientHeight;
+
+      if (maxScroll <= 0) {
+        setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
+        return;
+      }
+
+      if (lastTime !== null) gridScrollY += pxPerMs * (now - lastTime);
+      lastTime = now;
+
+      if (gridScrollY >= maxScroll) {
+        strip.style.transform = `translateY(-${maxScroll}px)`;
+        lastTime = null;
+        setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
+        return;
+      }
+
+      strip.style.transform = `translateY(-${gridScrollY}px)`;
+      gridAnimFrame = requestAnimationFrame(tick);
     }
-
-    if (lastTime !== null) {
-      gridScrollY += pxPerMs * (now - lastTime);
-    }
-    lastTime = now;
-
-    if (gridScrollY >= maxScroll) {
-      strip.style.transform = `translateY(-${maxScroll}px)`;
-      lastTime = null;
-      setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
-      return;
-    }
-
-    strip.style.transform = `translateY(-${gridScrollY}px)`;
-    gridAnimFrame = requestAnimationFrame(tick);
   }
 
   gridAnimFrame = requestAnimationFrame(tick);
