@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import sys
 
 sys.path.append(os.getcwd())
@@ -15,6 +16,8 @@ from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
 from fs42.marathon_agent import MarathonAgent
 from fs42.path_query import PathQuery
+from fs42.station_manager import StationManager
+from fs42.liquid_io import LiquidIO
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -74,7 +77,7 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
-    def _fill(self, slot_config, tag_str, current_mark) -> LiquidBlock:
+    def _fill(self, slot_config, tag_str, current_mark, exclusion_index=None) -> LiquidBlock:
         seq_key = None
         candidate = None
         new_block = None
@@ -89,7 +92,30 @@ class LiquidSchedule:
 
             seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
         else:
-            candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
+            try:
+                candidate = self.catalog.find_candidate(
+                    tag_str, timings.HOUR * 23, current_mark,
+                    exclusion_index=exclusion_index, proposed_start=current_mark
+                )
+            except MatchingContentNotFound:
+                if exclusion_index:
+                    # Exclusion may have blocked everything - retry without it.
+                    # If this also fails it is a genuine content shortage.
+                    try:
+                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
+                        self._l.warning(
+                            f"[{self.conf['network_name']}] Sibling exclusion blocked all candidates "
+                            f"for tag={tag_str} at {current_mark} - "
+                            f"scheduling without exclusion (overlap unavoidable for this slot)"
+                        )
+                    except MatchingContentNotFound:
+                        self._l.error(
+                            f"[{self.conf['network_name']}] No content available for tag={tag_str} "
+                            f"at {current_mark} even without exclusion - genuine content shortage"
+                        )
+                        raise
+                else:
+                    raise
 
         if candidate:
 
@@ -197,6 +223,129 @@ class LiquidSchedule:
                 return block.content.tag
         return None
 
+    @staticmethod
+    def _get_station_tags(station_conf):
+        """Return the set of all content tags used in a station's schedule config.
+        Tags come from slot definitions, clip_shows keys, and fallback_tag.
+        Used to determine whether two channels can ever schedule the same file.
+        """
+        tags = set()
+        for day in timings.DAYS:
+            for slot in station_conf.get(day, {}).values():
+                if not isinstance(slot, dict):
+                    continue
+                t = slot.get("tags")
+                if isinstance(t, list):
+                    tags.update(t)
+                elif t:
+                    tags.add(t)
+        # clip_shows can be a dict {tag: config} or a legacy list [""] — handle both
+        # filter out empty-string keys that result from legacy/unset clip_show entries
+        cs = station_conf.get("clip_shows", {})
+        if isinstance(cs, dict):
+            tags.update(k for k in cs.keys() if k)
+        ft = station_conf.get("fallback_tag")
+        if ft:
+            tags.add(ft)
+        return tags
+
+    def _build_exclusion_index(self, start_time, end_target):
+        """Build an in-memory exclusion index from sibling channels that share
+        the same content_dir AND have overlapping tags (i.e. they can actually
+        schedule the same files).  Returns {realpath: [(start_time, end_time), ...]}
+        pre-populated from already-scheduled blocks so that the current channel
+        will not pick a movie that is already playing (or about to play) on a
+        sibling channel.
+
+        Using both content_dir AND tag intersection means that channels which
+        share a parent content_dir but use completely different subdirectory tags
+        (e.g. Comedy and Drama both under catalog/movies) are correctly excluded
+        from each other's sibling group — they can never pick the same file.
+
+        The index is also updated in-memory as each new block is scheduled
+        (see _register_exclusion) so sibling protection works even for slots
+        being built in the same run, not just slots from previous runs.
+
+        Sequences bypass find_candidate entirely and are therefore intentionally
+        exempt from exclusion - they always take priority.
+        """
+        exclusion_index = {}
+        try:
+            my_content_dir = os.path.realpath(self.conf.get("content_dir", ""))
+            if not my_content_dir:
+                return exclusion_index
+
+            # Pre-compute tags for every station once to avoid re-iterating
+            # all schedule slots N times (once per station in the comparison).
+            all_stations = StationManager().stations
+            all_station_tags = {
+                s.get("network_name"): LiquidSchedule._get_station_tags(s)
+                for s in all_stations
+            }
+            my_tags = (
+                all_station_tags.get(self.conf["network_name"])
+                or LiquidSchedule._get_station_tags(self.conf)
+            )
+
+            siblings = [
+                s for s in all_stations
+                if s.get("network_type") == "standard"
+                and s.get("network_name") != self.conf["network_name"]
+                and os.path.realpath(s.get("content_dir", "")) == my_content_dir
+                and bool(my_tags & all_station_tags.get(s.get("network_name"), set()))
+            ]
+
+            if not siblings:
+                return exclusion_index
+
+            self._l.info(
+                f"Found {len(siblings)} sibling channel(s) sharing content_dir - "
+                f"building exclusion index for overlap protection"
+            )
+
+            liquid_io = LiquidIO()
+            for sibling in siblings:
+                blocks = liquid_io.query_liquid_blocks(
+                    sibling["network_name"],
+                    str(start_time),
+                    str(end_target),
+                )
+                for block in blocks:
+                    if block.content and not isinstance(block.content, list):
+                        rp = block.content.realpath
+                        if rp:
+                            if rp not in exclusion_index:
+                                exclusion_index[rp] = []
+                            exclusion_index[rp].append((block.start_time, block.end_time))
+
+            total = sum(len(v) for v in exclusion_index.values())
+            self._l.info(
+                f"Exclusion index built: {total} window(s) across "
+                f"{len(exclusion_index)} unique title(s)"
+            )
+        except (sqlite3.Error, OSError) as e:
+            self._l.warning(
+                f"Could not build exclusion index - sibling overlap protection disabled: {e}",
+                exc_info=True,
+            )
+            exclusion_index = {}
+
+        return exclusion_index
+
+    @staticmethod
+    def _register_exclusion(exclusion_index, block):
+        """Register a freshly scheduled block in the exclusion index so that
+        subsequent picks within the same scheduling run respect it.
+        Clip blocks (list content) and off-air blocks are skipped - only
+        single-content feature blocks (i.e. movies) are tracked.
+        """
+        if block and block.content and not isinstance(block.content, list):
+            rp = block.content.realpath
+            if rp:
+                if rp not in exclusion_index:
+                    exclusion_index[rp] = []
+                exclusion_index[rp].append((block.start_time, block.end_time))
+
     def _fluid(self, start_time, end_target):
         # this is the core of the scheduler.
         new_blocks = []
@@ -206,6 +355,9 @@ class LiquidSchedule:
             current_mark = datetime.datetime.now()
 
         forward_buffer = []
+
+        # build exclusion index from sibling channels that share the same content_dir
+        exclusion_index = self._build_exclusion_index(start_time, end_target)
 
         self._l.info(f"Starting to build blocks for {self.conf['network_name']}")
         while current_mark < end_target:
@@ -230,13 +382,13 @@ class LiquidSchedule:
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
                     try:
-                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark)
+                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, exclusion_index=exclusion_index)
                     except ClipShowKickBack as e:
                         new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, slot_config)
                     except MatchingContentNotFound as e:
                         if "fallback_tag" in self.conf:
                             fb_config = {"tags": self.conf["fallback_tag"]}
-                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark)
+                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, exclusion_index=exclusion_index)
                         else:
                             self._l.warning("Content not found, but no fallback_tag specified.")
                             raise e
@@ -270,6 +422,7 @@ class LiquidSchedule:
 
             # here
             new_blocks.append(new_block)
+            self._register_exclusion(exclusion_index, new_block)
             current_mark = next_mark
         self._l.info("Content and reel schedules are completed")
 
