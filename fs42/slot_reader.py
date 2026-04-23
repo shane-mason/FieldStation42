@@ -1,9 +1,10 @@
 from datetime import datetime
 import copy
-
 import random
 import math
+
 from fs42 import timings
+
 
 class SlotReader:
     @staticmethod
@@ -37,24 +38,53 @@ class SlotReader:
                 if is_random:
                     response = random.choice(tags)
                 else:
-                    # first, figure out what our segments are
                     num_tags = len(tags)
-                    # get the duration of the segmentations in minutes
-                    segment_duration = math.floor(60/num_tags)
-                    # figure out what segment we are in
-                    current_segment = math.floor(when.minute/segment_duration)
-                    # make sure its not too long
+                    segment_duration = math.floor(60 / num_tags)
+                    current_segment = math.floor(when.minute / segment_duration)
+
                     if current_segment >= num_tags:
-                        current_segment = num_tags-1
+                        current_segment = num_tags - 1
+
                     return tags[current_segment]
             else:
                 response = tags
 
         return response
 
+    @staticmethod
+    def _date_key_matches(date_key, when: datetime):
+        """
+        Match date_overrides keys like:
+            "April 23"
+            "april 23"
+        """
+        try:
+            parsed = datetime.strptime(date_key.strip(), "%B %d")
+            return parsed.month == when.month and parsed.day == when.day
+        except ValueError:
+            return False
+
+    @staticmethod
+    def _get_date_override(conf, when: datetime):
+        overrides = conf.get("date_overrides", {})
+
+        if not isinstance(overrides, dict):
+            return None
+
+        for date_key, override_conf in overrides.items():
+            if SlotReader._date_key_matches(date_key, when):
+                return override_conf
+
+        return None
+
     def get_slot(conf, when: datetime):
-        day_str = timings.DAYS[when.weekday()]
         slot_number = str(when.hour)
+
+        date_override = SlotReader._get_date_override(conf, when)
+        if date_override and slot_number in date_override:
+            return date_override[slot_number]
+
+        day_str = timings.DAYS[when.weekday()]
         response = None
         if day_str in conf:
             if slot_number in conf[day_str]:
@@ -64,7 +94,7 @@ class SlotReader:
 
     @staticmethod
     def smooth_tags(conf):
-        # this function smooths tags through slot boundaries - so if not specified will use previous slots tag.
+        # this function smooths tags through slot boundaries, so if not specified will use previous slots tag.
         last_tag = None
         smoothed = copy.deepcopy(conf)
         for day_index in timings.DAYS:
