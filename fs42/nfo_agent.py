@@ -293,13 +293,20 @@ class NFOAgent:
             with open(nfo_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Try Kodi XML format first
-            if "<musicvideo>" in content:
+            import xml.etree.ElementTree as ET
+            try:
+                root = ET.fromstring(content)
+                if root.tag != "musicvideo":
+                    _logger.info(f"NFO check: {nfo_path} is <{root.tag}> XML, skipping overlay")
+                    return None
                 data = NFOAgent._parse_xml_nfo(content)
                 if data:
                     _logger.info(f"NFO check: XML — {len(data.lines)} field(s) — '{data.title}'")
                     return data
                 _logger.warning(f"NFO file {nfo_path} has <musicvideo> but could not be parsed")
+                return None
+            except ET.ParseError:
+                pass  # Not valid XML — fall through to plain text
 
             # Fall back to plain text: one field per non-empty line
             lines = [l.strip() for l in content.splitlines() if l.strip()][:MAX_NFO_LINES]

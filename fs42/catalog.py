@@ -276,11 +276,13 @@ class ShowCatalog:
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count += 1
 
+
         if "off_air_image" in self.config:
             self._l.debug("Adding offair image")
             self.clip_index["off_air_image"] = CatalogEntry(self.config["off_air_image"], MIN_5, "off_air", content_type="off_air")
             self._l.debug(f"Added off air image {self.config['off_air_image']}")
             total_count += 1
+
 
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
         self._build_tags()
