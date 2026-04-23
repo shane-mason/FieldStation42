@@ -290,13 +290,20 @@ body {
   color: var(--channel-number-color);
   font-weight: bold;
   text-align: center;
+  padding-top: var(--channel-padding-top);
 }
 
 .grid-channel .channel-name {
+  if(style(--channel-names-wrap: true): overflow-wrap: break-word;)
+  line-height: var(--channel-text-padding);
+  padding-bottom: var(--channel-padding-bottom);
   font-family: var(--channel-name-font), var(--font-family);
   color: var(--channel-name-color);
   overflow: hidden;
-  white-space: nowrap;
+  white-space: if(
+    style(--channel-names-wrap: true): normal;
+    else: nowrap
+    );
   text-overflow: ellipsis;
   font-size: 0.78em;
   text-align: center;
@@ -355,3 +362,4 @@ body {
     else: var(--current-show-title-color)
     );
 }
+
