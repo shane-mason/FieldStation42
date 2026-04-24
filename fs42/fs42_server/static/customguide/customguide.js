@@ -8,7 +8,7 @@ const MUSIC_PATH = params.get('music');
 const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');
 const LOOP = params.get('loop') === '1';
-const RANDOM_START = params.get('random_start') === '1';
+let RANDOM_START = params.get('random_start') === '1';
 
 let stations = [];
 
@@ -499,13 +499,13 @@ function startGridScrolling() {
     originalHeight = strip.scrollHeight;
     clone.style.transform = `translateY(${originalHeight}px)`;
   }
-
-    // Random channel start
-    if (RANDOM_START) {
-     gridScrollY = RANDOM_START ? Math.random() * originalHeight : 0;
-    } else {
+      // Random channel start
+      if (RANDOM_START) {
+        gridScrollY = Math.random() * originalHeight;
+        RANDOM_START = false;
+      } else if (!LOOP) {
         gridScrollY = 0;
-        }
+      }
         
   strip.style.transform = 'translateY(0)';
   gridPauseUntil = LOOP ? 0 : performance.now() + pauseMs;
