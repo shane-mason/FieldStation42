@@ -10,12 +10,16 @@ class ConfigurationError(Exception):
 class ConfigProcessor:
     @staticmethod
     def preprocess(conf):
+        # first, fill in templates
         processed = ConfigProcessor._process_templates(conf)
         processed = ConfigProcessor._process_strategy(processed)
         processed = ConfigProcessor._process_date_overrides(processed)
         return processed
 
     @staticmethod
+    # validate that this looks like a "Month Day" string (e.g. "December 25")
+    # we use datetime here instead of RangeHint to avoid a circular import
+    # if it's invalid, it just won't ever match and will fall back to weekday scheduling
     def _valid_date_key(date_key):
         try:
             datetime.strptime(date_key.strip(), "%B %d")
@@ -25,11 +29,13 @@ class ConfigProcessor:
 
     @staticmethod
     def _process_templates(conf):
+        # first, see if there are templates
         if "day_templates" not in conf:
             return conf
 
         templates = conf["day_templates"]
 
+        # now, go through each day:
         for day_key in timings.DAYS:
             if day_key not in conf:
                 raise ConfigurationError(
@@ -37,11 +43,13 @@ class ConfigProcessor:
                 )
 
             if isinstance(conf[day_key], str):
+                # found a potential reference, so see if it exists
                 ref_key = conf[day_key]
                 if ref_key not in templates:
                     raise ConfigurationError(
                         f"Schedule for {conf['network_name']} references a template for {ref_key} on {day_key}, but that template doesn't exist."
                     )
+                # then just inline it :)
 
                 conf[day_key] = templates[ref_key]
 

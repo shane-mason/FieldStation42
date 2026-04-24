@@ -38,10 +38,13 @@ class SlotReader:
                 if is_random:
                     response = random.choice(tags)
                 else:
+                    # first, figure out what our segments are
                     num_tags = len(tags)
+                    # get the duration of the segmentations in minutes
                     segment_duration = math.floor(60 / num_tags)
+                    # figure out what segment we are in
                     current_segment = math.floor(when.minute / segment_duration)
-
+                    # make sure its not too long
                     if current_segment >= num_tags:
                         current_segment = num_tags - 1
 
@@ -53,11 +56,7 @@ class SlotReader:
 
     @staticmethod
     def _date_key_matches(date_key, when: datetime):
-        """
-        Match date_overrides keys like:
-            "April 23"
-            "april 23"
-        """
+        # match date_overrides keys like "April 23" (case-insensitive)
         try:
             parsed = datetime.strptime(date_key.strip(), "%B %d")
             return parsed.month == when.month and parsed.day == when.day
@@ -79,7 +78,7 @@ class SlotReader:
 
     def get_slot(conf, when: datetime):
         slot_number = str(when.hour)
-
+        # check for exact date override first, then fall back to weekday schedule
         date_override = SlotReader._get_date_override(conf, when)
         if date_override and slot_number in date_override:
             return date_override[slot_number]
@@ -94,7 +93,7 @@ class SlotReader:
 
     @staticmethod
     def smooth_tags(conf):
-        # this function smooths tags through slot boundaries, so if not specified will use previous slots tag.
+        # this function smooths tags through slot boundaries - so if not specified will use previous slots tag.
         last_tag = None
         smoothed = copy.deepcopy(conf)
         for day_index in timings.DAYS:
