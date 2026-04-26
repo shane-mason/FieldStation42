@@ -191,6 +191,28 @@
             }
           }
         },
+        "date_overrides": {
+          "type": "object",
+          "description": "Optional exact-date schedule overrides keyed by month/day like 'December 25'. These take precedence over weekday schedules for matching dates.",
+          "propertyNames": {
+            "pattern": "^[A-Z][a-z]+ [0-3]?[0-9]$"
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Reference to a day template"
+              },
+              {
+                "type": "object",
+                "description": "Exact-date schedule with hour slots",
+                "additionalProperties": {
+                  "$ref": "#/$defs/timeSlotConfig"
+                }
+              }
+            ]
+          }
+        },
         "monday": {
           "oneOf": [
             {
