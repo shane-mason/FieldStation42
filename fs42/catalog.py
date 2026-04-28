@@ -485,9 +485,6 @@ class ShowCatalog:
         if not bump_tag:
             bump_tag = self.config["bump_dir"]
 
-        if not len(self.clip_index[bump_tag]):
-            raise NoFillerContentFound("Can't find filler - add bumps...")
-
         if position:
             pre_key = f"{bump_tag}-{ShowCatalog.prebump}"
             post_key = f"{bump_tag}-{ShowCatalog.postbump}"
@@ -500,6 +497,9 @@ class ShowCatalog:
                 base_tag = bump_tag
         else:
             base_tag = bump_tag
+
+        if base_tag not in self.clip_index:
+            raise NoFillerContentFound(f"Can't find bump folder for tag={base_tag}")
 
         # build candidate pool from normal bumps
         candidates = [c for c in self.clip_index[base_tag]
