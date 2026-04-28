@@ -59,6 +59,8 @@ class AutoBumpAgent:
     def message_bump(ab_config, base_url, loopmusic=True, show_countdown=False):
         ab_config["loopmusic"] = "true" if loopmusic else "false"
         ab_config["countdown"] = "true" if show_countdown else "false"
+        if "next_network" in ab_config:
+            del ab_config["next_network"]
         message_qs = AutoBumpAgent.generate_bump_query(ab_config)
         message_url = f"{AutoBumpAgent.url_prefix}{base_url}?{message_qs}"
         block = CatalogEntry(message_url, ab_config["duration"], ":autobump:")
@@ -151,7 +153,7 @@ def main():
         "title": "FSTV",
         "subtitle": "Field Station Television",
         "variation": "retro",
-        "next_network": "fstv",
+        "next_network": "Sitcomx",
         "duration": 10000,
     }
     print("Retro with programming:")
@@ -168,20 +170,21 @@ def main():
         "detail3": "24/7 Testing",
         "bg_color": "#ff0000",
         "fg_color": "#ffffff",
-        "next_network": "testtv",
+        "next_network": "Sitcomx",
         "duration": 15000
     }
     print("Complete configuration:")
     print(f"Query: {AutoBumpAgent.generate_bump_query(complete_config)}")
     print()
 
-    station_config = {"autobump": retro_config, "network_name": "FSTV"}
+    station_config = {"autobump": complete_config, "network_name": "Sitcomx"}
 
-    print(AutoBumpAgent.message_bump(retro_config, "http://test/test.html"))
-    print(AutoBumpAgent.next_up_bump(retro_config, "http://test/test.html", "FSTV"))
+    print(AutoBumpAgent.message_bump(retro_config, AutoBumpAgent.base_url))
+    print(AutoBumpAgent.next_up_bump(retro_config, AutoBumpAgent.base_url, "Sitcomx"))
     gen_bumps = AutoBumpAgent.gen_bumps(station_config)
-    print(gen_bumps["start_block"])
-    print(gen_bumps["end_block"])
+    print(gen_bumps)
+    print(gen_bumps.get("message_bump", "NONE"))
+    print(gen_bumps.get("next_bump", "NONE"))
 
 
 if __name__ == "__main__":
