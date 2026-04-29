@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os.path
 import sys
@@ -41,6 +42,22 @@ class bcolors:
 class ShowCatalog:
     prebump = "prebump"
     postbump = "postbump"
+
+    # Tracks content_dirs already scanned by FluidBuilder in this process run.
+    # Prevents redundant directory walks when multiple stations share the same
+    # content_dir (e.g. Comedy 1-4 all under catalog/movies).
+    _fluid_cache_scanned: set = set()
+
+    @classmethod
+    def clear_fluid_cache(cls):
+        """Clear the in-process fluid file cache deduplication set.
+
+        Must be called before starting a fresh catalog rebuild in a long-running
+        process (e.g. the web server API) so that scan_file_cache runs again for
+        each unique content_dir.  In short-lived processes (station_42.py) this
+        is a no-op since the set is always empty at process start.
+        """  
+        cls._fluid_cache_scanned.clear()
 
     def __init__(self, config, rebuild_catalog=False, load=True, debug=False, force=False, skip_chapter_scan=False):
         self.config = config
@@ -106,9 +123,14 @@ class ShowCatalog:
 
                     self.__fluid_builder = FluidBuilder()
                     media_filter = self.config.get("media_filter", "video")
-                    self._l.info("Initializing fluid file cache...")
-                    self.__fluid_builder.scan_file_cache(self.config["content_dir"], media_filter)
-                    self._l.info("Fluid file cache updated - continuing build")
+                    cache_key = (os.path.realpath(self.config["content_dir"]), media_filter)
+                    if cache_key not in ShowCatalog._fluid_cache_scanned:
+                        self._l.info("Initializing fluid file cache...")
+                        self.__fluid_builder.scan_file_cache(self.config["content_dir"], media_filter)
+                        ShowCatalog._fluid_cache_scanned.add(cache_key)
+                        self._l.info("Fluid file cache updated - continuing build")
+                    else:
+                        self._l.info("Fluid file cache already scanned for this content_dir - skipping")
 
                 return self._build_standard()
             case "loop":
@@ -244,7 +266,7 @@ class ShowCatalog:
             total_count += self._scan_directory(tag)
 
         # add commercial and bumps to the tags
-        if "commercial_dir" in self.config:
+        if "commercial_dir" in self.config and self.config["commercial_dir"]:
             total_count += self._scan_directory(self.config["commercial_dir"], content_type="commercial")
         # setup the general bump dir
         if "bump_dir" in self.config and self.config["bump_dir"]:
@@ -315,6 +337,9 @@ class ShowCatalog:
 
     def _scan_directory(self, tag, is_bumps=False, content_type="feature"):
         count_added = 0
+        if not tag:
+            self._l.debug("Skipping _scan_directory call with empty tag - check commercial_dir or clip_shows config")
+            return 0
         if tag not in self.clip_index:
             self.clip_index[tag] = []
             media_filter = self.config.get("media_filter", "video")
@@ -474,8 +499,15 @@ class ShowCatalog:
         else:
             return None
 
-    def find_candidate(self, tag, seconds, when):
+    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None):
+        """Find the best candidate for a given tag and duration.
 
+        exclusion_index: optional dict of {realpath: [(start, end), ...]} built from
+            sibling channels sharing the same content_dir.  Candidates whose file is
+            already playing on a sibling channel in an overlapping window are skipped.
+        proposed_start: the datetime at which this slot would begin (required when
+            exclusion_index is provided).
+        """
         if tag in self.clip_index and len(self.clip_index[tag]):
             candidates = self.clip_index[tag]
             matches = []
@@ -486,6 +518,20 @@ class ShowCatalog:
                     and candidate.duration >= 1
                     and MediaProcessor._test_candidate_hints(candidate.hints, when)
                 ):
+                    # skip if a sibling channel is already playing this file in an
+                    # overlapping time window (handles same-start AND mid-play overlap)
+                    if (
+                        exclusion_index is not None
+                        and proposed_start is not None
+                        and candidate.realpath
+                        and candidate.realpath in exclusion_index
+                    ):
+                        proposed_end = proposed_start + datetime.timedelta(seconds=candidate.duration)
+                        if any(
+                            proposed_start < w_end and w_start < proposed_end
+                            for w_start, w_end in exclusion_index[candidate.realpath]
+                        ):
+                            continue
                     matches.append(candidate)
             #random.shuffle(matches)
             if not len(matches):
