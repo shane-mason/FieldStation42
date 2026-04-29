@@ -1,5 +1,6 @@
 import datetime
 import os.path
+import random
 
 from fs42 import timings
 from fs42.reel_cutter import ReelCutter
@@ -293,8 +294,12 @@ class LiquidOffAirBlock(LiquidBlock):
 
 
 class LiquidLoopBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, shuffle=False):
         super().__init__(content, start_time, end_time, title, break_strategy, break_info)
+        self.shuffle = shuffle
+
+    def __str__(self):
+        return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title} - LOOP"
 
     def make_plan(self, catalog):
         if not self.content:
@@ -312,6 +317,9 @@ class LiquidLoopBlock(LiquidBlock):
                 current_index += 1
                 if current_index >= len(self.content):
                     current_index = 0
+                    if self.shuffle:
+                        random.shuffle(self.content)
+
             else:
                 keep_going = False
                 duration = (self.end_time - current_mark).total_seconds()

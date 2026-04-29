@@ -52,6 +52,10 @@
           "type": "string",
           "description": "Directory containing content files"
         },
+        "shuffle_loop": {
+          "type": "boolean",
+          "description": "When `true`, every video in `content_dir` plays once before the list is shuffled and replayed. Defaults to `false` (alphabetical order, looping). Only applies to loop network type."
+        },
         "bump_dir": {
           "type": "string",
           "description": "Directory containing bump videos"

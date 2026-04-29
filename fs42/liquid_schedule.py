@@ -56,6 +56,7 @@ class LiquidSchedule:
         diff = end_target - start_time
         content = self.catalog.get_all_by_tag("content")
         new_blocks = []
+        shuffle = self.conf.get("shuffle_loop", False)
 
         programming_name = (
             self.conf["network_long_name"] if "network_long_name" in self.conf else self.conf["network_name"]
@@ -64,7 +65,7 @@ class LiquidSchedule:
         for i in range(diff.days):
             current_mark = start_time + datetime.timedelta(days=i)
             next_mark = start_time + datetime.timedelta(days=i + 1)
-            block = LiquidLoopBlock(content, current_mark, next_mark, programming_name)
+            block = LiquidLoopBlock(content, current_mark, next_mark, programming_name, shuffle=shuffle)
             new_blocks.append(block)
 
         self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
