@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fs42 import timings
 
 
@@ -11,7 +13,19 @@ class ConfigProcessor:
         # first, fill in templates
         processed = ConfigProcessor._process_templates(conf)
         processed = ConfigProcessor._process_strategy(processed)
+        processed = ConfigProcessor._process_date_overrides(processed)
         return processed
+
+    @staticmethod
+    # validate that this looks like a "Month Day" string (e.g. "December 25")
+    # we use datetime here instead of RangeHint to avoid a circular import
+    # if it's invalid, it just won't ever match and will fall back to weekday scheduling
+    def _valid_date_key(date_key):
+        try:
+            datetime.strptime(date_key.strip(), "%B %d")
+            return True
+        except ValueError:
+            return False
 
     @staticmethod
     def _process_templates(conf):
@@ -29,17 +43,60 @@ class ConfigProcessor:
                 )
 
             if isinstance(conf[day_key], str):
-                # found a potential refernce, so see if it exists
+                # found a potential reference, so see if it exists
                 ref_key = conf[day_key]
                 if ref_key not in templates:
                     raise ConfigurationError(
-                        f"Schedule for {conf['network_name']} references a templates for {ref_key} on {day_key}, but that template doesn't exist."
+                        f"Schedule for {conf['network_name']} references a template for {ref_key} on {day_key}, but that template doesn't exist."
                     )
                 # then just inline it :)
+
                 conf[day_key] = templates[ref_key]
 
         return conf
 
+    @staticmethod
+    def _process_date_overrides(conf):
+        if "date_overrides" not in conf:
+            return conf
+
+        overrides = conf["date_overrides"]
+
+        if not isinstance(overrides, dict):
+            raise ConfigurationError(
+                f"date_overrides for {conf['network_name']} must be an object mapping dates to slot definitions."
+            )
+
+        processed_overrides = {}
+
+        for date_key, override_value in overrides.items():
+            if not ConfigProcessor._valid_date_key(date_key):
+                raise ConfigurationError(
+                    f"date_overrides entry '{date_key}' for {conf['network_name']} is not a valid month/day like 'December 25'."
+                )
+
+            if isinstance(override_value, str):
+                template_key = override_value
+
+                if "day_templates" not in conf or template_key not in conf["day_templates"]:
+                    raise ConfigurationError(
+                        f"date_overrides entry '{date_key}' for {conf['network_name']} references template '{template_key}', but that template doesn't exist."
+                    )
+
+                processed_overrides[date_key] = conf["day_templates"][template_key]
+
+            elif isinstance(override_value, dict):
+                processed_overrides[date_key] = override_value
+
+            else:
+                raise ConfigurationError(
+                    f"date_overrides entry '{date_key}' for {conf['network_name']} must be either a day template reference or an object of hourly slots."
+                )
+
+        conf["date_overrides"] = processed_overrides
+        return conf
+
+    @staticmethod
     def _process_strategy(conf):
         if "slot_overrides" not in conf:
             return conf
@@ -79,7 +136,7 @@ class ConfigProcessor:
                             )
 
                         conf[day_key][hour_key][to_override] = or_def[to_override]
+
                     del conf[day_key][hour_key]["overrides"]
 
         return conf
-
