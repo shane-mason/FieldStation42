@@ -310,11 +310,19 @@ class StationPlayer:
                                 #now see if this is an autobump
 
                 if AutoBumpAgent.is_autobump_url(file_path):
+                    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+                    web_url = AutoBumpAgent.extract_url(file_path)
+                    remaining = file_duration - (current_time or 0) if file_duration else None
+                    if remaining is not None:
+                        parsed = urlparse(web_url)
+                        params = parse_qs(parsed.query, keep_blank_values=True)
+                        params['duration'] = [str(int(remaining * 1000))]
+                        web_url = urlunparse(parsed._replace(query=urlencode({k: v[0] for k, v in params.items()})))
                     conf = {
-                        "web_url" : AutoBumpAgent.extract_url(file_path)
+                        "web_url": web_url
                     }
-                    if file_duration:
-                        conf["duration"] = file_duration
+                    if remaining:
+                        conf["duration"] = remaining
                     self.show_web(conf, blocking=False)
                     return True
 
@@ -809,6 +817,19 @@ class StationPlayer:
                             time.sleep(0.05)
                             response = self.input_check_fn()
                             if response:
+                                if response.status == PlayerState.CHANNEL_CHANGE and self.web_process:
+                                    try:
+                                        self.web_queue.put("hide_window")
+                                        self.web_process.join(timeout=2)
+                                        if self.web_process.is_alive():
+                                            self._l.warning("Web process did not terminate gracefully on channel change, forcing termination")
+                                            self.web_process.terminate()
+                                            self.web_process.join(timeout=1)
+                                    except Exception as e:
+                                        self._l.error(f"Error shutting down web process on channel change: {e}")
+                                    finally:
+                                        self.web_process = None
+                                        self.web_queue = None
                                 return response
                 else:
                     return PlayerOutcome(PlayerState.FAILED)
