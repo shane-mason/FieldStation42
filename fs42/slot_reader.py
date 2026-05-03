@@ -56,10 +56,30 @@ class SlotReader:
 
     @staticmethod
     def _date_key_matches(date_key, when: datetime):
-        # match date_overrides keys like "April 23" (case-insensitive)
+        # match date_overrides keys like "April 23" or "December 24 - January 2"
         try:
-            parsed = datetime.strptime(date_key.strip(), "%B %d")
-            return parsed.month == when.month and parsed.day == when.day
+            parts = [part.strip() for part in date_key.split(" - ")]
+
+            if len(parts) == 1:
+                parsed = datetime.strptime(parts[0], "%B %d")
+                return parsed.month == when.month and parsed.day == when.day
+
+            if len(parts) == 2:
+                start = datetime.strptime(parts[0], "%B %d")
+                end = datetime.strptime(parts[1], "%B %d")
+
+                current_md = (when.month, when.day)
+                start_md = (start.month, start.day)
+                end_md = (end.month, end.day)
+
+                # normal same-year range, e.g. "April 23 - April 25"
+                if start_md <= end_md:
+                    return start_md <= current_md <= end_md
+
+                # wraparound range, e.g. "December 24 - January 2"
+                return current_md >= start_md or current_md <= end_md
+
+            return False
         except ValueError:
             return False
 
