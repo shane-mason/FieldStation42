@@ -43,13 +43,13 @@ class SequenceAPI:
         # Handle first run - if current_index is 0 and less than start_index, start at start_index
         if seq.current_index == 0 and seq.start_index > 0:
             seq.current_index = seq.start_index
-        # Handle end of sequence - reset to 0 to loop back to beginning    
+        # Handle end of sequence - reset to 0 to loop back to beginning
         elif seq.current_index >= seq.end_index:
             _l.debug(
                 f"Current index {seq.current_index} reached end of sequence {sequence_name}. Looping back to 0."
             )
             seq.current_index = 0
-            
+
         next_entry = seq.episodes[seq.current_index]
         seq.current_index += 1
         sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
@@ -60,15 +60,15 @@ class SequenceAPI:
     def reset_by_episode_path(station_config, sequence_name, tag_path, episode_path):
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()
-        
+
         # Use the optimized database query instead of loading the entire sequence
         success = sio.update_sequence_index_by_path(
-            station_config["network_name"], 
-            sequence_name, 
-            tag_path, 
+            station_config["network_name"],
+            sequence_name,
+            tag_path,
             episode_path
         )
-        
+
         if success:
             _l.info(f"Reset sequence {sequence_name} to episode {episode_path}.")
             return True
@@ -94,17 +94,44 @@ class SequenceAPI:
 
     @staticmethod
     def scan_sequences(station_config):
+        for slot in SequenceAPI._sequence_slots(station_config):
+            SequenceAPI._scan_sequence_slot(station_config, slot)
+
+    @staticmethod
+    def _sequence_slots(station_config):
+        # first, scan normal weekly schedule slots
         for day in DAYS:
             if day in station_config:
                 slots = station_config[day]
-                for k in slots:
-                    if "sequence" in slots[k]:
-                        # the user supplied sequence name
-                        if isinstance(slots[k]["tags"], list):
-                            for tag in slots[k]["tags"]:
-                                SequenceAPI._build_sequence(station_config, tag, slots[k])
-                        else:
-                            SequenceAPI._build_sequence(station_config, slots[k]["tags"], slots[k])
+                if not isinstance(slots, dict):
+                    continue
+
+                for slot in slots.values():
+                    if isinstance(slot, dict):
+                        yield slot
+
+        # now scan date_overrides slots, including override-only sequences
+        date_overrides = station_config.get("date_overrides", {})
+        if isinstance(date_overrides, dict):
+            for override_slots in date_overrides.values():
+                if not isinstance(override_slots, dict):
+                    continue
+
+                for slot in override_slots.values():
+                    if isinstance(slot, dict):
+                        yield slot
+
+    @staticmethod
+    def _scan_sequence_slot(station_config, slot):
+        if "sequence" not in slot or "tags" not in slot:
+            return
+
+        # the user supplied sequence name
+        if isinstance(slot["tags"], list):
+            for tag in slot["tags"]:
+                SequenceAPI._build_sequence(station_config, tag, slot)
+        else:
+            SequenceAPI._build_sequence(station_config, slot["tags"], slot)
 
     @staticmethod
     def _build_sequence(station_config, this_tag, slot):
