@@ -17,15 +17,27 @@ class ConfigProcessor:
         return processed
 
     @staticmethod
-    # validate that this looks like a "Month Day" string (e.g. "December 25")
-    # we use datetime here instead of RangeHint to avoid a circular import
-    # if it's invalid, it just won't ever match and will fall back to weekday scheduling
     def _valid_date_key(date_key):
-        try:
-            datetime.strptime(date_key.strip(), "%B %d")
-            return True
-        except ValueError:
-            return False
+        # validate that this looks like either "Month Day" or "Month Day - Month Day"
+        # raises ConfigurationError with helpful message on failure
+        parts = [part.strip() for part in date_key.split(" - ")]
+
+        if len(parts) not in (1, 2):
+            raise ConfigurationError(
+                f"Invalid date_overrides key '{date_key}'. "
+                "Expected format 'Month Day' or 'Month Day - Month Day'."
+            )
+
+        for part in parts:
+            try:
+                datetime.strptime(part, "%B %d")
+            except ValueError:
+                raise ConfigurationError(
+                    f"Invalid date '{part}' in date_overrides key '{date_key}'. "
+                    "Ensure the day exists for the given month (e.g., April has 30 days)."
+                )
+
+        return True
 
     @staticmethod
     def _process_templates(conf):
@@ -70,10 +82,8 @@ class ConfigProcessor:
         processed_overrides = {}
 
         for date_key, override_value in overrides.items():
-            if not ConfigProcessor._valid_date_key(date_key):
-                raise ConfigurationError(
-                    f"date_overrides entry '{date_key}' for {conf['network_name']} is not a valid month/day like 'December 25'."
-                )
+            # validate date key (will raise ConfigurationError if invalid)
+            ConfigProcessor._valid_date_key(date_key)
 
             if isinstance(override_value, str):
                 template_key = override_value

@@ -4,11 +4,6 @@ class StationBump {
         this.backgroundLayer = document.getElementById('backgroundLayer');
         this.bgVideoPlayer = document.getElementById('bgVideoPlayer');
         this.contentArea = document.getElementById('contentArea');
-
-        if (this.contentArea) {
-            this.contentArea.classList.add('text-hidden');
-        }
-
         this.mainTitle = document.getElementById('mainTitle');
         this.subtitle = document.getElementById('subtitle');
         this.detailLine1 = document.getElementById('detailLine1');
@@ -19,6 +14,7 @@ class StationBump {
         this.countdownDisplay = document.getElementById('countdownDisplay');
 
         this.videoLoopsRemaining = 1;
+        this.textLoopTimers = [];
 
         this.config = {
             title: 'FieldStation42',
@@ -196,7 +192,7 @@ class StationBump {
             const scheduleBlocks = await window.fs42Common.fetchSchedule(
                 this.config.nextUp,
                 formatDateForAPI(now),
-                    formatDateForAPI(endTime)
+                formatDateForAPI(endTime)
             );
 
             if (scheduleBlocks && scheduleBlocks.length > 0) {
@@ -207,8 +203,8 @@ class StationBump {
                 let nearEnd = false;
                 if (currentShow) {
                     const currentEnd = currentShow.end_time
-                    ? new Date(currentShow.end_time)
-                    : (upcomingShows.length > 0 ? new Date(upcomingShows[0].start_time) : null);
+                        ? new Date(currentShow.end_time)
+                        : (upcomingShows.length > 0 ? new Date(upcomingShows[0].start_time) : null);
                     if (currentEnd) {
                         nearEnd = (currentEnd - now) <= (5 * 60 * 1000);
                     }
@@ -263,11 +259,89 @@ class StationBump {
         }
     }
 
+    updateContentAreaToVideoBounds() {
+        if (!this.bgVideoPlayer || !this.contentArea || !this.config.backgroundVideo) return;
+
+        const videoWidth = this.bgVideoPlayer.videoWidth;
+        const videoHeight = this.bgVideoPlayer.videoHeight;
+
+        if (!videoWidth || !videoHeight) return;
+
+        const containerWidth = this.container.clientWidth;
+        const containerHeight = this.container.clientHeight;
+
+        const videoAspect = videoWidth / videoHeight;
+        const containerAspect = containerWidth / containerHeight;
+
+        let renderedWidth;
+        let renderedHeight;
+
+        if (containerAspect > videoAspect) {
+            renderedHeight = containerHeight;
+            renderedWidth = renderedHeight * videoAspect;
+        } else {
+            renderedWidth = containerWidth;
+            renderedHeight = renderedWidth / videoAspect;
+        }
+
+        const left = (containerWidth - renderedWidth) / 2;
+        const top = (containerHeight - renderedHeight) / 2;
+
+        this.contentArea.style.width = `${renderedWidth}px`;
+        this.contentArea.style.height = `${renderedHeight}px`;
+        this.contentArea.style.left = `${left}px`;
+        this.contentArea.style.top = `${top}px`;
+    }
+
+    clearTextLoopTimers() {
+        this.textLoopTimers.forEach(timer => clearTimeout(timer));
+        this.textLoopTimers = [];
+    }
+
+    scheduleTextForVideoLoop() {
+        if (!this.contentArea || !this.bgVideoPlayer || !this.config.backgroundVideo) return;
+
+        this.clearTextLoopTimers();
+
+        const videoDuration = this.bgVideoPlayer.duration;
+        if (!videoDuration || !isFinite(videoDuration)) return;
+
+        const delaySec = Math.max(parseFloat(this.config.textDelay) || 0, 0);
+        const fadeInSec = Math.max(parseFloat(this.config.textFadeIn) || 0, 0);
+        const fadeOutSec = Math.max(parseFloat(this.config.textFadeOut) || 0, 0);
+        const hideBeforeEndSec = Math.max(parseFloat(this.config.textHideBeforeEnd) || 0, 0);
+
+        // Start every video loop with text hidden.
+        this.contentArea.style.opacity = '0';
+        this.contentArea.style.transition = 'none';
+
+        // Show text after text_delay.
+        this.textLoopTimers.push(setTimeout(() => {
+            this.contentArea.style.transition = fadeInSec > 0 ? `opacity ${fadeInSec}s ease-in` : 'none';
+            this.contentArea.style.opacity = '1';
+        }, delaySec * 1000));
+
+        // Hide text before the end of the current video loop.
+        if (hideBeforeEndSec > 0) {
+            const fadeStartSec = Math.max(videoDuration - hideBeforeEndSec - fadeOutSec, 0);
+
+            this.textLoopTimers.push(setTimeout(() => {
+                this.contentArea.style.transition = fadeOutSec > 0 ? `opacity ${fadeOutSec}s ease-out` : 'none';
+                this.contentArea.style.opacity = '0';
+            }, fadeStartSec * 1000));
+        }
+    }
+
     setupTextPresentation() {
         if (!this.contentArea) return;
 
         if (this.config.textPosition) {
             this.container.classList.add(`text-position-${this.config.textPosition}`);
+        }
+
+        if (this.config.backgroundVideo) {
+            this.contentArea.style.opacity = '0';
+            return;
         }
 
         const delayMs = Math.max(parseFloat(this.config.textDelay) || 0, 0) * 1000;
@@ -277,9 +351,95 @@ class StationBump {
         this.contentArea.style.transition = fadeInSec > 0 ? `opacity ${fadeInSec}s ease-in` : 'none';
 
         setTimeout(() => {
-            this.contentArea.classList.remove('text-hidden');
             this.contentArea.style.opacity = '1';
         }, delayMs);
+    }
+
+    setupBackgroundVideo() {
+        if (!this.config.backgroundVideo || !this.bgVideoPlayer) return;
+
+        this.videoLoopsRemaining = Math.max(parseInt(this.config.backgroundVideoLoopCount) || 1, 1);
+
+        this.bgVideoPlayer.src = this.config.backgroundVideo;
+        this.bgVideoPlayer.style.display = 'block';
+        this.bgVideoPlayer.playsInline = true;
+        this.bgVideoPlayer.loop = false;
+
+        // If bg_music is set, keep video audio muted so audio behavior remains predictable.
+        // Otherwise, use video audio unless bg_video_audio=false.
+        this.bgVideoPlayer.muted = !!this.config.bgMusic || !this.config.backgroundVideoAudio;
+
+        this.container.classList.add('video-bg');
+
+        this.bgVideoPlayer.addEventListener('error', () => {
+            const error = this.bgVideoPlayer.error;
+            console.warn(
+                'Background video element error:',
+                error ? error.code : 'unknown',
+                error ? error.message : ''
+            );
+        });
+
+        this.bgVideoPlayer.addEventListener('loadedmetadata', () => {
+            this.updateContentAreaToVideoBounds();
+        });
+
+        window.addEventListener('resize', () => {
+            this.updateContentAreaToVideoBounds();
+        });
+
+        this.bgVideoPlayer.addEventListener('ended', () => {
+            if (this.config.duration > 0) {
+                this.bgVideoPlayer.currentTime = 0;
+                this.scheduleTextForVideoLoop();
+                this.playBackgroundVideo();
+                return;
+            }
+
+            this.videoLoopsRemaining--;
+
+            if (this.videoLoopsRemaining > 0) {
+                this.bgVideoPlayer.currentTime = 0;
+                this.scheduleTextForVideoLoop();
+                this.playBackgroundVideo();
+            }
+        });
+
+        this.bgVideoPlayer.addEventListener('canplay', () => {
+            this.playBackgroundVideo();
+        }, { once: true });
+
+        this.bgVideoPlayer.load();
+    }
+
+    playBackgroundVideo() {
+        if (!this.bgVideoPlayer) return;
+
+        this.bgVideoPlayer.play().then(() => {
+            console.log('Background video started successfully');
+            this.scheduleTextForVideoLoop();
+        }).catch(error => {
+            console.warn(
+                'Background video autoplay failed:',
+                error && error.name ? error.name : error,
+                error && error.message ? error.message : ''
+            );
+
+            // If unmuted autoplay is blocked, retry muted so the visual bump still plays.
+            if (!this.bgVideoPlayer.muted) {
+                this.bgVideoPlayer.muted = true;
+                this.bgVideoPlayer.play().then(() => {
+                    console.log('Background video started muted after autoplay retry');
+                    this.scheduleTextForVideoLoop();
+                }).catch(retryError => {
+                    console.warn(
+                        'Background video muted retry failed:',
+                        retryError && retryError.name ? retryError.name : retryError,
+                        retryError && retryError.message ? retryError.message : ''
+                    );
+                });
+            }
+        });
     }
 
     setupCountdown() {
@@ -314,8 +474,9 @@ class StationBump {
             // Start fade animation 1 second early so total duration matches exactly
             const fadeStartTime = Math.max(adjustedDuration - 1000, 0);
 
-            // Optionally hide the text before the bump itself ends
-            if (this.contentArea && this.config.textHideBeforeEnd > 0) {
+            // Non-video autobumps can hide text relative to the bump duration.
+            // Video autobumps handle text hide/show per video loop.
+            if (!this.config.backgroundVideo && this.contentArea && this.config.textHideBeforeEnd > 0) {
                 const fadeOutSec = Math.max(parseFloat(this.config.textFadeOut) || 0, 0);
                 const hideBeforeEndMs = this.config.textHideBeforeEnd * 1000;
                 const fadeOutMs = fadeOutSec * 1000;
@@ -338,6 +499,8 @@ class StationBump {
     }
 
     fadeOut() {
+        this.clearTextLoopTimers();
+
         if (this.contentArea && this.config.textFadeOut > 0) {
             this.contentArea.style.transition = `opacity ${this.config.textFadeOut}s ease-out`;
             this.contentArea.style.opacity = '0';
@@ -349,40 +512,6 @@ class StationBump {
         setTimeout(() => {
             this.container.style.display = 'none';
         }, 1000);
-    }
-
-    setupBackgroundVideo() {
-        if (!this.config.backgroundVideo || !this.bgVideoPlayer) return;
-
-        this.videoLoopsRemaining = Math.max(parseInt(this.config.backgroundVideoLoopCount) || 1, 1);
-
-        this.bgVideoPlayer.src = this.config.backgroundVideo;
-        this.bgVideoPlayer.style.display = 'block';
-        this.bgVideoPlayer.playsInline = true;
-        this.bgVideoPlayer.loop = false;
-
-        // If bg_music is set, keep video audio muted so audio behavior remains predictable.
-        // Otherwise, use video audio unless bg_video_audio=false.
-        this.bgVideoPlayer.muted = !!this.config.bgMusic || !this.config.backgroundVideoAudio;
-
-        this.container.classList.add('video-bg');
-
-        this.bgVideoPlayer.addEventListener('ended', () => {
-            this.videoLoopsRemaining--;
-
-            if (this.videoLoopsRemaining > 0) {
-                this.bgVideoPlayer.currentTime = 0;
-                this.bgVideoPlayer.play().catch(error => {
-                    console.warn('Background video replay failed:', error);
-                });
-            }
-        });
-
-        this.bgVideoPlayer.play().then(() => {
-            console.log('Background video started successfully');
-        }).catch(error => {
-            console.warn('Background video autoplay failed:', error);
-        });
     }
 
     setupBackgroundMusic() {

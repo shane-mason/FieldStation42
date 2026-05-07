@@ -4,16 +4,11 @@
   "title": "FieldStation42 Station Configuration",
   "description": "Schema for FieldStation42 station configuration files",
   "type": "object",
-  "required": [
-    "station_conf"
-  ],
+  "required": ["station_conf"],
   "properties": {
     "station_conf": {
       "type": "object",
-      "required": [
-        "network_name",
-        "channel_number"
-      ],
+      "required": ["network_name", "channel_number"],
       "properties": {
         "network_name": {
           "type": "string",
@@ -29,13 +24,7 @@
         },
         "network_type": {
           "type": "string",
-          "enum": [
-            "standard",
-            "web",
-            "guide",
-            "loop",
-            "streaming"
-          ],
+          "enum": ["standard", "web", "guide", "loop", "streaming"],
           "description": "Type of network station"
         },
         "schedule_increment": {
@@ -48,11 +37,7 @@
         },
         "break_strategy": {
           "type": "string",
-          "enum": [
-            "standard",
-            "end",
-            "center"
-          ],
+          "enum": ["standard", "end", "center"],
           "description": "Strategy for commercial breaks"
         },
         "commercial_free": {
@@ -121,27 +106,12 @@
         },
         "media_filter": {
           "type": "string",
-          "enum": [
-            "video",
-            "audio",
-            "mixed"
-          ],
+          "enum": ["video", "audio", "mixed"],
           "description": "Filter media by type: video only, audio only, or mixed (default: video)"
         },
         "video_scramble_fx": {
           "type": "string",
-          "enum": [
-            "horizontal_line",
-            "diagonal_lines",
-            "static_overlay",
-            "pixel_block",
-            "color_inversion",
-            "severe_noise",
-            "wavy",
-            "random_block",
-            "chunky_scramble",
-            "spicy"
-          ],
+          "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble", "spicy"],
           "description": "Preset video scrambling effect"
         },
         "station_fx": {
@@ -211,52 +181,45 @@
             },
             "bg_video": {
               "type": "string",
-              "description": "Path or URL to a background video for the autobump. Bare filenames are served from static/bump/video."
+              "description": "Background video URL or filename for the autobump"
             },
             "bg_video_loop_count": {
               "type": "integer",
               "minimum": 1,
-              "description": "Number of times to play the background video when autobump duration is inferred from the video length. Defaults to 1."
+              "description": "Number of times to play the background video when no explicit duration is set"
             },
             "bg_video_audio": {
               "type": "boolean",
-              "description": "Whether to use the background video's audio when bg_music is not set. Defaults to true."
+              "description": "Whether to play background video audio when bg_music is not set"
             },
             "text_position": {
               "type": "string",
-              "enum": [
-                "left",
-                "right",
-                "center",
-                "top-left",
-                "top-right",
-                "bottom-left",
-                "bottom-right"
-              ],
-              "description": "Position of the autobump text overlay."
+              "enum": ["left", "right", "center", "top-left", "top-right", "top-center", "bottom-left", "bottom-right", "bottom-center"],
+              "description": "Position of the autobump text overlay"
             },
             "text_delay": {
               "type": "number",
               "minimum": 0,
-              "description": "Delay in seconds before the autobump text appears."
+              "description": "Delay in seconds before showing autobump text"
             },
             "text_fade_in": {
               "type": "number",
               "minimum": 0,
-              "description": "Fade-in duration in seconds for the autobump text."
+              "description": "Text fade-in duration in seconds"
             },
             "text_fade_out": {
               "type": "number",
               "minimum": 0,
-              "description": "Fade-out duration in seconds for the autobump text."
+              "description": "Text fade-out duration in seconds"
+            },
+            "text_hide_before_end": {
+              "type": "number",
+              "minimum": 0,
+              "description": "How many seconds before the autobump ends (or before each video loop ends, when bg_video is used) that text should be fully hidden"
             },
             "strategy": {
               "type": "string",
-              "enum": [
-                "both",
-                "end",
-                "start"
-              ]
+              "enum": ["both", "end", "start"]
             }
           }
         },
@@ -272,9 +235,9 @@
         },
         "date_overrides": {
           "type": "object",
-          "description": "Optional exact-date schedule overrides keyed by month/day like 'December 25'. These take precedence over weekday schedules for matching dates.",
+          "description": "Optional exact-date schedule overrides keyed by month/day like 'December 25' or a date range. These take precedence over weekday schedules for matching dates.",
           "propertyNames": {
-            "pattern": "^[A-Z][a-z]+ [0-3]?[0-9]$"
+            "pattern": "^[A-Z][a-z]+ [0-3]?[0-9]( - [A-Z][a-z]+ [0-3]?[0-9])?$"
           },
           "additionalProperties": {
             "oneOf": [
@@ -499,11 +462,7 @@
           "description": "Stream configurations for streaming networks",
           "items": {
             "type": "object",
-            "required": [
-              "url",
-              "duration",
-              "title"
-            ],
+            "required": ["url", "duration", "title"],
             "properties": {
               "url": {
                 "type": "string",
@@ -543,9 +502,7 @@
         },
         "event": {
           "type": "string",
-          "enum": [
-            "signoff"
-          ],
+          "enum": ["signoff"],
           "description": "Special event for this time slot"
         },
         "overrides": {
@@ -570,11 +527,7 @@
         },
         "break_strategy": {
           "type": "string",
-          "enum": [
-            "standard",
-            "end",
-            "center"
-          ],
+          "enum": ["standard", "end", "center"],
           "description": "Commercial break strategy"
         },
         "schedule_increment": {
@@ -617,34 +570,18 @@
               "description": "Number of episodes in marathon"
             }
           },
-          "required": [
-            "chance",
-            "count"
-          ]
+          "required": ["chance", "count"]
         },
         "video_scramble_fx": {
           "oneOf": [
             {
               "type": "string",
-              "enum": [
-                "horizontal_line",
-                "diagonal_lines",
-                "static_overlay",
-                "pixel_block",
-                "color_inversion",
-                "severe_noise",
-                "wavy",
-                "random_block",
-                "chunky_scramble",
-                "spicy"
-              ],
+              "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble", "spicy"],
               "description": "Video scrambling effect"
             },
             {
               "type": "boolean",
-              "enum": [
-                false
-              ],
+              "enum": [false],
               "description": "Disable video scrambling (false)"
             }
           ]

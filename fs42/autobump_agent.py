@@ -182,6 +182,7 @@ class AutoBumpAgent:
                 - text_delay: Delay before text appears, in seconds
                 - text_fade_in: Text fade-in duration, in seconds
                 - text_fade_out: Text fade-out duration, in seconds
+                - text_hide_before_end: How many seconds before the autobump ends that text should be fully hidden
                 - css: URL to custom CSS override file
                 - next_network: Network name to fetch next 3 upcoming shows
                 - duration: Auto-hide after specified milliseconds (0 = no auto-hide)
@@ -213,6 +214,7 @@ class AutoBumpAgent:
             "text_delay": "text_delay",
             "text_fade_in": "text_fade_in",
             "text_fade_out": "text_fade_out",
+            "text_hide_before_end": "text_hide_before_end",
             "css": "css",
             "next_network": "next_network",
             "duration": "duration",
@@ -268,13 +270,14 @@ def main():
         "title": "FSTV",
         "subtitle": "Field Station Television",
         "variation": "retro",
-        "bg_video": "example.mp4",
+        "bg_video": "example.webm",
         "bg_video_loop_count": 2,
         "bg_video_audio": True,
         "text_position": "right",
         "text_delay": 1.5,
         "text_fade_in": 0.75,
         "text_fade_out": 0.5,
+        "text_hide_before_end": 3,
         "duration": 12
     }
     print("Video background:")

@@ -111,9 +111,90 @@ class LogoDisplay(object):
 
     def find_content_logo_dir(self, base_dir: Path, station_data: dict) -> Path | None:
         """
-        Use the station's schedule to determine the active tag, and
-        map that tag to a subdirectory under base_dir.
+        Find a tag-based logo directory.
+
+        Preferred behavior:
+          1. Derive the tag from the currently playing file path:
+             content_dir/<tag>/<file>
+             example:
+               catalog/MTV/daria/episode.mp4
+               -> logo_dir/daria/
+
+          2. Fall back to the station schedule's current slot tag:
+             "monday": {
+                 "20": { "tags": ["beavisandbutthead", "daria"] }
+             }
+
+        This keeps old schedule-based behavior available, while allowing
+        logo changes to follow the actual currently playing content.
         """
+
+        def normalize_tag(tag: str) -> tuple[str, str]:
+            stripped = tag.strip()
+            safe = (
+                stripped
+                .replace(" ", "_")
+                .replace("/", "_")
+                .replace("\\", "_")
+                .replace(":", "_")
+            )
+            return stripped, safe
+
+        def logo_dir_for_tag(tag: str) -> Path | None:
+            stripped, safe = normalize_tag(tag)
+
+            if not stripped:
+                return None
+
+            candidate = base_dir / safe
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+
+            if stripped != safe:
+                candidate_orig = base_dir / stripped
+                if candidate_orig.exists() and candidate_orig.is_dir():
+                    return candidate_orig
+
+            return None
+
+        # ---------------------------------------------------------------------
+        # 1) Prefer the currently playing file path.
+        # ---------------------------------------------------------------------
+
+        file_path = self.current_channel_info.get("file_path")
+        content_dir = station_data.get("content_dir")
+
+        if file_path and content_dir:
+            file_parts = Path(file_path).parts
+            content_parts = Path(content_dir).parts
+
+            # Find content_dir inside file_path, whether file_path is relative
+            # or absolute. Example:
+            #   file_path:    /home/user/FieldStation42/catalog/MTV/daria/foo.mp4
+            #   content_dir:  catalog/MTV
+            #   resolved tag: daria
+            for i in range(0, len(file_parts) - len(content_parts) + 1):
+                if file_parts[i:i + len(content_parts)] == content_parts:
+                    tag_index = i + len(content_parts)
+                    if tag_index < len(file_parts) - 1:
+                        tag = file_parts[tag_index]
+                        match = logo_dir_for_tag(tag)
+                        if match:
+                            return match
+                    break
+
+        elif file_path:
+            # Last-resort file-path fallback if content_dir is unavailable.
+            # For catalog/STATION/tag/file.mp4, parent.name is usually tag.
+            parent_tag = Path(file_path).parent.name
+            match = logo_dir_for_tag(parent_tag)
+            if match:
+                return match
+
+        # ---------------------------------------------------------------------
+        # 2) Fall back to schedule slot tag behavior.
+        # ---------------------------------------------------------------------
+
         now = datetime.datetime.now()
         day_key = now.strftime("%A").lower()  # "monday", "tuesday", etc.
         day_schedule = station_data.get(day_key)
@@ -153,24 +234,7 @@ class LogoDisplay(object):
         else:
             return None
 
-        stripped = first_tag.strip()
-        safe = (
-            stripped
-            .replace(" ", "_")
-            .replace("/", "_")
-            .replace("\\", "_")
-            .replace(":", "_")
-        )
-        candidate = base_dir / safe
-
-        if candidate.exists() and candidate.is_dir():
-            return candidate
-
-        if stripped != safe:
-            candidate_orig = base_dir / stripped
-            if candidate_orig.exists() and candidate_orig.is_dir():
-                return candidate_orig
-        return None
+        return logo_dir_for_tag(first_tag)
 
     # -------------------------------------------------------------------------
     # Month-based temporal directory: logo_dir/<Month>/ or ranges

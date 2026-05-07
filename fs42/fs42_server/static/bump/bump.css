@@ -47,20 +47,20 @@ body {
     background: linear-gradient(
         45deg,
         rgba(0, 0, 0, 0.3) 0%,
-                                rgba(0, 0, 0, 0.1) 50%,
-                                rgba(0, 0, 0, 0.3) 100%
+        rgba(0, 0, 0, 0.1) 50%,
+        rgba(0, 0, 0, 0.3) 100%
     );
 }
 
 #bgVideoPlayer {
-position: absolute;
-top: 0;
-left: 0;
-width: 100%;
-height: 100%;
-object-fit: cover;
-z-index: 0;
-background: #000000;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 0;
+    background: #000000;
 }
 
 .bump-container.video-bg .background-layer {
@@ -68,7 +68,7 @@ background: #000000;
 }
 
 .content-area {
-    position: relative;
+    position: absolute;
     z-index: 10;
     width: 100%;
     height: 100%;
@@ -78,10 +78,6 @@ background: #000000;
     align-items: center;
     padding: 40px;
     text-align: center;
-}
-
-.content-area.text-hidden {
-    opacity: 0;
 }
 
 .bump-container.text-position-left .content-area {
@@ -112,6 +108,12 @@ background: #000000;
     text-align: right;
 }
 
+.bump-container.text-position-top-center .content-area {
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+}
+
 .bump-container.text-position-bottom-left .content-area {
     align-items: flex-start;
     justify-content: flex-end;
@@ -122,6 +124,12 @@ background: #000000;
     align-items: flex-end;
     justify-content: flex-end;
     text-align: right;
+}
+
+.bump-container.text-position-bottom-center .content-area {
+    align-items: center;
+    justify-content: flex-end;
+    text-align: center;
 }
 
 .title-section {
@@ -136,9 +144,9 @@ background: #000000;
     color: #ffffff;
     text-transform: uppercase;
     letter-spacing: 3px;
-    text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.8);
     line-height: 1.1;
     margin: 0;
 }
@@ -216,9 +224,9 @@ background: #000000;
 
 .bump-container.dark-theme .main-title {
     color: #ffffff;
-    text-shadow:
-    0 0 20px rgba(255, 255, 255, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.9);
+    text-shadow: 
+        0 0 20px rgba(255, 255, 255, 0.5),
+        0 2px 8px rgba(0, 0, 0, 0.9);
 }
 
 .bump-container.light-theme {
@@ -227,9 +235,9 @@ background: #000000;
 
 .bump-container.light-theme .main-title {
     color: #333333;
-    text-shadow:
-    0 0 10px rgba(255, 255, 255, 0.8),
-    0 2px 4px rgba(0, 0, 0, 0.3);
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .bump-container.light-theme .subtitle {
@@ -242,53 +250,53 @@ background: #000000;
 
 .bump-container.accent-blue .main-title {
     color: #00d4ff;
-    text-shadow:
-    0 0 20px rgba(0, 212, 255, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 20px rgba(0, 212, 255, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 .bump-container.accent-red .main-title {
     color: #ff4757;
-    text-shadow:
-    0 0 20px rgba(255, 71, 87, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 20px rgba(255, 71, 87, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 .bump-container.accent-green .main-title {
     color: #2ed573;
-    text-shadow:
-    0 0 20px rgba(46, 213, 115, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 20px rgba(46, 213, 115, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 .bump-container.accent-purple .main-title {
     color: #a55eea;
-    text-shadow:
-    0 0 20px rgba(165, 94, 234, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 20px rgba(165, 94, 234, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 @media (max-width: 768px) {
     .content-area {
         padding: 20px;
     }
-
+    
     .main-title {
         letter-spacing: 2px;
     }
-
+    
     .subtitle {
         letter-spacing: 0.5px;
     }
-
+    
     .detail-line {
         margin-bottom: 6px;
     }
 }
 
 /* ========================================
- *  VARIATION STYLES
- *  ======================================== */
+   VARIATION STYLES
+   ======================================== */
 
 /* VARIATION 1: Modern (default) */
 .bump-container.variation-modern {
@@ -298,9 +306,9 @@ background: #000000;
 .bump-container.variation-modern .main-title {
     font-family: 'Orbitron', monospace;
     color: #00d4ff;
-    text-shadow:
-    0 0 20px rgba(0, 212, 255, 0.6),
-    0 2px 8px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 20px rgba(0, 212, 255, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.8);
 }
 
 .bump-container.variation-modern .subtitle {
@@ -329,7 +337,7 @@ background: #000000;
         transparent,
         transparent 3px,
         rgba(255, 20, 147, 0.03) 3px,
-                                          rgba(255, 20, 147, 0.03) 6px
+        rgba(255, 20, 147, 0.03) 6px
     );
     pointer-events: none;
     z-index: 5;
@@ -338,11 +346,11 @@ background: #000000;
 .bump-container.variation-retro .main-title {
     font-family: 'Bebas Neue', cursive;
     color: #ff1493;
-    text-shadow:
-    0 0 30px rgba(255, 20, 147, 0.8),
-    0 0 60px rgba(255, 20, 147, 0.4),
-    2px 2px 0px #00ffff,
-    4px 4px 0px rgba(0, 255, 255, 0.5);
+    text-shadow: 
+        0 0 30px rgba(255, 20, 147, 0.8),
+        0 0 60px rgba(255, 20, 147, 0.4),
+        2px 2px 0px #00ffff,
+        4px 4px 0px rgba(0, 255, 255, 0.5);
     letter-spacing: 8px;
     transform: perspective(500px) rotateX(15deg);
 }
@@ -379,34 +387,34 @@ background: #000000;
 .bump-container.variation-corporate .main-title {
     font-family: 'Bebas Neue', cursive;
     color: #ffffff;
-    text-shadow:
-    3px 3px 0px #003d7a,
-    6px 6px 0px #002952,
-    0 0 30px rgba(255, 255, 255, 0.6);
+    text-shadow: 
+        3px 3px 0px #003d7a,
+        6px 6px 0px #002952,
+        0 0 30px rgba(255, 255, 255, 0.6);
     font-weight: 900;
     letter-spacing: 6px;
     animation: corporate90sGlow 2s ease-in-out infinite alternate;
 }
 
 @keyframes corporate90sGlow {
-    0% { text-shadow:
+    0% { text-shadow: 
         3px 3px 0px #003d7a,
         6px 6px 0px #002952,
         0 0 30px rgba(255, 255, 255, 0.6); }
-        100% { text-shadow:
-            3px 3px 0px #003d7a,
-            6px 6px 0px #002952,
-            0 0 50px rgba(255, 255, 255, 0.9),
-            0 0 70px rgba(0, 204, 255, 0.4); }
+    100% { text-shadow: 
+        3px 3px 0px #003d7a,
+        6px 6px 0px #002952,
+        0 0 50px rgba(255, 255, 255, 0.9),
+        0 0 70px rgba(0, 204, 255, 0.4); }
 }
 
 .bump-container.variation-corporate .subtitle {
     color: #ffff00;
     font-weight: 700;
     font-style: normal;
-    text-shadow:
-    2px 2px 0px #cc9900,
-    0 0 15px rgba(255, 255, 0, 0.8);
+    text-shadow: 
+        2px 2px 0px #cc9900,
+        0 0 15px rgba(255, 255, 0, 0.8);
     text-transform: uppercase;
     letter-spacing: 3px;
 }
@@ -414,28 +422,28 @@ background: #000000;
 .bump-container.variation-corporate .detail-line {
     color: #ffffff;
     font-weight: 600;
-    text-shadow:
-    2px 2px 0px #0066cc,
-    0 0 10px rgba(255, 255, 255, 0.5);
+    text-shadow: 
+        2px 2px 0px #0066cc,
+        0 0 10px rgba(255, 255, 255, 0.5);
     text-transform: uppercase;
     letter-spacing: 2px;
 }
 
 .bump-container.variation-corporate .content-area {
-    background: linear-gradient(135deg,
-                                rgba(255, 255, 255, 0.15) 0%,
-                                rgba(255, 255, 255, 0.05) 50%,
-                                rgba(0, 102, 204, 0.1) 100%);
+    background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.15) 0%, 
+        rgba(255, 255, 255, 0.05) 50%, 
+        rgba(0, 102, 204, 0.1) 100%);
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     padding: 30px;
     margin: auto;
     max-width: 80%;
     max-height: 70%;
-    box-shadow:
-    inset 1px 1px 3px rgba(255, 255, 255, 0.3),
-    inset -1px -1px 3px rgba(0, 0, 0, 0.2),
-    0 8px 25px rgba(0, 0, 0, 0.3);
+    box-shadow: 
+        inset 1px 1px 3px rgba(255, 255, 255, 0.3),
+        inset -1px -1px 3px rgba(0, 0, 0, 0.2),
+        0 8px 25px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(5px);
 }
 
@@ -457,7 +465,7 @@ background: #000000;
         transparent,
         transparent 2px,
         rgba(0, 255, 0, 0.02) 2px,
-                                          rgba(0, 255, 0, 0.02) 4px
+        rgba(0, 255, 0, 0.02) 4px
     );
     pointer-events: none;
     z-index: 5;
@@ -472,9 +480,9 @@ background: #000000;
 .bump-container.variation-terminal .main-title {
     font-family: 'JetBrains Mono', monospace;
     color: #00ff00;
-    text-shadow:
-    0 0 10px rgba(0, 255, 0, 0.8),
-    0 0 20px rgba(0, 255, 0, 0.4);
+    text-shadow: 
+        0 0 10px rgba(0, 255, 0, 0.8),
+        0 0 20px rgba(0, 255, 0, 0.4);
     font-weight: 700;
     letter-spacing: 4px;
     animation: terminalFlicker 3s ease-in-out infinite;
