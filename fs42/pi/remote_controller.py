@@ -405,7 +405,7 @@ def find_input_device(device_spec=None):
     """
     import glob
     devices = []
-
+    default = False
     # Look for input devices
     for device_path in glob.glob('/dev/input/event*'):
         try:
@@ -448,20 +448,25 @@ def find_input_device(device_spec=None):
         else:
             device_spec = device_spec.lower()
 
+    # If no spec provided, default to flirc
     if not device_spec:
         device_spec = "flirc"
-    
+        default = True
 
-    # Auto-detect: Try to find Flirc first
+    # Try to match requested device
     for path, name in devices:
-        if device_spec in name.lower():
+        if device_spec.lower() in name.lower():
             print(f"Found device: {name}")
             return path
 
-    # Use first keyboard-like device
+    # If user explicitly requested device, do NOT fallback
+    if default is False and (device_spec or os.getenv('FS42_INPUT_DEVICE')):
+        print(f"Device '{device_spec}' not found yet. Waiting...")
+        return None
+
+    # Otherwise fallback to first keyboard device
     print(f"Using default device: {devices[0][1]}")
     return devices[0][0]
-
 
 def get_key_name_from_code(key_code):
     """Convert evdev key code to readable key name"""
@@ -652,6 +657,7 @@ Device specification examples:
   -d 0                      Use device at index 0 from the device list
   -d flirc                  Use first device with 'flirc' in its name
   -d keyboard               Use first device with 'keyboard' in its name
+  -d test                   Run test mode
 
 Environment variables:
   FS42_INPUT_DEVICE         Device specification (same format as -d)
@@ -683,31 +689,58 @@ Environment variables:
         return
 
     # Find input device
-    device_path = find_input_device(device_spec)
-    if not device_path:
-        # No device found - use test mode
+    if device_spec != "test":
+        device_path = find_input_device(device_spec)
+    else:
         test_mode()
-        return
 
     print("Press ESC to exit.")
+    
+    first_run = True
+    while True:
+        try:
+            if not device_path:
+                print("Selected input not found. Retrying in 5 seconds...")
+                time.sleep(5)
+                # Check if the device has reconnected
+                device_path = find_input_device(device_spec)
 
-    try:
-        device = InputDevice(device_path)
-        print(f"Listening for remote control commands from: {device.name}")
+                if not device_path:
+                    continue
 
-        # Read events from the device
-        for event in device.read_loop():
-            if not handle_key_event(event):
-                break
+            device = InputDevice(device_path)
 
-    except PermissionError:
-        print("Permission denied. Try running with: sudo python3 remote_controller.py")
-        sys.exit(1)
-    except KeyboardInterrupt:
-        print("\nExiting remote controller...")
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+            print(f"Listening for remote control commands from: {device.name}")
+
+            # Main event loop
+            for event in device.read_loop():
+                if not handle_key_event(event):
+                    return
+
+        except OSError as e:
+            # Bluetooth disconnect / USB unplug / device vanished
+            if e.errno == 19 or e.errno == 2:
+                print("Input device disconnected. Waiting for reconnection...")
+                time.sleep(5)
+            else:
+                print(f"Device error: {e}")
+                time.sleep(5)
+
+        except FileNotFoundError:
+            print("Input device missing. Waiting for reconnection...")
+            time.sleep(5)
+
+        except PermissionError:
+            print("Permission denied. Try running with: sudo python3 remote_controller.py")
+            sys.exit(1)
+
+        except KeyboardInterrupt:
+            print("\nExiting remote controller...")
+            sys.exit(1)
+            
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
