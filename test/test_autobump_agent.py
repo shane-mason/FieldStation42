@@ -141,13 +141,13 @@ class TestAutoBumpAgent:
             "network_name": "FSTV"
         }
         result = AutoBumpAgent.gen_bumps(station_config)
-        
-        assert result["start_block"] is not None
-        assert result["end_block"] is not None
-        assert isinstance(result["start_block"], CatalogEntry)
-        assert isinstance(result["end_block"], CatalogEntry)
-        assert result["start_block"].duration == 7  # default duration
-        assert result["end_block"].duration == 7
+
+        assert result["message_bump"] is not None
+        assert result["next_bump"] is not None
+        assert isinstance(result["message_bump"], CatalogEntry)
+        assert isinstance(result["next_bump"], CatalogEntry)
+        assert result["message_bump"].duration == 7  # default duration
+        assert result["next_bump"].duration == 7
 
     def test_gen_bumps_with_custom_duration(self):
         """Test gen_bumps uses custom duration when provided."""
@@ -159,9 +159,9 @@ class TestAutoBumpAgent:
             "network_name": "TESTTV"
         }
         result = AutoBumpAgent.gen_bumps(station_config)
-        
-        assert result["start_block"].duration == 20
-        assert result["end_block"].duration == 20
+
+        assert result["message_bump"].duration == 20
+        assert result["next_bump"].duration == 20
 
     def test_gen_bumps_modifies_end_bump_config(self):
         """Test that gen_bumps properly modifies config for end bump."""
@@ -175,9 +175,9 @@ class TestAutoBumpAgent:
         }
         
         result = AutoBumpAgent.gen_bumps(station_config)
-        
-        # End bump should have modified subtitle and next_network
-        end_path = result["end_block"].path
+
+        # next_bump should have modified subtitle and next_network
+        end_path = result["next_bump"].path
         assert 'subtitle=Coming+up+on+FSTV+Networks' in end_path or 'subtitle=Coming%20up%20on%20FSTV%20Networks' in end_path
         assert 'next_network=FSTV+Networks' in end_path or 'next_network=FSTV%20Networks' in end_path
 
