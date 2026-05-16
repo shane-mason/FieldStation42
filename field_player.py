@@ -109,13 +109,6 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
     with open(channel_socket, "w"):
         pass
 
-    
-    channel_index = 0
-    use_saved = StationManager().server_conf.get("recall_last_channel", True)
-    if use_saved:
-        with shelve.open(STATE_SHELVE) as s:
-            channel_index = s.get("channel_index", 0)
-        
     if not len(manager.stations):
         logger.error(
             "Could not find any station runtimes - do you have your channels configured?"
@@ -128,9 +121,25 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
         )
         return
 
+    channel_index = 0
+    # if they specified a start channel, just use that
+    start_channel_config = StationManager().server_conf.get("start_channel", None)
+    if not start_channel_config:
+        use_saved = StationManager().server_conf.get("recall_last_channel", True)
+        if use_saved:
+            with shelve.open(STATE_SHELVE) as s:
+                channel_index = s.get("channel_index", 0)
+    else:
+        channel_index = manager.index_from_channel(start_channel_config)
+        if not channel_index:
+            logger.error(f"Start channel specified as {start_channel_config} in main_config.json, but station doesn't exist.")
+            logger.warning(f"Attempting fallback to the first channel")
+            channel_index = 0
+
     if channel_index >= len(manager.stations):
         logger.warning("Saved channel index %d is out of range, resetting to 0", channel_index)
         channel_index = 0
+
     player = StationPlayer(manager.stations[channel_index], input_check)
     if schedule_lock:
         player.schedule_lock = schedule_lock
