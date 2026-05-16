@@ -2,6 +2,8 @@ class StationBump {
     constructor(config = {}) {
         this.container = document.getElementById('bumpContainer');
         this.backgroundLayer = document.getElementById('backgroundLayer');
+        this.bgVideoPlayer = document.getElementById('bgVideoPlayer');
+        this.contentArea = document.getElementById('contentArea');
         this.mainTitle = document.getElementById('mainTitle');
         this.subtitle = document.getElementById('subtitle');
         this.detailLine1 = document.getElementById('detailLine1');
@@ -11,11 +13,17 @@ class StationBump {
         this.countdownTimer = document.getElementById('countdownTimer');
         this.countdownDisplay = document.getElementById('countdownDisplay');
 
+        this.videoLoopsRemaining = 1;
+        this.textLoopTimers = [];
+
         this.config = {
             title: 'FieldStation42',
             subtitle: 'Big Time Watching Is Here!',
             details: ['Transmitting 24/7', 'On FieldStation42', 'It\'s up to you!'],
             backgroundImage: null,
+            backgroundVideo: null,
+            backgroundVideoLoopCount: 1,
+            backgroundVideoAudio: true,
             backgroundColor: '#000000',
             bgColor: null,
             fgColor: null,
@@ -28,23 +36,29 @@ class StationBump {
             bgMusic: null,
             loopMusic: true,
             countdown: false,
+            textPosition: null,
+            textDelay: 0,
+            textFadeIn: 0,
+            textFadeOut: 0,
+            textHideBeforeEnd: 0,
             ...config
         };
-        
+
         this.init();
     }
-    
+
     async init() {
         await this.applyConfiguration();
+        this.setupTextPresentation();
         this.setupAutoHide();
         this.setupCountdown();
     }
-    
+
     async applyConfiguration() {
         // Set content
         this.mainTitle.textContent = this.config.title;
         this.subtitle.textContent = this.config.subtitle;
-        
+
         // Handle nextUp shows or regular details
         if (this.config.nextUp) {
             await this.loadNextUpShows();
@@ -58,9 +72,11 @@ class StationBump {
                 }
             });
         }
-        
+
         // Set background
-        if (this.config.backgroundImage) {
+        if (this.config.backgroundVideo) {
+            this.setupBackgroundVideo();
+        } else if (this.config.backgroundImage) {
             this.backgroundLayer.style.backgroundImage = `url(${this.config.backgroundImage})`;
             this.container.classList.add('custom-bg');
         } else if (this.config.bgColor) {
@@ -68,15 +84,15 @@ class StationBump {
         } else {
             this.container.style.background = this.config.backgroundColor;
         }
-        
+
         // Apply variation styling
         this.applyVariation();
-        
+
         // Load custom CSS override if provided
         if (this.config.cssOverride) {
             this.loadCSSOverride();
         }
-        
+
         // Set custom text colors (overrides variation defaults if provided)
         if (this.config.fgColor) {
             this.mainTitle.style.color = this.config.fgColor;
@@ -89,23 +105,23 @@ class StationBump {
         // Handle background music
         this.setupBackgroundMusic();
     }
-    
+
     applyVariation() {
         // Remove any existing variation classes
         this.container.classList.remove('variation-modern', 'variation-retro', 'variation-corporate', 'variation-terminal');
-        
+
         // Add the selected variation class
         this.container.classList.add(`variation-${this.config.variation}`);
-        
+
         // Set default colors based on variation (only if custom colors not provided)
-        if (!this.config.bgColor && !this.config.backgroundImage) {
+        if (!this.config.bgColor && !this.config.backgroundImage && !this.config.backgroundVideo) {
             const variationDefaults = this.getVariationDefaults();
             if (variationDefaults.bgColor) {
                 this.container.style.background = variationDefaults.bgColor;
             }
         }
     }
-    
+
     getVariationDefaults() {
         const defaults = {
             modern: {
@@ -125,37 +141,37 @@ class StationBump {
                 fgColor: null
             }
         };
-        
+
         return defaults[this.config.variation] || defaults.modern;
     }
-    
+
     loadCSSOverride() {
         // Remove any existing override CSS
         const existingOverride = document.getElementById('css-override');
         if (existingOverride) {
             existingOverride.remove();
         }
-        
+
         // Create and load new override CSS
         const link = document.createElement('link');
         link.id = 'css-override';
         link.rel = 'stylesheet';
         link.type = 'text/css';
         link.href = this.config.cssOverride;
-        
+
         // Add error handling
         link.onerror = () => {
             console.warn('Failed to load CSS override:', this.config.cssOverride);
         };
-        
+
         link.onload = () => {
             console.log('CSS override loaded successfully:', this.config.cssOverride);
         };
-        
+
         // Append to head to ensure it loads after base styles
         document.head.appendChild(link);
     }
-    
+
     async loadNextUpShows() {
         try {
             const now = new Date();
@@ -242,7 +258,190 @@ class StationBump {
             this.detailLine3.style.display = 'none';
         }
     }
-    
+
+    updateContentAreaToVideoBounds() {
+        if (!this.bgVideoPlayer || !this.contentArea || !this.config.backgroundVideo) return;
+
+        const videoWidth = this.bgVideoPlayer.videoWidth;
+        const videoHeight = this.bgVideoPlayer.videoHeight;
+
+        if (!videoWidth || !videoHeight) return;
+
+        const containerWidth = this.container.clientWidth;
+        const containerHeight = this.container.clientHeight;
+
+        const videoAspect = videoWidth / videoHeight;
+        const containerAspect = containerWidth / containerHeight;
+
+        let renderedWidth;
+        let renderedHeight;
+
+        if (containerAspect > videoAspect) {
+            renderedHeight = containerHeight;
+            renderedWidth = renderedHeight * videoAspect;
+        } else {
+            renderedWidth = containerWidth;
+            renderedHeight = renderedWidth / videoAspect;
+        }
+
+        const left = (containerWidth - renderedWidth) / 2;
+        const top = (containerHeight - renderedHeight) / 2;
+
+        this.contentArea.style.width = `${renderedWidth}px`;
+        this.contentArea.style.height = `${renderedHeight}px`;
+        this.contentArea.style.left = `${left}px`;
+        this.contentArea.style.top = `${top}px`;
+    }
+
+    clearTextLoopTimers() {
+        this.textLoopTimers.forEach(timer => clearTimeout(timer));
+        this.textLoopTimers = [];
+    }
+
+    scheduleTextForVideoLoop() {
+        if (!this.contentArea || !this.bgVideoPlayer || !this.config.backgroundVideo) return;
+
+        this.clearTextLoopTimers();
+
+        const videoDuration = this.bgVideoPlayer.duration;
+        if (!videoDuration || !isFinite(videoDuration)) return;
+
+        const delaySec = Math.max(parseFloat(this.config.textDelay) || 0, 0);
+        const fadeInSec = Math.max(parseFloat(this.config.textFadeIn) || 0, 0);
+        const fadeOutSec = Math.max(parseFloat(this.config.textFadeOut) || 0, 0);
+        const hideBeforeEndSec = Math.max(parseFloat(this.config.textHideBeforeEnd) || 0, 0);
+
+        // Start every video loop with text hidden.
+        this.contentArea.style.opacity = '0';
+        this.contentArea.style.transition = 'none';
+
+        // Show text after text_delay.
+        this.textLoopTimers.push(setTimeout(() => {
+            this.contentArea.style.transition = fadeInSec > 0 ? `opacity ${fadeInSec}s ease-in` : 'none';
+            this.contentArea.style.opacity = '1';
+        }, delaySec * 1000));
+
+        // Hide text before the end of the current video loop.
+        if (hideBeforeEndSec > 0) {
+            const fadeStartSec = Math.max(videoDuration - hideBeforeEndSec - fadeOutSec, 0);
+
+            this.textLoopTimers.push(setTimeout(() => {
+                this.contentArea.style.transition = fadeOutSec > 0 ? `opacity ${fadeOutSec}s ease-out` : 'none';
+                this.contentArea.style.opacity = '0';
+            }, fadeStartSec * 1000));
+        }
+    }
+
+    setupTextPresentation() {
+        if (!this.contentArea) return;
+
+        if (this.config.textPosition) {
+            this.container.classList.add(`text-position-${this.config.textPosition}`);
+        }
+
+        if (this.config.backgroundVideo) {
+            this.contentArea.style.opacity = '0';
+            return;
+        }
+
+        const delayMs = Math.max(parseFloat(this.config.textDelay) || 0, 0) * 1000;
+        const fadeInSec = Math.max(parseFloat(this.config.textFadeIn) || 0, 0);
+
+        this.contentArea.style.opacity = '0';
+        this.contentArea.style.transition = fadeInSec > 0 ? `opacity ${fadeInSec}s ease-in` : 'none';
+
+        setTimeout(() => {
+            this.contentArea.style.opacity = '1';
+        }, delayMs);
+    }
+
+    setupBackgroundVideo() {
+        if (!this.config.backgroundVideo || !this.bgVideoPlayer) return;
+
+        this.videoLoopsRemaining = Math.max(parseInt(this.config.backgroundVideoLoopCount) || 1, 1);
+
+        this.bgVideoPlayer.src = this.config.backgroundVideo;
+        this.bgVideoPlayer.style.display = 'block';
+        this.bgVideoPlayer.playsInline = true;
+        this.bgVideoPlayer.loop = false;
+
+        // If bg_music is set, keep video audio muted so audio behavior remains predictable.
+        // Otherwise, use video audio unless bg_video_audio=false.
+        this.bgVideoPlayer.muted = !!this.config.bgMusic || !this.config.backgroundVideoAudio;
+
+        this.container.classList.add('video-bg');
+
+        this.bgVideoPlayer.addEventListener('error', () => {
+            const error = this.bgVideoPlayer.error;
+            console.warn(
+                'Background video element error:',
+                error ? error.code : 'unknown',
+                error ? error.message : ''
+            );
+        });
+
+        this.bgVideoPlayer.addEventListener('loadedmetadata', () => {
+            this.updateContentAreaToVideoBounds();
+        });
+
+        window.addEventListener('resize', () => {
+            this.updateContentAreaToVideoBounds();
+        });
+
+        this.bgVideoPlayer.addEventListener('ended', () => {
+            if (this.config.duration > 0) {
+                this.bgVideoPlayer.currentTime = 0;
+                this.scheduleTextForVideoLoop();
+                this.playBackgroundVideo();
+                return;
+            }
+
+            this.videoLoopsRemaining--;
+
+            if (this.videoLoopsRemaining > 0) {
+                this.bgVideoPlayer.currentTime = 0;
+                this.scheduleTextForVideoLoop();
+                this.playBackgroundVideo();
+            }
+        });
+
+        this.bgVideoPlayer.addEventListener('canplay', () => {
+            this.playBackgroundVideo();
+        }, { once: true });
+
+        this.bgVideoPlayer.load();
+    }
+
+    playBackgroundVideo() {
+        if (!this.bgVideoPlayer) return;
+
+        this.bgVideoPlayer.play().then(() => {
+            console.log('Background video started successfully');
+            this.scheduleTextForVideoLoop();
+        }).catch(error => {
+            console.warn(
+                'Background video autoplay failed:',
+                error && error.name ? error.name : error,
+                error && error.message ? error.message : ''
+            );
+
+            // If unmuted autoplay is blocked, retry muted so the visual bump still plays.
+            if (!this.bgVideoPlayer.muted) {
+                this.bgVideoPlayer.muted = true;
+                this.bgVideoPlayer.play().then(() => {
+                    console.log('Background video started muted after autoplay retry');
+                    this.scheduleTextForVideoLoop();
+                }).catch(retryError => {
+                    console.warn(
+                        'Background video muted retry failed:',
+                        retryError && retryError.name ? retryError.name : retryError,
+                        retryError && retryError.message ? retryError.message : ''
+                    );
+                });
+            }
+        });
+    }
+
     setupCountdown() {
         if (!this.config.countdown || this.config.duration <= 0) return;
 
@@ -271,20 +470,45 @@ class StationBump {
         if (this.config.duration > 0) {
             // Enforce minimum duration of 2 seconds (2000ms)
             const adjustedDuration = Math.max(this.config.duration, 2000);
-            
+
             // Start fade animation 1 second early so total duration matches exactly
             const fadeStartTime = Math.max(adjustedDuration - 1000, 0);
-            
+
+            // Non-video autobumps can hide text relative to the bump duration.
+            // Video autobumps handle text hide/show per video loop.
+            if (!this.config.backgroundVideo && this.contentArea && this.config.textHideBeforeEnd > 0) {
+                const fadeOutSec = Math.max(parseFloat(this.config.textFadeOut) || 0, 0);
+                const hideBeforeEndMs = this.config.textHideBeforeEnd * 1000;
+                const fadeOutMs = fadeOutSec * 1000;
+
+                const textFadeStartTime = Math.max(
+                    adjustedDuration - hideBeforeEndMs - fadeOutMs,
+                    0
+                );
+
+                setTimeout(() => {
+                    this.contentArea.style.transition = fadeOutSec > 0 ? `opacity ${fadeOutSec}s ease-out` : 'none';
+                    this.contentArea.style.opacity = '0';
+                }, textFadeStartTime);
+            }
+
             setTimeout(() => {
                 this.fadeOut();
             }, fadeStartTime);
         }
     }
-    
+
     fadeOut() {
+        this.clearTextLoopTimers();
+
+        if (this.contentArea && this.config.textFadeOut > 0) {
+            this.contentArea.style.transition = `opacity ${this.config.textFadeOut}s ease-out`;
+            this.contentArea.style.opacity = '0';
+        }
+
         this.container.style.transition = 'opacity 1s ease-out';
         this.container.style.opacity = '0';
-        
+
         setTimeout(() => {
             this.container.style.display = 'none';
         }, 1000);
@@ -326,11 +550,11 @@ class StationBump {
             }, 50); // Fade over ~1 second
         }
     }
-    
+
     // Static method to create bump with URL parameters
     static fromURLParams() {
         const params = new URLSearchParams(window.location.search);
-        
+
         const config = {
             title: params.get('title') || 'FieldStation42',
             subtitle: params.get('subtitle') || 'Its Up to you!',
@@ -340,6 +564,9 @@ class StationBump {
                 params.get('detail3') || 'Sweet.'
             ].filter(Boolean),
             backgroundImage: params.get('bg') || null,
+            backgroundVideo: params.get('bg_video') || null,
+            backgroundVideoLoopCount: parseInt(params.get('bg_video_loop_count')) || 1,
+            backgroundVideoAudio: params.get('bg_video_audio') !== 'false',
             backgroundColor: params.get('bgcolor') || '#000000',
             bgColor: params.get('bg_color') || null,
             fgColor: params.get('fg_color') || null,
@@ -351,16 +578,22 @@ class StationBump {
             cssOverride: params.get('css') || null,
             bgMusic: params.get('bg_music') || null,
             loopMusic: params.get('loopmusic') !== 'false',
-            countdown: params.get('countdown') === 'true'
+            countdown: params.get('countdown') === 'true',
+            textPosition: params.get('text_position') || null,
+            textDelay: parseFloat(params.get('text_delay')) || 0,
+            textFadeIn: parseFloat(params.get('text_fade_in')) || 0,
+            textFadeOut: parseFloat(params.get('text_fade_out')) || 0,
+            textHideBeforeEnd: parseFloat(params.get('text_hide_before_end')) || 0
         };
-        
+
         return new StationBump(config);
     }
-    
+
     // Method to update content dynamically
     async updateContent(newConfig) {
         Object.assign(this.config, newConfig);
         await this.applyConfiguration();
+        this.setupTextPresentation();
     }
 }
 
@@ -380,7 +613,7 @@ window.configureBump = async function(config) {
 document.addEventListener('DOMContentLoaded', () => {
     // Check if URL parameters are provided
     const hasParams = window.location.search.length > 0;
-    
+
     if (hasParams) {
         window.currentBump = StationBump.fromURLParams();
     } else {

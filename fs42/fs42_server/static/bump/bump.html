@@ -10,11 +10,16 @@
     <div class="bump-container" id="bumpContainer">
         <div class="background-layer" id="backgroundLayer"></div>
 
+        <!-- Optional background video element -->
+        <video id="bgVideoPlayer" preload="auto" playsinline style="display: none;">
+            Your browser does not support the video element.
+        </video>
+
         <div class="countdown-timer" id="countdownTimer" style="display: none;">
             <span id="countdownDisplay">0:00</span>
         </div>
 
-        <div class="content-area">
+        <div class="content-area" id="contentArea" style="opacity: 0;">
             <div class="title-section">
                 <h1 class="main-title" id="mainTitle">FIELDSTATION42</h1>
             </div>
@@ -35,7 +40,7 @@
             Your browser does not support the audio element.
         </audio>
     </div>
-    
+
     <script src="../fs42_client.js"></script>
     <script src="../common.js"></script>
     <script src="bump.js"></script>
