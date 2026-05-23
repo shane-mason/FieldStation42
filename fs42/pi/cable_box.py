@@ -47,6 +47,7 @@ class CableBox:
 
         # mode to display and update temp
         self.temp_mode = False
+        self.last_button_time = time.monotonic()
 
     def send_command(self, command, channel=-1):
         as_obj = {"command": command, "channel": channel}
@@ -103,6 +104,7 @@ class CableBox:
 
             if key_pressed:
                 self.temp_mode = False
+                self.last_button_time = time.monotonic()
                 self.tm.show("    ")
                 last_selection_tick = time.monotonic()
                 in_selection = True
@@ -158,7 +160,11 @@ class CableBox:
                 except:
                     self.tm.show("FS42")
 
-            if self.temp_mode and (tick_count % 10) == 0:
+            elapsed_since_press = time.monotonic() - self.last_button_time
+            if elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
+                t = time.localtime()
+                self.tm.numbers(t.tm_hour, t.tm_min)
+            elif self.temp_mode and (tick_count % 10) == 0:
                 temp = get_temperature()
                 self.tm.show(f"{temp}*")
 
