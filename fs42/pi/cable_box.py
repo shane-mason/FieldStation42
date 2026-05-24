@@ -28,9 +28,10 @@ def get_temperature():
 
 
 class CableBox:
-    def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket"):
+    def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
         self.channel_socket = channel_socket
         self.status_socket = status_socket
+        self.press_socket = press_socket
 
         self.tm = tm1637.TM1637(clk=17, dio=18)
         self.tm.brightness(0)
@@ -97,6 +98,21 @@ class CableBox:
                     print(f"Error decoding status: {as_str}")
         return new_stat
 
+    def check_press(self):
+        try:
+            with open(self.press_socket) as fp:
+                as_str = fp.read().strip()
+            if not as_str:
+                return None
+            data = json.loads(as_str)
+            with open(self.press_socket, "w") as fp:
+                fp.write("")
+            if time.time() - data["ts"] < 2.0:
+                return data["digits"]
+        except Exception:
+            pass
+        return None
+
     def read_keys(self):
         pressed = self.keypad.pressed_keys
         if len(pressed) == 1:
@@ -156,6 +172,12 @@ class CableBox:
                     self.send_command("direct", channel_num)
 
             time.sleep(0.1)
+
+            if not in_selection:
+                remote_digits = self.check_press()
+                if remote_digits:
+                    self.last_button_time = time.monotonic()
+                    self.tm.show(f"  {int(remote_digits):02d}")
 
             new_stat = self.check_status()
             if new_stat:
