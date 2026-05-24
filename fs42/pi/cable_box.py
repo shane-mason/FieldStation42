@@ -175,7 +175,12 @@ class CableBox:
 
             elapsed_since_press = time.monotonic() - self.last_button_time
             if self.show_time and elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
-                self.tm.show(time.strftime(self.time_format, time.localtime()))
+                formatted = time.strftime(self.time_format, time.localtime())
+                if ":" in formatted:
+                    h, m = formatted.split(":", 1)
+                    self.tm.numbers(int(h), int(m))
+                else:
+                    self.tm.show(formatted)
             elif self.temp_mode and (tick_count % 10) == 0:
                 temp = get_temperature()
                 self.tm.show(f"{temp}*")
