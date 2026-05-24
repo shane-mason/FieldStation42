@@ -49,6 +49,16 @@ class CableBox:
         self.temp_mode = False
         self.last_button_time = time.monotonic()
 
+        self.show_time = True
+        self.time_format = "%H:%M"
+        try:
+            with open("confs/main_config.json") as fp:
+                config = json.load(fp)
+                self.show_time = config.get("show_cable_box_time", True)
+                self.time_format = config.get("time_format", "%H:%M")
+        except Exception:
+            pass
+
     def send_command(self, command, channel=-1):
         as_obj = {"command": command, "channel": channel}
         as_str = json.dumps(as_obj)
@@ -150,6 +160,7 @@ class CableBox:
             new_stat = self.check_status()
             if new_stat:
                 self.temp_mode = False
+                self.last_button_time = time.monotonic()
                 try:
                     channel_num = int(new_stat["channel_number"])
                     if channel_num >= 0:
@@ -161,9 +172,8 @@ class CableBox:
                     self.tm.show("FS42")
 
             elapsed_since_press = time.monotonic() - self.last_button_time
-            if elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
-                t = time.localtime()
-                self.tm.numbers(t.tm_hour, t.tm_min)
+            if self.show_time and elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
+                self.tm.show(time.strftime(self.time_format, time.localtime()))
             elif self.temp_mode and (tick_count % 10) == 0:
                 temp = get_temperature()
                 self.tm.show(f"{temp}*")
