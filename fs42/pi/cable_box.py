@@ -160,9 +160,11 @@ class CableBox:
             new_stat = self.check_status()
             if new_stat:
                 self.temp_mode = False
-                self.last_button_time = time.monotonic()
                 try:
-                    channel_num = int(new_stat["channel_number"])
+                    new_channel_num = int(new_stat["channel_number"])
+                    if new_channel_num != channel_num:
+                        self.last_button_time = time.monotonic()
+                        channel_num = new_channel_num
                     if channel_num >= 0:
                         self.tm.show(f"CH{channel_num:02d}")
                         print("Set channel: ", channel_num)
