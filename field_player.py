@@ -74,6 +74,9 @@ def input_check():
                 case "web_key":
                     key = q_message.get("key", "")
                     return PlayerOutcome(PlayerState.SUCCESS, f"web_key:{key}")
+                case "mpv_command":
+                    action = q_message.get("action", "")
+                    return PlayerOutcome(PlayerState.SUCCESS, f"mpv_command:{action}")
 
 
     channel_socket = StationManager().server_conf["channel_socket"]
