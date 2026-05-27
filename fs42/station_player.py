@@ -40,7 +40,8 @@ from fs42.station_manager import StationManager
 from fs42.slot_reader import SlotReader
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
-
+PARENTAL_STATUS_FILE = "runtime/parental_controls.json"
+PARENTAL_IMAGE_FILE = "runtime/parental_controls.ppm"
 
 def update_status_socket(
     status, network_name, channel, title=None, timestamp="%Y-%m-%dT%H:%M:%S", duration=None, file_path=None, content_type=None
@@ -189,6 +190,8 @@ class StationPlayer:
         self.now_playing_process = None
         self.schedule_lock = None
         self._active_afx = None
+        self.parental_unlocked_network = None
+        self.parental_station_name = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -198,6 +201,281 @@ class StationPlayer:
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
+
+    def _write_parental_status(self, active, entered_count=0):
+        os.makedirs(os.path.dirname(PARENTAL_STATUS_FILE), exist_ok=True)
+        status = {
+            "active": active,
+            "network_name": self.station_config.get("network_name") if self.station_config else None,
+            "channel_number": self.station_config.get("channel_number") if self.station_config else None,
+            "entered_count": entered_count,
+        }
+        with open(PARENTAL_STATUS_FILE, "w") as fp:
+            json.dump(status, fp)
+
+    def _clear_parental_status(self):
+        try:
+            self._write_parental_status(False, 0)
+        except Exception as e:
+            self._l.debug(f"Could not clear parental controls status: {e}")
+
+    def clear_parental_unlock(self):
+        self.parental_unlocked_network = None
+
+    PARENTAL_FONT = {
+        "A": ["01110","10001","10001","11111","10001","10001","10001"],
+        "B": ["11110","10001","10001","11110","10001","10001","11110"],
+        "C": ["01111","10000","10000","10000","10000","10000","01111"],
+        "D": ["11110","10001","10001","10001","10001","10001","11110"],
+        "E": ["11111","10000","10000","11110","10000","10000","11111"],
+        "F": ["11111","10000","10000","11110","10000","10000","10000"],
+        "G": ["01111","10000","10000","10111","10001","10001","01111"],
+        "H": ["10001","10001","10001","11111","10001","10001","10001"],
+        "I": ["11111","00100","00100","00100","00100","00100","11111"],
+        "J": ["00111","00010","00010","00010","10010","10010","01100"],
+        "K": ["10001","10010","10100","11000","10100","10010","10001"],
+        "L": ["10000","10000","10000","10000","10000","10000","11111"],
+        "M": ["10001","11011","10101","10101","10001","10001","10001"],
+        "N": ["10001","11001","10101","10011","10001","10001","10001"],
+        "O": ["01110","10001","10001","10001","10001","10001","01110"],
+        "P": ["11110","10001","10001","11110","10000","10000","10000"],
+        "Q": ["01110","10001","10001","10001","10101","10010","01101"],
+        "R": ["11110","10001","10001","11110","10100","10010","10001"],
+        "S": ["01111","10000","10000","01110","00001","00001","11110"],
+        "T": ["11111","00100","00100","00100","00100","00100","00100"],
+        "U": ["10001","10001","10001","10001","10001","10001","01110"],
+        "V": ["10001","10001","10001","10001","10001","01010","00100"],
+        "W": ["10001","10001","10001","10101","10101","10101","01010"],
+        "X": ["10001","10001","01010","00100","01010","10001","10001"],
+        "Y": ["10001","10001","01010","00100","00100","00100","00100"],
+        "Z": ["11111","00001","00010","00100","01000","10000","11111"],
+        "0": ["01110","10001","10011","10101","11001","10001","01110"],
+        "1": ["00100","01100","00100","00100","00100","00100","01110"],
+        "2": ["01110","10001","00001","00010","00100","01000","11111"],
+        "3": ["11110","00001","00001","01110","00001","00001","11110"],
+        "4": ["00010","00110","01010","10010","11111","00010","00010"],
+        "5": ["11111","10000","10000","11110","00001","00001","11110"],
+        "6": ["01110","10000","10000","11110","10001","10001","01110"],
+        "7": ["11111","00001","00010","00100","01000","01000","01000"],
+        "8": ["01110","10001","10001","01110","10001","10001","01110"],
+        "9": ["01110","10001","10001","01111","00001","00001","01110"],
+        "*": ["00100","10101","01110","11111","01110","10101","00100"],
+        "_": ["00000","00000","00000","00000","00000","00000","11111"],
+        "-": ["00000","00000","00000","11111","00000","00000","00000"],
+        "+": ["00000","00100","00100","11111","00100","00100","00000"],
+        "/": ["00001","00010","00010","00100","01000","01000","10000"],
+        ":": ["00000","00100","00100","00000","00100","00100","00000"],
+        " ": ["00000","00000","00000","00000","00000","00000","00000"],
+    }
+
+    def _draw_rect(self, pixels, width, height, x, y, w, h, color, fill=True):
+        x0 = max(0, int(x))
+        y0 = max(0, int(y))
+        x1 = min(width, int(x + w))
+        y1 = min(height, int(y + h))
+
+        if fill:
+            for yy in range(y0, y1):
+                row = pixels[yy]
+                for xx in range(x0, x1):
+                    row[xx] = color
+            return
+
+        for xx in range(x0, x1):
+            if 0 <= y0 < height:
+                pixels[y0][xx] = color
+            if 0 <= y1 - 1 < height:
+                pixels[y1 - 1][xx] = color
+
+        for yy in range(y0, y1):
+            if 0 <= x0 < width:
+                pixels[yy][x0] = color
+            if 0 <= x1 - 1 < width:
+                pixels[yy][x1 - 1] = color
+
+    def _draw_text(self, pixels, width, height, text, x, y, color, scale=3):
+        x_start = int(x)
+        cursor_x = int(x)
+        cursor_y = int(y)
+
+        for ch in text.upper():
+            if ch == "\n":
+                cursor_x = x_start
+                cursor_y += 9 * scale
+                continue
+
+            glyph = self.PARENTAL_FONT.get(ch, self.PARENTAL_FONT[" "])
+
+            for gy, row in enumerate(glyph):
+                for gx, bit in enumerate(row):
+                    if bit != "1":
+                        continue
+
+                    px = cursor_x + gx * scale
+                    py = cursor_y + gy * scale
+                    self._draw_rect(pixels, width, height, px, py, scale, scale, color, fill=True)
+
+            cursor_x += 6 * scale
+
+    def _write_ppm(self, path, pixels):
+        height = len(pixels)
+        width = len(pixels[0])
+
+        with open(path, "wb") as fp:
+            fp.write(f"P6\n{width} {height}\n255\n".encode("ascii"))
+            for row in pixels:
+                for r, g, b in row:
+                    fp.write(bytes((r, g, b)))
+
+    def _render_parental_lock_screen(self, entered_count=0, message=None):
+        os.makedirs(os.path.dirname(PARENTAL_IMAGE_FILE), exist_ok=True)
+
+        width, height = 640, 480
+        black = (0, 0, 0)
+        gray = (172, 172, 172)
+        dark_gray = (84, 84, 84)
+        light_gray = (212, 212, 212)
+        white = (238, 238, 238)
+        text_color = (20, 20, 20)
+        warning = (150, 0, 0)
+
+        pixels = [[black for _ in range(width)] for _ in range(height)]
+
+        # Dialog box, similar to a simple 90s/00s password prompt.
+        box_x, box_y = 190, 130
+        box_w, box_h = 260, 185
+        self._draw_rect(pixels, width, height, box_x, box_y, box_w, box_h, gray, fill=True)
+        self._draw_rect(pixels, width, height, box_x, box_y, box_w, box_h, dark_gray, fill=False)
+        self._draw_rect(pixels, width, height, box_x + 3, box_y + 3, box_w - 6, box_h - 6, light_gray, fill=False)
+
+        # Title
+        self._draw_text(pixels, width, height, "ENTER PASSWORD", box_x + 42, box_y + 24, text_color, scale=2)
+
+        # PIN boxes
+        pin_y = box_y + 72
+        pin_x = box_x + 62
+        for i in range(4):
+            x = pin_x + i * 36
+            self._draw_rect(pixels, width, height, x, pin_y, 28, 30, white, fill=True)
+            self._draw_rect(pixels, width, height, x, pin_y, 28, 30, dark_gray, fill=False)
+
+            if i < entered_count:
+                self._draw_rect(pixels, width, height, x + 2, pin_y + 2, 24, 26, (24, 24, 24), fill=True)
+                self._draw_text(pixels, width, height, "*", x + 9, pin_y + 8, white, scale=2)
+
+        # Divider
+        self._draw_rect(pixels, width, height, box_x + 12, box_y + 120, box_w - 24, 2, dark_gray, fill=True)
+
+        # Close / escape hint button
+        self._draw_rect(pixels, width, height, box_x + 25, box_y + 135, box_w - 50, 32, gray, fill=True)
+        self._draw_rect(pixels, width, height, box_x + 25, box_y + 135, box_w - 50, 32, dark_gray, fill=False)
+        self._draw_text(pixels, width, height, "CH +/- TO LEAVE", box_x + 50, box_y + 145, text_color, scale=1)
+
+        if message:
+            self._draw_text(pixels, width, height, message, box_x + 58, box_y + 108, warning, scale=1)
+
+        self._write_ppm(PARENTAL_IMAGE_FILE, pixels)
+
+    def _show_parental_prompt_text(self, entered_count=0, message=None):
+        self._render_parental_lock_screen(entered_count, message)
+
+        image_path = os.path.abspath(PARENTAL_IMAGE_FILE)
+        refresh_path = os.path.abspath(
+            f"runtime/parental_controls_{entered_count}_{int(time.time() * 1000)}.ppm"
+        )
+
+        try:
+            os.makedirs(os.path.dirname(refresh_path), exist_ok=True)
+            with open(image_path, "rb") as src, open(refresh_path, "wb") as dst:
+                dst.write(src.read())
+        except Exception as e:
+            self._l.warning(f"Could not refresh parental controls image: {e}")
+            refresh_path = image_path
+
+        try:
+            self.mpv.command("set", "image-display-duration", "inf")
+        except Exception as e:
+            self._l.debug(f"Could not set image-display-duration for parental screen: {e}")
+
+        self.mpv.command("loadfile", refresh_path, "replace")
+        self.mpv.pause = False
+
+    def _show_parental_lock_screen(self):
+        self._close_now_playing()
+        self.current_playing_file_path = None
+        self.mpv.command("playlist-clear")
+        self._show_parental_prompt_text(0)
+
+    def _prompt_for_parental_pin(self, pin):
+        entered = ""
+        message = None
+
+        self._show_parental_lock_screen()
+        self._write_parental_status(True, 0)
+        self._show_parental_prompt_text(0)
+
+        try:
+            while True:
+                time.sleep(0.05)
+                response = self.input_check_fn()
+
+                if not response:
+                    continue
+
+                if (
+                    response.status == PlayerState.SUCCESS
+                    and isinstance(response.payload, str)
+                    and response.payload.startswith("parental_digit:")
+                ):
+                    digit = response.payload.split(":", 1)[1]
+                    if digit.isdigit() and len(digit) == 1:
+                        entered += digit
+
+                        if len(entered) >= len(pin):
+                            if entered == pin:
+                                self.parental_unlocked_network = self.station_config.get("network_name")
+                                self._clear_parental_status()
+                                self.show_text("UNLOCKED", 900)
+                                return None
+
+                            entered = ""
+                            message = "INCORRECT PIN"
+                        else:
+                            message = None
+
+                        self._write_parental_status(True, len(entered))
+                        self._show_parental_prompt_text(len(entered), message)
+
+                    continue
+
+                if response.status == PlayerState.SUCCESS and response.payload == "parental_clear":
+                    entered = ""
+                    message = None
+                    self._write_parental_status(True, 0)
+                    self._show_parental_prompt_text(0)
+                    continue
+
+                self._clear_parental_status()
+                return response
+        finally:
+            self._clear_parental_status()
+
+    def _parental_controls_required(self, network_name):
+        if self.parental_station_name != network_name:
+            self.parental_station_name = network_name
+            self.parental_unlocked_network = None
+
+        if not self.station_config.get("parental_controls", False):
+            return False
+
+        pin = StationManager().server_conf.get("parental_controls_pin")
+        if not pin:
+            self._l.warning(
+                "Station has parental_controls enabled, but parental_controls_pin is not configured."
+            )
+            return False
+
+        return self.parental_unlocked_network != network_name
 
     def _close_now_playing(self):
         # terminate the Now Playing overlay if it's running
@@ -702,6 +980,17 @@ class StationPlayer:
 
     def play_slot(self, network_name, when):
         liquid = LiquidManager()
+
+        # Refresh the active station config before any runtime station checks.
+        station_config = StationManager().station_by_name(network_name)
+        if station_config:
+            self.station_config = station_config
+
+        if self._parental_controls_required(network_name):
+            pin = str(StationManager().server_conf.get("parental_controls_pin"))
+            response = self._prompt_for_parental_pin(pin)
+            if response:
+                return response
 
         try:
             play_point = liquid.get_play_point(network_name, when)

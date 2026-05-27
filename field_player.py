@@ -74,6 +74,11 @@ def input_check():
                 case "web_key":
                     key = q_message.get("key", "")
                     return PlayerOutcome(PlayerState.SUCCESS, f"web_key:{key}")
+                case "parental_digit":
+                    digit = str(q_message.get("digit", ""))
+                    return PlayerOutcome(PlayerState.SUCCESS, f"parental_digit:{digit}")
+                case "parental_clear":
+                    return PlayerOutcome(PlayerState.SUCCESS, "parental_clear")
 
 
     channel_socket = StationManager().server_conf["channel_socket"]
