@@ -28,9 +28,10 @@ def get_temperature():
 
 
 class CableBox:
-    def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket"):
+    def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
         self.channel_socket = channel_socket
         self.status_socket = status_socket
+        self.press_socket = press_socket
 
         self.tm = tm1637.TM1637(clk=17, dio=18)
         self.tm.brightness(0)
@@ -47,6 +48,17 @@ class CableBox:
 
         # mode to display and update temp
         self.temp_mode = False
+        self.last_button_time = time.monotonic()
+
+        self.show_time = True
+        self.time_format = "%H:%M"
+        try:
+            with open("confs/main_config.json") as fp:
+                config = json.load(fp)
+                self.show_time = config.get("show_cable_box_time", True)
+                self.time_format = config.get("time_format", "%H:%M")
+        except Exception:
+            pass
 
     def send_command(self, command, channel=-1):
         as_obj = {"command": command, "channel": channel}
@@ -86,6 +98,21 @@ class CableBox:
                     print(f"Error decoding status: {as_str}")
         return new_stat
 
+    def check_press(self):
+        try:
+            with open(self.press_socket) as fp:
+                as_str = fp.read().strip()
+            if not as_str:
+                return None
+            data = json.loads(as_str)
+            with open(self.press_socket, "w") as fp:
+                fp.write("")
+            if time.time() - data["ts"] < 2.0:
+                return data["digits"]
+        except Exception:
+            pass
+        return None
+
     def read_keys(self):
         pressed = self.keypad.pressed_keys
         if len(pressed) == 1:
@@ -103,6 +130,7 @@ class CableBox:
 
             if key_pressed:
                 self.temp_mode = False
+                self.last_button_time = time.monotonic()
                 self.tm.show("    ")
                 last_selection_tick = time.monotonic()
                 in_selection = True
@@ -145,11 +173,20 @@ class CableBox:
 
             time.sleep(0.1)
 
+            if not in_selection:
+                remote_digits = self.check_press()
+                if remote_digits:
+                    self.last_button_time = time.monotonic()
+                    self.tm.show(f"  {int(remote_digits):02d}")
+
             new_stat = self.check_status()
             if new_stat:
                 self.temp_mode = False
                 try:
-                    channel_num = int(new_stat["channel_number"])
+                    new_channel_num = int(new_stat["channel_number"])
+                    if new_channel_num != channel_num:
+                        self.last_button_time = time.monotonic()
+                        channel_num = new_channel_num
                     if channel_num >= 0:
                         self.tm.show(f"CH{channel_num:02d}")
                         print("Set channel: ", channel_num)
@@ -158,7 +195,15 @@ class CableBox:
                 except:
                     self.tm.show("FS42")
 
-            if self.temp_mode and (tick_count % 10) == 0:
+            elapsed_since_press = time.monotonic() - self.last_button_time
+            if self.show_time and elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
+                formatted = time.strftime(self.time_format, time.localtime())
+                if ":" in formatted:
+                    h, m = formatted.split(":", 1)
+                    self.tm.numbers(int(h), int(m))
+                else:
+                    self.tm.show(formatted)
+            elif self.temp_mode and (tick_count % 10) == 0:
                 temp = get_temperature()
                 self.tm.show(f"{temp}*")
 

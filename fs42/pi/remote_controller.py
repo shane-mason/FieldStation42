@@ -55,6 +55,8 @@ KEY_MAPPINGS = {
     # 'volume_down': 'pagedown', # Use page down for volume down
 }
 CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
+PRESS_SOCKET = "runtime/press.socket"
+
 # Channel input state
 channel_input = ''
 channel_input_timer = None
@@ -82,6 +84,22 @@ def read_exec_mappings():
         return mappings
 
 exec_mappings = read_exec_mappings()
+
+def write_press_socket(digits):
+    try:
+        with open(PRESS_SOCKET, "w") as fp:
+            json.dump({"digits": digits, "ts": time.time()}, fp)
+    except Exception as e:
+        print(f"Failed to write press socket: {e}")
+
+
+def clear_press_socket():
+    try:
+        with open(PRESS_SOCKET, "w") as fp:
+            fp.write("")
+    except Exception:
+        pass
+
 
 def should_allow_press(function_name, debounce_time=DEBOUNCE_TIME):
     """Check if enough time has passed since last press of this function"""
@@ -123,6 +141,7 @@ def send_channel_change():
             # Clear the input
             channel_input = ''
             channel_input_timer = None
+            clear_press_socket()
 
 
 def send_parental_digit_if_active(number):
@@ -168,6 +187,7 @@ def number_pressed(number):
         # Add digit to input
         channel_input += str(number)
         print(f"Channel input: {channel_input}")
+        write_press_socket(channel_input)
         
         # If we have 3 digits, send immediately
         if len(channel_input) >= 3:
