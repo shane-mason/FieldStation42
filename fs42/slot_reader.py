@@ -117,6 +117,8 @@ class SlotReader:
         last_tag = None
         smoothed = copy.deepcopy(conf)
         for day_index in timings.DAYS:
+            smoothed[day_index] = copy.deepcopy(conf[day_index])
+        for day_index in timings.DAYS:
             for slot_index in timings.OPERATING_HOURS:
                 slot_index = str(slot_index)
                 if slot_index in conf[day_index]:
@@ -124,5 +126,10 @@ class SlotReader:
                         last_tag = conf[day_index][slot_index]
                     elif "continued" in conf[day_index][slot_index]:
                         if conf[day_index][slot_index]["continued"]:
+                            if last_tag is None:
+                                raise ValueError(
+                                    f"'continued' at hour {slot_index} on {day_index} for "
+                                    f"'{conf.get('network_name', 'unknown')}' has no preceding tags slot to inherit from"
+                                )
                             smoothed[day_index][slot_index]["tags"] = last_tag["tags"]
         return smoothed
