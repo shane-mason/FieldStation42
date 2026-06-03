@@ -117,7 +117,8 @@ class StationManager(object):
                     "schedule_agent",
                     "video_seek_timeout",
                     "overlay_conf",
-                    "start_channel"
+                    "start_channel",
+                    "parental_controls_pin"
                 ]
 
                 for key in to_check:

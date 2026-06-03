@@ -476,6 +476,10 @@
               }
             }
           }
+        },
+        "parental_controls": {
+        "type": "boolean",
+        "description": "Require the global parental controls PIN before playing this station"
         }
       }
     }

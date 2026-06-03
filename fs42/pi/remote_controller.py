@@ -144,9 +144,39 @@ def send_channel_change():
             clear_press_socket()
 
 
+def send_parental_digit_if_active(number):
+    """Send numeric input to the parental controls prompt when it is active."""
+    try:
+        response = requests.get(f"{FS42_BASE_URL}/player/parental/status", timeout=2)
+        if not response.ok:
+            return False
+
+        status = response.json()
+        if not status.get("active"):
+            return False
+
+        response = requests.post(
+            f"{FS42_BASE_URL}/player/parental/digit/{number}",
+            timeout=2
+        )
+
+        if response.ok:
+            print(f"Parental controls PIN digit entered: {number}")
+        else:
+            print(f"Parental controls digit failed: {response.status_code}")
+
+        return True
+    except Exception as e:
+        print(f"Parental controls digit error: {e}")
+        return False
+
+
 def number_pressed(number):
     """Handle number key presses from remote"""
     global channel_input, channel_input_timer
+
+    if send_parental_digit_if_active(number):
+        return
     
     with input_lock:
         # Cancel any existing timer
