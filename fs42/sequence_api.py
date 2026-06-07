@@ -401,15 +401,38 @@ class SequenceAPI:
         if not children:
             return None
 
-        if len(children) > 1 and current_tag_path:
+        active_children = set(
+            sio.get_all_active_sequences(
+                station_config["network_name"]
+            )
+        )
 
-            children = [
+        available = []
+
+        for child in children:
+
+            if child == current_tag_path:
+                continue
+
+            if child in active_children:
+                continue
+
+            available.append(child)
+
+        # If every child is already active somewhere, fall back to allowing active children.
+        if not available:
+
+            available = [
                 c
                 for c in children
                 if c != current_tag_path
             ]
 
-        return random.choice(children)
+        # If literally only one child exists, allow it.
+        if not available:
+            available = children
+
+        return random.choice(available)
         
     @staticmethod
     def _get_active_child_sequence(

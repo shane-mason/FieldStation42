@@ -361,6 +361,26 @@ class SequenceIO:
                 active_tag_path
             ))
             
+    def get_all_active_sequences(
+        self,
+        station_name
+    ):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                SELECT active_tag_path
+                FROM sequence_group_state
+                WHERE station = ?
+            """, (
+                station_name,
+            ))
+
+            return [
+                r[0]
+                for r in cursor.fetchall()
+            ]
+            
     def get_child_sequences(
         self,
         station_name,
