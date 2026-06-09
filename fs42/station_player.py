@@ -15,14 +15,15 @@ from python_mpv_jsonipc import MPV
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.autobump_agent import AutoBumpAgent
 
-# Try to import web_render_runner, but handle gracefully if PySide6 isn't available
+# Try to import web_render_runner, but handle gracefully if PySide6 (with QtWebEngine)
+# isn't available -- web rendering is an optional feature.
 try:
-    logging.getLogger().warning("Attempting PySide Import:")
     from fs42.webrender.web_render import web_render_runner
     WEB_RENDER_AVAILABLE = True
 except ImportError as e:
-    logging.getLogger().exception("ERROR LOADING PYSIDE", e)
-
+    logging.getLogger("station_player").info(
+        "Web rendering disabled (PySide6 QtWebEngine not available): %s", e
+    )
     WEB_RENDER_AVAILABLE = False
     web_render_runner = None
 
