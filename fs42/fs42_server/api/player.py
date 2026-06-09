@@ -225,6 +225,37 @@ async def player_stop(request: Request):
     command_queue.put({"command": "exit"})
     return {"status": "stopped"}
 
+
+async def _queue_mpv_command(request: Request, action: str):
+    command_queue = request.app.state.player_command_queue
+    if not command_queue:
+        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
+
+    command_queue.put({"command": "mpv_command", "action": action})
+    return {"status": "ok", "command": "mpv_command", "action": action}
+
+
+@router.get("/mpv/toggle-subtitles")
+@router.post("/mpv/toggle-subtitles")
+async def mpv_toggle_subtitles(request: Request):
+    """Toggle subtitle visibility for the active mpv player."""
+    return await _queue_mpv_command(request, "toggle_subtitles")
+
+
+@router.get("/mpv/cycle-subtitles")
+@router.post("/mpv/cycle-subtitles")
+async def mpv_cycle_subtitles(request: Request):
+    """Cycle through available subtitle tracks for the active mpv player."""
+    return await _queue_mpv_command(request, "cycle_subtitles")
+
+
+@router.get("/mpv/cycle-audio")
+@router.post("/mpv/cycle-audio")
+async def mpv_cycle_audio(request: Request):
+    """Cycle through available audio tracks for the active mpv player."""
+    return await _queue_mpv_command(request, "cycle_audio")
+
+
 @router.post("/ticker")
 async def show_ticker(request: Request):
     data = await request.json()

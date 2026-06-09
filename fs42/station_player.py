@@ -81,6 +81,12 @@ class PlayerOutcome:
 
 
 class StationPlayer:
+    MPV_RUNTIME_COMMANDS = {
+        "toggle_subtitles": ("cycle", "sub-visibility"),
+        "cycle_subtitles": ("cycle", "sub"),
+        "cycle_audio": ("cycle", "audio"),
+    }
+
     scramble_effects = {
         "horizontal_line": "lavfi=[geq='if(mod(floor(Y/4),2),p(X,Y+20*sin(2*PI*X/50)),p(X,Y))']",
         "diagonal_lines": "lavfi=[geq='p(X+10*sin(2*PI*Y/30),Y)']",
@@ -198,6 +204,35 @@ class StationPlayer:
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
+
+    def mpv_runtime_command(self, action):
+        """Run a small set of user-facing mpv runtime commands."""
+        mpv_command = self.MPV_RUNTIME_COMMANDS.get(action)
+        if not mpv_command:
+            self._l.warning(f"Unknown mpv runtime command: {action}")
+            return False
+
+        try:
+            self.mpv.command(*mpv_command)
+            self._l.info(f"Ran mpv runtime command: {action}")
+            return True
+        except Exception as e:
+            self._l.warning(f"Failed to run mpv runtime command {action}: {e}")
+            return False
+
+    def handle_runtime_command_outcome(self, response):
+        """Handle non-interrupting player commands and continue playback."""
+        if (
+            response
+            and response.status == PlayerState.SUCCESS
+            and isinstance(response.payload, str)
+            and response.payload.startswith("mpv_command:")
+        ):
+            action = response.payload.split(":", 1)[1]
+            self.mpv_runtime_command(action)
+            return True
+
+        return False
 
     def _close_now_playing(self):
         # terminate the Now Playing overlay if it's running
@@ -429,6 +464,8 @@ class StationPlayer:
             time.sleep(0.05)
             response = self.input_check_fn()
             if response:
+                if self.handle_runtime_command_outcome(response):
+                    continue
                 self._close_now_playing()
                 return response
 
@@ -594,6 +631,8 @@ class StationPlayer:
             time.sleep(0.05)
             response = self.input_check_fn()
             if response:
+                if self.handle_runtime_command_outcome(response):
+                    continue
                 self._l.info("Sending the guide channel shutdown command")
                 queue.put(GuideCommands.hide_window)
                 guide_process.join()
@@ -670,6 +709,8 @@ class StationPlayer:
             response = self.input_check_fn()
             if response:
                 # Check if this is a web_key command - forward to web process
+                if self.handle_runtime_command_outcome(response):
+                    continue
                 if response.payload and isinstance(response.payload, str) and response.payload.startswith("web_key:"):
                     key_name = response.payload[8:]
                     if self.web_queue:
@@ -817,6 +858,8 @@ class StationPlayer:
                             time.sleep(0.05)
                             response = self.input_check_fn()
                             if response:
+                                if self.handle_runtime_command_outcome(response):
+                                    continue
                                 if response.status == PlayerState.CHANNEL_CHANGE and self.web_process:
                                     try:
                                         self.web_queue.put("hide_window")
