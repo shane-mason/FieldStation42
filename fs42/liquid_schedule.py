@@ -78,7 +78,7 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
-    def _fill(self, slot_config, tag_str, current_mark, exclusion_index=None) -> LiquidBlock:
+    def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None) -> LiquidBlock:
         seq_key = None
         candidate = None
         new_block = None
@@ -86,6 +86,15 @@ class LiquidSchedule:
         # see if this is a series with a sequence defined
         if "sequence" in slot_config:
             seq_name = slot_config["sequence"]
+            
+            if slot_config.get("sequence_strategy") == "random_show" and tag_index is not None:
+                seq_ids = slot_config.get("sequence_id_array", [])
+                    
+                if tag_index < len(seq_ids):
+                    seq_name = (
+                        f"{seq_name}|"
+                        f"{seq_ids[tag_index]}"
+                    )
 
             next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
             if next_seq:
@@ -369,7 +378,7 @@ class LiquidSchedule:
             else:
                 slot_config = forward_buffer.pop(0)
 
-            tag_str = SlotReader.get_tag_from_slot(slot_config, current_mark)
+            tag_str,tag_index = SlotReader.get_tag_from_slot(slot_config, current_mark)
 
             new_block = None
             onair_flag = True
@@ -383,13 +392,13 @@ class LiquidSchedule:
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
                     try:
-                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, exclusion_index=exclusion_index)
+                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, tag_index=tag_index, exclusion_index=exclusion_index)
                     except ClipShowKickBack as e:
                         new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, slot_config)
                     except MatchingContentNotFound as e:
                         if "fallback_tag" in self.conf:
                             fb_config = {"tags": self.conf["fallback_tag"]}
-                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, exclusion_index=exclusion_index)
+                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, tag_index=tag_index, exclusion_index=exclusion_index)
                         else:
                             self._l.warning("Content not found, but no fallback_tag specified.")
                             raise e

@@ -26,6 +26,7 @@ class SlotReader:
 
     def get_tag_from_slot(slot, when: datetime):
         response = None
+        tag_index = None
         if slot and "tags" in slot:
             tags = slot["tags"]
 
@@ -36,7 +37,8 @@ class SlotReader:
 
             if type(tags) is list:
                 if is_random:
-                    response = random.choice(tags)
+                    tag_index = random.randrange(len(tags))
+                    response = tags[tag_index]
                 else:
                     # first, figure out what our segments are
                     num_tags = len(tags)
@@ -47,12 +49,13 @@ class SlotReader:
                     # make sure its not too long
                     if current_segment >= num_tags:
                         current_segment = num_tags-1
-
-                    return tags[current_segment]
+                    tag_index = current_segment
+                    response = tags[current_segment]
+                    
             else:
                 response = tags
 
-        return response
+        return response, tag_index
 
     @staticmethod
     def _date_key_matches(date_key, when: datetime):

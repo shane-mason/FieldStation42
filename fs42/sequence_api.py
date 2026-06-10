@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import random
@@ -11,7 +12,6 @@ SEASON_RE = re.compile(
     r"^(season\s*\d+|s\d+)$",
     re.IGNORECASE
 )
-
 
 class SequenceAPI:
     @staticmethod
@@ -70,6 +70,9 @@ class SequenceAPI:
         # Handle first run - if current_index is 0 and less than start_index, start at start_index
         if seq.current_index == 0 and seq.start_index > 0:
             seq.current_index = seq.start_index
+        elif seq.current_index == -1:
+            seq.current_index = random.randrange(seq.start_index,seq.end_index)
+            
         # Handle end of sequence - reset to 0 to loop back to beginning
         elif seq.current_index >= seq.end_index:
             _l.info(
@@ -110,9 +113,10 @@ class SequenceAPI:
                     sequence_name,
                     next_child
                 )
-
-                if next_seq.current_index >= next_seq.end_index:
-                    next_seq.current_index = 0
+                
+                next_seq.current_index = 0
+                if next_seq.start_index > 0:
+                    next_seq.current_index = next_seq.start_index
 
                 if not SequenceAPI._normalize_sequence_position(next_seq):
                     _l.error(
@@ -219,18 +223,31 @@ class SequenceAPI:
 
         # the user supplied sequence name
         if isinstance(slot["tags"], list):
-            for tag in slot["tags"]:
-                SequenceAPI._build_sequence(station_config, tag, slot)
-        else:
-            SequenceAPI._build_sequence(station_config, slot["tags"], slot)
+            for tag_index, tag in enumerate(slot["tags"]):
+                slot_copy = dict(slot)
+                if slot.get("sequence_strategy") == "random_show":
+                    slot_tag_array = slot.get('sequence_id_array')
+                    if slot_tag_array is None:
+                        slot_tag_index = tag_index
+                    else:
+                        slot_tag_index = slot_tag_array[tag_index]
+                    
+                    slot_copy["effective_sequence"] = (
+                        f"{slot['sequence']}|{slot_tag_index}"
+                    )
+
+                    SequenceAPI._build_sequence(station_config,tag,slot_copy)
+                else:
+                    SequenceAPI._build_sequence(station_config, slot["tags"], slot)
 
     @staticmethod
     def _build_sequence(station_config, this_tag, slot):
         _l = logging.getLogger("SEQUENCE")
         seq_tag = this_tag
-        seq_name = slot["sequence"]
-
-        if seq_tag in station_config["clip_shows"]:
+        seq_name = slot.get("effective_sequence",slot["sequence"])
+        real_tag = seq_tag
+        sio = SequenceIO()
+        if real_tag in station_config["clip_shows"]:
             _l.error(
                 f"Schedule logic error in {station_config['network_name']}: Clip shows are not currently supported as sequences"
             )
@@ -241,8 +258,8 @@ class SequenceAPI:
 
         # check if the sequence already exists
 
-        existing = SequenceIO().get_sequence(station_config["network_name"], seq_name, seq_tag)
-        file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{seq_tag}")
+        existing = sio.get_sequence(station_config["network_name"], seq_name, seq_tag)
+        file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}")
         seq_start = slot.get("sequence_start", 0)
         seq_end = slot.get("sequence_end", 1)
 
@@ -252,7 +269,7 @@ class SequenceAPI:
 
             base_dir = os.path.join(
                 station_config["content_dir"],
-                seq_tag
+                real_tag
             )
 
             for show_dir in SequenceAPI._find_show_dirs(base_dir):
@@ -269,7 +286,7 @@ class SequenceAPI:
 
                 seen_child_tags.add(child_tag)
 
-                existing_child = SequenceIO().get_sequence(
+                existing_child = sio.get_sequence(
                     station_config["network_name"],
                     seq_name,
                     child_tag
@@ -288,11 +305,11 @@ class SequenceAPI:
                         child_tag,
                         seq_start,
                         seq_end,
-                        0,
+                        -1,
                         file_list
                     )
 
-                    SequenceIO().put_sequence(
+                    sio.put_sequence(
                         station_config["network_name"],
                         ns
                     )
@@ -317,7 +334,7 @@ class SequenceAPI:
                                 existing_child.current_index
                             ].fpath
 
-                        SequenceIO().update_sequence_entries(
+                        sio.update_sequence_entries(
                             station_config["network_name"],
                             seq_name,
                             child_tag,
@@ -328,7 +345,7 @@ class SequenceAPI:
 
             # CLEAN UP STALE SHOWS
             existing_children = set(
-                SequenceIO().get_child_sequences(
+                sio.get_child_sequences(
                     station_config["network_name"],
                     seq_name,
                     seq_tag
@@ -347,7 +364,7 @@ class SequenceAPI:
                     f"{seq_name}:{child_tag}"
                 )
 
-                SequenceIO().delete_sequence(
+                sio.delete_sequence(
                     station_config["network_name"],
                     seq_name,
                     child_tag
@@ -363,8 +380,8 @@ class SequenceAPI:
             if "sequence_end" in slot:
                 seq_end = slot["sequence_end"]
 
-            ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list)
-            SequenceIO().put_sequence(station_config["network_name"], ns)
+            ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, -1, file_list)
+            sio.put_sequence(station_config["network_name"], ns)
         else:
             disk_files = set(str(f) for f in file_list)
             stored_files = set(entry.fpath for entry in existing.episodes)
@@ -378,7 +395,7 @@ class SequenceAPI:
                     _l.debug(f"Sequence {seq_name}: current_index={existing.current_index}, current_file={current_file}")
                 else:
                     _l.debug(f"Sequence {seq_name}: current_index={existing.current_index} is out of bounds for {len(existing.episodes)} stored episodes")
-                SequenceIO().update_sequence_entries(
+                sio.update_sequence_entries(
                     station_config["network_name"], seq_name, seq_tag,
                     list(disk_files), current_file, existing.current_index
                 )
@@ -478,8 +495,8 @@ class SequenceAPI:
         if not seq or not seq.episodes:
             return False
 
-        if seq.current_index < 0:
-            seq.current_index = 0
+        if seq.current_index < -1:
+            seq.current_index = -1
 
         if seq.current_index > len(seq.episodes):
             seq.current_index = 0
@@ -518,3 +535,37 @@ class SequenceAPI:
             )
 
         return sorted(set(show_dirs))
+
+    @staticmethod
+    def _choose_deterministic_child(
+        station_config,
+        sequence_name,
+        parent_tag,
+        slot_index=0
+    ):
+        sio = SequenceIO()
+
+        children = sorted(
+            sio.get_child_sequences(
+                station_config["network_name"],
+                sequence_name,
+                parent_tag
+            )
+        )
+
+        if not children:
+            return None
+
+        seed = (
+            f"{sequence_name}|"
+            f"{parent_tag}|"
+            f"{slot_index}"
+        )
+
+        digest = hashlib.md5(
+            seed.encode()
+        ).hexdigest()
+
+        index = int(digest, 16) % len(children)
+
+        return children[index]
