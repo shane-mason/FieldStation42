@@ -44,6 +44,7 @@ class StationManager(object):
                     "server_host": "0.0.0.0",
                     "server_port": 4242,
                     "title_patterns": [],
+                    "video_seek_timeout": 10,
                 }
                 self._number_index = {}
                 self._name_index = {}

@@ -196,6 +196,7 @@ class StationPlayer:
         self.now_playing_process = None
         self.schedule_lock = None
         self._active_afx = None
+        self._pending_response = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -268,6 +269,22 @@ class StationPlayer:
             self._l.info(f"Started Now Playing overlay for {file_path}")
         except Exception as e:
             self._l.error(f"Failed to start Now Playing overlay: {e}")
+
+    def _show_stream_down(self):
+        """Stop playback and display a stream-unavailable OSD message."""
+        message = "TECHNICAL DIFFICULTIES"
+        if self.station_config:
+            message = self.station_config.get("stream_down_message", message)
+        self._l.warning(f"Stream down — showing fallback: {message}")
+        try:
+            self.mpv.command("playlist-clear")
+            self.mpv.stop()
+        except Exception:
+            pass
+        try:
+            self.mpv.command("show-text", message, 10000)
+        except Exception as e:
+            self._l.debug(f"Could not show stream down OSD: {e}")
 
     def shutdown(self):
         self.current_playing_file_path = None
@@ -379,11 +396,7 @@ class StationPlayer:
                 self.mpv.command("playlist-clear")
                 self.mpv.play(file_path)
                 
-                
-                # Wait for video to load with timeout to prevent blocking on invalid streams.
-                # We wait for time_pos (not just duration) because duration can be populated
-                # from file headers before the demuxer is ready to seek — time_pos being
-                # non-None means MPV has actually started decoding and a seek will be honored.
+
                 timeout_seconds = StationManager().server_conf.get("video_seek_timeout", 10)
                 start_time = time.time()
 
@@ -394,6 +407,11 @@ class StationPlayer:
                         if time.time() - start_time > timeout_seconds:
                             self._l.error(f"Timeout waiting for playback to start on {file_path}")
                             return False
+                        if is_stream:
+                            response = self.input_check_fn()
+                            if response and not self.handle_runtime_command_outcome(response):
+                                self._pending_response = response
+                                return False
                         time.sleep(0.05)
                     except Exception as e:
                         if time.time() - start_time > timeout_seconds:
@@ -789,8 +807,20 @@ class StationPlayer:
                 content_type = getattr(entry, 'content_type', 'feature')  # Get content_type from entry, default to 'feature'
                 media_type = getattr(entry, 'media_type', 'video')  # Get media_type from entry, default to 'video'
                 worked = self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type, media_type=media_type)
+                if self._pending_response:
+                    response = self._pending_response
+                    self._pending_response = None
+                    return response
+                stream_is_down = False
+                last_osd_refresh = 0.0
                 if not worked:
-                    return PlayerOutcome(PlayerState.FAILED)
+                    if is_stream:
+                        self._l.warning(f"Stream unavailable, activating fallback: {entry.path}")
+                        stream_is_down = True
+                        last_osd_refresh = time.time()
+                        self._show_stream_down()
+                    else:
+                        return PlayerOutcome(PlayerState.FAILED)
                 # Seek now happens inside play_file() before overlay is shown
 
                 # Detect if this video is being clipped (stopping before natural end)
@@ -811,6 +841,7 @@ class StationPlayer:
                     # Calculate target end time using wall clock
                     target_end_time = datetime.datetime.now() + datetime.timedelta(seconds=(entry.duration - initial_skip))
                     self._l.info(f"Target end time: {target_end_time.strftime('%H:%M:%S.%f')[:-3]}")
+                    stream_down_message = (self.station_config.get("stream_down_message", "TECHNICAL DIFFICULTIES") if self.station_config else "TECHNICAL DIFFICULTIES")
 
                     # this is our main event loop
                     keep_waiting = True
@@ -839,6 +870,25 @@ class StationPlayer:
 
                             fade_active = True
 
+                        # Detect stream drop mid-playback and show fallback
+                        if is_stream and not stream_is_down:
+                            try:
+                                if self.mpv.time_pos is None:
+                                    self._l.warning(f"Stream dropped mid-playback: {entry.path}")
+                                    stream_is_down = True
+                                    last_osd_refresh = 0.0
+                                    self._show_stream_down()
+                            except Exception:
+                                pass
+                        elif is_stream and stream_is_down:
+                            _now = time.time()
+                            if _now - last_osd_refresh >= 8.0:
+                                try:
+                                    self.mpv.command("show-text", stream_down_message, 10000)
+                                except Exception:
+                                    pass
+                                last_osd_refresh = _now
+
                         if time_remaining <= 0:
                             if self.web_process:
                                 try:
@@ -861,19 +911,25 @@ class StationPlayer:
                             if response:
                                 if self.handle_runtime_command_outcome(response):
                                     continue
-                                if response.status == PlayerState.CHANNEL_CHANGE and self.web_process:
-                                    try:
-                                        self.web_queue.put("hide_window")
-                                        self.web_process.join(timeout=2)
-                                        if self.web_process.is_alive():
-                                            self._l.warning("Web process did not terminate gracefully on channel change, forcing termination")
-                                            self.web_process.terminate()
-                                            self.web_process.join(timeout=1)
-                                    except Exception as e:
-                                        self._l.error(f"Error shutting down web process on channel change: {e}")
-                                    finally:
-                                        self.web_process = None
-                                        self.web_queue = None
+                                if response.status == PlayerState.CHANNEL_CHANGE:
+                                    if stream_is_down:
+                                        try:
+                                            self.mpv.command("show-text", "", 1)
+                                        except Exception:
+                                            pass
+                                    if self.web_process:
+                                        try:
+                                            self.web_queue.put("hide_window")
+                                            self.web_process.join(timeout=2)
+                                            if self.web_process.is_alive():
+                                                self._l.warning("Web process did not terminate gracefully on channel change, forcing termination")
+                                                self.web_process.terminate()
+                                                self.web_process.join(timeout=1)
+                                        except Exception as e:
+                                            self._l.error(f"Error shutting down web process on channel change: {e}")
+                                        finally:
+                                            self.web_process = None
+                                            self.web_queue = None
                                 return response
                 else:
                     return PlayerOutcome(PlayerState.FAILED)
