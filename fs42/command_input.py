@@ -4,6 +4,7 @@ import serial
 import os
 import sys
 import json
+import subprocess
 
 uart = serial.Serial("/dev/ttyAMA0", baudrate=9600, timeout=10)
 
@@ -20,14 +21,14 @@ def old_loop():
                 with open("runtime/channel.socket", "w") as fp:
                     fp.write(str(timestamp))
             if command.startswith("exit"):
-                os.system("pkill -9 -f field_player.py")
-                os.system("killall mpv")
+                subprocess.run(["pkill", "-9", "-f", "field_player.py"])
+                subprocess.run(["killall", "mpv"])
                 sys.exit(-1)
 
             if command.startswith("halt"):
-                os.system("pkill -9 -f field_player.py")
-                os.system("killall mpv")
-                os.system("sudo halt")
+                subprocess.run(["pkill", "-9", "-f", "field_player.py"])
+                subprocess.run(["killall", "mpv"])
+                subprocess.run(["sudo", "halt"])
                 sys.exit(-1)
 
 
@@ -42,18 +43,19 @@ def new_loop():
                 print("Got Message: ", command)
                 as_json = json.loads(command)
 
-                if as_json["channel"] == 99:
-                    os.system("pkill -9 -f field_player.py")
-                    os.system("killall mpv")
+                channel = as_json.get("channel")
+                if channel == 99:
+                    subprocess.run(["pkill", "-9", "-f", "field_player.py"])
+                    subprocess.run(["killall", "mpv"])
                     sys.exit(-1)
-                elif as_json["channel"] == 98:
-                    os.system("pkill -9 -f field_player.py")
-                    os.system("killall mpv")
-                    os.system("sudo halt")
+                elif channel == 98:
+                    subprocess.run(["pkill", "-9", "-f", "field_player.py"])
+                    subprocess.run(["killall", "mpv"])
+                    subprocess.run(["sudo", "halt"])
                     sys.exit(-1)
-                else:
+                elif isinstance(channel, int) and 0 <= channel <= 97:
                     with open("runtime/channel.socket", "w") as fp:
-                        fp.write(command)
+                        fp.write(str(channel))
             except Exception as e:
                 print("Error decoding message")
                 print(e)
