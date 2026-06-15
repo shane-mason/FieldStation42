@@ -4,7 +4,6 @@ import re
 from fs42 import timings
 from fs42 import station_manager
 
-
 # all temporal hints should implement this interface
 class TemporalHint:
     def __init__(self):
@@ -130,7 +129,7 @@ class QuarterHint:
 
     # when should be a datetime object
     def hint(self, when):
-        return (int(when.month / 3) + 1) == self.quarter
+        return (when.month - 1) // 3 + 1 == self.quarter
 
     def __str__(self):
         return self.quarter_name
@@ -221,3 +220,11 @@ class RangeHint:
 
     def fromJSON(json_data):
         return RangeHint(f"{json_data['range_string']}")
+
+
+def hint_klass_matcher(to_test: str):
+    klasses = [MonthHint, QuarterHint, RangeHint, DayofWeekHint]
+    for klass in klasses:
+        if klass.test_pattern(to_test):
+            return klass
+    return None
