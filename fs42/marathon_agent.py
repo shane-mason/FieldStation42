@@ -16,7 +16,6 @@ class MarathonAgent:
                 hint_klass = hint_klass_matcher(hint_str)
                 if hint_klass:
                     hint_instance = hint_klass(hint_str)
-                    print(hint_instance)
                     if not hint_instance.hint(when):
                         # there was a hint, but the time doesn't fit
                         return False
