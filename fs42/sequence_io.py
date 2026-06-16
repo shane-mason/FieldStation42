@@ -360,6 +360,7 @@ class SequenceIO:
                 parent_tag,
                 active_tag_path
             ))
+            connection.commit()
             
     def get_all_active_sequences(
         self,

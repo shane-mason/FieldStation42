@@ -227,18 +227,19 @@ class SequenceAPI:
                 slot_copy = dict(slot)
                 if slot.get("sequence_strategy") == "random_show":
                     slot_tag_array = slot.get('sequence_id_array')
-                    if slot_tag_array is None:
-                        slot_tag_index = tag_index
-                    else:
-                        slot_tag_index = slot_tag_array[tag_index]
+                    slot_tag_index = ""
+                    if slot_tag_array is not None:
+                        slot_tag_index = f"|{slot_tag_array[tag_index]}"
                     
                     slot_copy["effective_sequence"] = (
-                        f"{slot['sequence']}|{slot_tag_index}"
+                        f"{slot['sequence']}{slot_tag_index}"
                     )
 
-                    SequenceAPI._build_sequence(station_config,tag,slot_copy)
+                    SequenceAPI._build_sequence(station_config, tag, slot_copy)
                 else:
-                    SequenceAPI._build_sequence(station_config, slot["tags"], slot)
+                    SequenceAPI._build_sequence(station_config, tag, slot)
+        else:
+            SequenceAPI._build_sequence(station_config, slot["tags"], slot)
 
     @staticmethod
     def _build_sequence(station_config, this_tag, slot):
@@ -498,7 +499,7 @@ class SequenceAPI:
         if seq.current_index < -1:
             seq.current_index = -1
 
-        if seq.current_index > len(seq.episodes):
+        if seq.current_index >= len(seq.episodes):
             seq.current_index = 0
 
         return True
@@ -535,37 +536,3 @@ class SequenceAPI:
             )
 
         return sorted(set(show_dirs))
-
-    @staticmethod
-    def _choose_deterministic_child(
-        station_config,
-        sequence_name,
-        parent_tag,
-        slot_index=0
-    ):
-        sio = SequenceIO()
-
-        children = sorted(
-            sio.get_child_sequences(
-                station_config["network_name"],
-                sequence_name,
-                parent_tag
-            )
-        )
-
-        if not children:
-            return None
-
-        seed = (
-            f"{sequence_name}|"
-            f"{parent_tag}|"
-            f"{slot_index}"
-        )
-
-        digest = hashlib.md5(
-            seed.encode()
-        ).hexdigest()
-
-        index = int(digest, 16) % len(children)
-
-        return children[index]
