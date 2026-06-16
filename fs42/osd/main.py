@@ -1,5 +1,6 @@
 import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 import glfw
 from pydantic import BaseModel
@@ -81,7 +82,7 @@ class StatusDisplay(object):
                 status_changed = self.last_status is None or status.get("status") != self.last_status.get("status")
                 self.last_status = status
 
-                new_string = self.config.format_text.format(**status)
+                new_string = self.config.format_text.format_map(defaultdict(str, status))
                 # Reset timer if text changed OR if status changed (like stopped->playing)
                 if new_string != self._text.string or status_changed:
                     self.time_since_change = -self.config.delay
