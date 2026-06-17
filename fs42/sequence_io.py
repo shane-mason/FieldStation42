@@ -48,6 +48,19 @@ class SequenceIO:
                                 named_sequence_id INTEGER NOT NULL,
                                 FOREIGN KEY(named_sequence_id) REFERENCES named_sequence(id)
                             )""")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sequence_group_state (
+                    station TEXT NOT NULL,
+                    sequence_name TEXT NOT NULL,
+                    parent_tag TEXT NOT NULL,
+                    active_tag_path TEXT NOT NULL,
+                    PRIMARY KEY (
+                        station,
+                        sequence_name,
+                        parent_tag
+                    )
+                )
+            """)
             cursor.close()
             connection.commit()
 
@@ -157,6 +170,46 @@ class SequenceIO:
             cursor.execute("""DELETE FROM named_sequence WHERE station = ?""", (station_name,))
             connection.commit()
 
+    def delete_sequence(self,station_name,sequence_name,tag_path):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                SELECT id
+                FROM named_sequence
+                WHERE station = ?
+                  AND sequence_name = ?
+                  AND tag_path = ?
+            """, (
+                station_name,
+                sequence_name,
+                tag_path
+            ))
+
+            row = cursor.fetchone()
+
+            if not row:
+                return
+
+            sequence_id = row[0]
+
+            cursor.execute(
+                """
+                DELETE FROM sequence_entries
+                WHERE named_sequence_id = ?
+                """,
+                (sequence_id,)
+            )
+
+            cursor.execute(
+                """
+                DELETE FROM named_sequence
+                WHERE id = ?
+                """,
+                (sequence_id,)
+            )
+
+            connection.commit()
     
     def update_current_index(self, station_name: str, sequence_name: str, tag_path: str, new_index: int):
         with self._get_connection() as connection:
@@ -256,3 +309,98 @@ class SequenceIO:
             )
             connection.commit()
             cursor.close()
+
+    def get_active_sequence(
+        self,
+        station_name,
+        sequence_name,
+        parent_tag
+    ):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                SELECT active_tag_path
+                FROM sequence_group_state
+                WHERE station = ?
+                  AND sequence_name = ?
+                  AND parent_tag = ?
+            """, (
+                station_name,
+                sequence_name,
+                parent_tag
+            ))
+
+            row = cursor.fetchone()
+
+            return row[0] if row else None
+            
+    def set_active_sequence(
+        self,
+        station_name,
+        sequence_name,
+        parent_tag,
+        active_tag_path
+    ):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO sequence_group_state
+                (
+                    station,
+                    sequence_name,
+                    parent_tag,
+                    active_tag_path
+                )
+                VALUES (?, ?, ?, ?)
+            """, (
+                station_name,
+                sequence_name,
+                parent_tag,
+                active_tag_path
+            ))
+            connection.commit()
+            
+    def get_all_active_sequences(
+        self,
+        station_name
+    ):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                SELECT active_tag_path
+                FROM sequence_group_state
+                WHERE station = ?
+            """, (
+                station_name,
+            ))
+
+            return [
+                r[0]
+                for r in cursor.fetchall()
+            ]
+            
+    def get_child_sequences(
+        self,
+        station_name,
+        sequence_name,
+        parent_tag
+    ):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                SELECT tag_path
+                FROM named_sequence
+                WHERE station = ?
+                  AND sequence_name = ?
+                  AND tag_path LIKE ?
+            """, (
+                station_name,
+                sequence_name,
+                f"{parent_tag}/%"
+            ))
+
+            return [r[0] for r in cursor.fetchall()]
