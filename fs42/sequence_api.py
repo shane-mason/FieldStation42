@@ -145,7 +145,13 @@ class SequenceAPI:
             )
             seq.current_index = 0
 
-        next_entry = seq.episodes[seq.current_index]
+        try:
+            next_entry = seq.episodes[seq.current_index]
+        except IndexError:
+            _l.error(f"Error with sequence or tag name")
+            _l.error(f"Sequence {sequence_name} for tag {tag_path} failed on current index {seq.current_index}.")
+            _l.error("Try rebuilding sequences with --rebuild_sequences.")
+            raise RuntimeError()
         seq.current_index += 1
         sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
 
