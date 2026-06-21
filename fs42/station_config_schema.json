@@ -255,6 +255,27 @@
             ]
           }
         },
+        "week_overrides": {
+          "type": "object",
+          "description": "Date-range-based full-week schedule overrides. Keys are date ranges (e.g. 'June 21 - September 1'). Values are week schedules with day keys that replace the normal weekday schedule for matching dates. date_overrides still takes precedence over week_overrides.",
+          "propertyNames": {
+            "pattern": "^[A-Z][a-z]+ [0-3]?[0-9]( - [A-Z][a-z]+ [0-3]?[0-9])?$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "description": "Week schedule for the date range, with day keys",
+            "properties": {
+              "monday":    { "$ref": "#/$defs/daySchedule" },
+              "tuesday":   { "$ref": "#/$defs/daySchedule" },
+              "wednesday": { "$ref": "#/$defs/daySchedule" },
+              "thursday":  { "$ref": "#/$defs/daySchedule" },
+              "friday":    { "$ref": "#/$defs/daySchedule" },
+              "saturday":  { "$ref": "#/$defs/daySchedule" },
+              "sunday":    { "$ref": "#/$defs/daySchedule" }
+            },
+            "additionalProperties": false
+          }
+        },
         "monday": {
           "oneOf": [
             {
@@ -481,6 +502,21 @@
     }
   },
   "$defs": {
+    "daySchedule": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Reference to a day template"
+        },
+        {
+          "type": "object",
+          "description": "Day schedule with hour slots",
+          "additionalProperties": {
+            "$ref": "#/$defs/timeSlotConfig"
+          }
+        }
+      ]
+    },
     "timeSlotConfig": {
       "type": "object",
       "description": "Configuration for a specific time slot",

@@ -221,6 +221,20 @@ class SequenceAPI:
                     if isinstance(slot, dict):
                         yield slot
 
+        # scan week_overrides slots
+        week_overrides = station_config.get("week_overrides", {})
+        if isinstance(week_overrides, dict):
+            for week_schedule in week_overrides.values():
+                for day_key in DAYS:
+                    if day_key not in week_schedule:
+                        continue
+                    slots = week_schedule[day_key]
+                    if not isinstance(slots, dict):
+                        continue
+                    for slot in slots.values():
+                        if isinstance(slot, dict):
+                            yield slot
+
     @staticmethod
     def _scan_sequence_slot(station_config, slot):
         if "sequence" not in slot or "tags" not in slot:
