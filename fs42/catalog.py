@@ -499,7 +499,7 @@ class ShowCatalog:
         else:
             return None
 
-    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None):
+    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None, meta_hints=None):
         """Find the best candidate for a given tag and duration.
 
         exclusion_index: optional dict of {realpath: [(start, end), ...]} built from
@@ -511,12 +511,14 @@ class ShowCatalog:
         if tag in self.clip_index and len(self.clip_index[tag]):
             candidates = self.clip_index[tag]
             matches = []
+
+
+
             for candidate in candidates:
                 # restrict content to fit and be valid (zero duration is likely not valid)
                 if (
-                    candidate.duration < seconds
-                    and candidate.duration >= 1
-                    and MediaProcessor._test_candidate_hints(candidate.hints, when)
+                    seconds > candidate.duration >= 1
+                        and MediaProcessor._test_candidate_hints(candidate.hints, when)
                 ):
                     # skip if a sibling channel is already playing this file in an
                     # overlapping time window (handles same-start AND mid-play overlap)
@@ -793,7 +795,10 @@ class ShowCatalog:
                 # if it is a small or negative number, this will throw an exception when a candidate isn't found
                 candidate = self.find_candidate(tag, duration - current_duration, when)
                 if not candidate:
-                    print(tag, duration, duration - current_duration, when)
+                    if len(clips) == 0:
+                        raise MatchingContentNotFound(f"No content found for tag '{tag}' with duration {duration - current_duration:.1f}s")
+                    keep_going = False
+                    break
 
                 # check if adding this clip would exceed our maximum content ratio
                 projected_duration = current_duration + candidate.duration

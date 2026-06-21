@@ -126,6 +126,7 @@ class MediaProcessor:
         # get video file length in seconds
         duration = 0.0
         result = None
+        error_hint = None
         try:
             full_path = False
             if fluid:
@@ -136,7 +137,7 @@ class MediaProcessor:
 
             if not duration:
                 # then do the processing
-                duration = MediaProcessor._get_duration(fname)
+                duration, error_hint = MediaProcessor._get_duration(fname)
 
             # it might not support streams, so check with moviepy
             if duration <= 0.0:
@@ -144,12 +145,14 @@ class MediaProcessor:
                     video_clip = VideoFileClip(fname)
                     duration = video_clip.duration
                     video_clip.close()
-                except Exception as e:
-                    _l.error(f"Error in moviepy attempting to get duration for {fname}")
-                    _l.exception(e)
+                except Exception:
+                    pass
             # see if both returned 0
             if duration <= 0.0:
-                _l.warning(f"Could not get a duration for tag: {tag}  file: {fname}")
+                if error_hint:
+                    _l.warning(f"Skipping {fname}: {error_hint}")
+                else:
+                    _l.warning(f"Could not get duration for {fname}")
                 _l.warning("Files with 0 length can't be added to the catalog.")
             else:
                 # Detect media type from file extension
@@ -182,7 +185,7 @@ class MediaProcessor:
             if results:
                 show_clip_list.append(results)
             else:
-                failed.append(failed)
+                failed.append(fname)
 
         _l.debug(f"_process_media completed processing for tag={tag} on {len(file_list)} files")
 
@@ -198,28 +201,36 @@ class MediaProcessor:
         return show_clip_list
 
     @staticmethod
-    def _get_duration(file_name) -> float:
+    def _get_duration(file_name) -> tuple:
+        """Returns (duration, error_hint). duration is -1 on failure; error_hint is a human-readable cause or None."""
         _l = logging.getLogger("MEDIA")
         try:
             probed = ffmpeg.probe(file_name)
 
             if "streams" in probed and len(probed["streams"]) and "duration" in probed["streams"][0]:
-                return float(probed["streams"][0]["duration"])
+                return float(probed["streams"][0]["duration"]), None
             elif "format" in probed and "duration" in probed["format"]:
-                return float(probed['format']['duration'])
+                return float(probed['format']['duration']), None
             else:
-                return -1
+                return -1, None
         except AttributeError as e:
             # This should never happen now due to startup check, but just in case
             _l.error(f"ffmpeg module error - you may have the wrong package installed: {e}")
             _l.error("Please ensure you have activated the virtual environment and have ffmpeg-python installed")
-            return -1
+            return -1, None
         except ffmpeg.Error as e:
+            stderr = e.stderr.decode('utf-8', errors='replace') if e.stderr else ''
+            if 'score of 1' in stderr or 'misdetection possible' in stderr:
+                hint = "file does not appear to be a valid video — may be a corrupt or failed download"
+            elif 'moov atom not found' in stderr:
+                hint = "file is an incomplete MP4 — moov atom missing, likely an interrupted download or encode"
+            else:
+                hint = None
             _l.debug(f"FFmpeg error probing {file_name}: {e}")
-            return -1
+            return -1, hint
         except Exception as e:
             _l.debug(f"Unexpected error probing {file_name}: {e}")
-            return -1
+            return -1, None
 
     @staticmethod
     def _find_media(path, media_filter="video") -> list[str]:
@@ -306,8 +317,12 @@ class MediaProcessor:
         """Process all subdirectories recursively, collecting hints from all levels"""
         from collections import defaultdict
 
-        # Get all media files recursively
-        all_files = MediaProcessor._rfind_media(dir_path, media_filter)
+        # Get all media files in subdirectories only (root files are handled by _scan_directory)
+        root = os.path.abspath(dir_path)
+        all_files = [
+            f for f in MediaProcessor._rfind_media(dir_path, media_filter)
+            if os.path.dirname(os.path.abspath(f)) != root
+        ]
 
         # Group files by their immediate parent directory
         files_by_dir = defaultdict(list)

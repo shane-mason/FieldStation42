@@ -45,6 +45,9 @@ KEY_MAPPINGS = {
     'channel_down': 'down',      # Previous channel
     'last_channel': 'backspace', # Switch to last channel
     'mute': 'm',                 # Mute/unmute volume
+    'toggle_subtitles': 'v',      # Toggle subtitle visibility in mpv
+    'cycle_subtitles': 'j',       # Cycle subtitle tracks in mpv
+    'cycle_audio': 'a',           # Cycle audio tracks in mpv
     'power_stop': 'end',         # Stop player (power button)
     'exit': 'esc',               # Exit remote controller
 
@@ -553,6 +556,12 @@ def handle_key_name(key_name):
                 volume_down_pressed()
             elif function_name == 'mute':
                 mute_pressed()
+            elif function_name == 'toggle_subtitles':
+                mpv_command_pressed('toggle_subtitles')
+            elif function_name == 'cycle_subtitles':
+                mpv_command_pressed('cycle_subtitles')
+            elif function_name == 'cycle_audio':
+                mpv_command_pressed('cycle_audio')
             elif function_name == 'channel_up':
                 channel_up_pressed()
             elif function_name == 'channel_down':
@@ -762,6 +771,27 @@ Environment variables:
             print(f"Error: {e}")
             sys.exit(1)
 
+
+
+def mpv_command_pressed(action):
+    """Send a non-interrupting mpv runtime command to FS42."""
+    if not should_allow_press(action):
+        return
+
+    endpoint = action.replace("_", "-")
+
+    try:
+        response = requests.post(
+            f'{FS42_BASE_URL}/player/mpv/{endpoint}',
+            timeout=2
+        )
+
+        if response.ok:
+            print(f"MPV command sent: {action}")
+        else:
+            print(f"MPV command failed: {action} ({response.status_code})")
+    except Exception as e:
+        print(f"MPV command error for {action}: {e}")
 
 if __name__ == "__main__":
     main()

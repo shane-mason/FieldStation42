@@ -386,7 +386,7 @@ class LiquidSchedule:
                 onair_flag = True
                 
                 
-                if MarathonAgent.detect_marathon(slot_config):
+                if MarathonAgent.detect_marathon(slot_config, current_mark):
                     forward_buffer = MarathonAgent.fill_marathon(slot_config)
 
                 if tag_str not in self.conf["clip_shows"]:

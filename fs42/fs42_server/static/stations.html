@@ -189,10 +189,10 @@
                         </div>
                         <div class="station-card-description">${description}</div>
                         <div class="station-card-actions">
-                            <button class="pure-button pure-button-primary" onclick="editStation('${escapeHtml(station.network_name)}')">
+                            <button class="pure-button pure-button-primary" data-name="${escapeHtml(station.network_name)}" onclick="editStation(this.dataset.name)">
                                 Edit Config
                             </button>
-                            <button class="pure-button" onclick="duplicateStation('${escapeHtml(station.network_name)}')">
+                            <button class="pure-button" data-name="${escapeHtml(station.network_name)}" onclick="duplicateStation(this.dataset.name)">
                                 Duplicate
                             </button>
                         </div>
