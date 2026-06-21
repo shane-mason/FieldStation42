@@ -144,13 +144,8 @@ class SequenceAPI:
                 f"Current index {seq.current_index} reached end of sequence {sequence_name}. Looping back to 0."
             )
             seq.current_index = 0
-        try:
-            next_entry = seq.episodes[seq.current_index]
-        except IndexError:
-            _l.error(f"Error with sequence or tag name")
-            _l.error(f"Sequence {sequence_name} for tag {tag_path} failed on current index {seq.current_index}.")
-            _l.error("Try rebuilding sequences with --rebuild_sequences.")
-            raise RuntimeError()
+
+        next_entry = seq.episodes[seq.current_index]
         seq.current_index += 1
         sio.update_current_index(station_config["network_name"], sequence_name, tag_path, seq.current_index)
 
@@ -265,7 +260,7 @@ class SequenceAPI:
         # check if the sequence already exists
 
         existing = sio.get_sequence(station_config["network_name"], seq_name, seq_tag)
-        file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}")
+        
         seq_start = slot.get("sequence_start", 0)
         seq_end = slot.get("sequence_end", 1)
 
@@ -377,6 +372,8 @@ class SequenceAPI:
                 )
 
             return
+        else:
+            file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}")
 
         if not existing:
             seq_start = 0
