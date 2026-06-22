@@ -8,7 +8,7 @@ class ConfigurationError(Exception):
 
 
 class ConfigProcessor:
-    overrideable = [
+    overridable = [
         "start_bump",
         "end_bump",
         "bump_dir",
@@ -218,7 +218,7 @@ class ConfigProcessor:
                     for to_override in or_def:
                         if to_override not in ConfigProcessor.overridable:
                             raise ConfigurationError(
-                                f"Schedule for {conf['network_name']} is trying to override {to_override} in {o_key}, but only the following can be overriden: {overridable}"
+                                f"Schedule for {conf['network_name']} is trying to override {to_override} in {o_key}, but only the following can be overriden: {ConfigProcessor.overridable}"
                             )
 
                         conf[day_key][hour_key][to_override] = or_def[to_override]
