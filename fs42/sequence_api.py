@@ -144,6 +144,7 @@ class SequenceAPI:
                 f"Current index {seq.current_index} reached end of sequence {sequence_name}. Looping back to 0."
             )
             seq.current_index = 0
+
         try:
             next_entry = seq.episodes[seq.current_index]
         except IndexError:
@@ -265,7 +266,7 @@ class SequenceAPI:
         # check if the sequence already exists
 
         existing = sio.get_sequence(station_config["network_name"], seq_name, seq_tag)
-        file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}")
+        
         seq_start = slot.get("sequence_start", 0)
         seq_end = slot.get("sequence_end", 1)
 
@@ -377,6 +378,8 @@ class SequenceAPI:
                 )
 
             return
+        else:
+            file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}")
 
         if not existing:
             seq_start = 0
