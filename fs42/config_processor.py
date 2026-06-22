@@ -8,6 +8,21 @@ class ConfigurationError(Exception):
 
 
 class ConfigProcessor:
+    overrideable = [
+        "start_bump",
+        "end_bump",
+        "bump_dir",
+        "commercial_dir",
+        "break_strategy",
+        "sequence",
+        "sequence_start",
+        "sequence_end",
+        "schedule_increment",
+        "random_tags",
+        "video_scramble_fx",
+        "marathon",
+    ]
+
     @staticmethod
     def preprocess(conf):
         # first, fill in templates
@@ -121,11 +136,6 @@ class ConfigProcessor:
 
         templates = conf.get("day_templates", {})
         slot_override_defs = conf.get("slot_overrides", {})
-        overridable = [
-            "start_bump", "end_bump", "bump_dir", "commercial_dir", "break_strategy",
-            "sequence", "sequence_start", "sequence_end", "schedule_increment",
-            "random_tags", "video_scramble_fx", "marathon",
-        ]
 
         processed_overrides = {}
 
@@ -169,11 +179,11 @@ class ConfigProcessor:
                             )
                         or_def = slot_override_defs[o_key]
                         for to_override in or_def:
-                            if to_override not in overridable:
+                            if to_override not in ConfigProcessor.overridable:
                                 raise ConfigurationError(
                                     f"week_overrides entry '{date_key}' on {day_key} at hour {hour_key} "
                                     f"for {conf['network_name']} tries to override '{to_override}' in '{o_key}', "
-                                    f"but only the following can be overridden: {overridable}"
+                                    f"but only the following can be overridden: {ConfigProcessor.overridable}"
                                 )
                             slot[to_override] = or_def[to_override]
                         del slot["overrides"]
@@ -192,20 +202,6 @@ class ConfigProcessor:
             return conf
 
         overrides = conf["slot_overrides"]
-        overridable = [
-            "start_bump",
-            "end_bump",
-            "bump_dir",
-            "commercial_dir",
-            "break_strategy",
-            "sequence",
-            "sequence_start",
-            "sequence_end",
-            "schedule_increment",
-            "random_tags",
-            "video_scramble_fx",
-            "marathon",
-        ]
 
         for day_key in timings.DAYS:
             for hour_key in list(conf[day_key]):
@@ -220,7 +216,7 @@ class ConfigProcessor:
                     or_def = overrides[o_key]
 
                     for to_override in or_def:
-                        if to_override not in overridable:
+                        if to_override not in ConfigProcessor.overridable:
                             raise ConfigurationError(
                                 f"Schedule for {conf['network_name']} is trying to override {to_override} in {o_key}, but only the following can be overriden: {overridable}"
                             )
