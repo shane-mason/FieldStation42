@@ -518,11 +518,18 @@ class SequenceAPI:
 
         for root, dirs, files in os.walk(base_dir):
 
-            media = MediaProcessor._rfind_media(root)
-
-            if not media:
+            has_media = any(
+                f.lower().endswith(
+                    tuple(
+                        f".{ext}"
+                        for ext in MediaProcessor.VIDEO_FORMATS
+                    )
+                )
+                for f in files
+            )
+            if not has_media:
                 continue
-
+                
             rel = os.path.relpath(root, base_dir)
 
             if rel == ".":
