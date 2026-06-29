@@ -231,6 +231,30 @@ class ShowCatalog:
                 if "end_bump" in slot:
                     end_bumps[slot["end_bump"]] = True
 
+        # check for week override tags
+        week_overrides = self.config.get("week_overrides", {})
+        for week_schedule in week_overrides.values():
+            for day_key in DAYS:
+                if day_key not in week_schedule:
+                    continue
+                for slot in week_schedule[day_key].values():
+                    if not isinstance(slot, dict):
+                        continue
+                    if "tags" in slot:
+                        if type(slot["tags"]) is list:
+                            for tag in slot["tags"]:
+                                tags[tag] = True
+                        else:
+                            tags[slot["tags"]] = True
+                    if "bump_dir" in slot:
+                        bump_overrides[slot["bump_dir"]] = True
+                    if "commercial_dir" in slot:
+                        commercial_overrides[slot["commercial_dir"]] = True
+                    if "start_bump" in slot:
+                        start_bumps[slot["start_bump"]] = True
+                    if "end_bump" in slot:
+                        end_bumps[slot["end_bump"]] = True
+
         # check for fallback tag
         if "fallback_tag" in self.config:
             tags[self.config["fallback_tag"]] = True
