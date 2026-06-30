@@ -446,6 +446,13 @@
           "type": "string",
           "description": "Tag/folder to use when no content is found for scheduled slot. Useful for content that only plays when all other content is filtered out."
         },
+        "meta_hints": {
+          "type": "array",
+          "description": "Availability rules for tags, expressed in config rather than folder names. Each entry restricts when content under the given tag(s) is eligible for selection.",
+          "items": {
+            "$ref": "#/$defs/metaHint"
+          }
+        },
         "active_rules": {
           "type": "object",
           "description": "Availability rules that determine when this configuration should be active",
@@ -481,6 +488,42 @@
     }
   },
   "$defs": {
+    "metaHint": {
+      "type": "object",
+      "description": "Availability rule applied to one or more tags. Content under the given tags is only eligible when the specified conditions are met.",
+      "required": ["tags"],
+      "properties": {
+        "tags": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "Single tag this rule applies to"
+            },
+            {
+              "type": "array",
+              "description": "Multiple tags this rule applies to",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "date_range": {
+          "type": "string",
+          "description": "Date range in format 'Month Day - Month Day' (e.g., 'October 15 - November 1'). Wraps around the year boundary if the end date is earlier than the start date. Content under the tag(s) is only eligible within this range.",
+          "pattern": "^[A-Z][a-z]+ \\d+ - [A-Z][a-z]+ \\d+$"
+        },
+        "day_part": {
+          "type": "string",
+          "description": "Name of a day part defined in the main config (e.g., 'morning', 'daytime', 'prime', 'late', 'overnight'). Content under the tag(s) is only eligible during that day part."
+        },
+        "exclusive": {
+          "type": "boolean",
+          "description": "When true and conditions match, only this hint's tagged content is eligible for that content type; all other content of that type is excluded for the duration of the match. Defaults to false.",
+          "default": false
+        }
+      }
+    },
     "timeSlotConfig": {
       "type": "object",
       "description": "Configuration for a specific time slot",
