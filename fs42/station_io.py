@@ -5,6 +5,8 @@ import glob
 import re
 import shutil
 import datetime
+from pathlib import Path
+
 from fs42.config_processor import ConfigProcessor
 from fs42 import schedule_hint
 from fs42 import timings
@@ -225,14 +227,13 @@ class StationIO:
         active_rules = station_conf.get("active_rules", None)
         if active_rules:
             if "date_range" in active_rules:
-                print("FOUND ACTIVE RULE")
                 # then, use scheduling hints and see this station should be available
                 parses = schedule_hint.RangeHint.test_pattern(active_rules["date_range"])
                 if parses:
                     hint = schedule_hint.RangeHint(active_rules["date_range"])
                     if not hint.hint(datetime.datetime.now()):
                         # then, the active rule doesn't match, so this station isn't active
-                        print("DOESN'T FIT THE MOLD")
+                        self._l.info(f"Skipping {filename} since marked inactive")
                         return None
                 else:
                     self._l.warning(f"Active rule date_range doesn't parse as a range {active_rules['date_range']}")
@@ -259,6 +260,25 @@ class StationIO:
         station_conf["clip_shows"] = self._normalize_clip_shows(station_conf["clip_shows"],
                                                                 station_conf["schedule_increment"],
                                                                 filename)
+        # normalize meta hints and paths
+        if "meta_hints" in station_conf:
+            for hint in station_conf["meta_hints"]:
+                if "tags" in hint:
+                    output_tags = []
+                    # make it a list of tags if it's a single string
+                    if isinstance(hint["tags"], str):
+                        hint["tags"] = [hint["tags"]]
+
+                    for tag in hint["tags"]:
+                        if Path(tag).is_absolute():
+                            output_tags.append(tag)
+                        else:
+                            #then make it relative to the content_dir
+                            new_tag = Path(station_conf["content_dir"]).joinpath(tag)
+                            output_tags.append(str(new_tag))
+                    hint["tags"] = output_tags
+                else:
+                    raise Exception(f"No meta_hints tag specified in {filename}")
 
         # Add metadata flags
         station_conf["_has_catalog"] = station_conf["network_type"] not in StationIO.NO_CATALOG
