@@ -1,4 +1,5 @@
 import math
+import random
 
 
 class SequenceEntry:
@@ -19,6 +20,7 @@ class NamedSequence:
         end_perc: float,
         current_index: int,
         file_list: list[str],
+        initialized: bool = False
     ):
         self.station_name = station_name
         self.sequence_name = sequence_name
@@ -26,8 +28,13 @@ class NamedSequence:
         self.start_perc = start_perc
         self.end_perc = end_perc
         self.current_index = current_index
+        self.initialized = initialized
         self.episodes = []  # Initialize episodes as an empty list
+        self.start_index = 0
+        self.end_index = 0
         self.populate(file_list)  # Populate episodes with the provided file list
+
+
 
     def __str__(self):
         return f"NamedSequence(station={self.station_name}, sequence={self.sequence_name}, tag={self.tag_path}, start={self.start_perc}, end={self.end_perc}, index={self.current_index})"
@@ -40,8 +47,17 @@ class NamedSequence:
 
         # explicitely sort them by file path for alpha-numeric ordering:
         self.episodes = sorted(self.episodes, key=lambda entry: entry.fpath)
-        self.start_index = math.floor(self.start_perc * (len(self.episodes)))
+
         self.end_index = math.floor(self.end_perc * (len(self.episodes)))
+
+        if self.start_perc < 0 and not self.initialized:
+            self.start_index = 0
+            self.current_index = random.randrange(self.start_index,self.end_index)
+            self.initialized = True
+        elif self.start_perc >= 0 and not self.initialized:
+            self.start_index = math.floor(self.start_perc * (len(self.episodes)))
+            self.current_index = self.start_index
+            self.initialized = True
 
     def get_series_length(self):
         return len(self._episodes)

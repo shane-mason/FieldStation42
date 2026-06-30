@@ -66,12 +66,6 @@ class SequenceAPI:
                 f"contains no episodes"
             )
             return None
-
-        # Handle first run - if current_index is 0 and less than start_index, start at start_index
-        if seq.current_index == 0 and seq.start_index > 0:
-            seq.current_index = seq.start_index
-        elif seq.current_index == -1:
-            seq.current_index = random.randrange(seq.start_index,seq.end_index)
             
         # Handle end of sequence - reset to 0 to loop back to beginning
         elif seq.current_index >= seq.end_index:
@@ -312,8 +306,9 @@ class SequenceAPI:
                         child_tag,
                         seq_start,
                         seq_end,
-                        -1,
-                        file_list
+                        0,
+                        file_list,
+                        False
                     )
 
                     sio.put_sequence(
@@ -389,7 +384,7 @@ class SequenceAPI:
             if "sequence_end" in slot:
                 seq_end = slot["sequence_end"]
 
-            ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, -1, file_list)
+            ns = NamedSequence(station_config["network_name"], seq_name, seq_tag, seq_start, seq_end, 0, file_list, False)
             sio.put_sequence(station_config["network_name"], ns)
         else:
             disk_files = set(str(f) for f in file_list)
