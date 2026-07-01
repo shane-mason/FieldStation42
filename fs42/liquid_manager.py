@@ -75,7 +75,7 @@ class LiquidManager(object):
         # get the catalog
         catalog = ShowCatalog(station_config)
 
-        _blocks: list[LiquidBlock] = self.schedules[station_config["network_name"]]
+        _blocks: list[LiquidBlock] = self.schedules.get(station_config["network_name"], [])
 
         now = datetime.datetime.now()
         _reaped = {}

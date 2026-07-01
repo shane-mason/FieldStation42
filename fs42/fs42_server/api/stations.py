@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from fs42.station_manager import StationManager
 from fs42.station_io import StationIO
+from fs42.liquid_manager import LiquidManager
 
 router = APIRouter(prefix="/stations", tags=["stations"])
 
@@ -104,6 +105,9 @@ async def create_station(config: StationConfigRequest):
         is_update=False
     )
 
+    if success:
+        LiquidManager().reload_schedules()
+
     if not success:
         # Determine if it's a validation error or conflict
         if "already used" in message or "already exists" in message:
@@ -147,6 +151,9 @@ async def update_station(network_name: str, config: StationConfigRequest):
         is_update=True
     )
 
+    if success:
+        LiquidManager().reload_schedules()
+
     if not success:
         # Determine if it's a validation error or conflict
         if "already used" in message or "already exists" in message:
@@ -187,6 +194,9 @@ async def delete_station(network_name: str):
 
     # Delete the configuration (StationManager handles file deletion via StationIO)
     success, message = station_manager.delete_station_config(network_name)
+
+    if success:
+        LiquidManager().reload_schedules()
 
     if not success:
         raise HTTPException(
