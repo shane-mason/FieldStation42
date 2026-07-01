@@ -66,6 +66,25 @@ class SequenceIO:
                     )
                 )
             """)
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sequence_entries_named_sequence
+            ON sequence_entries(named_sequence_id)
+            """)
+
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sequence_entries_lookup
+            ON sequence_entries(named_sequence_id, sequence_index)
+            """)
+
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_named_sequence_station
+            ON named_sequence(station)
+            """)
+            
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_named_sequence_parent
+            ON named_sequence(station, sequence_name, parent_tag)
+            """)
             cursor.close()
             connection.commit()
 
@@ -73,7 +92,7 @@ class SequenceIO:
 
         with self._get_connection() as connection:
             cursor = connection.cursor()
-            # Insert or update the named sequence
+
             cursor.execute(
                 """INSERT OR REPLACE INTO named_sequence
                               (station, sequence_name, tag_path, start_perc, end_perc, current_index, initialized)
@@ -88,13 +107,35 @@ class SequenceIO:
                     int(named_sequence.initialized),
                 ),
             )
-            named_sequence_id = cursor.lastrowid
 
-            # Now insert the sequence entries
+            # stable ID lookup
+            cursor.execute(
+                """
+                SELECT id FROM named_sequence
+                WHERE station = ? AND sequence_name = ? AND tag_path = ?
+                """,
+                (station_name, named_sequence.sequence_name, named_sequence.tag_path),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                raise RuntimeError("UPSERT failed to return sequence id")
+
+            named_sequence_id = row[0]
+
+            # Replace entries
+            cursor.execute(
+                "DELETE FROM sequence_entries WHERE named_sequence_id = ?",
+                (named_sequence_id,),
+            )
+
             for index, entry in enumerate(named_sequence.episodes):
                 cursor.execute(
-                    """INSERT INTO sequence_entries (fpath, sequence_index, named_sequence_id) 
-                                  VALUES (?, ?, ?)""",
+                    """
+                    INSERT INTO sequence_entries
+                        (fpath, sequence_index, named_sequence_id)
+                    VALUES (?, ?, ?)
+                    """,
                     (entry.fpath, index, named_sequence_id),
                 )
 
