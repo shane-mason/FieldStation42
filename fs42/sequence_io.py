@@ -37,14 +37,14 @@ class SequenceIO:
                                 start_perc REAL NOT NULL,
                                 end_perc REAL NOT NULL,
                                 current_index INTEGER NOT NULL,
+                                initialized INTEGER NOT NULL DEFAULT 1,
                                 UNIQUE(station, sequence_name, tag_path)
                             )""")
             try:
-                cursor.execute("ALTER TABLE named_sequence ADD COLUMN parent_tag TEXT")
-            except sqlite3.OperationalError as e:
-                if "duplicate column name" not in str(e):
-                    raise
-                
+                cursor.execute("ALTER TABLE named_sequence ADD COLUMN initialized INTEGER NOT NULL DEFAULT 1")
+            except sqlite3.OperationalError:
+                pass
+
             # now make a table to hold sequence entries
             cursor.execute("""CREATE TABLE IF NOT EXISTS sequence_entries (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,24 +89,14 @@ class SequenceIO:
             connection.commit()
 
     def put_sequence(self, station_name: str, named_sequence):
-        """
-        Store a SeriesIndex in the database
-        """
+
         with self._get_connection() as connection:
             cursor = connection.cursor()
 
             cursor.execute(
-                """
-                INSERT INTO named_sequence
-                    (station, sequence_name, tag_path, start_perc, end_perc, current_index, parent_tag)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(station, sequence_name, tag_path)
-                DO UPDATE SET
-                    start_perc = excluded.start_perc,
-                    end_perc = excluded.end_perc,
-                    current_index = excluded.current_index,
-                    parent_tag = excluded.parent_tag
-                """,
+                """INSERT OR REPLACE INTO named_sequence
+                              (station, sequence_name, tag_path, start_perc, end_perc, current_index, initialized)
+                              VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     station_name,
                     named_sequence.sequence_name,
@@ -114,7 +104,7 @@ class SequenceIO:
                     named_sequence.start_perc,
                     named_sequence.end_perc,
                     named_sequence.current_index,
-                    getattr(named_sequence, "parent_tag", None),
+                    int(named_sequence.initialized),
                 ),
             )
 
@@ -155,8 +145,8 @@ class SequenceIO:
         with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
-                """SELECT id, start_perc, end_perc, current_index 
-                              FROM named_sequence 
+                """SELECT id, start_perc, end_perc, current_index, initialized
+                              FROM named_sequence
                               WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
                 (station_name, sequence_name, tag_path),
             )
@@ -165,7 +155,7 @@ class SequenceIO:
             if row is None:
                 return None
 
-            named_sequence_id, start_perc, end_perc, current_index = row
+            named_sequence_id, start_perc, end_perc, current_index, initialized = row
 
             # Now retrieve the sequence entries
             cursor.execute(
@@ -175,7 +165,10 @@ class SequenceIO:
             )
             file_paths = [row[0] for row in cursor.fetchall()]
 
-            ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths)
+            ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths, bool(initialized))
+
+            if ns.initialized != bool(initialized):
+                self.update_initialized(station_name, sequence_name, tag_path, ns.initialized)
 
             return ns
 
@@ -183,8 +176,8 @@ class SequenceIO:
         with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
-                """SELECT id, sequence_name, tag_path, start_perc, end_perc, current_index 
-                              FROM named_sequence 
+                """SELECT id, sequence_name, tag_path, start_perc, end_perc, current_index, initialized
+                              FROM named_sequence
                               WHERE station = ?""",
                 (station_name,),
             )
@@ -195,17 +188,19 @@ class SequenceIO:
 
             sequences = []
             for row in rows:
-                named_sequence_id, sequence_name, tag_path, start_perc, end_perc, current_index = row
+                named_sequence_id, sequence_name, tag_path, start_perc, end_perc, current_index, initialized = row
 
                 # Now retrieve the sequence entries for this sequence
                 cursor.execute(
-                    """SELECT fpath FROM sequence_entries 
+                    """SELECT fpath FROM sequence_entries
                                   WHERE named_sequence_id = ? ORDER BY sequence_index""",
                     (named_sequence_id,),
                 )
                 file_paths = [entry_row[0] for entry_row in cursor.fetchall()]
 
-                ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths)
+                ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths, bool(initialized))
+                if ns.initialized != bool(initialized):
+                    self.update_initialized(station_name, sequence_name, tag_path, ns.initialized)
                 sequences.append(ns)
 
             return sequences
@@ -274,6 +269,18 @@ class SequenceIO:
                               SET current_index = ? 
                               WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
                 (new_index, station_name, sequence_name, tag_path),
+            )
+            cursor.close()
+            connection.commit()
+
+    def update_initialized(self, station_name: str, sequence_name: str, tag_path: str, value: bool):
+        with self._get_connection() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                """UPDATE named_sequence
+                              SET initialized = ?
+                              WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
+                (int(value), station_name, sequence_name, tag_path),
             )
             cursor.close()
             connection.commit()

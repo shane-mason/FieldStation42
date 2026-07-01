@@ -29,6 +29,7 @@ class CatalogEntry:
         self.dbid = None
         self.created_at = None
         self.updated_at = None
+        self.meta_cache = None
 
     def __str__(self):
         hints = list(map(str, self.hints))

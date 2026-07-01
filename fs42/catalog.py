@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.catalog_api import CatalogAPI
+from fs42.hint_agent import HintAgent
 from fs42.timings import MIN_5, DAYS
 from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
@@ -512,7 +513,10 @@ class ShowCatalog:
             candidates = self.clip_index[tag]
             matches = []
 
-
+            # filter candidates based on configuration hints in config file
+            meta_hints = self.config.get("meta_hints")
+            if meta_hints:
+                candidates = HintAgent.filter_candidate_entries(when, candidates, meta_hints)
 
             for candidate in candidates:
                 # restrict content to fit and be valid (zero duration is likely not valid)
@@ -578,6 +582,12 @@ class ShowCatalog:
         candidates = [c for c in self.clip_index[base_tag]
                       if c.duration < seconds and c.duration >= 1
                       and MediaProcessor._test_candidate_hints(c.hints, when)]
+
+
+        # now, filter candidates down
+        meta_hints = self.config.get("meta_hints")
+        if meta_hints:
+            candidates = HintAgent.filter_candidate_entries(when, candidates, meta_hints)
 
         # augment pool with any matching coming-up-next bumpers from the next/ folder.
         # all matching folders are merged into the pool - they are not prioritized,
