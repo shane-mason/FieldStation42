@@ -290,7 +290,7 @@ class MediaProcessor:
             for ext in formats_to_scan
         }
 
-        for root, dirs, files in os.walk(path):
+        for root, dirs, files in os.walk(path, followlinks=True):
 
             for file in files:
 
