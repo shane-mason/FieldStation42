@@ -421,11 +421,7 @@ class StationPlayer:
 
                 # Perform seek if needed (before showing overlay)
                 if not is_stream and current_time is not None and current_time > 0:
-                    try:
-                        self.mpv.command("seek", current_time, "absolute")
-                        self._l.info(f"Seeking to: {current_time}")
-                    except Exception as e:
-                        self._l.error(f"Failed seeking {current_time} on {file_path}: {e}")
+                    self._seek_with_verify(file_path, current_time, timeout_seconds)
 
                 # Show Now Playing overlay for audio feature files
                 self._l.info(f"Media type: {media_type}, Content type: {content_type}")
@@ -458,6 +454,55 @@ class StationPlayer:
                 f"Encountered unknown error attempting to play {file_path} - please check your configurations."
             )
             return False
+
+    def _seek_with_verify(self, file_path, current_time, timeout_seconds, tolerance=1.0, max_attempts=3, verify_window=2.0):
+
+        def safe_prop(name, default=None):
+            try:
+                return getattr(self.mpv, name)
+            except Exception:
+                return default
+
+        deadline = time.time() + timeout_seconds
+
+        # wait until loaded as seekable.
+        while not safe_prop("seekable"):
+            if time.time() > deadline:
+                self._l.warning(f"Timed out waiting for {file_path} to become seekable; seeking anyway")
+                break
+            time.sleep(0.05)
+
+        # Seek & wait - re-issue if it fails
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self.mpv.command("seek", current_time, "absolute")
+            except Exception as e:
+                self._l.error(f"Failed seeking {current_time} on {file_path}: {e}")
+                return
+
+            patience = time.time() + verify_window
+            while time.time() < deadline:
+                pos = safe_prop("time_pos")
+                if pos is not None and pos >= current_time - tolerance:
+                    self._l.info(f"Seek landed at {pos:.2f} (target {current_time}, attempt {attempt})")
+                    return
+                if safe_prop("seeking"):
+                    patience = time.time() + verify_window
+                elif time.time() >= patience:
+                    break
+                time.sleep(0.05)
+
+            if time.time() > deadline:
+                break
+            self._l.warning(
+                f"Seek to {current_time} on {file_path} was dropped; "
+                f"re-issuing (attempt {attempt}/{max_attempts})"
+            )
+
+        self._l.error(
+            f"Seek to {current_time} on {file_path} failed to land within {timeout_seconds}s; "
+            f"playback may be starting from the wrong position"
+        )
 
     def play_and_wait(self, file_path):
         self._l.info(f"Play and wait on file {file_path}")
