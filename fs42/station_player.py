@@ -327,7 +327,7 @@ class StationPlayer:
             else:
                 self.mpv.vf = self.reception.filter()
 
-    def play_file(self, file_path, file_duration=None, current_time=None, is_stream=False, title="Unknown", content_type=None, media_type=None):
+    def play_file(self, file_path, file_duration=None, offset_seconds=None, is_stream=False, title="Unknown", content_type=None, media_type=None):
         try:
             if os.path.exists(file_path) or is_stream or AutoBumpAgent.is_autobump_url(file_path):
                 self._l.debug(f"%%%Attempting to play {file_path}")
@@ -340,7 +340,7 @@ class StationPlayer:
                     else:
                         ts_format = "%Y-%m-%dT%H:%M:%S"
                     duration = (
-                        f"{str(datetime.timedelta(seconds=int(current_time)))}/{str(datetime.timedelta(seconds=int(file_duration)))}"
+                        f"{str(datetime.timedelta(seconds=int(offset_seconds)))}/{str(datetime.timedelta(seconds=int(file_duration)))}"
                         if file_duration
                         else "n/a"
                     )
@@ -365,7 +365,7 @@ class StationPlayer:
                 if AutoBumpAgent.is_autobump_url(file_path):
                     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
                     web_url = AutoBumpAgent.extract_url(file_path)
-                    remaining = file_duration - (current_time or 0) if file_duration else None
+                    remaining = file_duration - (offset_seconds or 0) if file_duration else None
                     if remaining is not None:
                         parsed = urlparse(web_url)
                         params = parse_qs(parsed.query, keep_blank_values=True)
@@ -420,8 +420,8 @@ class StationPlayer:
                         time.sleep(0.05)
 
                 # Perform seek if needed (before showing overlay)
-                if not is_stream and current_time is not None and current_time > 0:
-                    self._seek_with_verify(file_path, current_time, timeout_seconds)
+                if not is_stream and offset_seconds is not None and offset_seconds > 0:
+                    self._seek_with_verify(file_path, offset_seconds, timeout_seconds)
 
                 # Show Now Playing overlay for audio feature files
                 self._l.info(f"Media type: {media_type}, Content type: {content_type}")
@@ -437,7 +437,7 @@ class StationPlayer:
                         if nfo_data:
                             play_duration = None
                             if file_duration is not None:
-                                play_duration = file_duration - (current_time or 0)
+                                play_duration = file_duration - (offset_seconds or 0)
                             self.now_playing_process = NFOAgent.show_overlay(nfo_data, play_duration=play_duration)
                     except Exception as e:
                         self._l.warning(f"Could not start NFO overlay: {e}")
@@ -455,7 +455,8 @@ class StationPlayer:
             )
             return False
 
-    def _seek_with_verify(self, file_path, current_time, timeout_seconds, tolerance=1.0, max_attempts=3, verify_window=2.0):
+    def _seek_with_verify(self, file_path, offset_seconds, timeout_seconds,
+                          tolerance=1.0, verify_window=2.0, retry_delay=0.2):
 
         def safe_prop(name, default=None):
             try:
@@ -464,43 +465,35 @@ class StationPlayer:
                 return default
 
         deadline = time.time() + timeout_seconds
+        attempt = 0
 
-        # wait until loaded as seekable.
-        while not safe_prop("seekable"):
-            if time.time() > deadline:
-                self._l.warning(f"Timed out waiting for {file_path} to become seekable; seeking anyway")
-                break
-            time.sleep(0.05)
+        while time.time() < deadline:
+            attempt += 1
 
-        # Seek & wait - re-issue if it fails
-        for attempt in range(1, max_attempts + 1):
             try:
-                self.mpv.command("seek", current_time, "absolute")
+                self.mpv.command("seek", offset_seconds, "absolute")
             except Exception as e:
-                self._l.error(f"Failed seeking {current_time} on {file_path}: {e}")
-                return
+                self._l.debug(f"Seek not accepted yet on {file_path}: {e} (attempt {attempt})")
+                time.sleep(retry_delay)
+                continue
 
             patience = time.time() + verify_window
             while time.time() < deadline:
                 pos = safe_prop("time_pos")
-                if pos is not None and pos >= current_time - tolerance:
-                    self._l.info(f"Seek landed at {pos:.2f} (target {current_time}, attempt {attempt})")
+                if pos is not None and pos >= offset_seconds - tolerance:
+                    self._l.info(f"Seek landed at {pos:.2f} (target {offset_seconds}, attempt {attempt})")
                     return
                 if safe_prop("seeking"):
                     patience = time.time() + verify_window
                 elif time.time() >= patience:
-                    break
+                    break  # idle and not landed -> dropped, re-issue
                 time.sleep(0.05)
 
-            if time.time() > deadline:
-                break
-            self._l.warning(
-                f"Seek to {current_time} on {file_path} was dropped; "
-                f"re-issuing (attempt {attempt}/{max_attempts})"
-            )
+            self._l.debug(f"Seek to {offset_seconds} on {file_path} did not land (attempt {attempt}); retrying")
+            time.sleep(retry_delay)
 
         self._l.error(
-            f"Seek to {current_time} on {file_path} failed to land within {timeout_seconds}s; "
+            f"Seek to {offset_seconds} on {file_path} failed to land within {timeout_seconds}s; "
             f"playback may be starting from the wrong position"
         )
 
@@ -851,7 +844,7 @@ class StationPlayer:
                 title = play_point.block_title
                 content_type = getattr(entry, 'content_type', 'feature')  # Get content_type from entry, default to 'feature'
                 media_type = getattr(entry, 'media_type', 'video')  # Get media_type from entry, default to 'video'
-                worked = self.play_file(entry.path, file_duration=entry.duration, current_time=total_skip, is_stream=is_stream, title=title, content_type=content_type, media_type=media_type)
+                worked = self.play_file(entry.path, file_duration=entry.duration, offset_seconds=total_skip, is_stream=is_stream, title=title, content_type=content_type, media_type=media_type)
                 if self._pending_response:
                     response = self._pending_response
                     self._pending_response = None
