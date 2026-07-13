@@ -480,7 +480,7 @@ class StationPlayer:
             patience = time.time() + verify_window
             while time.time() < deadline:
                 pos = safe_prop("time_pos")
-                if pos is not None and pos >= offset_seconds - tolerance:
+                if pos is not None and abs(pos - offset_seconds) <= tolerance:
                     self._l.info(f"Seek landed at {pos:.2f} (target {offset_seconds}, attempt {attempt})")
                     return
                 if safe_prop("seeking"):
