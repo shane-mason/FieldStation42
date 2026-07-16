@@ -25,6 +25,13 @@
 
   <div id="entry">_</div>
 
+  <!-- Audio/subtitle controls call the main FS42 API directly so this
+       older standalone remote gets the same MPV track-cycling behaviour. -->
+  <div class="av-controls">
+    <button class="btn av-btn" onclick="sendMpvCommand('cycle-subtitles', 'SUBS')">SUBS</button>
+    <button class="btn av-btn" onclick="sendMpvCommand('cycle-audio', 'AUDIO')">AUDIO</button>
+  </div>
+
   <div class="keypad">
     <button class="btn" onclick="appendDigit(1)">1</button>
     <button class="btn" onclick="appendDigit(2)">2</button>

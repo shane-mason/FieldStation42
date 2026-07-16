@@ -189,7 +189,23 @@ class SequenceAPI:
 
     @staticmethod
     def scan_sequences(station_config):
+        # A station schedule can contain the same sequenced slot many times
+        # across hours/days/templates. Building the same random_show sequence
+        # repeatedly is very expensive on large SMB media libraries, so scan
+        # each distinct sequence/tag definition once.
+        seen_slots = set()
         for slot in SequenceAPI._sequence_slots(station_config):
+            key = (
+                slot.get("sequence"),
+                repr(slot.get("tags")),
+                slot.get("sequence_strategy"),
+                repr(slot.get("sequence_id_array")),
+                slot.get("sequence_start"),
+                slot.get("sequence_end"),
+            )
+            if key in seen_slots:
+                continue
+            seen_slots.add(key)
             SequenceAPI._scan_sequence_slot(station_config, slot)
 
     @staticmethod

@@ -13,6 +13,24 @@ function sendCommand(cmd) {
     });
 }
 
+function sendMpvCommand(action, label) {
+  // The legacy remote may be served from a different port, but the
+  // player API lives on 4242. Keep these calls aligned with /remote.
+  const apiBase = `${window.location.protocol}//${window.location.hostname}:4242`;
+  fetch(`${apiBase}/player/mpv/${action}`, { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+      console.log("Sent MPV command:", action, data);
+      document.getElementById("entry").innerText = label;
+      setTimeout(() => { document.getElementById("entry").innerText = "_"; }, 1200);
+    })
+    .catch(err => {
+      console.error("MPV command failed:", action, err);
+      document.getElementById("entry").innerText = "ERR";
+      setTimeout(() => { document.getElementById("entry").innerText = "_"; }, 1200);
+    });
+}
+
 function appendDigit(n) {
   if (entryBuffer.length >= 2) entryBuffer = "";
   entryBuffer += n.toString();

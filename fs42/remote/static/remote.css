@@ -109,3 +109,20 @@ html, body {
     margin-left: auto;
     margin-right: auto;
   }
+.av-controls {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto 5px auto;
+}
+
+.av-controls .av-btn {
+  width: calc(50% - 10px);
+  box-sizing: border-box;
+  background: #2d4059;
+}
+
+.av-controls .av-btn:hover {
+  background: #3f5f85;
+}
