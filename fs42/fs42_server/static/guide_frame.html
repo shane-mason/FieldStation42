@@ -22,6 +22,7 @@
         let scrollInterval = null;
         let verticalScrollInterval = null;
         let autoScrollEnabled = true; // Will be initialized from localStorage
+        let debugShowFilename = false; // Debug: show raw file name instead of normalized title
         let virtualScrollPosition = 0;
         const TIME_SLOT_WIDTH = 120; // pixels per 30-minute slot
         const SCROLL_SPEED = 0.033; // pixels per second (1 pixel per 30 seconds = slow realistic scroll)
@@ -54,6 +55,9 @@
             // Initialize auto-scroll setting from localStorage
             const savedSetting = localStorage.getItem('fs42-autoscroll');
             autoScrollEnabled = savedSetting !== 'false'; // Default to true if not set
+
+            // Initialize debug (show file name) setting from localStorage
+            debugShowFilename = localStorage.getItem('fs42-guide-debug') === 'true';
 
             const content = `
                 <div class="guide-container">
@@ -92,7 +96,84 @@
             // Start auto-scroll and time updates
             startTimeUpdate();
             startAutoScroll();
+
+            // Enable the debug toggle (press "d" to switch between title and file name)
+            initDebugToggle();
         });
+
+        function initDebugToggle() {
+            updateDebugIndicator();
+            document.addEventListener('keydown', function (e) {
+                // Ignore if the user is typing into a field
+                const tag = (e.target.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea') return;
+
+                if (e.key === 'd' || e.key === 'D') {
+                    toggleDebugFilename();
+                }
+            });
+        }
+
+        // Toggle between normalized titles and raw file names.
+        // Exposed on window so the parent page's button can call it too.
+        function toggleDebugFilename() {
+            setDebugFilename(!debugShowFilename);
+        }
+        window.toggleDebugFilename = toggleDebugFilename;
+
+        function setDebugFilename(enabled) {
+            debugShowFilename = !!enabled;
+            localStorage.setItem('fs42-guide-debug', debugShowFilename);
+            updateDebugIndicator();
+            // Re-render the schedule in place so titles/file names update
+            // immediately, keeping the current vertical scroll position
+            // (the grid has a full-height blank spacer at the top, so we
+            // must preserve scrollTop or the view lands on empty space).
+            refreshScheduleInPlace();
+        }
+        window.setDebugFilename = setDebugFilename;
+
+        // Let the parent page read current state (localStorage is shared, but
+        // this keeps the source of truth in one place).
+        window.isDebugFilename = function () { return debugShowFilename; };
+
+        function updateDebugIndicator() {
+            let indicator = document.getElementById('debug-indicator');
+            if (!debugShowFilename) {
+                if (indicator) indicator.remove();
+                return;
+            }
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'debug-indicator';
+                indicator.style.cssText =
+                    'position:fixed;bottom:8px;right:8px;z-index:2000;' +
+                    'padding:4px 10px;border-radius:4px;' +
+                    'background:rgba(255,0,0,0.75);color:#fff;' +
+                    'font-family:monospace;font-size:12px;pointer-events:none;';
+                indicator.textContent = 'DEBUG: file names (press "d")';
+                document.body.appendChild(indicator);
+            }
+        }
+
+        async function refreshScheduleInPlace() {
+            const stationsColumn = document.getElementById('stations-column');
+            const guideGridContainer = document.querySelector('.guide-grid-container');
+            const savedTop = stationsColumn ? stationsColumn.scrollTop : 0;
+
+            await loadScheduleData();
+
+            // Restore the scroll position so we don't land on the top blank spacer
+            if (stationsColumn) stationsColumn.scrollTop = savedTop;
+            if (guideGridContainer) guideGridContainer.scrollTop = savedTop;
+        }
+
+        // Return the raw source file name (basename) for a schedule block, if known
+        function getBlockFilename(block) {
+            const path = block.content && (block.content.path || block.content.realpath);
+            if (!path) return null;
+            return path.split(/[\\/]/).pop();
+        }
 
         async function initializeGuide() {
             currentTime = new Date();
@@ -334,8 +415,11 @@
                 programDiv.classList.add('current-program');
             }
             
-            const title = block.title || 'Untitled';
-            const startTime = blockStart.toLocaleTimeString('en-US', { 
+            let title = block.title || 'Untitled';
+            if (debugShowFilename) {
+                title = getBlockFilename(block) || title;
+            }
+            const startTime = blockStart.toLocaleTimeString('en-US', {
                 hour: '2-digit', 
                 minute: '2-digit',
                 hour12: false 
