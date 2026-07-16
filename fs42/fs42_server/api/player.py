@@ -8,7 +8,7 @@ from fs42.station_manager import StationManager
 
 router = APIRouter(prefix="/player", tags=["player"])
 
-
+VOLUME_SOCKET = "runtime/volume.socket"
 
 @router.get("/info")
 async def get_info():
@@ -300,26 +300,35 @@ async def _control_volume(action: str):
     
     # Try different audio systems in order of preference
     # For WSL, prefer PulseAudio over ALSA since ALSA usually fails
+
+    response = None
+
     if pactl_available:
         try:
-            return await _volume_pulseaudio(action)
+            response = await _volume_pulseaudio(action)
         except Exception as e:
             print(f"pactl failed: {e}")
             
     if amixer_available:
         try:
-            return await _volume_amixer(action)
+            response = await _volume_amixer(action)
         except Exception as e:
             print(f"amixer failed (expected in WSL): {e}")
             
     if wpctl_available:
         try:
-            return await _volume_wireplumber(action)
+            response = await _volume_wireplumber(action)
         except Exception as e:
             print(f"wpctl failed: {e}")
-    
-    raise HTTPException(status_code=500, detail=f"No supported audio system found or all failed. Available: amixer={amixer_available}, pactl={pactl_available}, wpctl={wpctl_available}")
 
+    if not response:
+        raise HTTPException(status_code=500, detail=f"No supported audio system found or all failed. Available: amixer={amixer_available}, pactl={pactl_available}, wpctl={wpctl_available}")
+
+    as_str = json.dumps(response)
+    with open(VOLUME_SOCKET, "w") as fp:
+        fp.write(as_str)
+
+    return response
 
 async def _volume_amixer(action: str):
     """Control volume using ALSA amixer (most common on Raspberry Pi)"""

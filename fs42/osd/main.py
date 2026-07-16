@@ -114,6 +114,124 @@ class StatusDisplay(object):
             self._text.draw(x, y)
 
 
+VOLUME_SOCKET_FILE = "runtime/volume.socket"
+
+
+class VolumeDisplayConfig(BaseModel):
+    display_time: float = 5.0
+    halign: HAlignment = HAlignment.CENTER
+    valign: VAlignment = VAlignment.BOTTOM
+    color: tuple[int, int, int, int] = (0, 255, 0, 200)
+    width: float = 0.4
+    height: float = 0.04
+    x_margin: float = 0.1
+    y_margin: float = 0.15
+    border_thickness: float = 2.0
+    padding: float = 0.008
+
+
+class VolumeDisplay(object):
+
+
+    def __init__(self, window, config: VolumeDisplayConfig):
+        self.config = config
+        self.window = window
+        self.volume = 0.0
+        # Start hidden until we actually see a volume message.
+        self.time_since_change = float("inf")
+
+    def check_volume(self, socket_file=VOLUME_SOCKET_FILE):
+        try:
+            with open(socket_file, "r") as f:
+                content = f.read()
+        except OSError:
+            return
+
+        if not content.strip():
+            return
+
+        try:
+            status = json.loads(content)
+        except (json.JSONDecodeError, ValueError):
+            print(f"Unable to parse volume status, {content}")
+            return
+
+        raw_volume = status.get("volume")
+        if raw_volume is None:
+            return
+
+        try:
+            pct = float(str(raw_volume).strip().rstrip("%"))
+        except ValueError:
+            return
+
+        self.volume = max(0.0, min(1.0, pct / 100.0))
+        self.time_since_change = 0.0
+
+        # Truncate the socket so we only display each change once.
+        try:
+            with open(socket_file, "w"):
+                pass
+        except OSError:
+            pass
+
+    def update(self, dt):
+        self.time_since_change += dt
+        self.check_volume()
+
+    def draw(self):
+        if self.time_since_change >= self.config.display_time:
+            return
+
+        # Screen coords are -1 to 1 with 0 in the center; -1,-1 is bottom left.
+        w = self.config.width * 2.0
+        h = self.config.height * 2.0
+
+        if self.config.halign == HAlignment.LEFT:
+            x = -1.0 + self.config.x_margin
+        elif self.config.halign == HAlignment.RIGHT:
+            x = 1.0 - w - self.config.x_margin
+        else:  # CENTER
+            x = -w / 2.0
+
+        if self.config.valign == VAlignment.BOTTOM:
+            y = -1.0 + self.config.y_margin
+        elif self.config.valign == VAlignment.TOP:
+            y = 1.0 - h - self.config.y_margin
+        else:  # CENTER
+            y = -h / 2.0
+
+        r, g, b, a = (c / 255.0 for c in self.config.color)
+
+        # These are solid-color primitives, not textured quads, so turn off
+        # texturing while we draw and restore it afterwards.
+        glDisable(GL_TEXTURE_2D)
+        glColor4f(r, g, b, a)
+
+        # Outline
+        glLineWidth(self.config.border_thickness)
+        glBegin(GL_LINE_LOOP)
+        glVertex2f(x, y)
+        glVertex2f(x + w, y)
+        glVertex2f(x + w, y + h)
+        glVertex2f(x, y + h)
+        glEnd()
+
+        # Filled center, proportional to the current volume.
+        pad = self.config.padding
+        inner_h = h - 2.0 * pad
+        inner_w = (w - 2.0 * pad) * self.volume
+        if inner_w > 0.0 and inner_h > 0.0:
+            glBegin(GL_QUADS)
+            glVertex2f(x + pad, y + pad)
+            glVertex2f(x + pad + inner_w, y + pad)
+            glVertex2f(x + pad + inner_w, y + pad + inner_h)
+            glVertex2f(x + pad, y + pad + inner_h)
+            glEnd()
+
+        glEnable(GL_TEXTURE_2D)
+
+
 objects = []
 
 window = create_window()
@@ -142,12 +260,26 @@ if CONFIG_FILE_PATH.exists():
                 status_logo = LogoDisplay(window, config_logo)
                 objects.append(logo)
                 objects.append(osd)
+            elif obj["type"] == "VolumeDisplay":
+                del obj["type"]
+                config = VolumeDisplayConfig.model_validate(obj)
+                objects.append(VolumeDisplay(window, config))
             else:
                 print(f"Unrecognized osd object type: {obj['type']}")
 
 else:
     config = StatusDisplayConfig()
     objects.append(StatusDisplay(window, config))
+
+# Always show a volume meter unless one was explicitly configured. Match its
+# color to the first StatusDisplay so it blends with the rest of the OSD.
+if not any(isinstance(obj, VolumeDisplay) for obj in objects):
+    volume_config = VolumeDisplayConfig()
+    for obj in objects:
+        if isinstance(obj, StatusDisplay):
+            volume_config.color = obj.config.text_color
+            break
+    objects.append(VolumeDisplay(window, volume_config))
 
 
 # --------------------------
