@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -160,10 +161,15 @@ class VolumeDisplay(object):
         if raw_volume is None:
             return
 
-        try:
-            pct = float(str(raw_volume).strip().rstrip("%"))
-        except ValueError:
+        # The volume field can arrive in several shapes depending on the mixer:
+        # "75%", "MUTED (75%)", "unknown", "MUTE", etc. Pull the first number out
+        # of whatever we get so a decorated string still drives the meter. If
+        # there's no number at all (e.g. "unknown"), there's nothing to show.
+        match = re.search(r"\d+(?:\.\d+)?", str(raw_volume))
+        if not match:
+            print(f"No volume level in volume status, {raw_volume}")
             return
+        pct = float(match.group())
 
         self.volume = max(0.0, min(1.0, pct / 100.0))
         self.time_since_change = 0.0
