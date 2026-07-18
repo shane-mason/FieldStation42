@@ -6,6 +6,7 @@ import time
 import datetime
 import json
 import os
+import re
 import glob
 import random
 import logging
@@ -181,6 +182,13 @@ class StationPlayer:
                 force_window=True,
                 script_opts="osc-idlescreen=no",
                 hr_seek="yes",
+                # Prefer English audio. Keep subtitles off by default, but play_file()
+                # will turn English subtitles on for files with no English audio.
+                alang="eng,en,English",
+                slang="eng,en,English",
+                sub_auto="fuzzy",
+                sid="no",
+                sub_visibility=False,
             )
 
         self.station_config = station_config
@@ -207,6 +215,76 @@ class StationPlayer:
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
 
+    def _track_label(self, track):
+        """Return a compact human-readable label for an MPV track-list item."""
+        if not track:
+            return "Off"
+
+        parts = []
+        lang = track.get("lang") or track.get("language")
+        title = track.get("title")
+        codec = track.get("codec") or track.get("codec-desc")
+
+        if lang:
+            parts.append(str(lang).upper())
+        if title and str(title).lower() not in [str(p).lower() for p in parts]:
+            parts.append(str(title))
+        if codec and not title:
+            parts.append(str(codec))
+
+        label = " - ".join(parts).strip()
+        if not label:
+            label = f"Track {track.get('id', '?')}"
+        return label
+
+    def _selected_track(self, track_type):
+        """Return the currently-selected MPV track of type 'audio' or 'sub'."""
+        try:
+            tracks = self.mpv.command("get_property", "track-list") or []
+        except Exception as e:
+            self._l.warning(f"Could not read MPV track list for OSD: {e}")
+            return None
+
+        for track in tracks:
+            if track.get("type") == track_type and track.get("selected"):
+                return track
+        return None
+
+    def _show_track_selection_osd(self, action):
+        """Show the current audio/subtitle selection after a remote button press."""
+        try:
+            if action in ("toggle_subtitles", "cycle_subtitles"):
+                selected = self._selected_track("sub")
+                sid = self.mpv.command("get_property", "sid")
+                visible = self.mpv.command("get_property", "sub-visibility")
+
+                # Cycling to a real subtitle track should make it visible; cycling to
+                # no subtitle should hide subtitles. This keeps the SUBS button useful
+                # when subtitles were hidden by the English-audio default.
+                if action == "cycle_subtitles":
+                    if selected and sid not in (None, "no", False):
+                        self.mpv.command("set_property", "sub-visibility", True)
+                        visible = True
+                    else:
+                        self.mpv.command("set_property", "sub-visibility", False)
+                        visible = False
+
+                if selected and visible and sid not in (None, "no", False):
+                    message = f"Subtitles: {self._track_label(selected)}"
+                else:
+                    message = "Subtitles: Off"
+
+            elif action == "cycle_audio":
+                selected = self._selected_track("audio")
+                message = f"Audio: {self._track_label(selected)}"
+            else:
+                return
+
+            self.show_text(message, 2500)
+            self._l.info(f"OSD track selection: {message}")
+        except Exception as e:
+            self._l.warning(f"Failed to show track selection OSD for {action}: {e}")
+
     def mpv_runtime_command(self, action):
         """Run a small set of user-facing mpv runtime commands."""
         mpv_command = self.MPV_RUNTIME_COMMANDS.get(action)
@@ -216,6 +294,9 @@ class StationPlayer:
 
         try:
             self.mpv.command(*mpv_command)
+            # After MPV mutates track state, read back the selected track and
+            # show it on the TV so remote users get immediate feedback.
+            self._show_track_selection_osd(action)
             self._l.info(f"Ran mpv runtime command: {action}")
             return True
         except Exception as e:
@@ -327,6 +408,59 @@ class StationPlayer:
             else:
                 self.mpv.vf = self.reception.filter()
 
+
+
+    ENGLISH_LANGS = {"eng", "en", "english"}
+
+    def _track_is_english(self, track):
+        """Return True when an MPV track is clearly marked as English."""
+        values = []
+        for key in ("lang", "title"):
+            val = track.get(key)
+            if val:
+                values.append(str(val).lower())
+        text = " ".join(values)
+        return any(re.search(rf"(^|[^a-z]){re.escape(lang)}([^a-z]|$)", text) for lang in self.ENGLISH_LANGS)
+
+    def _configure_language_tracks(self, file_path, is_stream=False):
+        """Prefer English audio, but enable English subtitles when no English audio exists.
+
+        This is intentionally conservative for foreign-language films: if a file
+        has no track explicitly marked English (including unlabelled audio) and
+        MPV sees an English subtitle track/sidecar, show that subtitle track.
+        Otherwise keep subtitles hidden so ordinary English playback stays clean.
+        """
+        if is_stream or AutoBumpAgent.is_autobump_url(file_path):
+            return
+        try:
+            tracks = self.mpv.command("get_property", "track-list") or []
+            audio_tracks = [t for t in tracks if t.get("type") == "audio"]
+            sub_tracks = [t for t in tracks if t.get("type") == "sub"]
+            english_audio = [t for t in audio_tracks if self._track_is_english(t)]
+            english_subs = [t for t in sub_tracks if self._track_is_english(t)]
+
+            if english_audio:
+                self.mpv.command("set_property", "sid", "no")
+                self.mpv.command("set_property", "sub-visibility", False)
+                self._l.info("English audio available; subtitles disabled")
+                return
+
+            if english_subs:
+                chosen = english_subs[0]
+                self.mpv.command("set_property", "sid", chosen.get("id"))
+                self.mpv.command("set_property", "sub-visibility", True)
+                self._l.info(
+                    f"No English audio detected; enabled English subtitles: "
+                    f"id={chosen.get('id')} lang={chosen.get('lang')} title={chosen.get('title')}"
+                )
+                return
+
+            self.mpv.command("set_property", "sid", "no")
+            self.mpv.command("set_property", "sub-visibility", False)
+            self._l.info("No English audio or English subtitles detected; subtitles disabled")
+        except Exception as e:
+            self._l.warning(f"Could not configure audio/subtitle language tracks for {file_path}: {e}")
+
     def play_file(self, file_path, file_duration=None, offset_seconds=None, is_stream=False, title="Unknown", content_type=None, media_type=None):
         try:
             if os.path.exists(file_path) or is_stream or AutoBumpAgent.is_autobump_url(file_path):
@@ -418,6 +552,8 @@ class StationPlayer:
                             self._l.error(f"Error waiting for playback: {e}")
                             return False
                         time.sleep(0.05)
+
+                self._configure_language_tracks(file_path, is_stream=is_stream)
 
                 # Perform seek if needed (before showing overlay)
                 if not is_stream and offset_seconds is not None and offset_seconds > 0:
