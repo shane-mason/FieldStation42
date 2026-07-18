@@ -125,7 +125,7 @@ class VolumeDisplayConfig(BaseModel):
     width: float = 0.4
     height: float = 0.04
     x_margin: float = 0.1
-    y_margin: float = 0.15
+    y_margin: float = 0.25
     border_thickness: float = 2.0
     padding: float = 0.008
 
