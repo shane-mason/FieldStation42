@@ -254,6 +254,15 @@ class StationPlayer:
 
             self.now_playing_process = None
 
+    def _nfo_overlay_data(self, file_path):
+
+        from fs42.metadata_io import MetadataIO
+        from fs42.nfo_agent import NFOAgent, NFOData
+
+        meta = MetadataIO.read(file_path)
+        lines = NFOAgent.overlay_lines(meta)
+        return NFOData(lines) if lines else None
+
     def _show_now_playing(self, file_path):
         # show the Now Playing overlay for an audio file
         import time
@@ -432,12 +441,12 @@ class StationPlayer:
                     # then spawn a new one only if this video has an NFO sidecar.
                     self._close_now_playing()
                     try:
-                        from fs42.nfo_agent import NFOAgent
-                        nfo_data = NFOAgent.read_nfo(file_path)
+                        nfo_data = self._nfo_overlay_data(file_path)
                         if nfo_data:
                             play_duration = None
                             if file_duration is not None:
                                 play_duration = file_duration - (offset_seconds or 0)
+                            from fs42.nfo_agent import NFOAgent
                             self.now_playing_process = NFOAgent.show_overlay(nfo_data, play_duration=play_duration)
                     except Exception as e:
                         self._l.warning(f"Could not start NFO overlay: {e}")
@@ -507,11 +516,11 @@ class StationPlayer:
         self.mpv.loop_playlist = "inf"
         self.current_playing_file_path = file_path
 
-        # show NFO overlay if a sidecar file exists alongside the video
+        # show NFO overlay if the file has overlay-eligible cached metadata
         try:
-            from fs42.nfo_agent import NFOAgent
-            nfo_data = NFOAgent.read_nfo(file_path)
+            nfo_data = self._nfo_overlay_data(file_path)
             if nfo_data:
+                from fs42.nfo_agent import NFOAgent
                 self.now_playing_process = NFOAgent.show_overlay(nfo_data)
         except Exception as e:
             self._l.warning(f"Could not start NFO overlay: {e}")

@@ -3,8 +3,6 @@ import signal
 import multiprocessing
 import os
 import tempfile
-import sqlite3
-import json
 from PySide6.QtWidgets import QApplication, QWidget
 from PySide6.QtGui import QColor, QPainter, QFont, QLinearGradient, QFontMetrics
 from PySide6.QtCore import Qt, QRect
@@ -109,42 +107,25 @@ class NowPlayingWindow(QWidget):
         self.metadata = self._get_metadata(file_path, db_path)
 
     def _get_metadata(self, file_path, db_path):
-        """Query the file_meta table for audio metadata"""
-        try:
-            # Get the real path
-            if not os.path.isabs(file_path):
-                file_path = os.path.abspath(file_path)
+        """Read cached audio metadata via the shared MetadataIO."""
+        from fs42.metadata_io import MetadataIO
 
-            real_path = os.path.realpath(file_path)
-
-            with sqlite3.connect(db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT meta, media_type FROM file_meta WHERE path = ?",
-                    (real_path,)
-                )
-                row = cursor.fetchone()
-                cursor.close()
-
-                if row and row[0]:
-                    # Parse the JSON metadata
-                    meta = json.loads(row[0])
-                    return {
-                        'title': meta.get('title', 'Unknown Track'),
-                        'artist': meta.get('artist', ''),
-                        'album': meta.get('album', ''),
-                        'date': meta.get('date', ''),
-                        'genre': meta.get('genre', '')
-                    }
-        except Exception as e:
-            print(f"Error loading metadata: {e}")
+        meta = MetadataIO.read(file_path, db_path)
+        if meta:
+            return {
+                'title': meta.get('title', 'Unknown Track'),
+                'artist': meta.get('artist', ''),
+                'album': meta.get('album', ''),
+                'year': meta.get('year', ''),
+                'genre': meta.get('genre', '')
+            }
 
         # Fallback to filename
         return {
             'title': Path(file_path).stem,
             'artist': '',
             'album': '',
-            'date': '',
+            'year': '',
             'genre': ''
         }
 
