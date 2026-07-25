@@ -99,14 +99,35 @@ class SlotReader:
 
         return None
 
+    @staticmethod
+    def _get_week_override(conf, when: datetime):
+        overrides = conf.get("week_overrides", {})
+
+        if not isinstance(overrides, dict):
+            return None
+
+        for date_key, week_schedule in overrides.items():
+            if SlotReader._date_key_matches(date_key, when):
+                return week_schedule
+
+        return None
+
     def get_slot(conf, when: datetime):
         slot_number = str(when.hour)
-        # check for exact date override first, then fall back to weekday schedule
+        day_str = timings.DAYS[when.weekday()]
+
+        # highest priority: exact date override
         date_override = SlotReader._get_date_override(conf, when)
         if date_override and slot_number in date_override:
             return date_override[slot_number]
 
-        day_str = timings.DAYS[when.weekday()]
+        # second priority: week override for date range
+        week_override = SlotReader._get_week_override(conf, when)
+        if week_override is not None:
+            if day_str in week_override and slot_number in week_override[day_str]:
+                return week_override[day_str][slot_number]
+
+        # fallback: normal weekday schedule
         response = None
         if day_str in conf:
             if slot_number in conf[day_str]:

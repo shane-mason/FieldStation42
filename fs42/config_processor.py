@@ -8,12 +8,28 @@ class ConfigurationError(Exception):
 
 
 class ConfigProcessor:
+    overridable = [
+        "start_bump",
+        "end_bump",
+        "bump_dir",
+        "commercial_dir",
+        "break_strategy",
+        "sequence",
+        "sequence_start",
+        "sequence_end",
+        "schedule_increment",
+        "random_tags",
+        "video_scramble_fx",
+        "marathon",
+    ]
+
     @staticmethod
     def preprocess(conf):
         # first, fill in templates
         processed = ConfigProcessor._process_templates(conf)
         processed = ConfigProcessor._process_strategy(processed)
         processed = ConfigProcessor._process_date_overrides(processed)
+        processed = ConfigProcessor._process_week_overrides(processed)
         return processed
 
     @staticmethod
@@ -107,25 +123,85 @@ class ConfigProcessor:
         return conf
 
     @staticmethod
+    def _process_week_overrides(conf):
+        if "week_overrides" not in conf:
+            return conf
+
+        overrides = conf["week_overrides"]
+
+        if not isinstance(overrides, dict):
+            raise ConfigurationError(
+                f"week_overrides for {conf['network_name']} must be an object mapping date ranges to week schedules."
+            )
+
+        templates = conf.get("day_templates", {})
+        slot_override_defs = conf.get("slot_overrides", {})
+
+        processed_overrides = {}
+
+        for date_key, week_schedule in overrides.items():
+            ConfigProcessor._valid_date_key(date_key)
+
+            if not isinstance(week_schedule, dict):
+                raise ConfigurationError(
+                    f"week_overrides entry '{date_key}' for {conf['network_name']} must be an object with day keys."
+                )
+
+            processed_week = {}
+            for day_key in timings.DAYS:
+                if day_key not in week_schedule:
+                    continue
+
+                day_val = week_schedule[day_key]
+
+                if isinstance(day_val, str):
+                    if day_val not in templates:
+                        raise ConfigurationError(
+                            f"week_overrides entry '{date_key}' on {day_key} for {conf['network_name']} "
+                            f"references template '{day_val}', but that template doesn't exist."
+                        )
+                    day_val = templates[day_val]
+                elif not isinstance(day_val, dict):
+                    raise ConfigurationError(
+                        f"week_overrides entry '{date_key}' on {day_key} for {conf['network_name']} "
+                        "must be a day template reference or an object of hourly slots."
+                    )
+
+                processed_day = {}
+                for hour_key, slot in day_val.items():
+                    slot = dict(slot)
+                    if "overrides" in slot:
+                        o_key = slot["overrides"]
+                        if o_key not in slot_override_defs:
+                            raise ConfigurationError(
+                                f"week_overrides entry '{date_key}' on {day_key} at hour {hour_key} "
+                                f"for {conf['network_name']} references slot override '{o_key}' that doesn't exist."
+                            )
+                        or_def = slot_override_defs[o_key]
+                        for to_override in or_def:
+                            if to_override not in ConfigProcessor.overridable:
+                                raise ConfigurationError(
+                                    f"week_overrides entry '{date_key}' on {day_key} at hour {hour_key} "
+                                    f"for {conf['network_name']} tries to override '{to_override}' in '{o_key}', "
+                                    f"but only the following can be overridden: {ConfigProcessor.overridable}"
+                                )
+                            slot[to_override] = or_def[to_override]
+                        del slot["overrides"]
+                    processed_day[hour_key] = slot
+
+                processed_week[day_key] = processed_day
+
+            processed_overrides[date_key] = processed_week
+
+        conf["week_overrides"] = processed_overrides
+        return conf
+
+    @staticmethod
     def _process_strategy(conf):
         if "slot_overrides" not in conf:
             return conf
 
         overrides = conf["slot_overrides"]
-        overridable = [
-            "start_bump",
-            "end_bump",
-            "bump_dir",
-            "commercial_dir",
-            "break_strategy",
-            "sequence",
-            "sequence_start",
-            "sequence_end",
-            "schedule_increment",
-            "random_tags",
-            "video_scramble_fx",
-            "marathon",
-        ]
 
         for day_key in timings.DAYS:
             for hour_key in list(conf[day_key]):
@@ -140,9 +216,9 @@ class ConfigProcessor:
                     or_def = overrides[o_key]
 
                     for to_override in or_def:
-                        if to_override not in overridable:
+                        if to_override not in ConfigProcessor.overridable:
                             raise ConfigurationError(
-                                f"Schedule for {conf['network_name']} is trying to override {to_override} in {o_key}, but only the following can be overriden: {overridable}"
+                                f"Schedule for {conf['network_name']} is trying to override {to_override} in {o_key}, but only the following can be overriden: {ConfigProcessor.overridable}"
                             )
 
                         conf[day_key][hour_key][to_override] = or_def[to_override]
