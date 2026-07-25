@@ -136,24 +136,47 @@ class SlotReader:
         return response
 
     @staticmethod
+    def _smooth_week(source_days, target_days, network_name, where=""):
+        # smooths tags across slot boundaries for one week-shaped mapping of day -> slots
+        last_tag = None
+        for day_index in timings.DAYS:
+            if day_index not in source_days:
+                continue
+            for slot_index in timings.OPERATING_HOURS:
+                slot_index = str(slot_index)
+                if slot_index in source_days[day_index]:
+                    if "tags" in source_days[day_index][slot_index]:
+                        last_tag = source_days[day_index][slot_index]
+                    elif "continued" in source_days[day_index][slot_index]:
+                        if source_days[day_index][slot_index]["continued"]:
+                            if last_tag is None:
+                                raise ValueError(
+                                    f"'continued' at hour {slot_index} on {day_index} {where}for "
+                                    f"'{network_name}' has no preceding tags slot to inherit from"
+                                )
+                            target_days[day_index][slot_index]["tags"] = last_tag["tags"]
+
+    @staticmethod
     def smooth_tags(conf):
         # this function smooths tags through slot boundaries - so if not specified will use previous slots tag.
-        last_tag = None
         smoothed = copy.deepcopy(conf)
         for day_index in timings.DAYS:
             smoothed[day_index] = copy.deepcopy(conf[day_index])
-        for day_index in timings.DAYS:
-            for slot_index in timings.OPERATING_HOURS:
-                slot_index = str(slot_index)
-                if slot_index in conf[day_index]:
-                    if "tags" in conf[day_index][slot_index]:
-                        last_tag = conf[day_index][slot_index]
-                    elif "continued" in conf[day_index][slot_index]:
-                        if conf[day_index][slot_index]["continued"]:
-                            if last_tag is None:
-                                raise ValueError(
-                                    f"'continued' at hour {slot_index} on {day_index} for "
-                                    f"'{conf.get('network_name', 'unknown')}' has no preceding tags slot to inherit from"
-                                )
-                            smoothed[day_index][slot_index]["tags"] = last_tag["tags"]
+
+        network_name = conf.get("network_name", "unknown")
+        SlotReader._smooth_week(conf, smoothed, network_name)
+
+        # week overrides are day-shaped too, so they need smoothing in their own right - otherwise
+        # a day template that resolves fine on a normal weekday yields a tagless slot in an override
+        week_overrides = conf.get("week_overrides", {})
+        if isinstance(week_overrides, dict):
+            for date_key, week_schedule in week_overrides.items():
+                if isinstance(week_schedule, dict):
+                    SlotReader._smooth_week(
+                        week_schedule,
+                        smoothed["week_overrides"][date_key],
+                        network_name,
+                        where=f"in week_overrides '{date_key}' ",
+                    )
+
         return smoothed
