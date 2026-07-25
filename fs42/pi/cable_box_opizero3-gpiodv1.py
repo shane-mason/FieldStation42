@@ -27,7 +27,7 @@ class CableBox:
         config.consumer = "fieldstation42"
         config.request_type = gpiod.line_request.EVENT_BOTH_EDGES
 
-        self.line.request(config)
+        self.reset_line.request(config)
         
     # This is where the GPIO buttons are pressed
     def read_keys(self):
