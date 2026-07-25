@@ -12,7 +12,7 @@ from datetime import timedelta
 # (e.g., /dev/gpiochip0 and line offset for your specific pin)
 # PH2 - restart button, in case FS42 freezes
 CHIP_PATH = "/dev/gpiochip0"
-LINE_OFFSET = 226  # Example offset for PH2 or calculate via pin formula
+RESET_LINE_OFFSET = 226  # Pin 8, labeled PH2
 
 class CableBox:
     def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
@@ -21,7 +21,7 @@ class CableBox:
         self.press_socket = press_socket
         
         self.chip = gpiod.chip(CHIP_PATH)
-        self.line = self.chip.get_line(LINE_OFFSET)
+        self.reset_line = self.chip.get_line(RESET_LINE_OFFSET)
 
         config = gpiod.line_request()
         config.consumer = "fieldstation42"
@@ -32,11 +32,11 @@ class CableBox:
     # This is where the GPIO buttons are pressed
     def read_keys(self):
         if self.line.event_wait(timedelta(milliseconds=50)):
-            event = self.line.event_read()
+            reset_event = self.reset_line.event_read()
             
-            if event.event_type == gpiod.line_event.FALLING_EDGE:
-                print("Button pressed!")
-                return "BUTTON"
+            if reset_event.event_type == gpiod.line_event.FALLING_EDGE:
+                print("Reset button pressed!")
+                return "RESET_BUTTON"
             
         return None
         
@@ -51,9 +51,12 @@ class CableBox:
             
             # Print something here for now
             if key_pressed:
-                print("Button pressed from service!", flush=True)
-                os.system("systemctl --user restart fs42")
-                time.sleep(0.3)
+				print("Key pressed:", key_pressed)
+				
+				if key_pressed == "RESET_BUTTON":
+                    print("Button pressed from service!", flush=True)
+                    os.system("systemctl --user restart fs42")
+                    time.sleep(0.3)
             
 
 if __name__ == "__main__":
