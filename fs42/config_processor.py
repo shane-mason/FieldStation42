@@ -33,14 +33,14 @@ class ConfigProcessor:
         return processed
 
     @staticmethod
-    def _valid_date_key(date_key):
+    def _valid_date_key(date_key, section="date_overrides"):
         # validate that this looks like either "Month Day" or "Month Day - Month Day"
         # raises ConfigurationError with helpful message on failure
         parts = [part.strip() for part in date_key.split(" - ")]
 
         if len(parts) not in (1, 2):
             raise ConfigurationError(
-                f"Invalid date_overrides key '{date_key}'. "
+                f"Invalid {section} key '{date_key}'. "
                 "Expected format 'Month Day' or 'Month Day - Month Day'."
             )
 
@@ -49,7 +49,7 @@ class ConfigProcessor:
                 datetime.strptime(part, "%B %d")
             except ValueError:
                 raise ConfigurationError(
-                    f"Invalid date '{part}' in date_overrides key '{date_key}'. "
+                    f"Invalid date '{part}' in {section} key '{date_key}'. "
                     "Ensure the day exists for the given month (e.g., April has 30 days)."
                 )
 
@@ -140,12 +140,20 @@ class ConfigProcessor:
         processed_overrides = {}
 
         for date_key, week_schedule in overrides.items():
-            ConfigProcessor._valid_date_key(date_key)
+            ConfigProcessor._valid_date_key(date_key, section="week_overrides")
 
             if not isinstance(week_schedule, dict):
                 raise ConfigurationError(
                     f"week_overrides entry '{date_key}' for {conf['network_name']} must be an object with day keys."
                 )
+
+            # catch typo'd/capitalized day names rather than silently dropping them
+            for present_key in week_schedule:
+                if present_key not in timings.DAYS:
+                    raise ConfigurationError(
+                        f"week_overrides entry '{date_key}' for {conf['network_name']} has unknown day key "
+                        f"'{present_key}' - expected one of: {timings.DAYS}"
+                    )
 
             processed_week = {}
             for day_key in timings.DAYS:
@@ -169,6 +177,11 @@ class ConfigProcessor:
 
                 processed_day = {}
                 for hour_key, slot in day_val.items():
+                    if not isinstance(slot, dict):
+                        raise ConfigurationError(
+                            f"week_overrides entry '{date_key}' on {day_key} at hour {hour_key} "
+                            f"for {conf['network_name']} must be a slot object."
+                        )
                     slot = dict(slot)
                     if "overrides" in slot:
                         o_key = slot["overrides"]
