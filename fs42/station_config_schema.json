@@ -257,7 +257,7 @@
         },
         "week_overrides": {
           "type": "object",
-          "description": "Date-range-based full-week schedule overrides. Keys are date ranges (e.g. 'June 21 - September 1'). Values are week schedules with day keys that replace the normal weekday schedule for matching dates. date_overrides still takes precedence over week_overrides.",
+          "description": "Date-range-based week schedule overrides. Keys are dates or date ranges (e.g. 'June 21 - September 1'). Values are week schedules with day keys. Matching hours override the normal weekday schedule; hours and days not defined here fall through to the normal schedule. date_overrides still takes precedence over week_overrides.",
           "propertyNames": {
             "pattern": "^[A-Z][a-z]+ [0-3]?[0-9]( - [A-Z][a-z]+ [0-3]?[0-9])?$"
           },

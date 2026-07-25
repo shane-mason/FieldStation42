@@ -212,7 +212,7 @@ class ShowCatalog:
             if "start_bump" in override:
                 start_bumps[override["start_bump"]] = True
             if "end_bump" in override:
-                end_bumps[override["start_bump"]] = True
+                end_bumps[override["end_bump"]] = True
 
         # check for date override tags
         date_overrides = self.config.get("date_overrides", {})
