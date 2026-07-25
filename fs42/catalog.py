@@ -156,6 +156,25 @@ class ShowCatalog:
     def _build_tags(self):
         self.tags = list(self.clip_index.keys())
 
+    @staticmethod
+    def _harvest_slot(slot, tags, bump_overrides, commercial_overrides, start_bumps, end_bumps):
+        # collects the tags and directory overrides declared by a single slot
+        if "tags" in slot:
+            if type(slot["tags"]) is list:
+                for tag in slot["tags"]:
+                    tags[tag] = True
+            else:
+                tags[slot["tags"]] = True
+
+        if "bump_dir" in slot:
+            bump_overrides[slot["bump_dir"]] = True
+        if "commercial_dir" in slot:
+            commercial_overrides[slot["commercial_dir"]] = True
+        if "start_bump" in slot:
+            start_bumps[slot["start_bump"]] = True
+        if "end_bump" in slot:
+            end_bumps[slot["end_bump"]] = True
+
     def _build_standard(self):
         self.clip_index = {}
         self.tags = []
@@ -178,22 +197,10 @@ class ShowCatalog:
                     self._l.error(f"Slot value: {slots[k]}")
                     raise TypeError(f"Invalid slot configuration for {day}[{k}]: expected dict, got {type(slots[k]).__name__}. Check media processing logs for errors.")
 
-                if "tags" in slots[k]:
-                    if type(slots[k]["tags"]) is list:
-                        for m in slots[k]["tags"]:
-                            tags[m] = True
-                    else:
-                        tags[slots[k]["tags"]] = True
-
-                # These checks should be outside the tags check - slots can have bump/commercial dirs without tags
-                if "bump_dir" in slots[k]:
-                    bump_overrides[slots[k]["bump_dir"]] = True
-                if "commercial_dir" in slots[k]:
-                    commercial_overrides[slots[k]["commercial_dir"]] = True
-                if "start_bump" in slots[k]:
-                    start_bumps[slots[k]["start_bump"]] = True
-                if "end_bump" in slots[k]:
-                    end_bumps[slots[k]["end_bump"]] = True
+                # note bump/commercial dirs are collected too - slots can have them without tags
+                ShowCatalog._harvest_slot(
+                    slots[k], tags, bump_overrides, commercial_overrides, start_bumps, end_bumps
+                )
         
         # check for tag overrides
         tag_overrides = self.config.get("tag_overrides", {})
@@ -210,27 +217,25 @@ class ShowCatalog:
         # check for date override tags
         date_overrides = self.config.get("date_overrides", {})
         for override_slots in date_overrides.values():
-            for slot_key in override_slots:
-                slot = override_slots[slot_key]
-
+            for slot in override_slots.values():
                 if not isinstance(slot, dict):
                     continue
+                ShowCatalog._harvest_slot(
+                    slot, tags, bump_overrides, commercial_overrides, start_bumps, end_bumps
+                )
 
-                if "tags" in slot:
-                    if type(slot["tags"]) is list:
-                        for tag in slot["tags"]:
-                            tags[tag] = True
-                    else:
-                        tags[slot["tags"]] = True
-
-                if "bump_dir" in slot:
-                    bump_overrides[slot["bump_dir"]] = True
-                if "commercial_dir" in slot:
-                    commercial_overrides[slot["commercial_dir"]] = True
-                if "start_bump" in slot:
-                    start_bumps[slot["start_bump"]] = True
-                if "end_bump" in slot:
-                    end_bumps[slot["end_bump"]] = True
+        # check for week override tags
+        week_overrides = self.config.get("week_overrides", {})
+        for week_schedule in week_overrides.values():
+            for day_key in DAYS:
+                if day_key not in week_schedule:
+                    continue
+                for slot in week_schedule[day_key].values():
+                    if not isinstance(slot, dict):
+                        continue
+                    ShowCatalog._harvest_slot(
+                        slot, tags, bump_overrides, commercial_overrides, start_bumps, end_bumps
+                    )
 
         # check for fallback tag
         if "fallback_tag" in self.config:
