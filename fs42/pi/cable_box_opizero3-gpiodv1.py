@@ -51,8 +51,8 @@ class CableBox:
             
             # Print something here for now
             if key_pressed:
-				print("Key pressed:", key_pressed)
-				
+                print("Key pressed:", key_pressed)
+                
 				if key_pressed == "RESET_BUTTON":
                     print("Button pressed from service!", flush=True)
                     os.system("systemctl --user restart fs42")
