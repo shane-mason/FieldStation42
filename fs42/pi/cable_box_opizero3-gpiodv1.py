@@ -31,7 +31,7 @@ class CableBox:
         
     # This is where the GPIO buttons are pressed
     def read_keys(self):
-        if self.line.event_wait(timedelta(milliseconds=50)):
+        if self.reset_line.event_wait(timedelta(milliseconds=50)):
             reset_event = self.reset_line.event_read()
             
             if reset_event.event_type == gpiod.line_event.FALLING_EDGE:
