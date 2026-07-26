@@ -118,12 +118,13 @@ async def get_ppv_content(channel_number: int, variation: Optional[str] = None):
                 nfo_data = None
                 has_nfo = False
 
-                file_nfo = NFOAgent.read_nfo(file_path)
-                if file_nfo:
+                file_meta = NFOAgent.read_metadata_from_disk(file_path)
+                if file_meta:
+                    fields = NFOAgent.display_fields(file_meta)
                     nfo_data = NFOData(
-                        title=file_nfo.title,
-                        info=file_nfo.info,
-                        description=file_nfo.description,
+                        title=fields["title"],
+                        info=fields["info"],
+                        description=fields["description"],
                     )
                     has_nfo = True
 

@@ -2,8 +2,31 @@ from fastapi import APIRouter
 from datetime import datetime
 from fs42.station_manager import StationManager
 from fs42.liquid_api import LiquidAPI
+from fs42.metadata_io import MetadataIO
 
 router = APIRouter(prefix="/schedules", tags=["schedules"])
+
+
+def _attach_meta(blocks):
+    """Attach cached NFO/tag metadata to each single-content block in place.
+
+    Multi-content blocks (clip shows, loops) and off-air blocks have no single
+    feature to describe, so they are left without a `meta` field and consumers
+    fall back to the block title.
+    """
+    if not blocks:
+        return blocks
+    for block in blocks:
+        content = getattr(block, "content", None)
+        if content is None or isinstance(content, list):
+            continue
+        path = getattr(content, "path", None)
+        if not path:
+            continue
+        meta = MetadataIO.read(path)
+        if meta:
+            block.meta = meta
+    return blocks
 
 @router.get("/search_all")
 async def search_all_schedules(query: str = None):
@@ -57,7 +80,7 @@ async def search_schedule(network_name: str, query: str = None):
     return {"network_name": network_name, "query": query, "schedule_blocks": schedule_blocks}
 
 @router.get("/{network_name}")
-async def get_schedule(network_name: str, start: str = None, end: str = None):
+async def get_schedule(network_name: str, start: str = None, end: str = None, include_meta: bool = False):
     conf = StationManager().station_by_name(network_name)
     sdt = None
     edt = None
@@ -69,4 +92,6 @@ async def get_schedule(network_name: str, start: str = None, end: str = None):
             return {"error": "Invalid date format. Use ISO format (YYYY-MM-DDTHH:MM:SS) for start and end."}
 
     schedule_blocks = LiquidAPI.get_blocks(conf, sdt, edt)
+    if include_meta:
+        _attach_meta(schedule_blocks)
     return {"network_name": network_name, "schedule_blocks": schedule_blocks}

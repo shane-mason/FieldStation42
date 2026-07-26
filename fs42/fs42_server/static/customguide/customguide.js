@@ -4,6 +4,7 @@ const SLOT_COUNT = parseInt(params.get('slots')) || 3;
 const HEADER_TEXT = params.get('header') || null;
 const PAUSE_OVERRIDE = params.get('pause');
 const MOCK = params.get('mock') === '1';
+const USE_META = params.get('use_meta') === '1';
 const MUSIC_PATH = params.get('music');
 const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');
@@ -146,7 +147,7 @@ async function fetchStations() {
   });
 }
 
-async function fetchAllSchedules(slots) {
+async function fetchAllSchedules(slots, includeMeta) {
   if (!stations.length) return {};
 
   const overallStart = new Date(slots[0].start.getTime() - 3 * 60 * 60 * 1000);
@@ -162,7 +163,8 @@ async function fetchAllSchedules(slots) {
       const blocks = await window.fs42Common.fetchSchedule(
         station.network_name,
         formatDateForAPI(overallStart),
-        formatDateForAPI(overallEnd)
+        formatDateForAPI(overallEnd),
+        includeMeta
       );
       schedules[station.network_name] = blocks || [];
     } catch (e) {
@@ -401,6 +403,14 @@ function createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now) {
   titleSpan.textContent = block.title || 'Untitled';
   el.appendChild(titleSpan);
 
+  const desc = USE_META && block.meta && block.meta.plot;
+  if (desc) {
+    const descSpan = document.createElement('span');
+    descSpan.className = 'program-desc';
+    descSpan.textContent = desc;
+    el.appendChild(descSpan);
+  }
+
   return el;
 }
 
@@ -465,7 +475,7 @@ function buildGridStrip(slots, schedules) {
 async function buildGrid() {
   const slots = computeSlotTimes();
   updateGridHeader(slots);
-  const schedules = MOCK ? mockFetchAllSchedules(slots) : await fetchAllSchedules(slots);
+  const schedules = MOCK ? mockFetchAllSchedules(slots) : await fetchAllSchedules(slots, USE_META);
   const gridListings = document.getElementById('grid-listings');
   gridListings.innerHTML = '';
   gridListings.appendChild(buildGridStrip(slots, schedules));

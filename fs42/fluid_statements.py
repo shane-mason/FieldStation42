@@ -52,11 +52,29 @@ class FluidStatements:
 
                 if needs_update:
                     FluidStatements.update_file_entry(connection, entry)
+                elif repo_entry.media_type != 'audio':
+                    FluidStatements.refresh_video_meta(connection, repo_entry)
 
             else:
 
                 FluidStatements.add_file_entry(connection, entry)
         cursor.close()
+
+    @staticmethod
+    def refresh_video_meta(connection: sqlite3.Connection, repo_entry: FileRepoEntry):
+
+        metadata = MediaProcessor.extract_metadata(repo_entry.path, 'video')
+        new_meta = json.dumps(metadata) if metadata else ""
+
+        if new_meta != (repo_entry.meta or ""):
+            logging.getLogger("FLUID").info(f"NFO metadata changed, refreshing: {repo_entry.path}")
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE file_meta SET meta=?, last_checked=? WHERE path=?",
+                (new_meta, datetime.datetime.now(), repo_entry.path),
+            )
+            cursor.close()
+            connection.commit()
 
     @staticmethod
     def trim_file_entries(connection: sqlite3.Connection, older_than: datetime):
@@ -93,13 +111,10 @@ class FluidStatements:
             return False
         entry.duration = processed.duration
 
-        # Extract audio metadata if this is an audio file
+        # Extract metadata: ID3 tags for audio, NFO sidecar for video
         media_type = MediaProcessor.get_media_type(entry.path)
-        if media_type == 'audio':
-            metadata = MediaProcessor.extract_audio_metadata(entry.path)
-            entry.meta = json.dumps(metadata) if metadata else ""
-        else:
-            entry.meta = ""
+        metadata = MediaProcessor.extract_metadata(entry.path, media_type)
+        entry.meta = json.dumps(metadata) if metadata else ""
 
         logging.getLogger("FLUID").info(f"Updating existing file entry: {entry.path}")
 
@@ -127,13 +142,10 @@ class FluidStatements:
 
         entry.duration = processed.duration
 
-        # Extract audio metadata if this is an audio file
+        # Extract metadata: ID3 tags for audio, NFO sidecar for video
         media_type = MediaProcessor.get_media_type(entry.path)
-        if media_type == 'audio':
-            metadata = MediaProcessor.extract_audio_metadata(entry.path)
-            entry.meta = json.dumps(metadata) if metadata else ""
-        else:
-            entry.meta = ""
+        metadata = MediaProcessor.extract_metadata(entry.path, media_type)
+        entry.meta = json.dumps(metadata) if metadata else ""
 
         logging.getLogger("FLUID").info(f"Caching new file entry: {entry}")
 

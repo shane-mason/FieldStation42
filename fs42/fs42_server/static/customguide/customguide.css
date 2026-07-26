@@ -321,7 +321,9 @@ body {
   top: 0;
   height: 100%;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   padding: 0 0.4em;
   overflow: hidden;
   border-radius: var(--program-block-radius, 0);
@@ -357,6 +359,25 @@ body {
 }
 
 .grid-program-block.current .program-title {
+  color: if(
+    style(--current-show-title-color: null): var(--program-current-color, #b0ffe8);
+    else: var(--current-show-title-color)
+    );
+}
+
+.grid-program-block .program-desc {
+  font-family: var(--program-desc-font, var(--font-family));
+  color: var(--program-desc-color, var(--show-title-color));
+  opacity: var(--program-desc-opacity, 0.7);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--program-desc-size, 0.66em);
+  width: 100%;
+  margin-top: 0.15em;
+}
+
+.grid-program-block.current .program-desc {
   color: if(
     style(--current-show-title-color: null): var(--program-current-color, #b0ffe8);
     else: var(--current-show-title-color)

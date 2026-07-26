@@ -69,6 +69,21 @@ class MediaProcessor:
             return 'video'
 
     @staticmethod
+    def extract_metadata(file_path: str, media_type: str) -> dict:
+        """Extract normalized metadata for a media file.
+
+        Audio files are read from their embedded tags (ID3/Vorbis/MP4);
+        video files are read from an adjacent Kodi-format .nfo sidecar. Both
+        return a normalized dict carrying a `type` discriminator, or {} when
+        no metadata is available.
+        """
+        if media_type == 'audio':
+            return MediaProcessor.extract_audio_metadata(file_path)
+
+        from fs42.nfo_agent import NFOAgent
+        return NFOAgent.read_metadata_from_disk(file_path) or {}
+
+    @staticmethod
     def extract_audio_metadata(file_path: str) -> dict:
         if mutagen is None:
             logging.getLogger("MEDIA").warning("mutagen library not available, skipping audio metadata extraction")
@@ -79,7 +94,7 @@ class MediaProcessor:
             if audio is None:
                 return {}
 
-            metadata = {}
+            metadata = {"type": "music"}
 
             # Extract common tags - mutagen returns lists for most values
             if hasattr(audio, 'tags') and audio.tags:
@@ -92,7 +107,7 @@ class MediaProcessor:
                     'title': ['TIT2', 'title', '\xa9nam'],
                     'artist': ['TPE1', 'artist', '\xa9ART'],
                     'album': ['TALB', 'album', '\xa9alb'],
-                    'date': ['TDRC', 'date', '\xa9day', 'year'],
+                    'year': ['TDRC', 'date', '\xa9day', 'year'],
                     'genre': ['TCON', 'genre', '\xa9gen']
                 }
 
@@ -117,6 +132,7 @@ class MediaProcessor:
             logging.getLogger("MEDIA").debug(f"Could not extract metadata from {file_path}: {e}")
             # Return basic metadata from filename
             return {
+                'type': 'music',
                 'title': os.path.splitext(os.path.basename(file_path))[0]
             }
 
