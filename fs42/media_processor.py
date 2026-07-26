@@ -291,13 +291,20 @@ class MediaProcessor:
         }
 
         for root, dirs, files in os.walk(path, followlinks=True):
+            # glob skipped dotfiles - keep doing that so hidden dirs and
+            # macos appledouble sidecars (._foo.mp4) don't get picked up as media
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
 
             for file in files:
+
+                if file.startswith("."):
+                    continue
 
                 if os.path.splitext(file)[1].lower() in extensions:
                     file_list.append(
                         os.path.join(root, file)
                     )
+
         logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(file_list)}")
         return file_list
 

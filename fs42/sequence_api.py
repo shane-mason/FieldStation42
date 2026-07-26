@@ -511,10 +511,13 @@ class SequenceAPI:
     def _find_show_dirs(base_dir):
         show_dirs = []
 
-        for root, dirs, files in os.walk(base_dir):
+        for root, dirs, files in os.walk(base_dir, followlinks=True):
+            # follow symlinks and skip dotfiles to stay in sync with _rfind_media
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
 
             has_media = any(
-                f.lower().endswith(
+                not f.startswith(".")
+                and f.lower().endswith(
                     tuple(
                         f".{ext}"
                         for ext in MediaProcessor.VIDEO_FORMATS
@@ -524,7 +527,7 @@ class SequenceAPI:
             )
             if not has_media:
                 continue
-                
+
             rel = os.path.relpath(root, base_dir)
 
             if rel == ".":
