@@ -44,7 +44,12 @@ class SequenceIO:
                 cursor.execute("ALTER TABLE named_sequence ADD COLUMN initialized INTEGER NOT NULL DEFAULT 1")
             except sqlite3.OperationalError:
                 pass
-
+            try:
+                cursor.execute("ALTER TABLE named_sequence ADD COLUMN parent_tag TEXT")
+            except sqlite3.OperationalError as e:
+                if "duplicate column name" not in str(e):
+                    raise
+                
             # now make a table to hold sequence entries
             cursor.execute("""CREATE TABLE IF NOT EXISTS sequence_entries (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,6 +71,25 @@ class SequenceIO:
                     )
                 )
             """)
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sequence_entries_named_sequence
+            ON sequence_entries(named_sequence_id)
+            """)
+
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sequence_entries_lookup
+            ON sequence_entries(named_sequence_id, sequence_index)
+            """)
+
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_named_sequence_station
+            ON named_sequence(station)
+            """)
+            
+            cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_named_sequence_parent
+            ON named_sequence(station, sequence_name, parent_tag)
+            """)
             cursor.close()
             connection.commit()
 
@@ -73,11 +97,19 @@ class SequenceIO:
 
         with self._get_connection() as connection:
             cursor = connection.cursor()
-            # Insert or update the named sequence
+
             cursor.execute(
-                """INSERT OR REPLACE INTO named_sequence
-                              (station, sequence_name, tag_path, start_perc, end_perc, current_index, initialized)
-                              VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                """
+                INSERT OR REPLACE INTO named_sequence
+                    (station, sequence_name, tag_path, start_perc, end_perc, current_index, initialized, parent_tag)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(station, sequence_name, tag_path)
+                DO UPDATE SET
+                    start_perc = excluded.start_perc,
+                    end_perc = excluded.end_perc,
+                    current_index = excluded.current_index,
+                    parent_tag = excluded.parent_tag
+                """,
                 (
                     station_name,
                     named_sequence.sequence_name,
@@ -85,16 +117,39 @@ class SequenceIO:
                     named_sequence.start_perc,
                     named_sequence.end_perc,
                     named_sequence.current_index,
-                    int(named_sequence.initialized),
+                    int(named_sequence.initialized),                    
+                    getattr(named_sequence, "parent_tag", None),
                 ),
             )
-            named_sequence_id = cursor.lastrowid
 
-            # Now insert the sequence entries
+            # stable ID lookup
+            cursor.execute(
+                """
+                SELECT id FROM named_sequence
+                WHERE station = ? AND sequence_name = ? AND tag_path = ?
+                """,
+                (station_name, named_sequence.sequence_name, named_sequence.tag_path),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                raise RuntimeError("UPSERT failed to return sequence id")
+
+            named_sequence_id = row[0]
+
+            # Replace entries
+            cursor.execute(
+                "DELETE FROM sequence_entries WHERE named_sequence_id = ?",
+                (named_sequence_id,),
+            )
+
             for index, entry in enumerate(named_sequence.episodes):
                 cursor.execute(
-                    """INSERT INTO sequence_entries (fpath, sequence_index, named_sequence_id) 
-                                  VALUES (?, ?, ?)""",
+                    """
+                    INSERT INTO sequence_entries
+                        (fpath, sequence_index, named_sequence_id)
+                    VALUES (?, ?, ?)
+                    """,
                     (entry.fpath, index, named_sequence_id),
                 )
 
@@ -104,8 +159,8 @@ class SequenceIO:
         with self._get_connection() as connection:
             cursor = connection.cursor()
             cursor.execute(
-                """SELECT id, start_perc, end_perc, current_index, initialized
-                              FROM named_sequence
+                """SELECT id, start_perc, end_perc, current_index , initialized
+                              FROM named_sequence 
                               WHERE station = ? AND sequence_name = ? AND tag_path = ?""",
                 (station_name, sequence_name, tag_path),
             )
@@ -125,7 +180,7 @@ class SequenceIO:
             file_paths = [row[0] for row in cursor.fetchall()]
 
             ns = NamedSequence(station_name, sequence_name, tag_path, start_perc, end_perc, current_index, file_paths, bool(initialized))
-
+            
             if ns.initialized != bool(initialized):
                 self.update_initialized(station_name, sequence_name, tag_path, ns.initialized)
 

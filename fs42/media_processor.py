@@ -298,12 +298,28 @@ class MediaProcessor:
         else:  # "mixed"
             formats_to_scan = MediaProcessor.supported_formats
 
-        file_list = []
         # get all the files
-        for ext in formats_to_scan:
-            # this_format = directory.rglob(f"*.{ext}")
-            this_format = glob.glob(f"{path}/**/*.{ext}", recursive=True)
-            file_list += this_format
+        file_list = []
+
+        extensions = {
+            f".{ext.lower()}"
+            for ext in formats_to_scan
+        }
+
+        for root, dirs, files in os.walk(path, followlinks=True):
+            # glob skipped dotfiles - keep doing that so hidden dirs and
+            # macos appledouble sidecars (._foo.mp4) don't get picked up as media
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+
+            for file in files:
+
+                if file.startswith("."):
+                    continue
+
+                if os.path.splitext(file)[1].lower() in extensions:
+                    file_list.append(
+                        os.path.join(root, file)
+                    )
 
         logging.getLogger("MEDIA").debug(f"_rfind_media done scanning {path} {len(file_list)}")
         return file_list
