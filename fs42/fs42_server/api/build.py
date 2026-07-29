@@ -43,7 +43,7 @@ async def rebuild_catalog(network_name: str, request: Request):
                 if station["_has_schedule"]:
                     with rebuild_tasks_lock:
                         rebuild_tasks[task_id]["log"] += f"Deleting schedule for {station['network_name']}\n"
-                        LiquidManager().reset_schedule(station, False)
+                        LiquidManager().reset_schedule(station)
                     with rebuild_tasks_lock:
                         rebuild_tasks[task_id]["log"] += f"Deleted schedule {station['network_name']} - rebuilding catalog now.\n"
                 if station["_has_catalog"]:
@@ -150,7 +150,7 @@ async def rebuild_schedule(network_name: str, request: Request):
 
             for station in to_rebuild:
                 if station["_has_schedule"]:
-                    LiquidManager().reset_schedule(station, True)
+                    LiquidManager().reset_schedule(station)
                     with rebuild_tasks_lock:
                         rebuild_tasks[task_id]["log"] += f"Rebuilt schedule for {station['network_name']}\n"
 
