@@ -4,7 +4,7 @@ const SLOT_COUNT = parseInt(params.get('slots')) || 3;
 const HEADER_TEXT = params.get('header') || null;
 const PAUSE_OVERRIDE = params.get('pause');
 const MOCK = params.get('mock') === '1';
-const USE_META = params.get('use_meta') === '1';
+const USE_META = params.get('use_meta') !== '0';
 const MUSIC_PATH = params.get('music');
 const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');

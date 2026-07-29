@@ -619,9 +619,9 @@
         },
         "sequence_start": {
           "type": "number",
-          "minimum": 0,
+          "minimum": -1,
           "maximum": 1,
-          "description": "Starting point in sequence (0.0 to 1.0)"
+          "description": "Starting point in sequence (-1.0 to 1.0)"
         },
         "sequence_end": {
           "type": "number",
