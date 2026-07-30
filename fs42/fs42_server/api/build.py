@@ -60,7 +60,7 @@ async def rebuild_catalog(network_name: str, request: Request):
                 if command_queue:
                     command_queue.put({"command": "reload_data"})
                 #else:
-                LiquidManager().reload_schedules()
+            LiquidManager().reload_schedules()
             
         except Exception as e:
             with rebuild_tasks_lock:
