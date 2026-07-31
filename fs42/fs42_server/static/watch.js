@@ -114,12 +114,17 @@
       await attach(result.playlist_url, signal);
       const boundaryDelay = Date.parse(nowInfo.item_end) - Date.now() + 250;
       boundaryTimer = setTimeout(
-        () => tune(channelSelect.value, {boundary: true}),
+        () => {
+          // Preserve every scheduled frame. The transition begins only after
+          // the item boundary, then holds black while the next item becomes
+          // playable.
+          video.classList.add("switching");
+          boundaryFadeTimer = setTimeout(
+            () => tune(channelSelect.value, {boundary: true}),
+            TRANSITION_MS
+          );
+        },
         Math.max(250, boundaryDelay)
-      );
-      boundaryFadeTimer = setTimeout(
-        () => video.classList.add("switching"),
-        Math.max(0, boundaryDelay - TRANSITION_MS)
       );
       heartbeat = setInterval(() => {
         if (sessionId) fetch(`/api/watch/sessions/${sessionId}/heartbeat`, {method: "POST"});
@@ -152,6 +157,8 @@
     document.querySelector("#channel-number").textContent = nowInfo.channel_number;
     document.querySelector("#channel-name").textContent = nowInfo.channel_name;
     document.querySelector("#program-title").textContent = nowInfo.program_title;
+    document.querySelector("#episode-title").textContent =
+      nowInfo.program_details || "";
   }
 
   async function refreshNow() {

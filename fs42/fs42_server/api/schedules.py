@@ -13,17 +13,60 @@ EPISODE_RE = re.compile(
     r"[\s._-]*e(?P<episode>\d{1,3}[a-z]*)[\s._-]*(?P<title>.*)$"
 )
 SEASON_DIR_RE = re.compile(r"(?i)^season[\s._-]*\d+$|^s\d+$")
-MOVIE_YEAR_RE = re.compile(
-    r"^(?P<title>.+?)[\s._-]+(?:\()?(?P<year>(?:19|20)\d{2})(?:\))?"
-    r"(?:[\s._-]+.*)?$"
+MOVIE_YEAR_RE = re.compile(r"(?<!\d)(?P<year>(?:19|20)\d{2})(?!\d)")
+RELEASE_SUFFIX_RE = re.compile(
+    r"(?i)(?:[\s._-]+)(?:480p|720p|1080p|2160p|4k|amzn|amazon|"
+    r"web[\s._-]?(?:dl|rip)|blu[\s._-]?ray|bluray|remux|hdr|dv|"
+    r"x26[45]|h[\s._-]?26[45]|hevc|av1|aac\d*|ac3|eac3)(?:\b|$).*$"
 )
 TITLE_ALIASES = {
     "shingeki no kyojin": "Attack on Titan",
+    "spongebob": "SpongeBob SquarePants",
+    "spongebob squarepants": "SpongeBob SquarePants",
+    "under the dome": "Under the Dome",
+    "king of the hill": "King of the Hill",
 }
+AUXILIARY_TITLES = {
+    "behind the scenes",
+    "deleted and extended scenes",
+    "deleted scenes",
+    "extended scenes",
+    "extras",
+    "featurettes",
+    "interviews",
+    "samples",
+    "scenes",
+    "shorts",
+    "trailers",
+}
+MINOR_TITLE_WORDS = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "of", "on", "or", "the", "to", "with"}
+
+
+def _natural_title_case(title: str) -> str:
+    words = title.split()
+    return " ".join(
+        word.lower() if index and word.casefold() in MINOR_TITLE_WORDS else word
+        for index, word in enumerate(words)
+    )
+
+
+def _plain_title(title: str) -> str:
+    cleaned = re.sub(r"\s+", " ", re.sub(r"[._-]+", " ", title)).strip()
+    return " ".join(
+        (
+            word.capitalize()
+            if word.islower() or word.isupper()
+            else word
+        )
+        for word in cleaned.split()
+    )
 
 
 def _guide_title_alias(title: str) -> str:
-    normalized = TitleParser.parse_title(title)
+    # This function also receives already-clean schedule titles. Do not run
+    # generic episode-number patterns here: "Channel 42 Live Fixture" is not
+    # episode 42.
+    normalized = _natural_title_case(_plain_title(title))
     lowered = normalized.casefold()
     for source, replacement in TITLE_ALIASES.items():
         if lowered == source or lowered.startswith(source + " "):
@@ -38,11 +81,14 @@ def _movie_display(path: str) -> dict:
     # replace the identity of the movie in an already-generated schedule.
     candidates = [media_path.stem, *(parent.name for parent in media_path.parents[:3])]
     for candidate in candidates:
-        match = MOVIE_YEAR_RE.match(candidate)
+        match = MOVIE_YEAR_RE.search(candidate)
         if match:
+            title = candidate[:match.start()].strip(" ._-(")
+            if not title:
+                continue
             return {
                 "display_title": (
-                    f"{TitleParser.parse_title(match.group('title'))} "
+                    f"{_guide_title_alias(title)} "
                     f"({match.group('year')})"
                 )
             }
@@ -67,7 +113,11 @@ def _episode_display(path: str, meta: dict | None = None) -> dict:
         if not series_title and series_prefix:
             series_title = TitleParser.parse_title(series_prefix)
         if not episode_title and match.group("title"):
-            episode_title = TitleParser.parse_title(match.group("title"))
+            episode_title = _natural_title_case(
+                TitleParser.parse_title(
+                    RELEASE_SUFFIX_RE.sub("", match.group("title"))
+                )
+            )
         season = season if season is not None else int(match.group("season"))
         episode = episode if episode is not None else match.group("episode")
 
@@ -82,11 +132,62 @@ def _episode_display(path: str, meta: dict | None = None) -> dict:
         "display_title": _guide_title_alias(
             series_title or TitleParser.parse_title(filename)
         ),
-        "episode_title": episode_title or "",
+        "episode_title": _natural_title_case(episode_title or ""),
         "season": season,
         "episode": episode,
     }
     return result
+
+
+def _supplemental_display(path: str) -> dict:
+    parts = Path(path).parts
+    for index, part in enumerate(parts):
+        normalized = re.sub(r"[^a-z0-9]+", " ", part.casefold()).strip()
+        if normalized not in AUXILIARY_TITLES or index == 0:
+            continue
+        parent = Path(parts[index - 1])
+        if SEASON_DIR_RE.match(parent.name) and index >= 2:
+            parent = Path(parts[index - 2])
+        parent_series = _guide_title_alias(parent.name)
+        normalized_parent = _plain_title(parent.name).casefold()
+        if any(
+            normalized_parent == source
+            or normalized_parent.startswith(source + " ")
+            for source in TITLE_ALIASES
+        ):
+            return {"display_title": parent_series}
+        parent_movie = _movie_display(str(parent))
+        if parent_movie:
+            return parent_movie
+        return {"display_title": parent_series}
+    return {}
+
+
+def program_display(path: str, fallback: str = "", meta: dict | None = None) -> dict:
+    """Return one canonical program identity for the guide and watch client."""
+    display = (
+        _episode_display(path, meta)
+        or _supplemental_display(path)
+        or _movie_display(path)
+    )
+    if not display:
+        display = {
+            "display_title": _guide_title_alias(fallback or Path(path).stem)
+        }
+    season = display.get("season")
+    episode = display.get("episode")
+    episode_title = display.get("episode_title", "")
+    details = []
+    if season not in (None, ""):
+        details.append(f"Season {season}")
+    if episode not in (None, ""):
+        details.append(f"Episode {str(episode).upper()}")
+    display["program_details"] = ", ".join(details)
+    if episode_title:
+        display["program_details"] += (
+            ": " if display["program_details"] else ""
+        ) + episode_title
+    return display
 
 
 def _attach_meta(blocks, read_meta: bool = True):
@@ -108,11 +209,7 @@ def _attach_meta(blocks, read_meta: bool = True):
         meta = MetadataIO.read(path) if read_meta else None
         if meta:
             block.meta = meta
-        display = _episode_display(path, meta) or _movie_display(path)
-        if not display:
-            aliased = _guide_title_alias(getattr(block, "title", ""))
-            if aliased != getattr(block, "title", ""):
-                display = {"display_title": aliased}
+        display = program_display(path, getattr(block, "title", ""), meta)
         for key, value in display.items():
             setattr(block, key, value)
     return blocks

@@ -22,6 +22,7 @@ from fs42.hometv import (
 from fs42.media_processor import MediaProcessor
 from fs42.fs42_server.api.watch import (
     SessionRequest,
+    _now_payload,
     channels as channel_endpoint,
     create_session as create_session_endpoint,
 )
@@ -30,6 +31,7 @@ from fs42.fs42_server.api.schedules import (
     _attach_meta,
     _episode_display,
     _movie_display,
+    program_display,
 )
 
 
@@ -102,18 +104,23 @@ class ResolverTests(unittest.TestCase):
             "/media/SpongeBob SquarePants/Season 04/"
             "SpongeBob SquarePants S04E15ab Squidtastic Voyage.mp4"
         )
-        self.assertEqual(display["display_title"], "Spongebob Squarepants")
+        self.assertEqual(display["display_title"], "SpongeBob SquarePants")
         self.assertEqual(display["episode_title"], "Squidtastic Voyage")
         self.assertEqual(display["season"], 4)
         self.assertEqual(display["episode"], "15ab")
 
     def test_episode_display_uses_show_directory_when_filename_starts_with_code(self):
-        display = _episode_display(
+        path = (
             "/media/King of the Hill (1997)/Season 01/"
             "S01E10 Keeping Up With Our Joneses.mkv"
         )
-        self.assertEqual(display["display_title"], "King Of The Hill")
-        self.assertEqual(display["episode_title"], "Keeping Up With Our Joneses")
+        display = _episode_display(path)
+        self.assertEqual(display["display_title"], "King of the Hill")
+        self.assertEqual(display["episode_title"], "Keeping Up with Our Joneses")
+        self.assertEqual(
+            program_display(path)["program_details"],
+            "Season 1, Episode 10: Keeping Up with Our Joneses",
+        )
 
     def test_guide_display_metadata_does_not_read_file_metadata(self):
         block = SimpleNamespace(
@@ -124,7 +131,7 @@ class ResolverTests(unittest.TestCase):
         with patch("fs42.fs42_server.api.schedules.MetadataIO.read") as read:
             _attach_meta([block], read_meta=False)
         read.assert_not_called()
-        self.assertEqual(block.display_title, "King Of The Hill")
+        self.assertEqual(block.display_title, "King of the Hill")
 
     def test_movie_release_name_keeps_only_title_and_year(self):
         display = _movie_display(
@@ -132,12 +139,31 @@ class ResolverTests(unittest.TestCase):
         )
         self.assertEqual(display["display_title"], "War Dogs (2016)")
 
-    def test_movie_extra_uses_parent_movie_identity(self):
+    def test_dotted_movie_release_keeps_complete_title(self):
         display = _movie_display(
+            "/media/Movies/War.Dogs.2016.2160p.BluRay.mkv"
+        )
+        self.assertEqual(display["display_title"], "War Dogs (2016)")
+
+    def test_clean_program_number_is_not_treated_as_episode_number(self):
+        display = program_display(
+            "/media/channel-42.mp4", "Channel 42 Live Fixture"
+        )
+        self.assertEqual(display["display_title"], "Channel 42 Live Fixture")
+
+    def test_movie_extra_uses_parent_movie_identity(self):
+        display = program_display(
             "/media/Movies/War Dogs (2016)/Featurettes/"
             "'On Location Napoleon Dynamite' Documentary.mkv"
         )
         self.assertEqual(display["display_title"], "War Dogs (2016)")
+
+    def test_tv_extra_uses_parent_series_identity(self):
+        display = program_display(
+            "/media/King of the Hill (1997)/Deleted and Extended Scenes/"
+            "Deleted Scene.mkv"
+        )
+        self.assertEqual(display["display_title"], "King of the Hill")
 
     def test_guide_uses_known_english_series_alias(self):
         block = SimpleNamespace(
@@ -164,6 +190,22 @@ class ResolverTests(unittest.TestCase):
             feature.touch()
             extra.touch()
             self.assertEqual(MediaProcessor._rfind_media(temp_dir), [str(feature)])
+
+    def test_recursive_scan_ignores_deleted_and_extended_scenes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            episode = root / "King of the Hill" / "S01E10 Episode.mkv"
+            extra = (
+                root
+                / "King of the Hill"
+                / "Deleted and Extended Scenes"
+                / "Deleted Scene.mkv"
+            )
+            episode.parent.mkdir()
+            extra.parent.mkdir()
+            episode.touch()
+            extra.touch()
+            self.assertEqual(MediaProcessor._rfind_media(temp_dir), [str(episode)])
 
     def test_schedule_path_must_exist_in_catalog(self):
         with tempfile.NamedTemporaryFile(suffix=".mp4") as media:
@@ -341,6 +383,34 @@ class WatchAPITests(unittest.TestCase):
     def test_channel_list_does_not_expose_paths(self):
         response = asyncio.run(channel_endpoint(self.request))
         self.assertNotIn("path", str(response))
+
+    def test_now_payload_uses_series_and_episode_identity(self):
+        when = dt.datetime(2026, 7, 31, 12, 0)
+        airing = Airing(
+            "3",
+            "After Hours",
+            "S01E10 Keeping Up With Our Joneses",
+            "S01E10 Keeping Up With Our Joneses",
+            when,
+            when + dt.timedelta(minutes=30),
+            when,
+            when + dt.timedelta(minutes=22),
+            "/media/King of the Hill (1997)/Season 01/"
+            "S01E10 Keeping Up With Our Joneses.mkv",
+            0,
+            1800,
+            1320,
+        )
+        with patch(
+            "fs42.fs42_server.api.watch.MetadataIO.read", return_value=None
+        ):
+            payload = _now_payload(airing, when)
+        self.assertEqual(payload["channel_name"], "After Hours")
+        self.assertEqual(payload["program_title"], "King of the Hill")
+        self.assertEqual(
+            payload["program_details"],
+            "Season 1, Episode 10: Keeping Up with Our Joneses",
+        )
 
     def test_invalid_profile_returns_validation_error(self):
         with self.assertRaises(HTTPException) as raised:

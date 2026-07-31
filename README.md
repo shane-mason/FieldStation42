@@ -41,6 +41,13 @@ using `field_player.py` and MPV unchanged. See
 [Docker/Unraid setup](docker/README.md), and
 [Raspberry Pi kiosk setup](docs/RASPBERRY_PI_KIOSK.md).
 
+After upgrading an existing HomeTV staging deployment, use **Rebuild catalog
+and generate one week** (or rebuild, then explicitly reset and regenerate the
+schedule). This replaces legacy scene-chapter break positions, removes
+supplemental movie/TV files from future schedules, and applies canonical
+series/movie identities. Existing schedule rows are intentionally not altered
+silently.
+
 ## Documentation
 
 Full documentation, installation guide, and channel configuration walkthroughs are at:
@@ -87,7 +94,6 @@ If you're getting value from FieldStation42, consider supporting it on [Patreon]
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. Please open an issue before submitting large changes.
-
 
 
 

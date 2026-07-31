@@ -11,6 +11,8 @@ from fs42.hometv import (
     UnsafeMediaPath,
     WatchError,
 )
+from fs42.fs42_server.api.schedules import program_display
+from fs42.metadata_io import MetadataIO
 
 router = APIRouter(prefix="/api/watch", tags=["watch"])
 
@@ -37,6 +39,22 @@ def _watch_error(exc: Exception):
     return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc))
 
 
+def _now_payload(airing, timestamp):
+    payload = airing.public_dict(timestamp)
+    identity_path = airing.identity_path or airing.media_path
+    display = program_display(
+        identity_path,
+        airing.program_title,
+        MetadataIO.read(identity_path),
+    )
+    payload["program_title"] = display["display_title"]
+    payload["episode_title"] = display.get("episode_title", "")
+    payload["season"] = display.get("season")
+    payload["episode"] = display.get("episode")
+    payload["program_details"] = display.get("program_details", "")
+    return payload
+
+
 @router.get("/channels")
 async def channels(request: Request):
     return {"channels": _manager(request).resolver.channels()}
@@ -47,7 +65,7 @@ async def now(channel: str, request: Request):
     try:
         resolver = _manager(request).resolver
         timestamp = __import__("datetime").datetime.now()
-        return resolver.now(channel, timestamp).public_dict(timestamp)
+        return _now_payload(resolver.now(channel, timestamp), timestamp)
     except WatchError as exc:
         raise _watch_error(exc)
 
@@ -59,7 +77,9 @@ async def create_session(body: SessionRequest, request: Request):
         return {
             "session_id": session.session_id,
             "playlist_url": f"/api/watch/sessions/{session.session_id}/master.m3u8",
-            "now": airing.public_dict(__import__("datetime").datetime.now()),
+            "now": _now_payload(
+                airing, __import__("datetime").datetime.now()
+            ),
         }
     except (WatchError, ValueError) as exc:
         raise _watch_error(exc)

@@ -51,7 +51,13 @@ body.active #shade { opacity: 1; }
   align-items: center;
   gap: 14px;
   min-width: 0;
-  filter: drop-shadow(0 3px 12px rgba(0, 0, 0, .75));
+  max-width: min(72vw, 760px);
+  padding: 9px 13px 9px 9px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 17px;
+  background: rgba(3, 5, 8, .68);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .34);
+  backdrop-filter: blur(14px) saturate(120%);
 }
 #channel-badge {
   width: 46px;
@@ -94,7 +100,7 @@ h1 {
   font-weight: 720;
   letter-spacing: -.02em;
 }
-#program-title {
+#episode-title {
   max-width: min(62vw, 720px);
   margin-top: 2px;
   overflow: hidden;

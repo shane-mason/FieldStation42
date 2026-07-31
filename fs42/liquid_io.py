@@ -229,6 +229,10 @@ class LiquidIO:
         )
 
         block = LiquidIO._block_factory(_liquid_type, args)
+        # Preserve the stored title for clients that perform their own
+        # structured media-identity parsing. The legacy normalized title stays
+        # in block.title for backward compatibility.
+        block.raw_title = _title
         block.sequence_key = _sequence_key
 
         plans = []

@@ -53,6 +53,8 @@ class Airing:
     offset: float
     duration: float
     remaining: float
+    content_type: str = "feature"
+    identity_path: str | None = None
 
     def public_dict(self, now: dt.datetime) -> dict:
         elapsed = max(0.0, min((now - self.start).total_seconds(), self.duration))
@@ -144,10 +146,18 @@ class ScheduleResolver:
         media_path = self._approved_media_path(station, item.path)
         offset = max(0.0, float(item.skip) + (when - item_start).total_seconds())
         item_title = Path(item.path).stem
+        identity_item = next(
+            (
+                plan_item
+                for plan_item in block.plan
+                if getattr(plan_item, "content_type", "feature") == "feature"
+            ),
+            item,
+        )
         return Airing(
             channel_number=str(station["channel_number"]),
             channel_name=station["network_name"],
-            program_title=block.title,
+            program_title=getattr(block, "raw_title", block.title),
             item_title=item_title,
             start=block.start_time,
             end=block.end_time,
@@ -157,6 +167,8 @@ class ScheduleResolver:
             offset=offset,
             duration=(block.end_time - block.start_time).total_seconds(),
             remaining=(item_end - when).total_seconds(),
+            content_type=getattr(item, "content_type", "feature"),
+            identity_path=getattr(identity_item, "path", item.path),
         )
 
     @staticmethod

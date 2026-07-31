@@ -32,8 +32,20 @@ Guide display names are derived from NFO metadata when explicitly requested
 and otherwise from series/movie library paths. Container title tags are not
 treated as authoritative program identity. Conventional nested supplemental
 directories (`Extras`, `Featurettes`, `Trailers`, `Deleted Scenes`, and
-similar) are excluded from recursive feature scans; rebuilding the catalog and
-regenerating the schedule is required to remove previously scheduled extras.
+`Deleted and Extended Scenes`, and similar) are excluded from recursive
+feature scans; rebuilding the catalog and regenerating the schedule is
+required to remove previously scheduled extras. Both the guide and `/watch`
+consume the same canonical identity fields. Episode presentation is separated
+into the series name and `Season N, Episode N: Episode Title`.
+
+Commercial placement uses a deliberately conservative feature-only analysis.
+A candidate internal break must be either an explicitly named act/break
+chapter, or a sustained fade-to-black aligned within five seconds of an
+embedded chapter boundary. Candidates within two minutes of either edge are
+discarded, credits/ending chapters are rejected, and accepted breaks must be
+at least three minutes apart. If no trustworthy boundary remains, the feature
+is not cut and its filler is placed after it. Commercial and bump content is
+never analyzed for black frames, trimmed, or shortened.
 
 For a request at time `now`, Home TV selects the row satisfying
 `start_time <= now < end_time`. It then walks the ordered plan from the block
@@ -123,9 +135,10 @@ The rolling playlist retains 12 two-second segments (at least 24 seconds).
 The client starts as soon as HLS reports a playable manifest and leaves
 ordinary buffering to HLS.js and the browser. There is deliberately no
 client-side startup-buffer gate or pause/resume controller.
-At scheduled item boundaries the client performs a short visual fade to black,
-replaces the item without showing a tuning message, and fades back on the
-video element's `playing` event. The fade does not pause an active stream or
+At scheduled item boundaries the client displays every frame through the
+scheduled end, then fades/holds black while replacing the item without showing
+a tuning message, and fades back on the video element's `playing` event. The
+fade does not begin early, trim an ad or bumper, pause an active stream, or
 create additional buffering policy.
 
 The FFmpeg command is constructed as an argument vector, never a shell string.
@@ -177,8 +190,10 @@ Conflict`, and task records include progress plus traceback-backed error logs.
 A catalog rebuild is destructive to its associated schedule because plan rows
 refer to catalog IDs. The API therefore requires an explicit
 `reset_schedule=true` acknowledgement, or a combined rebuild-and-generate
-operation. The console presents that warning before submission. Chapter
-scanning can be disabled per rebuild.
+operation. The console presents that warning before submission. The rebuild
+scanner replaces legacy generic chapter rows with conservative commercial
+boundaries. Scanning can be disabled per rebuild; doing so also disables
+internal commercial placement, leaving filler after uninterrupted features.
 
 Database locks coordinate threads in one server process. Production Compose
 runs a single application worker; multiple independent writers against the
