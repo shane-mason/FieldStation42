@@ -78,7 +78,12 @@ class ResolverTests(unittest.TestCase):
                 )
             self.assertEqual(airing.program_title, "Lunch Show")
             self.assertEqual(airing.offset, 60)
+            self.assertEqual(airing.remaining, 450)
             self.assertEqual(airing.item_start, start + dt.timedelta(seconds=120))
+            self.assertEqual(
+                airing.public_dict(start + dt.timedelta(seconds=150))["item_end"],
+                (start + dt.timedelta(seconds=600)).isoformat(),
+            )
 
     def test_channel_name_and_number_select_same_station(self):
         resolver = ScheduleResolver(FakeManager())
@@ -103,7 +108,7 @@ class SessionTests(unittest.TestCase):
             airing = Airing(
                 "42", "Test TV", "Show", "Episode", when,
                 when + dt.timedelta(minutes=30), when,
-                when + dt.timedelta(minutes=30), str(media), 91.25, 1800,
+                when + dt.timedelta(minutes=30), str(media), 91.25, 1800, 1708.75,
             )
             resolver = SimpleNamespace(now=lambda channel: airing)
             processes = []
@@ -120,6 +125,9 @@ class SessionTests(unittest.TestCase):
             )
             session, _ = manager.create("42")
             self.assertIn("-ss", processes[0].command)
+            self.assertIn("-re", processes[0].command)
+            self.assertIn("-t", processes[0].command)
+            self.assertIn("-force_key_frames", processes[0].command)
             self.assertEqual(
                 processes[0].command[processes[0].command.index("-ss") + 1],
                 "91.250",
@@ -233,6 +241,41 @@ class BuildOperationTests(unittest.TestCase):
         self.assertEqual(task["status"], "error")
         self.assertIn("forced rebuild failure", task["log"])
         self.assertTrue(build_api.operation_lock.acquire(blocking=False))
+
+    def test_rebuild_and_week_generates_initial_schedule(self):
+        station = {
+            "network_name": "Test TV",
+            "_has_catalog": True,
+            "_has_schedule": False,
+        }
+        manager = SimpleNamespace(
+            stations=[station],
+            station_by_name=lambda name: station if name == "Test TV" else None,
+        )
+        request = SimpleNamespace(
+            app=SimpleNamespace(
+                state=SimpleNamespace(player_command_queue=None)
+            )
+        )
+        with (
+            patch("fs42.fs42_server.api.build.StationManager", return_value=manager),
+            patch("fs42.fs42_server.api.build.CatalogAPI.delete_catalog"),
+            patch("fs42.fs42_server.api.build.ShowCatalog"),
+            patch("fs42.fs42_server.api.build.LiquidManager.reload_schedules"),
+            patch("fs42.fs42_server.api.build.LiquidSchedule") as schedule,
+        ):
+            response = asyncio.run(
+                build_api.quick_action("rebuild_and_week", "Test TV", request)
+            )
+            for _ in range(100):
+                task = asyncio.run(
+                    build_api.quick_action_status(response["task_id"])
+                )
+                if task["status"] in {"done", "error"}:
+                    break
+                time.sleep(0.01)
+        self.assertEqual(task["status"], "done")
+        schedule.return_value.add_amount.assert_called_once_with("week")
 
 
 if __name__ == "__main__":

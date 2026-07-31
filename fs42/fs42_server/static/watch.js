@@ -4,7 +4,8 @@
   const message = document.querySelector("#message");
   const progress = document.querySelector("#progress span");
   let channels = [], sessionId = null, hls = null, nowInfo = null;
-  let recoveryTimer = null, controlsTimer = null, heartbeat = null;
+  let recoveryTimer = null, controlsTimer = null, heartbeat = null, boundaryTimer = null;
+  let isTuning = false;
 
   const showControls = () => {
     document.body.classList.add("active");
@@ -23,6 +24,7 @@
 
   async function stopSession() {
     clearInterval(heartbeat);
+    clearTimeout(boundaryTimer);
     if (hls) { hls.destroy(); hls = null; }
     video.removeAttribute("src");
     if (sessionId) {
@@ -32,23 +34,35 @@
   }
 
   function attach(url) {
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = url;
-      video.play().catch(recover);
-    } else if (window.Hls && Hls.isSupported()) {
+    // Chromium may report "maybe" for native HLS while failing to decode an
+    // MPEG-TS playlist. Prefer HLS.js wherever Media Source is available and
+    // reserve native HLS for Safari and other browsers without MSE support.
+    if (window.Hls && Hls.isSupported()) {
       hls = new Hls({liveSyncDurationCount: 3, maxLiveSyncPlaybackRate: 1.25});
       hls.loadSource(url);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(recover));
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) recover();
+        if (data.fatal) {
+          console.error("Fatal HLS playback error", {
+            type: data.type,
+            details: data.details,
+            error: data.error?.message || String(data.error || "")
+          });
+          recover();
+        }
       });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+      video.play().catch(recover);
     } else {
       throw new Error("This browser has no HLS playback support");
     }
   }
 
   async function tune(channel) {
+    if (isTuning) return;
+    isTuning = true;
     clearTimeout(recoveryTimer);
     message.textContent = "Tuning…";
     await stopSession();
@@ -62,6 +76,11 @@
       nowInfo = result.now;
       renderNow();
       attach(result.playlist_url);
+      const boundaryDelay = Date.parse(nowInfo.item_end) - Date.now() + 250;
+      boundaryTimer = setTimeout(
+        () => tune(channelSelect.value),
+        Math.max(250, boundaryDelay)
+      );
       heartbeat = setInterval(() => {
         if (sessionId) fetch(`/api/watch/sessions/${sessionId}/heartbeat`, {method: "POST"});
       }, 20000);
@@ -69,11 +88,15 @@
       localStorage.setItem("fs42-channel", String(channel));
     } catch (error) {
       message.textContent = error.message;
-      recover();
+      isTuning = false;
+      recover(true);
+      return;
     }
+    isTuning = false;
   }
 
-  function recover() {
+  function recover(force = false) {
+    if (isTuning || (!sessionId && !force)) return;
     if (recoveryTimer) return;
     message.textContent = "Playback interrupted — reconnecting…";
     recoveryTimer = setTimeout(() => {
@@ -143,7 +166,13 @@
     if (event.key.toLowerCase() === "f") document.querySelector("#fullscreen").click();
     if (event.key.toLowerCase() === "g") document.querySelector("#guide-button").click();
   });
-  video.addEventListener("error", recover);
+  video.addEventListener("error", () => {
+    console.error("Video element error", {
+      code: video.error?.code,
+      message: video.error?.message
+    });
+    recover();
+  });
   window.addEventListener("beforeunload", stopSession);
   setInterval(() => {
     if (nowInfo) {

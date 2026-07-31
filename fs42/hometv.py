@@ -52,6 +52,7 @@ class Airing:
     media_path: str
     offset: float
     duration: float
+    remaining: float
 
     def public_dict(self, now: dt.datetime) -> dict:
         elapsed = max(0.0, min((now - self.start).total_seconds(), self.duration))
@@ -62,6 +63,7 @@ class Airing:
             "item_title": self.item_title,
             "start": self.start.isoformat(),
             "end": self.end.isoformat(),
+            "item_end": self.item_end.isoformat(),
             "duration": self.duration,
             "elapsed": elapsed,
             "progress": elapsed / self.duration if self.duration > 0 else 0,
@@ -154,6 +156,7 @@ class ScheduleResolver:
             media_path=media_path,
             offset=offset,
             duration=(block.end_time - block.start_time).total_seconds(),
+            remaining=(item_end - when).total_seconds(),
         )
 
     @staticmethod
@@ -269,8 +272,11 @@ class HLSSessionManager:
             "-nostdin",
             "-ss",
             f"{airing.offset:.3f}",
+            "-re",
             "-i",
             airing.media_path,
+            "-t",
+            f"{max(0.1, airing.remaining):.3f}",
         ]
         if profile == "copy":
             command += ["-c", "copy"]
@@ -288,6 +294,8 @@ class HLSSessionManager:
                 "zerolatency",
                 "-pix_fmt",
                 "yuv420p",
+                "-force_key_frames",
+                "expr:gte(t,n_forced*2)",
                 "-c:a",
                 "aac",
                 "-b:a",

@@ -91,7 +91,8 @@ async def quick_action(action: str, network_name: str, request: Request):
                     "add_week": "week",
                     "add_month": "month",
                 }.get(action)
-                if amount and station.get("_has_schedule"):
+                should_generate = action in {"rebuild_and_week", "reset_and_week"}
+                if amount and (should_generate or station.get("_has_schedule")):
                     log(f"Adding one {amount} to {name}.")
                     LiquidSchedule(station).add_amount(amount)
             LiquidManager().reload_schedules()
