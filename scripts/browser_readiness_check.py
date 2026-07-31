@@ -35,7 +35,8 @@ def wait_for_playback(page, timeout: int = 30_000) -> dict:
         raise RuntimeError("Playback started without reporting initial buffering")
     if not all(item["paused"] for item in evidence["messages"]):
         raise RuntimeError(f"Video played during initial buffering: {evidence}")
-    if max(item["seconds"] for item in evidence["messages"]) < 6:
+    target = evidence["messages"][-1]["target"]
+    if max(item["seconds"] for item in evidence["messages"]) < target:
         raise RuntimeError(f"Playback began below the buffer threshold: {evidence}")
     return {"first": first, "second": second, "startup_buffer": evidence}
 
@@ -169,6 +170,11 @@ def main() -> None:
         assert_compensated_offset(session_responses[-1])
         if first_offset < 10:
             raise RuntimeError(f"Initial session restarted near zero: {first_offset}")
+        session_count = len(session_responses)
+        page.dispatch_event("#video", "waiting")
+        page.wait_for_timeout(3_500)
+        if len(session_responses) != session_count:
+            raise RuntimeError("A transient waiting event recreated the HLS session")
 
         page.reload(wait_until="domcontentloaded")
         page.wait_for_function(

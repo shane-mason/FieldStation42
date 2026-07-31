@@ -72,11 +72,25 @@
           `Buffering ${channelName}: ${available.toFixed(1)} / ${target.toFixed(1)} seconds`;
         if (available >= target) {
           startupBuffering = false;
-          resolve();
+          resolve({
+            available,
+            elapsed: (performance.now() - started) / 1000
+          });
           return;
         }
         if (performance.now() - started >= STARTUP_TIMEOUT_SECONDS * 1000) {
           startupBuffering = false;
+          if (available > 0 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            console.warn(
+              `Starting ${channelName} with ${available.toFixed(1)} seconds buffered ` +
+              `after the startup timeout`
+            );
+            resolve({
+              available,
+              elapsed: (performance.now() - started) / 1000
+            });
+            return;
+          }
           reject(new Error(`Startup buffering timed out after ${STARTUP_TIMEOUT_SECONDS} seconds`));
           return;
         }
@@ -114,12 +128,25 @@
     } else {
       throw new Error("This browser has no HLS playback support");
     }
-    await waitForInitialBuffer(
+    const startup = await waitForInitialBuffer(
       channelName,
       bufferSeconds,
       signal,
       () => streamFailure
     );
+    // The server sought ahead by bufferSeconds when it created this session.
+    // If startup took longer than that, advance within the buffered range so
+    // slow segment generation does not leave playback unnecessarily behind.
+    const catchUp = Math.max(0, startup.elapsed - bufferSeconds);
+    if (catchUp > 0 && video.buffered.length) {
+      const range = video.buffered.length - 1;
+      const start = video.buffered.start(range);
+      const end = video.buffered.end(range);
+      video.currentTime = Math.min(
+        Math.max(start, catchUp),
+        Math.max(start, end - 0.75)
+      );
+    }
     await video.play();
   }
 
@@ -223,7 +250,11 @@
   document.querySelector("#next").onclick = () => adjacent(1);
   document.querySelector("#mute").onclick = () => {
     video.muted = !video.muted;
-    document.querySelector("#mute").textContent = video.muted ? "🔇" : "🔊";
+    document.body.classList.toggle("muted", video.muted);
+    document.querySelector("#mute").setAttribute(
+      "aria-label",
+      video.muted ? "Unmute" : "Mute"
+    );
   };
   document.querySelector("#volume").oninput = event => video.volume = event.target.value;
   document.querySelector("#fullscreen").onclick = () => document.querySelector("#viewer").requestFullscreen();
@@ -246,8 +277,6 @@
     });
     recover();
   });
-  video.addEventListener("waiting", recover);
-  video.addEventListener("stalled", recover);
   window.addEventListener("beforeunload", stopSession);
   setInterval(() => {
     if (nowInfo) {
