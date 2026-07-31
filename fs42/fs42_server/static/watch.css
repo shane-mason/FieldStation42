@@ -43,7 +43,7 @@ body.active #shade { opacity: 1; }
 
 #status {
   left: max(3vw, 24px);
-  bottom: 108px;
+  top: max(24px, env(safe-area-inset-top));
   display: flex;
   align-items: center;
   gap: 14px;
@@ -51,14 +51,14 @@ body.active #shade { opacity: 1; }
   filter: drop-shadow(0 3px 12px rgba(0, 0, 0, .75));
 }
 #channel-badge {
-  width: 58px;
-  height: 58px;
-  flex: 0 0 58px;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
   display: grid;
   place-content: center;
   text-align: center;
   border: 1px solid var(--border);
-  border-radius: 17px;
+  border-radius: 14px;
   background: rgba(8, 11, 17, .72);
   backdrop-filter: blur(18px) saturate(130%);
 }
@@ -71,7 +71,7 @@ body.active #shade { opacity: 1; }
 }
 #channel-number {
   color: #fff;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 760;
   line-height: 1.1;
 }
@@ -87,7 +87,7 @@ h1, p { margin: 0; }
 h1 {
   margin-top: 2px;
   color: #fff;
-  font-size: clamp(18px, 2.1vw, 28px);
+  font-size: clamp(16px, 1.7vw, 23px);
   font-weight: 720;
   letter-spacing: -.02em;
 }
@@ -96,7 +96,7 @@ h1 {
   margin-top: 2px;
   overflow: hidden;
   color: #d1d5dc;
-  font-size: clamp(13px, 1.35vw, 17px);
+  font-size: clamp(11px, 1.1vw, 14px);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -104,15 +104,15 @@ h1 {
 #controls {
   left: 50%;
   bottom: 22px;
-  width: min(calc(100vw - 48px), 880px);
-  min-height: 66px;
+  width: min(calc(100vw - 48px), 690px);
+  min-height: 54px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 9px 13px 14px;
+  gap: 10px;
+  padding: 6px 10px 11px;
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: 18px;
   background: var(--surface);
   box-shadow: 0 18px 50px rgba(0, 0, 0, .34);
   backdrop-filter: blur(24px) saturate(135%);
@@ -128,9 +128,9 @@ body.active #controls { transform: translate(-50%, 0); }
 #utility-controls { justify-content: flex-end; }
 button, select, input { font: inherit; }
 .icon-button {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   display: inline-grid;
   place-items: center;
   padding: 0;
@@ -144,8 +144,8 @@ button, select, input { font: inherit; }
 .icon-button:hover { background: rgba(255, 255, 255, .1); }
 .icon-button:active { transform: scale(.94); }
 .icon-button svg {
-  width: 19px;
-  height: 19px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -161,9 +161,9 @@ input:focus-visible {
 }
 .labeled {
   width: auto;
-  padding: 0 11px;
-  border-radius: 13px;
-  gap: 7px;
+  padding: 0 8px;
+  border-radius: 11px;
+  gap: 5px;
   grid-auto-flow: column;
   color: #dce0e6;
   font-size: 12px;
@@ -173,7 +173,7 @@ input:focus-visible {
   min-width: 0;
   display: grid;
   gap: 1px;
-  padding: 3px 12px 4px;
+  padding: 2px 8px 3px;
 }
 #channel-picker > span {
   color: #7f8794;
@@ -184,21 +184,21 @@ input:focus-visible {
   text-transform: uppercase;
 }
 #channels {
-  width: clamp(150px, 22vw, 250px);
-  height: 27px;
+  width: clamp(135px, 18vw, 190px);
+  height: 24px;
   padding: 0 20px 0 0;
   overflow: hidden;
   border: 0;
   color: #f5f7fa;
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
   cursor: pointer;
 }
 #channels option { color: #f5f7fa; background: #11151e; }
 #volume {
-  width: 92px;
+  width: 68px;
   height: 4px;
   padding: 10px 0;
   border: 0;
@@ -222,8 +222,8 @@ input:focus-visible {
 }
 .divider {
   width: 1px;
-  height: 24px;
-  margin: 0 5px;
+  height: 20px;
+  margin: 0 3px;
   background: rgba(255, 255, 255, .12);
 }
 .volume-off { display: none; }
@@ -231,9 +231,9 @@ body.muted .volume-on { display: none; }
 body.muted .volume-off { display: block; }
 #progress {
   position: absolute;
-  right: 16px;
-  bottom: 7px;
-  left: 16px;
+  right: 13px;
+  bottom: 6px;
+  left: 13px;
   height: 2px;
   overflow: hidden;
   border-radius: 2px;
@@ -304,16 +304,17 @@ body.muted .volume-off { display: block; }
 @media (max-width: 700px) {
   #status {
     right: 18px;
-    bottom: 105px;
+    top: max(16px, env(safe-area-inset-top));
+    bottom: auto;
     left: 18px;
   }
   #channel-badge {
-    width: 50px;
-    height: 50px;
-    flex-basis: 50px;
-    border-radius: 15px;
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+    border-radius: 13px;
   }
-  #channel-number { font-size: 21px; }
+  #channel-number { font-size: 18px; }
   #controls {
     bottom: max(14px, env(safe-area-inset-bottom));
     width: calc(100vw - 24px);
@@ -329,5 +330,5 @@ body.muted .volume-off { display: block; }
 }
 
 @media (pointer: coarse) {
-  .icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+  .icon-button { width: 40px; height: 40px; flex-basis: 40px; }
 }
