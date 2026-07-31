@@ -13,6 +13,31 @@ EPISODE_RE = re.compile(
     r"[\s._-]*e(?P<episode>\d{1,3}[a-z]*)[\s._-]*(?P<title>.*)$"
 )
 SEASON_DIR_RE = re.compile(r"(?i)^season[\s._-]*\d+$|^s\d+$")
+MOVIE_YEAR_RE = re.compile(r"^(?P<title>.+?)[\s._-]+(?P<year>(?:19|20)\d{2})(?:[\s._-]+.*)?$")
+TITLE_ALIASES = {
+    "shingeki no kyojin": "Attack on Titan",
+}
+
+
+def _guide_title_alias(title: str) -> str:
+    normalized = TitleParser.parse_title(title)
+    lowered = normalized.casefold()
+    for source, replacement in TITLE_ALIASES.items():
+        if lowered == source or lowered.startswith(source + " "):
+            return replacement
+    return normalized
+
+
+def _movie_display(path: str) -> dict:
+    match = MOVIE_YEAR_RE.match(Path(path).stem)
+    if not match:
+        return {}
+    return {
+        "display_title": (
+            f"{TitleParser.parse_title(match.group('title'))} "
+            f"({match.group('year')})"
+        )
+    }
 
 
 def _episode_display(path: str, meta: dict | None = None) -> dict:
@@ -72,7 +97,11 @@ def _attach_meta(blocks, read_meta: bool = True):
         meta = MetadataIO.read(path) if read_meta else None
         if meta:
             block.meta = meta
-        display = _episode_display(path, meta)
+        display = _episode_display(path, meta) or _movie_display(path)
+        if not display:
+            aliased = _guide_title_alias(getattr(block, "title", ""))
+            if aliased != getattr(block, "title", ""):
+                display = {"display_title": aliased}
         for key, value in display.items():
             setattr(block, key, value)
     return blocks

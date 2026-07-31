@@ -106,6 +106,12 @@ HEVC, AV1, AC3, EAC3, and other FFmpeg-readable inputs become H.264/AAC. The
 explicit copy profile is useful on known-compatible libraries. A later version
 can use `ffprobe` plus client capabilities to choose copy/remux per stream.
 
+For the automatic profile, FFprobe also inspects stream-language tags. When
+the primary audio is explicitly tagged as non-English and an English subtitle
+stream exists, FFmpeg burns that subtitle into the HLS video by default. Audio
+with an absent or `und` language tag is not guessed. The explicit `copy`
+profile remains unchanged because burning subtitles requires video encoding.
+
 The rolling playlist retains 12 two-second segments (at least 24 seconds).
 On initial tune the server resolves the scheduled media position
 `HOMETV_INITIAL_BUFFER_SECONDS` into the future. The client remains paused

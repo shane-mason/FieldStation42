@@ -1,5 +1,6 @@
 import datetime as dt
 import asyncio
+import json
 import os
 import tempfile
 import time
@@ -24,7 +25,11 @@ from fs42.fs42_server.api.watch import (
     create_session as create_session_endpoint,
 )
 from fs42.fs42_server.api import build as build_api
-from fs42.fs42_server.api.schedules import _attach_meta, _episode_display
+from fs42.fs42_server.api.schedules import (
+    _attach_meta,
+    _episode_display,
+    _movie_display,
+)
 
 
 class FakeManager:
@@ -120,6 +125,20 @@ class ResolverTests(unittest.TestCase):
         read.assert_not_called()
         self.assertEqual(block.display_title, "King Of The Hill")
 
+    def test_movie_release_name_keeps_only_title_and_year(self):
+        display = _movie_display(
+            "/media/Movies/War Dogs 2016 2160p Hybrid UHD BluRay Remux DV HDR.mkv"
+        )
+        self.assertEqual(display["display_title"], "War Dogs (2016)")
+
+    def test_guide_uses_known_english_series_alias(self):
+        block = SimpleNamespace(
+            title="Shingeki No Kyojin The Final Season",
+            content=SimpleNamespace(path="/media/anime/Shingeki No Kyojin.mkv"),
+        )
+        _attach_meta([block], read_meta=False)
+        self.assertEqual(block.display_title, "Attack on Titan")
+
     def test_schedule_path_must_exist_in_catalog(self):
         with tempfile.NamedTemporaryFile(suffix=".mp4") as media:
             with patch("fs42.hometv.CatalogAPI.get_entries", return_value=[]):
@@ -191,6 +210,81 @@ class SessionTests(unittest.TestCase):
                     root=temp_dir,
                     initial_buffer_seconds=-1,
                 )
+
+    def test_non_english_audio_selects_english_subtitles(self):
+        probe = SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {
+                            "codec_type": "audio",
+                            "codec_name": "aac",
+                            "tags": {"language": "jpn"},
+                        },
+                        {
+                            "codec_type": "subtitle",
+                            "codec_name": "ass",
+                            "tags": {"language": "eng"},
+                        },
+                    ]
+                }
+            )
+        )
+        with patch("fs42.hometv.subprocess.run", return_value=probe):
+            self.assertEqual(
+                HLSSessionManager._english_subtitle("/media/show.mkv"),
+                ("ass", 0),
+            )
+
+    def test_english_audio_does_not_enable_subtitles(self):
+        probe = SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {
+                            "codec_type": "audio",
+                            "tags": {"language": "eng"},
+                        },
+                        {
+                            "codec_type": "subtitle",
+                            "codec_name": "ass",
+                            "tags": {"language": "eng"},
+                        },
+                    ]
+                }
+            )
+        )
+        with patch("fs42.hometv.subprocess.run", return_value=probe):
+            self.assertIsNone(
+                HLSSessionManager._english_subtitle("/media/show.mkv")
+            )
+
+    def test_auto_profile_burns_selected_text_subtitle(self):
+        when = dt.datetime.now()
+        airing = Airing(
+            "42",
+            "Anime",
+            "Attack on Titan",
+            "Episode",
+            when,
+            when + dt.timedelta(minutes=30),
+            when,
+            when + dt.timedelta(minutes=30),
+            "/media/Attack on Titan's Return.mkv",
+            30,
+            1800,
+            1770,
+        )
+        command = HLSSessionManager._ffmpeg_command(
+            airing,
+            "auto",
+            Path("/tmp/hls"),
+            ("ass", 0),
+        )
+        self.assertIn("-vf", command)
+        subtitle_filter = command[command.index("-vf") + 1]
+        self.assertIn("subtitles=", subtitle_filter)
+        self.assertIn(r"Attack on Titan\'s Return.mkv", subtitle_filter)
 
     def test_hls_asset_traversal_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:

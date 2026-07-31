@@ -256,7 +256,12 @@ class HLSSessionManager:
             session_id = str(uuid.uuid4())
             directory = self.root / session_id
             directory.mkdir(mode=0o700)
-            command = self._ffmpeg_command(airing, profile, directory)
+            subtitle = (
+                self._english_subtitle(airing.media_path)
+                if profile == "auto"
+                else None
+            )
+            command = self._ffmpeg_command(airing, profile, directory, subtitle)
             LOG.info(
                 "Starting HLS session %s for channel %s at %.3fs (%s)",
                 session_id,
@@ -284,7 +289,56 @@ class HLSSessionManager:
             return session, airing
 
     @staticmethod
-    def _ffmpeg_command(airing: Airing, profile: str, directory: Path) -> list[str]:
+    def _english_subtitle(media_path: str) -> tuple[str, int] | None:
+        """Select an English subtitle only for explicitly non-English audio."""
+        try:
+            result = subprocess.run(
+                [
+                    os.environ.get("FS42_FFPROBE", "ffprobe"),
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=codec_type,codec_name:stream_tags=language",
+                    "-of",
+                    "json",
+                    media_path,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            streams = __import__("json").loads(result.stdout).get("streams", [])
+        except Exception as exc:
+            LOG.warning("Could not inspect subtitle languages for %s: %s", media_path, exc)
+            return None
+
+        audio = next(
+            (stream for stream in streams if stream.get("codec_type") == "audio"),
+            None,
+        )
+        audio_language = (
+            (audio or {}).get("tags", {}).get("language", "und").casefold()
+        )
+        if audio_language in {"eng", "en", "und", ""}:
+            return None
+
+        subtitles = [
+            stream for stream in streams if stream.get("codec_type") == "subtitle"
+        ]
+        for index, stream in enumerate(subtitles):
+            language = stream.get("tags", {}).get("language", "").casefold()
+            if language in {"eng", "en"}:
+                return stream.get("codec_name", ""), index
+        return None
+
+    @staticmethod
+    def _ffmpeg_command(
+        airing: Airing,
+        profile: str,
+        directory: Path,
+        subtitle: tuple[str, int] | None = None,
+    ) -> list[str]:
         command = [
             os.environ.get("FS42_FFMPEG", "ffmpeg"),
             "-hide_banner",
@@ -302,11 +356,32 @@ class HLSSessionManager:
         if profile == "copy":
             command += ["-c", "copy"]
         else:
+            video_map = "0:v:0"
+            video_filter = []
+            if subtitle:
+                codec, subtitle_index = subtitle
+                if codec in {"hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"}:
+                    command += [
+                        "-filter_complex",
+                        f"[0:v:0][0:s:{subtitle_index}]overlay[v]",
+                    ]
+                    video_map = "[v]"
+                else:
+                    escaped_path = (
+                        airing.media_path.replace("\\", "\\\\")
+                        .replace(":", "\\:")
+                        .replace("'", "\\'")
+                    )
+                    video_filter = [
+                        "-vf",
+                        f"subtitles='{escaped_path}':si={subtitle_index}",
+                    ]
             command += [
                 "-map",
-                "0:v:0",
+                video_map,
                 "-map",
                 "0:a:0?",
+                *video_filter,
                 "-c:v",
                 "libx264",
                 "-preset",
