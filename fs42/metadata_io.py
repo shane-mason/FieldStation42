@@ -2,6 +2,7 @@ import os
 import json
 import sqlite3
 import logging
+from fs42.database import connect
 
 _logger = logging.getLogger("MetadataIO")
 
@@ -41,7 +42,7 @@ class MetadataIO:
 
         try:
             real_path = os.path.realpath(os.path.abspath(file_path))
-            with sqlite3.connect(db_path) as conn:
+            with connect(db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT meta FROM file_meta WHERE path = ?", (real_path,))
                 row = cursor.fetchone()

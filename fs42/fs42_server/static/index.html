@@ -36,6 +36,24 @@
                         <p>Loading station data...</p>
                     </div>
                 </div>
+
+                <div id="quick-actions" class="pure-u-1" style="margin-top:1.5em;">
+                    <h2>Quick Actions</h2>
+                    <p>Catalog rebuilds reset the selected channel's schedule because schedule entries reference catalog IDs.</p>
+                    <div class="pure-form" style="display:flex;flex-wrap:wrap;gap:.5em;align-items:center;">
+                        <select id="quick-station" aria-label="Selected catalog"><option value="all">All stations</option></select>
+                        <button class="pure-button quick" data-action="rebuild">Rebuild selected catalog</button>
+                        <button class="pure-button quick" data-action="rebuild_skip_chapters">Rebuild without chapter scan</button>
+                        <button class="pure-button quick" data-action="rebuild_and_week">Rebuild + generate one week</button>
+                        <button class="pure-button quick" data-action="reset_and_week">Reset schedule + one week</button>
+                        <button class="pure-button quick" data-action="add_day">Add one day</button>
+                        <button class="pure-button quick" data-action="add_week">Add one week</button>
+                        <button class="pure-button quick" data-action="add_month">Add one month</button>
+                        <a class="pure-button pure-button-primary" href="/watch">Open Watch Page</a>
+                        <a class="pure-button" href="/remote">Open Remote</a>
+                    </div>
+                    <pre id="quick-log" style="min-height:4em;max-height:18em;overflow:auto;padding:1em;background:#111;color:#ddd;white-space:pre-wrap;">Ready.</pre>
+                </div>
                 
                 <div id="ticker-control" class="pure-u-1" style="display:none; margin-top:1.5em; margin-bottom:1.5em;">
                     <h2 style="margin-bottom:1em; font-size:1.2em;">Display Message</h2>
@@ -90,6 +108,12 @@
             try {
                 const resp = await window.fs42Api.get('summary');
                 const stations = resp.summary_data || [];
+                const quickStation = document.getElementById('quick-station');
+                if (quickStation) {
+                    quickStation.innerHTML = '<option value="all">All stations</option>' +
+                        stations.filter(s => s._has_catalog || s._has_schedule)
+                            .map(s => `<option value="${s.network_name}">${s.channel_number} — ${s.network_name}</option>`).join('');
+                }
                 if (stations.length === 0) {
                     document.getElementById('stations-list').innerHTML = '<p>No stations found.</p>';
                     return;
@@ -146,6 +170,44 @@
             }
         }
         loadStationSummary();
+
+        document.addEventListener('click', async function(e) {
+            const button = e.target.closest('.quick');
+            if (!button) return;
+            const action = button.dataset.action;
+            const station = document.getElementById('quick-station').value;
+            if (action.startsWith('rebuild') &&
+                !confirm('This catalog rebuild will reset the selected schedule. Continue?')) return;
+            const buttons = [...document.querySelectorAll('.quick')];
+            buttons.forEach(item => item.disabled = true);
+            const log = document.getElementById('quick-log');
+            log.textContent = 'Starting…';
+            try {
+                const response = await fetch(`/build/quick/${action}/${encodeURIComponent(station)}`, {method:'POST'});
+                const body = await response.json();
+                if (!response.ok) throw new Error(body.detail || 'Unable to start task');
+                const poll = setInterval(async () => {
+                    try {
+                        const statusResponse = await fetch(`/build/quick/status/${body.task_id}`);
+                        const task = await statusResponse.json();
+                        log.textContent = task.log || task.status;
+                        log.scrollTop = log.scrollHeight;
+                        if (task.status === 'done' || task.status === 'error') {
+                            clearInterval(poll);
+                            buttons.forEach(item => item.disabled = false);
+                            loadStationSummary();
+                        }
+                    } catch (error) {
+                        clearInterval(poll);
+                        log.textContent += `\n${error.message}`;
+                        buttons.forEach(item => item.disabled = false);
+                    }
+                }, 1000);
+            } catch (error) {
+                log.textContent = error.message;
+                buttons.forEach(item => item.disabled = false);
+            }
+        });
 
         // Check queue connection status and show/hide ticker controls
         async function checkQueueConnection() {

@@ -6,6 +6,7 @@ from contextlib import contextmanager
 
 from fs42.station_manager import StationManager
 from fs42.catalog_entry import CatalogEntry
+from fs42.database import connect
 
 
 class CatalogIO:
@@ -16,7 +17,7 @@ class CatalogIO:
 
     @contextmanager
     def _get_connection(self):
-        connection = sqlite3.connect(self.db_path)
+        connection = connect(self.db_path)
         try:
             yield connection
             connection.commit()

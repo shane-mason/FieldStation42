@@ -2,6 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 
 from fs42.station_manager import StationManager
+from fs42.database import connect
 from fs42.sequence import NamedSequence
 
 
@@ -12,7 +13,7 @@ class SequenceIO:
 
     @contextmanager
     def _get_connection(self):
-        connection = sqlite3.connect(self.db_path)
+        connection = connect(self.db_path)
         try:
             yield connection
             connection.commit()

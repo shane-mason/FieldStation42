@@ -7,6 +7,7 @@ from fs42.liquid_blocks import LiquidBlock, LiquidLoopBlock, LiquidClipBlock, Li
 from fs42.block_plan import BlockPlanEntry
 from fs42.catalog_api import CatalogAPI
 from fs42.title_parser import TitleParser
+from fs42.database import connect
 
 
 class LiquidIO:
@@ -21,7 +22,7 @@ class LiquidIO:
 
     @contextmanager
     def _get_connection(self):
-        connection = sqlite3.connect(self.db_path)
+        connection = connect(self.db_path)
         try:
             yield connection
             connection.commit()
