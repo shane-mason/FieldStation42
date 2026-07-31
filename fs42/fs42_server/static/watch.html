@@ -10,23 +10,47 @@
 </head>
 <body>
   <main id="viewer">
-    <video id="video" autoplay playsinline></video>
+    <video id="video" playsinline></video>
     <div id="shade"></div>
-    <section id="status" class="panel">
-      <div id="channel-number">--</div>
-      <div>
+    <section id="status" class="panel" aria-live="polite">
+      <div id="channel-badge">
+        <span>CH</span>
+        <strong id="channel-number">--</strong>
+      </div>
+      <div id="now-playing">
+        <span class="eyebrow">Now airing</span>
         <h1 id="channel-name">FieldStation42</h1>
         <p id="program-title">Connecting…</p>
       </div>
     </section>
     <section id="controls" class="panel">
-      <button id="previous" aria-label="Previous channel">◀</button>
-      <select id="channels" aria-label="Channel"></select>
-      <button id="next" aria-label="Next channel">▶</button>
-      <button id="mute" aria-label="Mute">🔊</button>
-      <input id="volume" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume">
-      <button id="guide-button" aria-label="Program guide">Guide</button>
-      <button id="fullscreen" aria-label="Fullscreen">⛶</button>
+      <div id="channel-controls">
+        <button id="previous" class="icon-button" aria-label="Previous channel" title="Previous channel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M18 6l-8 6 8 6z"/></svg>
+        </button>
+        <label id="channel-picker">
+          <span>Channel</span>
+          <select id="channels" aria-label="Channel"></select>
+        </label>
+        <button id="next" class="icon-button" aria-label="Next channel" title="Next channel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14M6 6l8 6-8 6z"/></svg>
+        </button>
+      </div>
+      <div id="utility-controls">
+        <button id="mute" class="icon-button" aria-label="Mute" title="Mute">
+          <svg class="volume-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10zM16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/></svg>
+          <svg class="volume-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10zM16 9l5 6M21 9l-5 6"/></svg>
+        </button>
+        <input id="volume" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume">
+        <span class="divider" aria-hidden="true"></span>
+        <button id="guide-button" class="icon-button labeled" aria-label="Program guide" title="Program guide">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v14M8 10h13M8 15h13"/></svg>
+          <span>Guide</span>
+        </button>
+        <button id="fullscreen" class="icon-button" aria-label="Fullscreen" title="Fullscreen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+        </button>
+      </div>
       <div id="progress"><span></span></div>
     </section>
     <aside id="guide" class="panel" hidden>
