@@ -24,6 +24,7 @@ from fs42.fs42_server.api.watch import (
     create_session as create_session_endpoint,
 )
 from fs42.fs42_server.api import build as build_api
+from fs42.fs42_server.api.schedules import _attach_meta, _episode_display
 
 
 class FakeManager:
@@ -89,6 +90,35 @@ class ResolverTests(unittest.TestCase):
         resolver = ScheduleResolver(FakeManager())
         self.assertEqual(resolver.station("42")["network_name"], "Test TV")
         self.assertEqual(resolver.station("Test TV")["channel_number"], 42)
+
+    def test_episode_display_uses_series_prefix_without_episode_code(self):
+        display = _episode_display(
+            "/media/SpongeBob SquarePants/Season 04/"
+            "SpongeBob SquarePants S04E15ab Squidtastic Voyage.mp4"
+        )
+        self.assertEqual(display["display_title"], "Spongebob Squarepants")
+        self.assertEqual(display["episode_title"], "Squidtastic Voyage")
+        self.assertEqual(display["season"], 4)
+        self.assertEqual(display["episode"], "15ab")
+
+    def test_episode_display_uses_show_directory_when_filename_starts_with_code(self):
+        display = _episode_display(
+            "/media/King of the Hill (1997)/Season 01/"
+            "S01E10 Keeping Up With Our Joneses.mkv"
+        )
+        self.assertEqual(display["display_title"], "King Of The Hill")
+        self.assertEqual(display["episode_title"], "Keeping Up With Our Joneses")
+
+    def test_guide_display_metadata_does_not_read_file_metadata(self):
+        block = SimpleNamespace(
+            content=SimpleNamespace(
+                path="/media/King of the Hill/Season 01/S01E10 Episode.mkv"
+            )
+        )
+        with patch("fs42.fs42_server.api.schedules.MetadataIO.read") as read:
+            _attach_meta([block], read_meta=False)
+        read.assert_not_called()
+        self.assertEqual(block.display_title, "King Of The Hill")
 
     def test_schedule_path_must_exist_in_catalog(self):
         with tempfile.NamedTemporaryFile(suffix=".mp4") as media:

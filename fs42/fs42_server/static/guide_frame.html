@@ -333,7 +333,9 @@
                     const scheduleBlocks = await window.fs42Common.fetchSchedule(
                         station.network_name,
                         formatDateForAPI(extendedStartTime),
-                        formatDateForAPI(guideEndTime)
+                        formatDateForAPI(guideEndTime),
+                        false,
+                        true
                     );
 
                     if (scheduleBlocks && scheduleBlocks.length > 0) {
@@ -415,7 +417,7 @@
                 programDiv.classList.add('current-program');
             }
             
-            let title = block.title || 'Untitled';
+            let title = block.display_title || block.title || 'Untitled';
             if (debugShowFilename) {
                 title = getBlockFilename(block) || title;
             }
