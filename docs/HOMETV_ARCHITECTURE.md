@@ -106,6 +106,14 @@ HEVC, AV1, AC3, EAC3, and other FFmpeg-readable inputs become H.264/AAC. The
 explicit copy profile is useful on known-compatible libraries. A later version
 can use `ffprobe` plus client capabilities to choose copy/remux per stream.
 
+The rolling playlist retains 12 two-second segments (at least 24 seconds).
+On initial tune the server resolves the scheduled media position
+`HOMETV_INITIAL_BUFFER_SECONDS` into the future. The client remains paused
+until that much media is present in the video element's actual buffered
+ranges. With the default six-second target, generation time then brings the
+first played frame back close to the authoritative wall-clock broadcast
+position. This startup gate is not reapplied for ordinary buffer fluctuations.
+
 The FFmpeg command is constructed as an argument vector, never a shell string.
 No endpoint accepts a command or path. Input paths come only from the current
 schedule and must resolve to a catalog-approved file.
@@ -113,7 +121,8 @@ schedule and must resolve to a catalog-approved file.
 ## Synchronization and channel changes
 
 The server is authoritative for time. Creating or changing a session resolves
-the schedule again at that instant and seeks into the selected media item.
+the schedule at the end of the configured startup-buffer interval and seeks
+into the selected media item.
 Consequently, viewers joining the same channel see approximately the same
 point; their difference is bounded by startup and segment latency. The web
 client periodically fetches `now`, displays progress using the returned server

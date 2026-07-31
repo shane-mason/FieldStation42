@@ -110,7 +110,13 @@ class SessionTests(unittest.TestCase):
                 when + dt.timedelta(minutes=30), when,
                 when + dt.timedelta(minutes=30), str(media), 91.25, 1800, 1708.75,
             )
-            resolver = SimpleNamespace(now=lambda channel: airing)
+            requested_times = []
+
+            def resolve(channel, requested):
+                requested_times.append(requested)
+                return airing
+
+            resolver = SimpleNamespace(now=resolve)
             processes = []
 
             def factory(command, **_kwargs):
@@ -121,6 +127,7 @@ class SessionTests(unittest.TestCase):
             manager = HLSSessionManager(
                 resolver=resolver,
                 root=Path(temp_dir) / "hls",
+                initial_buffer_seconds=6,
                 process_factory=factory,
             )
             session, _ = manager.create("42")
@@ -129,6 +136,12 @@ class SessionTests(unittest.TestCase):
             self.assertIn("-t", processes[0].command)
             self.assertIn("-force_key_frames", processes[0].command)
             self.assertEqual(
+                processes[0].command[
+                    processes[0].command.index("-hls_list_size") + 1
+                ],
+                "12",
+            )
+            self.assertEqual(
                 processes[0].command[processes[0].command.index("-ss") + 1],
                 "91.250",
             )
@@ -136,6 +149,18 @@ class SessionTests(unittest.TestCase):
             self.assertTrue(manager.delete(session.session_id))
             self.assertFalse(session.directory.exists())
             self.assertEqual(processes[0].returncode, 0)
+            self.assertAlmostEqual(
+                (requested_times[0] - when).total_seconds(), 6, delta=1
+            )
+
+    def test_initial_buffer_configuration_is_validated(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaisesRegex(ValueError, "non-negative number"):
+                HLSSessionManager(
+                    resolver=SimpleNamespace(),
+                    root=temp_dir,
+                    initial_buffer_seconds=-1,
+                )
 
     def test_hls_asset_traversal_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp_dir:

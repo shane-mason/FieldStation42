@@ -18,6 +18,7 @@ services:
       FS42_HEADLESS: "1"
       FS42_HLS_IDLE_SECONDS: "${FS42_HLS_IDLE_SECONDS:-90}"
       FS42_HLS_MAX_SESSIONS: "${FS42_HLS_MAX_SESSIONS:-8}"
+      HOMETV_INITIAL_BUFFER_SECONDS: "${HOMETV_INITIAL_BUFFER_SECONDS:-6}"
       TZ: "${TZ:-America/Chicago}"
     volumes:
       - "${FS42_MEDIA_PATH:?Set FS42_MEDIA_PATH}:/media:ro"

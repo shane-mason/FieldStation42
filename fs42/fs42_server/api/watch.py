@@ -59,6 +59,7 @@ async def create_session(body: SessionRequest, request: Request):
         return {
             "session_id": session.session_id,
             "playlist_url": f"/api/watch/sessions/{session.session_id}/master.m3u8",
+            "initial_buffer_seconds": _manager(request).initial_buffer_seconds,
             "now": airing.public_dict(__import__("datetime").datetime.now()),
         }
     except (WatchError, ValueError) as exc:

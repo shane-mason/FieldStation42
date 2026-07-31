@@ -120,7 +120,8 @@ Open:
 - Health check: `http://UNRAID-IP:4242/health`
 
 Useful environment settings include `FS42_PORT`,
-`FS42_HLS_IDLE_SECONDS`, and `FS42_HLS_MAX_SESSIONS`. Container logs are
+`FS42_HLS_IDLE_SECONDS`, `FS42_HLS_MAX_SESSIONS`, and
+`HOMETV_INITIAL_BUFFER_SECONDS` (default `6`). Container logs are
 available through `docker compose logs`; application logs also persist in the
 configured logs directory.
 

@@ -5,7 +5,9 @@
   const progress = document.querySelector("#progress span");
   let channels = [], sessionId = null, hls = null, nowInfo = null;
   let recoveryTimer = null, controlsTimer = null, heartbeat = null, boundaryTimer = null;
-  let isTuning = false;
+  let isTuning = false, startupBuffering = false, tuneAbort = null;
+  const STARTUP_TIMEOUT_SECONDS =
+    Number(window.HOMETV_STARTUP_TIMEOUT_SECONDS || 30);
 
   const showControls = () => {
     document.body.classList.add("active");
@@ -26,14 +28,66 @@
     clearInterval(heartbeat);
     clearTimeout(boundaryTimer);
     if (hls) { hls.destroy(); hls = null; }
+    startupBuffering = false;
+    video.pause();
     video.removeAttribute("src");
     if (sessionId) {
       const old = sessionId; sessionId = null;
-      await fetch(`/api/watch/sessions/${old}`, {method: "DELETE"}).catch(() => {});
+      await fetch(
+        `/api/watch/sessions/${old}`,
+        {method: "DELETE", keepalive: true}
+      ).catch(() => {});
     }
   }
 
-  function attach(url) {
+  function bufferedAhead() {
+    const current = video.currentTime;
+    for (let index = 0; index < video.buffered.length; index += 1) {
+      const start = video.buffered.start(index);
+      const end = video.buffered.end(index);
+      if (start <= current + 0.5 && end > current) return end - current;
+    }
+    return 0;
+  }
+
+  function waitForInitialBuffer(channelName, target, signal, getFailure) {
+    startupBuffering = true;
+    video.pause();
+    const started = performance.now();
+    return new Promise((resolve, reject) => {
+      const check = () => {
+        if (signal.aborted) {
+          startupBuffering = false;
+          reject(new DOMException("Tuning cancelled", "AbortError"));
+          return;
+        }
+        const failure = getFailure();
+        if (failure) {
+          startupBuffering = false;
+          reject(failure);
+          return;
+        }
+        const available = bufferedAhead();
+        message.textContent =
+          `Buffering ${channelName}: ${available.toFixed(1)} / ${target.toFixed(1)} seconds`;
+        if (available >= target) {
+          startupBuffering = false;
+          resolve();
+          return;
+        }
+        if (performance.now() - started >= STARTUP_TIMEOUT_SECONDS * 1000) {
+          startupBuffering = false;
+          reject(new Error(`Startup buffering timed out after ${STARTUP_TIMEOUT_SECONDS} seconds`));
+          return;
+        }
+        setTimeout(check, 200);
+      };
+      check();
+    });
+  }
+
+  async function attach(url, channelName, bufferSeconds, signal) {
+    let streamFailure = null;
     // Chromium may report "maybe" for native HLS while failing to decode an
     // MPEG-TS playlist. Prefer HLS.js wherever Media Source is available and
     // reserve native HLS for Safari and other browsers without MSE support.
@@ -41,9 +95,11 @@
       hls = new Hls({liveSyncDurationCount: 3, maxLiveSyncPlaybackRate: 1.25});
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(recover));
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
+          streamFailure = new Error(
+            `HLS startup failed: ${data.details || data.type}`
+          );
           console.error("Fatal HLS playback error", {
             type: data.type,
             details: data.details,
@@ -54,14 +110,23 @@
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
-      video.play().catch(recover);
+      video.load();
     } else {
       throw new Error("This browser has no HLS playback support");
     }
+    await waitForInitialBuffer(
+      channelName,
+      bufferSeconds,
+      signal,
+      () => streamFailure
+    );
+    await video.play();
   }
 
   async function tune(channel) {
-    if (isTuning) return;
+    if (tuneAbort) tuneAbort.abort();
+    tuneAbort = new AbortController();
+    const signal = tuneAbort.signal;
     isTuning = true;
     clearTimeout(recoveryTimer);
     message.textContent = "Tuning…";
@@ -70,12 +135,18 @@
       const result = await api("/api/watch/sessions", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({channel: String(channel), profile: "auto"})
+        body: JSON.stringify({channel: String(channel), profile: "auto"}),
+        signal
       });
       sessionId = result.session_id;
       nowInfo = result.now;
       renderNow();
-      attach(result.playlist_url);
+      await attach(
+        result.playlist_url,
+        nowInfo.channel_name,
+        Number(result.initial_buffer_seconds),
+        signal
+      );
       const boundaryDelay = Date.parse(nowInfo.item_end) - Date.now() + 250;
       boundaryTimer = setTimeout(
         () => tune(channelSelect.value),
@@ -87,6 +158,8 @@
       message.textContent = "";
       localStorage.setItem("fs42-channel", String(channel));
     } catch (error) {
+      if (error.name === "AbortError") return;
+      console.error("HomeTV startup failed", error);
       message.textContent = error.message;
       isTuning = false;
       recover(true);
@@ -96,7 +169,7 @@
   }
 
   function recover(force = false) {
-    if (isTuning || (!sessionId && !force)) return;
+    if (isTuning || startupBuffering || (!sessionId && !force)) return;
     if (recoveryTimer) return;
     message.textContent = "Playback interrupted — reconnecting…";
     recoveryTimer = setTimeout(() => {
@@ -173,6 +246,8 @@
     });
     recover();
   });
+  video.addEventListener("waiting", recover);
+  video.addEventListener("stalled", recover);
   window.addEventListener("beforeunload", stopSession);
   setInterval(() => {
     if (nowInfo) {

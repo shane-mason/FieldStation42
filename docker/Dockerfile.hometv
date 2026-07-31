@@ -9,6 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
     FS42_SERVER_PORT=4242 \
     FS42_DB_PATH=/app/runtime/fs42_fluid.db \
     FS42_HLS_DIR=/app/runtime/hls \
+    HOMETV_INITIAL_BUFFER_SECONDS=6 \
     FS42_LOG_DIR=/app/logs \
     FS42_HEADLESS=1
 

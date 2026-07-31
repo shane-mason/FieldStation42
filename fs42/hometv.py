@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import math
 import os
 import re
 import shutil
@@ -191,6 +192,7 @@ class HLSSessionManager:
         root: str | Path | None = None,
         idle_seconds: int | None = None,
         max_sessions: int | None = None,
+        initial_buffer_seconds: float | None = None,
         process_factory: Callable[..., subprocess.Popen] = subprocess.Popen,
     ):
         conf = StationManager().server_conf
@@ -210,6 +212,19 @@ class HLSSessionManager:
             or os.environ.get("FS42_HLS_MAX_SESSIONS")
             or conf.get("hls_max_sessions", 8)
         )
+        self.initial_buffer_seconds = float(
+            initial_buffer_seconds
+            if initial_buffer_seconds is not None
+            else os.environ.get("HOMETV_INITIAL_BUFFER_SECONDS")
+            or conf.get("hometv_initial_buffer_seconds", 6)
+        )
+        if (
+            not math.isfinite(self.initial_buffer_seconds)
+            or self.initial_buffer_seconds < 0
+        ):
+            raise ValueError(
+                "HOMETV_INITIAL_BUFFER_SECONDS must be a non-negative number"
+            )
         self.process_factory = process_factory
         self.sessions: dict[str, StreamSession] = {}
         self.lock = threading.RLock()
@@ -231,7 +246,13 @@ class HLSSessionManager:
             self.cleanup()
             if len(self.sessions) >= self.max_sessions:
                 raise WatchError("The server has reached its stream session limit")
-            airing = self.resolver.now(channel)
+            # Generate from the point that will be airing after the client has
+            # accumulated its startup buffer. FFmpeg runs in real time, so the
+            # buffered content catches up with the wall clock before play().
+            target_time = _local_now() + dt.timedelta(
+                seconds=self.initial_buffer_seconds
+            )
+            airing = self.resolver.now(channel, target_time)
             session_id = str(uuid.uuid4())
             directory = self.root / session_id
             directory.mkdir(mode=0o700)
@@ -307,7 +328,7 @@ class HLSSessionManager:
             "-hls_time",
             "2",
             "-hls_list_size",
-            "8",
+            "12",
             "-hls_flags",
             "delete_segments+independent_segments+omit_endlist",
             "-hls_segment_filename",
