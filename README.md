@@ -14,6 +14,32 @@ FieldStation42 turns your Linux computer or Raspberry Pi into a broadcast and ca
 - **On-screen display** — channel banners and now-playing info overlay on the screen
 - **Extensive REST API** — control playback, change channels, query status, and build your own tools and integrations against a full HTTP API
 - **Runs anywhere** — Raspberry Pi, any Linux machine, or Windows via WSL
+- **Home TV server mode** — run headlessly on Unraid/Docker and watch the
+  shared channel timeline from browsers at `/watch`
+
+## Headless Home TV
+
+This fork includes an HLS-based browser viewer while preserving the original
+local MPV player. The Unraid/server instance owns the media, catalog, schedule,
+and FFmpeg processes; viewing devices only open a browser.
+
+1. Copy `docker/hometv.env.example` to `docker/.env` and set the Unraid paths.
+2. Ensure station media paths in the configuration point at the container's
+   read-only `/media` mount.
+3. Start the headless service:
+
+   ```bash
+   docker compose --env-file docker/.env \
+     -f docker/docker-compose.hometv.yml up -d --build
+   ```
+
+4. Open `http://UNRAID-IP:4242/watch`.
+
+The management console remains at `/`, and local installations can continue
+using `field_player.py` and MPV unchanged. See
+[Home TV architecture](docs/HOMETV_ARCHITECTURE.md),
+[Docker/Unraid setup](docker/README.md), and
+[Raspberry Pi kiosk setup](docs/RASPBERRY_PI_KIOSK.md).
 
 ## Documentation
 
@@ -61,7 +87,6 @@ If you're getting value from FieldStation42, consider supporting it on [Patreon]
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. Please open an issue before submitting large changes.
-
 
 
 

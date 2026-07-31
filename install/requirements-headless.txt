@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+jsonschema
+requests
+rich
+mutagen
+ffmpeg-python
+moviepy>=2.1.1

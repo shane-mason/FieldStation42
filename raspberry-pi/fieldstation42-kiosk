@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+WATCH_URL="${FS42_WATCH_URL:-http://192.168.1.10:4242/watch}"
+
+# Chromium is restarted after a crash or desktop/network interruption.
+while true; do
+    chromium \
+        --kiosk \
+        --noerrdialogs \
+        --disable-infobars \
+        --disable-session-crashed-bubble \
+        --autoplay-policy=no-user-gesture-required \
+        "$WATCH_URL"
+    sleep 3
+done

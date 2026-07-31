@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=FieldStation42 Home TV
+Exec=/usr/local/bin/fieldstation42-kiosk
+Terminal=false
+X-GNOME-Autostart-enabled=true

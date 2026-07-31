@@ -92,3 +92,36 @@ field_player() {
 ```
 
 This way, you can run `station_42` or `field_player` anywhere to launch them. (the location for FS42_LOCATION would likely need to change on your machine)
+# Headless Home TV / Unraid
+
+The production Home TV deployment uses `Dockerfile.hometv` and
+`docker-compose.hometv.yml`. These intentionally contain no MPV, X11, local
+display, PulseAudio, or host audio mounts. The older Compose configuration
+below remains available for legacy local MPV playback.
+
+Copy the environment template and edit its host paths:
+
+```bash
+cp docker/hometv.env.example docker/.env
+docker compose --env-file docker/.env \
+  -f docker/docker-compose.hometv.yml up -d --build
+```
+
+The media share is mounted read-only at `/media`. Configure channel content
+paths using that container path. Configuration, catalog data, runtime SQLite
+and HLS cache, and logs have distinct persistent mounts. Do not point these at
+live data while testing a development image; copy the directories first.
+
+Open:
+
+- Management console: `http://UNRAID-IP:4242/`
+- Watch page: `http://UNRAID-IP:4242/watch`
+- Remote: `http://UNRAID-IP:4242/remote`
+- Health check: `http://UNRAID-IP:4242/health`
+
+Useful environment settings include `FS42_PORT`,
+`FS42_HLS_IDLE_SECONDS`, and `FS42_HLS_MAX_SESSIONS`. Container logs are
+available through `docker compose logs`; application logs also persist in the
+configured logs directory.
+
+## Legacy local-player container

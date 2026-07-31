@@ -1,0 +1,36 @@
+services:
+  fieldstation42:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.hometv
+    image: fieldstation42-hometv:local
+    container_name: fieldstation42-hometv
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${FS42_PORT:-4242}:4242"
+    environment:
+      FS42_SERVER_HOST: "0.0.0.0"
+      FS42_SERVER_PORT: "4242"
+      FS42_DB_PATH: "/app/runtime/fs42_fluid.db"
+      FS42_HLS_DIR: "/app/runtime/hls"
+      FS42_LOG_DIR: "/app/logs"
+      FS42_HEADLESS: "1"
+      FS42_HLS_IDLE_SECONDS: "${FS42_HLS_IDLE_SECONDS:-90}"
+      FS42_HLS_MAX_SESSIONS: "${FS42_HLS_MAX_SESSIONS:-8}"
+      TZ: "${TZ:-America/Chicago}"
+    volumes:
+      - "${FS42_MEDIA_PATH:?Set FS42_MEDIA_PATH}:/media:ro"
+      - "${FS42_CONFS_PATH:?Set FS42_CONFS_PATH}:/app/confs"
+      - "${FS42_CATALOG_PATH:?Set FS42_CATALOG_PATH}:/app/catalog"
+      - "${FS42_RUNTIME_PATH:?Set FS42_RUNTIME_PATH}:/app/runtime"
+      - "${FS42_LOGS_PATH:?Set FS42_LOGS_PATH}:/app/logs"
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:4242/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true

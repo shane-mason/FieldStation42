@@ -49,6 +49,14 @@ class StationManager(object):
                 self._number_index = {}
                 self._name_index = {}
                 self.load_main_config()
+                self.server_conf["server_host"] = os.environ.get(
+                    "FS42_SERVER_HOST", self.server_conf["server_host"]
+                )
+                self.server_conf["server_port"] = int(
+                    os.environ.get("FS42_SERVER_PORT", self.server_conf["server_port"])
+                )
+                if os.environ.get("FS42_DB_PATH"):
+                    self.server_conf["db_path"] = os.environ["FS42_DB_PATH"]
                 self.load_json_stations()
             self.guide_config = None
             for i in range(len(self.stations)):
@@ -59,6 +67,11 @@ class StationManager(object):
                 if station["network_type"] == "guide":
                     self.guide_config = station
                     logging.getLogger().info("Loading and checking guide channel")
+                    if os.environ.get("FS42_HEADLESS", "").lower() in {"1", "true", "yes"}:
+                        logging.getLogger().info(
+                            "Skipping local guide-window validation in headless mode"
+                        )
+                        continue
                     from fs42.guide_tk import GuideWindowConf
 
                     gconf = GuideWindowConf()
