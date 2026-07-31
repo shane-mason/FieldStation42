@@ -2,6 +2,7 @@ import logging
 import os
 import glob
 import json
+import re
 import sys
 
 # Validate ffmpeg-python package
@@ -64,7 +65,9 @@ class MediaProcessor:
     # as the scan root its own files still remain eligible.
     AUXILIARY_VIDEO_DIRS = {
         "behind the scenes",
+        "deleted and extended scenes",
         "deleted scenes",
+        "extended scenes",
         "extras",
         "featurettes",
         "interviews",
@@ -327,7 +330,7 @@ class MediaProcessor:
                 d
                 for d in dirs
                 if not d.startswith(".")
-                and d.casefold().replace("_", " ").replace("-", " ")
+                and re.sub(r"[^a-z0-9]+", " ", d.casefold()).strip()
                 not in MediaProcessor.AUXILIARY_VIDEO_DIRS
             ]
 
@@ -459,16 +462,82 @@ class MediaProcessor:
         return break_points
 
     @staticmethod
+    def safe_commercial_segments(
+        black_segments,
+        content_duration,
+        chapter_segments=None,
+        edge_guard=120,
+        minimum_spacing=180,
+        alignment_tolerance=5,
+    ):
+        """Convert deliberate black transitions into conservative act segments.
+
+        The input is analyzed feature content only. Short opening/credits-edge
+        candidates and clusters of nearby black frames are discarded. Returned
+        segments always cover the entire feature without skipping content.
+        """
+        if content_duration <= edge_guard * 2:
+            return []
+
+        black = MediaProcessor.calc_black_segments(
+            [dict(segment) for segment in (black_segments or [])],
+            content_duration,
+        )
+        chapters = MediaProcessor.calc_black_segments(
+            [dict(segment) for segment in (chapter_segments or [])],
+            content_duration,
+        )
+        black_points = [float(segment["chapter_end"]) for segment in black[:-1]]
+        candidates = []
+        unsafe_title_re = re.compile(
+            r"\b(?:credit|credits|ending|end credits|outro)\b"
+        )
+        explicit_title_re = re.compile(
+            r"\b(?:act|commercial|advert|break)\b"
+        )
+        for index, segment in enumerate(chapters[:-1]):
+            point = float(segment["chapter_end"])
+            current_title = str(segment.get("title", "")).casefold()
+            next_title = str(chapters[index + 1].get("title", "")).casefold()
+            if unsafe_title_re.search(next_title):
+                continue
+            explicitly_authored = bool(
+                explicit_title_re.search(current_title)
+                or explicit_title_re.search(next_title)
+            )
+            aligned_with_black = any(
+                abs(point - black_point) <= alignment_tolerance
+                for black_point in black_points
+            )
+            if explicitly_authored or aligned_with_black:
+                candidates.append(point)
+
+        candidates = sorted(
+            point
+            for point in set(candidates)
+            if edge_guard <= point <= content_duration - edge_guard
+        )
+
+        selected = []
+        for point in candidates:
+            if not selected or point - selected[-1] >= minimum_spacing:
+                selected.append(point)
+
+        if not selected:
+            return []
+
+        boundaries = [0.0, *selected, float(content_duration)]
+        return [
+            {
+                "chapter_start": boundaries[index],
+                "chapter_end": boundaries[index + 1],
+                "segment_duration": boundaries[index + 1] - boundaries[index],
+            }
+            for index in range(len(boundaries) - 1)
+        ]
+
+    @staticmethod
     def black_detect(fname, base_duration, black_min_duration=0.1, black_pixel_tresh=0.1, black_ratio_thresh=0.95):
-        def min_segment(break_points):
-            spx = sorted(break_points, key=lambda x: x["segment_duration"])
-            return spx[0]["segment_duration"]
-
-        def remove_min(break_points):
-            spx = sorted(break_points, key=lambda x: x["segment_duration"])
-            del spx[0]
-            return spx
-
         _l = logging.getLogger("MEDIA")
         _l.info(f"Detecting black frames in {fname}")
 
@@ -537,11 +606,6 @@ class MediaProcessor:
                 })
 
             segmented = MediaProcessor.calc_black_segments(segments, base_duration)
-
-            while min_segment(segmented) < timings.MIN_1 and len(segmented) > 1:
-                segmented = remove_min(segmented)
-                segmented = MediaProcessor.calc_black_segments(segmented, base_duration)
-
             return segmented
 
         except Exception as e:

@@ -137,22 +137,47 @@ class FluidBuilder:
         return results
 
     def scan_chapters_for_entries(self, entries):
-        """Scan chapter markers for a list of catalog entries that don't have them yet"""
+        """Scan feature files for conservative commercial break boundaries.
+
+        Generic container chapters are scene navigation, not reliable ad
+        markers. A sustained fade to black is stronger evidence of an act
+        boundary, so only those transitions are persisted for scheduling.
+        Commercials and bumps are intentionally never analyzed or trimmed.
+        """
         connection = connect(self.db_path)
         try:
-            cursor = connection.cursor()
             for entry in entries:
                 if hasattr(entry, 'realpath') and entry.realpath:
-                    # Check if we've already scanned this file (row exists in table)
-                    cursor.execute("SELECT path FROM chapter_points WHERE path=?", (entry.realpath,))
-                    if not cursor.fetchone():  # Never scanned before
-                        # Scan for chapters
-                        chapters = MediaProcessor.chapter_detect(entry.realpath, entry.duration)
-                        # Always store result, even if empty or None
-                        FluidStatements.add_chapter_points(connection, entry.realpath, chapters if chapters else [])
-                        if chapters:
-                            self._l.info(f"Added {len(chapters)} chapters for {entry.realpath}")
-            cursor.close()
+                    # Recompute on rebuild so legacy generic chapter rows are
+                    # replaced by the safer detector.
+                    if getattr(entry, "content_type", "feature") != "feature":
+                        FluidStatements.add_chapter_points(
+                            connection, entry.realpath, []
+                        )
+                        continue
+                    black_segments = MediaProcessor.black_detect(
+                        entry.realpath,
+                        entry.duration,
+                        black_min_duration=0.35,
+                    )
+                    chapter_segments = MediaProcessor.chapter_detect(
+                        entry.realpath,
+                        entry.duration,
+                    )
+                    safe_segments = MediaProcessor.safe_commercial_segments(
+                        black_segments,
+                        entry.duration,
+                        chapter_segments,
+                    )
+                    FluidStatements.add_chapter_points(
+                        connection, entry.realpath, safe_segments
+                    )
+                    if safe_segments:
+                        self._l.info(
+                            "Added %s safe commercial segments for %s",
+                            len(safe_segments),
+                            entry.realpath,
+                        )
             connection.commit()
         finally:
             connection.close()

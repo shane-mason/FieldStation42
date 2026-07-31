@@ -33,14 +33,13 @@ class ReelCutter:
                 entries.append(h2)
         else:
             # we know break count is greater than 1
-            segment_duration = base_clip.duration / break_count
-            offset = base_offset
-
             if not break_points:
-                for i in range(break_count):
-                    entries.append(BlockPlanEntry(base_clip.path, offset, segment_duration, content_type=base_clip.content_type, media_type=base_clip.media_type))
-                    entries += reel_blocks[i].make_plan()
-                    offset += segment_duration
+                # No trustworthy act boundary exists. Preserve the feature
+                # instead of manufacturing evenly-spaced cuts through scenes
+                # or credits; filler can safely occupy the remaining slot.
+                entries.append(BlockPlanEntry(base_clip.path, base_offset, base_duration, content_type=base_clip.content_type, media_type=base_clip.media_type))
+                for reel_block in reel_blocks:
+                    entries += reel_block.make_plan()
             else:
 
                 keep_going = True
