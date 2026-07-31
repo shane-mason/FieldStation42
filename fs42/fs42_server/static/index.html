@@ -98,6 +98,7 @@
             `;
 
             document.body.innerHTML = await window.fs42Common.createPageLayout('', content);
+            document.dispatchEvent(new Event('fs42-layout-ready'));
         });
     </script>
     <script src="static/fs42_client.js"></script>
@@ -169,7 +170,7 @@
                 document.getElementById('stations-list').innerHTML = '<p style="color:red">Failed to load station data.</p>';
             }
         }
-        loadStationSummary();
+        document.addEventListener('fs42-layout-ready', loadStationSummary);
 
         document.addEventListener('click', async function(e) {
             const button = e.target.closest('.quick');
@@ -226,8 +227,10 @@
         }
         
         // Check queue connection initially and periodically
-        checkQueueConnection();
-        setInterval(checkQueueConnection, 5000); // Check every 5 seconds
+        document.addEventListener('fs42-layout-ready', function() {
+            checkQueueConnection();
+            setInterval(checkQueueConnection, 5000);
+        });
 
         // Handle ticker form submission
         document.addEventListener('submit', async function(e) {

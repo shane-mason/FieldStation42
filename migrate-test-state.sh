@@ -8,6 +8,7 @@ readonly NETWORK_NAME="Toon Mix"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly VALIDATOR="${SCRIPT_DIR}/scripts/validate_hometv_config.py"
 readonly SCHEMA="${SCRIPT_DIR}/fs42/station_config_schema.json"
+readonly UNRAID_STAGING_ROOT="/mnt/user/appdata/fieldstation42-hometv"
 
 usage() {
     printf 'Usage: %s --source /path/to/existing/FieldStation42-or-confs\n' "$0"
@@ -37,6 +38,10 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$source_arg" ]] || { usage; fail "An explicit source is required."; }
 [[ -d "$source_arg" ]] || fail "Source does not exist: ${source_arg}"
+if [[ "$STAGING_ROOT" != "$UNRAID_STAGING_ROOT" &&
+      "${FS42_ALLOW_TEST_PATHS:-}" != "1" ]]; then
+    fail "Refusing non-staging target: ${STAGING_ROOT}"
+fi
 
 source_confs="$source_arg"
 [[ -d "${source_arg}/confs" ]] && source_confs="${source_arg}/confs"

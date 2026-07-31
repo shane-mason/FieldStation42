@@ -1,6 +1,6 @@
 // Basic client for FieldStation42 API
 // Update API_BASE_URL as needed
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:4242`;
+const API_BASE_URL = window.location.origin;
 
 async function apiGet(endpoint) {
     const response = await fetch(`${API_BASE_URL}/${endpoint}`);

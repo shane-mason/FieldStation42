@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly STAGING_ROOT="${FS42_STAGING_ROOT:-/mnt/user/appdata/fieldstation42-hometv}"
-readonly APP_PATH="${FS42_APP_PATH:-${STAGING_ROOT}/app}"
+readonly STAGING_ROOT="/mnt/user/appdata/fieldstation42-hometv"
+readonly APP_PATH="${STAGING_ROOT}/app"
 readonly CONFS_PATH="${STAGING_ROOT}/confs"
 readonly CATALOG_PATH="${STAGING_ROOT}/catalog"
 readonly RUNTIME_PATH="${STAGING_ROOT}/runtime"

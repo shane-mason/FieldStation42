@@ -41,7 +41,11 @@ class UnraidDeploymentTests(unittest.TestCase):
             (source / "other.json").write_text(json.dumps(other))
             (source / "active.db-wal").write_text("transient")
 
-            env = dict(os.environ, FS42_STAGING_ROOT=str(staging))
+            env = dict(
+                os.environ,
+                FS42_STAGING_ROOT=str(staging),
+                FS42_ALLOW_TEST_PATHS="1",
+            )
             result = subprocess.run(
                 [
                     "bash",
