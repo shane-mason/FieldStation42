@@ -14,6 +14,7 @@ sys.path.append(cwd)
 sys.path.append(parent)
 
 from fs42.station_manager import StationManager
+from fs42.hometv import HLSSessionManager
 from .api import routers
 
 _shutdown_queue = None
@@ -21,6 +22,8 @@ player_command_queue = None
 
 @asynccontextmanager
 async def _lifespan(app):
+    app.state.hls_sessions = HLSSessionManager()
+    cleanup_task = None
     if _shutdown_queue is not None:
         async def shutdown_monitor():
             while True:
@@ -32,7 +35,17 @@ async def _lifespan(app):
                 except Exception:
                     pass
         asyncio.get_event_loop().create_task(shutdown_monitor())
-    yield
+    async def stream_cleanup():
+        while True:
+            await asyncio.sleep(15)
+            app.state.hls_sessions.cleanup()
+
+    cleanup_task = asyncio.create_task(stream_cleanup())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        app.state.hls_sessions.close()
 
 # Create FastAPI app
 fapi = FastAPI(title="FieldStation42 API", lifespan=_lifespan)
@@ -44,6 +57,14 @@ async def root():
 @fapi.get("/remote")
 async def remote():
     return FileResponse("fs42/fs42_server/static/remote.html")
+
+@fapi.get("/watch")
+async def watch():
+    return FileResponse("fs42/fs42_server/static/watch.html")
+
+@fapi.get("/health")
+async def health():
+    return {"status": "ok", "mode": "headless-capable"}
 
 @fapi.get('/favicon.ico', include_in_schema=False)
 async def favicon():
@@ -83,6 +104,14 @@ def mount_fs42_api():
             return ('/player/status' not in record.getMessage())
     
     logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
+    log_dir = os.environ.get("FS42_LOG_DIR")
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
+        handler = logging.FileHandler(os.path.join(log_dir, "fieldstation42.log"))
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)s:%(name)s:%(message)s"
+        ))
+        logging.getLogger().addHandler(handler)
     
     fapi.state.player_command_queue = None
     fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")

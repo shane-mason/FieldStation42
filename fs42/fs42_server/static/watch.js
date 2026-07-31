@@ -1,0 +1,157 @@
+(() => {
+  const video = document.querySelector("#video");
+  const channelSelect = document.querySelector("#channels");
+  const message = document.querySelector("#message");
+  const progress = document.querySelector("#progress span");
+  let channels = [], sessionId = null, hls = null, nowInfo = null;
+  let recoveryTimer = null, controlsTimer = null, heartbeat = null;
+
+  const showControls = () => {
+    document.body.classList.add("active");
+    clearTimeout(controlsTimer);
+    controlsTimer = setTimeout(() => document.body.classList.remove("active"), 4000);
+  };
+
+  async function api(url, options) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail || `Request failed (${response.status})`);
+    }
+    return response.status === 204 ? null : response.json();
+  }
+
+  async function stopSession() {
+    clearInterval(heartbeat);
+    if (hls) { hls.destroy(); hls = null; }
+    video.removeAttribute("src");
+    if (sessionId) {
+      const old = sessionId; sessionId = null;
+      await fetch(`/api/watch/sessions/${old}`, {method: "DELETE"}).catch(() => {});
+    }
+  }
+
+  function attach(url) {
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+      video.play().catch(recover);
+    } else if (window.Hls && Hls.isSupported()) {
+      hls = new Hls({liveSyncDurationCount: 3, maxLiveSyncPlaybackRate: 1.25});
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(recover));
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) recover();
+      });
+    } else {
+      throw new Error("This browser has no HLS playback support");
+    }
+  }
+
+  async function tune(channel) {
+    clearTimeout(recoveryTimer);
+    message.textContent = "Tuning…";
+    await stopSession();
+    try {
+      const result = await api("/api/watch/sessions", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({channel: String(channel), profile: "auto"})
+      });
+      sessionId = result.session_id;
+      nowInfo = result.now;
+      renderNow();
+      attach(result.playlist_url);
+      heartbeat = setInterval(() => {
+        if (sessionId) fetch(`/api/watch/sessions/${sessionId}/heartbeat`, {method: "POST"});
+      }, 20000);
+      message.textContent = "";
+      localStorage.setItem("fs42-channel", String(channel));
+    } catch (error) {
+      message.textContent = error.message;
+      recover();
+    }
+  }
+
+  function recover() {
+    if (recoveryTimer) return;
+    message.textContent = "Playback interrupted — reconnecting…";
+    recoveryTimer = setTimeout(() => {
+      recoveryTimer = null;
+      if (channelSelect.value) tune(channelSelect.value);
+    }, 3000);
+  }
+
+  function renderNow() {
+    if (!nowInfo) return;
+    document.querySelector("#channel-number").textContent = nowInfo.channel_number;
+    document.querySelector("#channel-name").textContent = nowInfo.channel_name;
+    document.querySelector("#program-title").textContent = nowInfo.program_title;
+  }
+
+  async function refreshNow() {
+    if (!channelSelect.value) return;
+    try {
+      const previousEnd = nowInfo?.end;
+      nowInfo = await api(`/api/watch/channels/${encodeURIComponent(channelSelect.value)}/now`);
+      renderNow();
+      if (previousEnd && previousEnd !== nowInfo.end) tune(channelSelect.value);
+    } catch (_) {}
+  }
+
+  function adjacent(delta) {
+    const index = Math.max(0, channels.findIndex(c => c.channel_number === channelSelect.value));
+    const next = channels[(index + delta + channels.length) % channels.length];
+    if (next) { channelSelect.value = next.channel_number; tune(next.channel_number); }
+  }
+
+  async function start() {
+    try {
+      channels = (await api("/api/watch/channels")).channels;
+      channelSelect.innerHTML = channels.map(c =>
+        `<option value="${c.channel_number}">${c.channel_number} — ${c.channel_name}</option>`
+      ).join("");
+      const saved = localStorage.getItem("fs42-channel");
+      if (saved && channels.some(c => c.channel_number === saved)) channelSelect.value = saved;
+      if (!channelSelect.value && channels[0]) channelSelect.value = channels[0].channel_number;
+      if (!channelSelect.value) throw new Error("No scheduled channels are configured");
+      await tune(channelSelect.value);
+    } catch (error) {
+      message.textContent = error.message;
+      setTimeout(start, 5000);
+    }
+  }
+
+  channelSelect.addEventListener("change", () => tune(channelSelect.value));
+  document.querySelector("#previous").onclick = () => adjacent(-1);
+  document.querySelector("#next").onclick = () => adjacent(1);
+  document.querySelector("#mute").onclick = () => {
+    video.muted = !video.muted;
+    document.querySelector("#mute").textContent = video.muted ? "🔇" : "🔊";
+  };
+  document.querySelector("#volume").oninput = event => video.volume = event.target.value;
+  document.querySelector("#fullscreen").onclick = () => document.querySelector("#viewer").requestFullscreen();
+  document.querySelector("#guide-button").onclick = () => document.querySelector("#guide").hidden = false;
+  document.querySelector("#guide-close").onclick = () => document.querySelector("#guide").hidden = true;
+  document.addEventListener("mousemove", showControls);
+  document.addEventListener("click", showControls);
+  document.addEventListener("keydown", event => {
+    showControls();
+    if (event.key === "ArrowUp" || event.key === "ArrowRight") adjacent(1);
+    if (event.key === "ArrowDown" || event.key === "ArrowLeft") adjacent(-1);
+    if (event.key.toLowerCase() === "m") document.querySelector("#mute").click();
+    if (event.key.toLowerCase() === "f") document.querySelector("#fullscreen").click();
+    if (event.key.toLowerCase() === "g") document.querySelector("#guide-button").click();
+  });
+  video.addEventListener("error", recover);
+  window.addEventListener("beforeunload", stopSession);
+  setInterval(() => {
+    if (nowInfo) {
+      const elapsed = (Date.now() - Date.parse(nowInfo.server_time)) / 1000 + nowInfo.elapsed;
+      progress.style.width = `${Math.min(100, 100 * elapsed / nowInfo.duration)}%`;
+    }
+  }, 1000);
+  setInterval(refreshNow, 15000);
+  showControls();
+  start();
+})();

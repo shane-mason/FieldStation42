@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>FieldStation42 — Watch</title>
+  <link rel="stylesheet" href="/static/watch.css">
+  <script defer src="/static/vendor/hls.min.js"></script>
+  <script defer src="/static/watch.js"></script>
+</head>
+<body>
+  <main id="viewer">
+    <video id="video" autoplay playsinline></video>
+    <div id="shade"></div>
+    <section id="status" class="panel">
+      <div id="channel-number">--</div>
+      <div>
+        <h1 id="channel-name">FieldStation42</h1>
+        <p id="program-title">Connecting…</p>
+      </div>
+    </section>
+    <section id="controls" class="panel">
+      <button id="previous" aria-label="Previous channel">◀</button>
+      <select id="channels" aria-label="Channel"></select>
+      <button id="next" aria-label="Next channel">▶</button>
+      <button id="mute" aria-label="Mute">🔊</button>
+      <input id="volume" type="range" min="0" max="1" step=".05" value="1" aria-label="Volume">
+      <button id="guide-button" aria-label="Program guide">Guide</button>
+      <button id="fullscreen" aria-label="Fullscreen">⛶</button>
+      <div id="progress"><span></span></div>
+    </section>
+    <aside id="guide" class="panel" hidden>
+      <header><strong>Program guide</strong><button id="guide-close">×</button></header>
+      <iframe src="/static/guide_frame.html" title="Program guide"></iframe>
+    </aside>
+    <div id="message">Connecting to FieldStation42…</div>
+  </main>
+</body>
+</html>
