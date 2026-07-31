@@ -30,26 +30,7 @@ def wait_for_playback(page, timeout: int = 30_000) -> dict:
     )
     if second["time"] <= first["time"] + 1:
         raise RuntimeError(f"Browser video did not advance: {first} -> {second}")
-    evidence = page.evaluate("window.__homeTVBufferEvidence")
-    if not evidence["messages"]:
-        raise RuntimeError("Playback started without reporting initial buffering")
-    if not all(item["paused"] for item in evidence["messages"]):
-        raise RuntimeError(f"Video played during initial buffering: {evidence}")
-    target = evidence["messages"][-1]["target"]
-    if max(item["seconds"] for item in evidence["messages"]) < target:
-        raise RuntimeError(f"Playback began below the buffer threshold: {evidence}")
-    return {"first": first, "second": second, "startup_buffer": evidence}
-
-
-def assert_compensated_offset(session: dict) -> None:
-    now = session["now"]
-    compensated = now["playback_offset"] - now["elapsed"]
-    target = session["initial_buffer_seconds"]
-    if abs(compensated - target) > 1.5:
-        raise RuntimeError(
-            f"Session offset was not startup-buffer compensated: "
-            f"{compensated:.3f}s versus {target:.3f}s"
-        )
+    return {"first": first, "second": second}
 
 
 def main() -> None:
@@ -73,32 +54,6 @@ def main() -> None:
             ],
         )
         page = browser.new_page()
-        page.add_init_script(
-            """
-            window.__homeTVBufferEvidence = {messages: [], playedAt: null};
-            document.addEventListener('DOMContentLoaded', () => {
-              const message = document.querySelector('#message');
-              const video = document.querySelector('#video');
-              if (!message || !video) return;
-              new MutationObserver(() => {
-                const match = message.textContent.match(
-                  /^Buffering .*: ([0-9.]+) \\/ ([0-9.]+) seconds$/
-                );
-                if (match) {
-                  window.__homeTVBufferEvidence.messages.push({
-                    seconds: Number(match[1]),
-                    target: Number(match[2]),
-                    paused: video.paused,
-                    at: performance.now()
-                  });
-                }
-              }).observe(message, {childList: true, subtree: true});
-              video.addEventListener('play', () => {
-                window.__homeTVBufferEvidence.playedAt = performance.now();
-              });
-            });
-            """
-        )
         page.on("pageerror", lambda error: browser_errors.append(str(error)))
         page.on(
             "console",
@@ -167,7 +122,6 @@ def main() -> None:
         if not session_responses:
             raise RuntimeError("Browser did not create the first stream session")
         first_offset = session_responses[-1]["now"]["playback_offset"]
-        assert_compensated_offset(session_responses[-1])
         if first_offset < 10:
             raise RuntimeError(f"Initial session restarted near zero: {first_offset}")
         session_count = len(session_responses)
@@ -184,16 +138,12 @@ def main() -> None:
         if len(session_responses) < 2:
             raise RuntimeError("Refresh did not create a replacement stream session")
         refreshed_offset = session_responses[-1]["now"]["playback_offset"]
-        assert_compensated_offset(session_responses[-1])
         if refreshed_offset <= first_offset + 2:
             raise RuntimeError(
                 f"Refresh did not advance broadcast offset: "
                 f"{first_offset} -> {refreshed_offset}"
             )
 
-        page.evaluate(
-            "window.__homeTVBufferEvidence = {messages: [], playedAt: null}"
-        )
         page.select_option("#channels", "43")
         page.wait_for_function(
             "() => document.querySelector('#channel-name')?.textContent === 'Fixture Red'"
@@ -202,39 +152,6 @@ def main() -> None:
         switched = session_responses[-1]
         if switched["now"]["channel_number"] != "43":
             raise RuntimeError(f"Channel switch created wrong session: {switched}")
-        assert_compensated_offset(switched)
-
-        failure_page = browser.new_page()
-        failure_console = []
-        failure_page.add_init_script(
-            "window.HOMETV_STARTUP_TIMEOUT_SECONDS = 2"
-        )
-        failure_page.on(
-            "console",
-            lambda message: failure_console.append(message.text),
-        )
-
-        def require_impossible_buffer(route):
-            response = route.fetch()
-            body = response.json()
-            body["initial_buffer_seconds"] = 100
-            route.fulfill(response=response, json=body)
-
-        failure_page.route(
-            "**/api/watch/sessions",
-            require_impossible_buffer,
-        )
-        failure_page.goto(f"{args.base_url}/watch", wait_until="domcontentloaded")
-        for _ in range(50):
-            if any(
-                "Startup buffering timed out" in item
-                for item in failure_console
-            ):
-                break
-            failure_page.wait_for_timeout(200)
-        if not any("Startup buffering timed out" in item for item in failure_console):
-            raise RuntimeError("Startup timeout did not produce a clear error")
-        failure_page.close()
 
         result = {
             "management_status": management.status,
@@ -248,7 +165,6 @@ def main() -> None:
             "browser_errors": browser_errors,
             "console": console_messages,
             "failed_requests": failed_requests,
-            "startup_timeout": "passed",
             "checked_at": time.time(),
         }
         print(json.dumps(result, indent=2))

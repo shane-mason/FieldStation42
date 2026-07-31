@@ -4,10 +4,10 @@
   const message = document.querySelector("#message");
   const progress = document.querySelector("#progress span");
   let channels = [], sessionId = null, hls = null, nowInfo = null;
-  let recoveryTimer = null, controlsTimer = null, heartbeat = null, boundaryTimer = null;
-  let isTuning = false, startupBuffering = false, tuneAbort = null;
-  const STARTUP_TIMEOUT_SECONDS =
-    Number(window.HOMETV_STARTUP_TIMEOUT_SECONDS || 30);
+  let recoveryTimer = null, controlsTimer = null, heartbeat = null;
+  let boundaryTimer = null, boundaryFadeTimer = null;
+  let isTuning = false, tuneAbort = null;
+  const TRANSITION_MS = 450;
 
   const showControls = () => {
     document.body.classList.add("active");
@@ -27,8 +27,8 @@
   async function stopSession() {
     clearInterval(heartbeat);
     clearTimeout(boundaryTimer);
+    clearTimeout(boundaryFadeTimer);
     if (hls) { hls.destroy(); hls = null; }
-    startupBuffering = false;
     video.pause();
     video.removeAttribute("src");
     if (sessionId) {
@@ -40,68 +40,8 @@
     }
   }
 
-  function bufferedAhead() {
-    const current = video.currentTime;
-    for (let index = 0; index < video.buffered.length; index += 1) {
-      const start = video.buffered.start(index);
-      const end = video.buffered.end(index);
-      if (start <= current + 0.5 && end > current) return end - current;
-    }
-    return 0;
-  }
-
-  function waitForInitialBuffer(channelName, target, signal, getFailure) {
-    startupBuffering = true;
+  async function attach(url, signal) {
     video.pause();
-    const started = performance.now();
-    return new Promise((resolve, reject) => {
-      const check = () => {
-        if (signal.aborted) {
-          startupBuffering = false;
-          reject(new DOMException("Tuning cancelled", "AbortError"));
-          return;
-        }
-        const failure = getFailure();
-        if (failure) {
-          startupBuffering = false;
-          reject(failure);
-          return;
-        }
-        const available = bufferedAhead();
-        message.textContent =
-          `Buffering ${channelName}: ${available.toFixed(1)} / ${target.toFixed(1)} seconds`;
-        if (available >= target) {
-          startupBuffering = false;
-          resolve({
-            available,
-            elapsed: (performance.now() - started) / 1000
-          });
-          return;
-        }
-        if (performance.now() - started >= STARTUP_TIMEOUT_SECONDS * 1000) {
-          startupBuffering = false;
-          if (available > 0 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-            console.warn(
-              `Starting ${channelName} with ${available.toFixed(1)} seconds buffered ` +
-              `after the startup timeout`
-            );
-            resolve({
-              available,
-              elapsed: (performance.now() - started) / 1000
-            });
-            return;
-          }
-          reject(new Error(`Startup buffering timed out after ${STARTUP_TIMEOUT_SECONDS} seconds`));
-          return;
-        }
-        setTimeout(check, 200);
-      };
-      check();
-    });
-  }
-
-  async function attach(url, channelName, bufferSeconds, signal) {
-    let streamFailure = null;
     // Chromium may report "maybe" for native HLS while failing to decode an
     // MPEG-TS playlist. Prefer HLS.js wherever Media Source is available and
     // reserve native HLS for Safari and other browsers without MSE support.
@@ -109,18 +49,35 @@
       hls = new Hls({liveSyncDurationCount: 3, maxLiveSyncPlaybackRate: 1.25});
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          streamFailure = new Error(
-            `HLS startup failed: ${data.details || data.type}`
-          );
+      await new Promise((resolve, reject) => {
+        let startupComplete = false;
+        const timeout = setTimeout(
+          () => reject(new Error("HLS manifest did not become ready")),
+          15000
+        );
+        signal.addEventListener("abort", () => {
+          clearTimeout(timeout);
+          reject(new DOMException("Tuning cancelled", "AbortError"));
+        }, {once: true});
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          clearTimeout(timeout);
+          startupComplete = true;
+          resolve();
+        });
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (!data.fatal) return;
+          clearTimeout(timeout);
           console.error("Fatal HLS playback error", {
             type: data.type,
             details: data.details,
             error: data.error?.message || String(data.error || "")
           });
-          recover();
-        }
+          if (!startupComplete) {
+            reject(new Error(`HLS startup failed: ${data.details || data.type}`));
+          } else {
+            recover();
+          }
+        });
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
@@ -128,35 +85,21 @@
     } else {
       throw new Error("This browser has no HLS playback support");
     }
-    const startup = await waitForInitialBuffer(
-      channelName,
-      bufferSeconds,
-      signal,
-      () => streamFailure
-    );
-    // The server sought ahead by bufferSeconds when it created this session.
-    // If startup took longer than that, advance within the buffered range so
-    // slow segment generation does not leave playback unnecessarily behind.
-    const catchUp = Math.max(0, startup.elapsed - bufferSeconds);
-    if (catchUp > 0 && video.buffered.length) {
-      const range = video.buffered.length - 1;
-      const start = video.buffered.start(range);
-      const end = video.buffered.end(range);
-      video.currentTime = Math.min(
-        Math.max(start, catchUp),
-        Math.max(start, end - 0.75)
-      );
-    }
-    await video.play();
+    if (signal.aborted) throw new DOMException("Tuning cancelled", "AbortError");
+    video.play().catch(error => {
+      console.error("Video playback could not start", error);
+      setTimeout(() => recover(true), 0);
+    });
   }
 
-  async function tune(channel) {
+  async function tune(channel, {boundary = false} = {}) {
     if (tuneAbort) tuneAbort.abort();
     tuneAbort = new AbortController();
     const signal = tuneAbort.signal;
     isTuning = true;
+    video.classList.add("switching");
     clearTimeout(recoveryTimer);
-    message.textContent = "Tuning…";
+    message.textContent = boundary ? "" : "Tuning…";
     await stopSession();
     try {
       const result = await api("/api/watch/sessions", {
@@ -168,16 +111,15 @@
       sessionId = result.session_id;
       nowInfo = result.now;
       renderNow();
-      await attach(
-        result.playlist_url,
-        nowInfo.channel_name,
-        Number(result.initial_buffer_seconds),
-        signal
-      );
+      await attach(result.playlist_url, signal);
       const boundaryDelay = Date.parse(nowInfo.item_end) - Date.now() + 250;
       boundaryTimer = setTimeout(
-        () => tune(channelSelect.value),
+        () => tune(channelSelect.value, {boundary: true}),
         Math.max(250, boundaryDelay)
+      );
+      boundaryFadeTimer = setTimeout(
+        () => video.classList.add("switching"),
+        Math.max(0, boundaryDelay - TRANSITION_MS)
       );
       heartbeat = setInterval(() => {
         if (sessionId) fetch(`/api/watch/sessions/${sessionId}/heartbeat`, {method: "POST"});
@@ -196,7 +138,7 @@
   }
 
   function recover(force = false) {
-    if (isTuning || startupBuffering || (!sessionId && !force)) return;
+    if (isTuning || (!sessionId && !force)) return;
     if (recoveryTimer) return;
     message.textContent = "Playback interrupted — reconnecting…";
     recoveryTimer = setTimeout(() => {
@@ -276,6 +218,9 @@
       message: video.error?.message
     });
     recover();
+  });
+  video.addEventListener("playing", () => {
+    requestAnimationFrame(() => video.classList.remove("switching"));
   });
   window.addEventListener("beforeunload", stopSession);
   setInterval(() => {

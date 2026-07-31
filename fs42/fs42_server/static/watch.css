@@ -19,7 +19,10 @@ html, body, #viewer {
   height: 100%;
   object-fit: contain;
   background: #000;
+  opacity: 1;
+  transition: opacity .45s ease;
 }
+#video.switching { opacity: 0; }
 #shade {
   position: fixed;
   inset: 0;

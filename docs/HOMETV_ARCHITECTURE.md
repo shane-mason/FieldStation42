@@ -28,6 +28,13 @@ an ordered `plan_json`. Each plan item contains:
 - `duration`: the scheduled duration of this item
 - `is_stream`, `content_type`, and `media_type`
 
+Guide display names are derived from NFO metadata when explicitly requested
+and otherwise from series/movie library paths. Container title tags are not
+treated as authoritative program identity. Conventional nested supplemental
+directories (`Extras`, `Featurettes`, `Trailers`, `Deleted Scenes`, and
+similar) are excluded from recursive feature scans; rebuilding the catalog and
+regenerating the schedule is required to remove previously scheduled extras.
+
 For a request at time `now`, Home TV selects the row satisfying
 `start_time <= now < end_time`. It then walks the ordered plan from the block
 start until it finds the item containing `now`.
@@ -113,12 +120,13 @@ with an absent or `und` language tag is not guessed. The explicit `copy`
 profile remains unchanged because burning subtitles requires video encoding.
 
 The rolling playlist retains 12 two-second segments (at least 24 seconds).
-On initial tune the server resolves the scheduled media position
-`HOMETV_INITIAL_BUFFER_SECONDS` into the future. The client remains paused
-until that much media is present in the video element's actual buffered
-ranges. With the default six-second target, generation time then brings the
-first played frame back close to the authoritative wall-clock broadcast
-position. This startup gate is not reapplied for ordinary buffer fluctuations.
+The client starts as soon as HLS reports a playable manifest and leaves
+ordinary buffering to HLS.js and the browser. There is deliberately no
+client-side startup-buffer gate or pause/resume controller.
+At scheduled item boundaries the client performs a short visual fade to black,
+replaces the item without showing a tuning message, and fades back on the
+video element's `playing` event. The fade does not pause an active stream or
+create additional buffering policy.
 
 The FFmpeg command is constructed as an argument vector, never a shell string.
 No endpoint accepts a command or path. Input paths come only from the current
@@ -127,8 +135,7 @@ schedule and must resolve to a catalog-approved file.
 ## Synchronization and channel changes
 
 The server is authoritative for time. Creating or changing a session resolves
-the schedule at the end of the configured startup-buffer interval and seeks
-into the selected media item.
+the schedule at that instant and seeks into the selected media item.
 Consequently, viewers joining the same channel see approximately the same
 point; their difference is bounded by startup and segment latency. The web
 client periodically fetches `now`, displays progress using the returned server

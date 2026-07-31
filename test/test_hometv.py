@@ -19,6 +19,7 @@ from fs42.hometv import (
     ScheduleResolver,
     UnsafeMediaPath,
 )
+from fs42.media_processor import MediaProcessor
 from fs42.fs42_server.api.watch import (
     SessionRequest,
     channels as channel_endpoint,
@@ -131,6 +132,13 @@ class ResolverTests(unittest.TestCase):
         )
         self.assertEqual(display["display_title"], "War Dogs (2016)")
 
+    def test_movie_extra_uses_parent_movie_identity(self):
+        display = _movie_display(
+            "/media/Movies/War Dogs (2016)/Featurettes/"
+            "'On Location Napoleon Dynamite' Documentary.mkv"
+        )
+        self.assertEqual(display["display_title"], "War Dogs (2016)")
+
     def test_guide_uses_known_english_series_alias(self):
         block = SimpleNamespace(
             title="Shingeki No Kyojin The Final Season",
@@ -138,6 +146,24 @@ class ResolverTests(unittest.TestCase):
         )
         _attach_meta([block], read_meta=False)
         self.assertEqual(block.display_title, "Attack on Titan")
+
+    def test_episode_uses_known_english_series_alias(self):
+        display = _episode_display(
+            "/media/Shingeki No Kyojin/Season 04/"
+            "Shingeki No Kyojin S04E01 The Other Side.mkv"
+        )
+        self.assertEqual(display["display_title"], "Attack on Titan")
+
+    def test_recursive_scan_ignores_movie_auxiliary_directories(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            feature = root / "War Dogs (2016)" / "War Dogs (2016).mkv"
+            extra = root / "War Dogs (2016)" / "Featurettes" / "Documentary.mkv"
+            feature.parent.mkdir()
+            extra.parent.mkdir()
+            feature.touch()
+            extra.touch()
+            self.assertEqual(MediaProcessor._rfind_media(temp_dir), [str(feature)])
 
     def test_schedule_path_must_exist_in_catalog(self):
         with tempfile.NamedTemporaryFile(suffix=".mp4") as media:
@@ -159,13 +185,7 @@ class SessionTests(unittest.TestCase):
                 when + dt.timedelta(minutes=30), when,
                 when + dt.timedelta(minutes=30), str(media), 91.25, 1800, 1708.75,
             )
-            requested_times = []
-
-            def resolve(channel, requested):
-                requested_times.append(requested)
-                return airing
-
-            resolver = SimpleNamespace(now=resolve)
+            resolver = SimpleNamespace(now=lambda channel: airing)
             processes = []
 
             def factory(command, **_kwargs):
@@ -176,7 +196,6 @@ class SessionTests(unittest.TestCase):
             manager = HLSSessionManager(
                 resolver=resolver,
                 root=Path(temp_dir) / "hls",
-                initial_buffer_seconds=6,
                 process_factory=factory,
             )
             session, _ = manager.create("42")
@@ -198,18 +217,6 @@ class SessionTests(unittest.TestCase):
             self.assertTrue(manager.delete(session.session_id))
             self.assertFalse(session.directory.exists())
             self.assertEqual(processes[0].returncode, 0)
-            self.assertAlmostEqual(
-                (requested_times[0] - when).total_seconds(), 6, delta=1
-            )
-
-    def test_initial_buffer_configuration_is_validated(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.assertRaisesRegex(ValueError, "non-negative number"):
-                HLSSessionManager(
-                    resolver=SimpleNamespace(),
-                    root=temp_dir,
-                    initial_buffer_seconds=-1,
-                )
 
     def test_non_english_audio_selects_english_subtitles(self):
         probe = SimpleNamespace(

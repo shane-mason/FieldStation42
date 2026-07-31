@@ -59,6 +59,20 @@ class MediaProcessor:
 
     # For backward compatibility, default to all formats
     supported_formats = VIDEO_FORMATS + AUDIO_FORMATS
+    # Conventional movie-library folders contain supplemental material, not
+    # independently schedulable features. If one of these is explicitly used
+    # as the scan root its own files still remain eligible.
+    AUXILIARY_VIDEO_DIRS = {
+        "behind the scenes",
+        "deleted scenes",
+        "extras",
+        "featurettes",
+        "interviews",
+        "samples",
+        "scenes",
+        "shorts",
+        "trailers",
+    }
 
     @staticmethod
     def get_media_type(file_path: str) -> str:
@@ -309,7 +323,13 @@ class MediaProcessor:
         for root, dirs, files in os.walk(path, followlinks=True):
             # glob skipped dotfiles - keep doing that so hidden dirs and
             # macos appledouble sidecars (._foo.mp4) don't get picked up as media
-            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            dirs[:] = [
+                d
+                for d in dirs
+                if not d.startswith(".")
+                and d.casefold().replace("_", " ").replace("-", " ")
+                not in MediaProcessor.AUXILIARY_VIDEO_DIRS
+            ]
 
             for file in files:
 

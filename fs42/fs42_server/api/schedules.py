@@ -13,7 +13,10 @@ EPISODE_RE = re.compile(
     r"[\s._-]*e(?P<episode>\d{1,3}[a-z]*)[\s._-]*(?P<title>.*)$"
 )
 SEASON_DIR_RE = re.compile(r"(?i)^season[\s._-]*\d+$|^s\d+$")
-MOVIE_YEAR_RE = re.compile(r"^(?P<title>.+?)[\s._-]+(?P<year>(?:19|20)\d{2})(?:[\s._-]+.*)?$")
+MOVIE_YEAR_RE = re.compile(
+    r"^(?P<title>.+?)[\s._-]+(?:\()?(?P<year>(?:19|20)\d{2})(?:\))?"
+    r"(?:[\s._-]+.*)?$"
+)
 TITLE_ALIASES = {
     "shingeki no kyojin": "Attack on Titan",
 }
@@ -29,15 +32,21 @@ def _guide_title_alias(title: str) -> str:
 
 
 def _movie_display(path: str) -> dict:
-    match = MOVIE_YEAR_RE.match(Path(path).stem)
-    if not match:
-        return {}
-    return {
-        "display_title": (
-            f"{TitleParser.parse_title(match.group('title'))} "
-            f"({match.group('year')})"
-        )
-    }
+    media_path = Path(path)
+    # Movie libraries commonly place featurettes and documentaries beneath a
+    # "Movie Name (Year)" directory. Never let those auxiliary filenames
+    # replace the identity of the movie in an already-generated schedule.
+    candidates = [media_path.stem, *(parent.name for parent in media_path.parents[:3])]
+    for candidate in candidates:
+        match = MOVIE_YEAR_RE.match(candidate)
+        if match:
+            return {
+                "display_title": (
+                    f"{TitleParser.parse_title(match.group('title'))} "
+                    f"({match.group('year')})"
+                )
+            }
+    return {}
 
 
 def _episode_display(path: str, meta: dict | None = None) -> dict:
@@ -70,7 +79,9 @@ def _episode_display(path: str, meta: dict | None = None) -> dict:
             series_title = TitleParser.parse_title(parent.name)
 
     result = {
-        "display_title": series_title or TitleParser.parse_title(filename),
+        "display_title": _guide_title_alias(
+            series_title or TitleParser.parse_title(filename)
+        ),
         "episode_title": episode_title or "",
         "season": season,
         "episode": episode,
