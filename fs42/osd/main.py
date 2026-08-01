@@ -38,6 +38,7 @@ class VAlignment(Enum):
 
 
 class StatusDisplayConfig(BaseModel):
+    socket_file: str = SOCKET_FILE
     display_time: float = 2.0
     halign: HAlignment = HAlignment.LEFT
     valign: VAlignment = VAlignment.TOP
@@ -70,9 +71,13 @@ class StatusDisplay(object):
 
         self.check_status()
 
-    def check_status(self, socket_file=SOCKET_FILE):
+    def check_status(self, socket_file=None):
+        if socket_file is None:
+            socket_file = self.config.socket_file
         with open(socket_file, "r") as f:
             status = f.read()
+            if not status.strip():
+                return
             try:
                 status = json.loads(status)
             except:
