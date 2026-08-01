@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import logging
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -54,9 +55,29 @@ for router in routers:
     fapi.include_router(router)
 
 
-def run_with_shutdown_queue(shutdown_queue, command_queue):
-    import logging
+def _mount_static():
 
+    follow_symlink = StationManager().server_conf.get("follow_static_symlinks", False)
+    if follow_symlink:
+        logging.getLogger("FS42SERVER").warning(
+            "follow_static_symlinks is on - symlinks in fs42/fs42_server/static and "
+            "runtime/guide_videos will be served even if they point outside of those directories."
+        )
+
+    fapi.mount(
+        "/static",
+        StaticFiles(directory="fs42/fs42_server/static", html="true", follow_symlink=follow_symlink),
+        name="static",
+    )
+    os.makedirs("runtime/guide_videos", exist_ok=True)
+    fapi.mount(
+        "/guide_videos",
+        StaticFiles(directory="runtime/guide_videos", follow_symlink=follow_symlink),
+        name="guide_videos",
+    )
+
+
+def run_with_shutdown_queue(shutdown_queue, command_queue):
     class PlayerStatusFilter(logging.Filter):
         def filter(self, record):
             return ('/player/status' not in record.getMessage())
@@ -68,16 +89,12 @@ def run_with_shutdown_queue(shutdown_queue, command_queue):
     _shutdown_queue = shutdown_queue
     fapi.state.player_command_queue = command_queue
 
-    fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
-    os.makedirs("runtime/guide_videos", exist_ok=True)
-    fapi.mount("/guide_videos", StaticFiles(directory="runtime/guide_videos"), name="guide_videos")
+    _mount_static()
     conf = StationManager().server_conf
     uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
 
 
 def mount_fs42_api():
-    import logging
-    
     class PlayerStatusFilter(logging.Filter):
         def filter(self, record):
             return ('/player/status' not in record.getMessage())
@@ -85,9 +102,7 @@ def mount_fs42_api():
     logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
     
     fapi.state.player_command_queue = None
-    fapi.mount("/static", StaticFiles(directory="fs42/fs42_server/static", html="true"), name="static")
-    os.makedirs("runtime/guide_videos", exist_ok=True)
-    fapi.mount("/guide_videos", StaticFiles(directory="runtime/guide_videos"), name="guide_videos")
+    _mount_static()
     conf = StationManager().server_conf
     uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
 

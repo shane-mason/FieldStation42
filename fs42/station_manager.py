@@ -45,6 +45,7 @@ class StationManager(object):
                     "server_port": 4242,
                     "title_patterns": [],
                     "video_seek_timeout": 10,
+                    "follow_static_symlinks": False,
                 }
                 self._number_index = {}
                 self._name_index = {}
@@ -118,7 +119,8 @@ class StationManager(object):
                     "schedule_agent",
                     "video_seek_timeout",
                     "overlay_conf",
-                    "start_channel"
+                    "start_channel",
+                    "follow_static_symlinks"
                 ]
 
                 for key in to_check:

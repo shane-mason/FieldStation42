@@ -6,6 +6,7 @@ This document describes the main configuration file (`confs/main_config.json`) w
 - [Overview](#overview)
 - [Configuration Options](#configuration-options)
 - [Day Parts](#day-parts)
+- [Following Symlinks in Static Directories](#following-symlinks-in-static-directories)
 - [Custom Title Patterns](#custom-title-patterns)
 
 ## Overview
@@ -43,6 +44,7 @@ The `confs/main_config.json` file is optional. If it doesn't exist, FieldStation
 | `db_path` | string | `"runtime/fs42_fluid.db"` | Path to the SQLite database |
 | `normalize_titles` | boolean | `false` | Enable automatic title normalization from filenames |
 | `title_patterns` | array | `[]` | Custom regex patterns for title parsing (see below) |
+| `follow_static_symlinks` | boolean | `false` | Serve symlinks that point outside the static directories (see below) |
 
 ## Day Parts
 
@@ -65,6 +67,27 @@ Day parts define time periods used for scheduling purposes. Each day part has a 
 ### Wrapping Midnight
 
 When `end_hour` is less than `start_hour`, the period wraps around midnight. For example, `late` runs from 11 PM to 2 AM.
+
+## Following Symlinks in Static Directories
+
+By default, the web server won't serve a symlink that points outside of the static directories.
+Enable `follow_static_symlinks` to keep themes or guide videos elsewhere on disk:
+
+```json
+{
+  "follow_static_symlinks": true
+}
+```
+
+```bash
+ln -s ~/my-themes/vaporwave.css fs42/fs42_server/static/themes/vaporwave.css
+ln -s /mnt/media/bumpers/guide_loop.mp4 runtime/guide_videos/guide_loop.mp4
+```
+
+Linked themes show up in the theme picker automatically.
+
+Note that the web server has no authentication, so whatever you link in is readable by anyone on
+your network - only link the files you intend to serve.
 
 ## Custom Title Patterns
 
