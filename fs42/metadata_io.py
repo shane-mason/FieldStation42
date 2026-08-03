@@ -31,6 +31,57 @@ class MetadataIO:
         return meta
 
     @staticmethod
+    def read_many(file_paths, db_path=None):
+        """Read metadata for many paths on one connection.
+
+        Returns {original_path: meta} for paths that have metadata. Callers
+        fetching more than one path should prefer this over read(), which
+        opens a connection per call.
+        """
+        if not file_paths:
+            return {}
+
+        if db_path is None:
+            try:
+                db_path = MetadataIO._default_db_path()
+            except Exception as e:
+                _logger.warning(f"Could not resolve db_path for metadata read: {e}")
+                return {}
+
+        # Rows are keyed by realpath, so map back to what the caller asked for.
+        # Several inputs can resolve to the same real file.
+        by_real = {}
+        for path in file_paths:
+            try:
+                real_path = os.path.realpath(os.path.abspath(path))
+            except Exception:
+                continue
+            by_real.setdefault(real_path, []).append(path)
+
+        results = {}
+        try:
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.cursor()
+                real_paths = list(by_real.keys())
+                # Chunked to stay under SQLite's bound-variable limit
+                chunk_size = 500
+                for i in range(0, len(real_paths), chunk_size):
+                    chunk = real_paths[i:i + chunk_size]
+                    placeholders = ",".join("?" * len(chunk))
+                    cursor.execute(f"SELECT path, meta FROM file_meta WHERE path IN ({placeholders})", chunk)
+                    for real_path, meta_json in cursor.fetchall():
+                        if not meta_json:
+                            continue
+                        meta = MetadataIO.normalize(json.loads(meta_json))
+                        for original in by_real.get(real_path, []):
+                            results[original] = meta
+                cursor.close()
+        except Exception as e:
+            _logger.warning(f"Could not batch read metadata: {e}")
+
+        return results
+
+    @staticmethod
     def read(file_path, db_path=None):
         if db_path is None:
             try:

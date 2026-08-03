@@ -208,6 +208,22 @@ async function fetchSchedule(networkId, start, end, includeMeta) {
     }
 }
 
+
+async function fetchGuideSchedules(start, end, includeMeta) {
+    try {
+        let url = 'schedules/all';
+        const params = [];
+        if (start) params.push(`start=${encodeURIComponent(start)}`);
+        if (end) params.push(`end=${encodeURIComponent(end)}`);
+        if (includeMeta) params.push('include_meta=true');
+        if (params.length) url += `?${params.join('&')}`;
+        const resp = await window.fs42Api.get(url);
+        return resp.schedules || {};
+    } catch (e) {
+        return {};
+    }
+}
+
 // Render schedule table
 function renderScheduleTable(blocks) {
     if (!blocks.length) return '<p>No schedule blocks found.</p>';
@@ -259,5 +275,6 @@ window.fs42Common = {
     renderCatalogTable,
     fetchScheduleSummary,
     fetchSchedule,
+    fetchGuideSchedules,
     renderScheduleTable
 };

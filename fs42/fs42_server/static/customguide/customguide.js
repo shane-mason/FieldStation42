@@ -146,27 +146,17 @@ async function fetchAllSchedules(slots, includeMeta) {
 
   const overallStart = slots[0].start;
   const overallEnd = slots[slots.length - 1].end;
-  const schedules = {};
 
-  for (const station of stations) {
-    if (!station.has_schedule) {
-      schedules[station.network_name] = [];
-      continue;
-    }
-    try {
-      const blocks = await window.fs42Common.fetchSchedule(
-        station.network_name,
-        formatDateForAPI(overallStart),
-        formatDateForAPI(overallEnd),
-        includeMeta
-      );
-      schedules[station.network_name] = blocks || [];
-    } catch (e) {
-      console.error('error fetching schedule for', station.network_name, e);
-      schedules[station.network_name] = [];
-    }
+  try {
+    return await window.fs42Common.fetchGuideSchedules(
+      formatDateForAPI(overallStart),
+      formatDateForAPI(overallEnd),
+      includeMeta
+    );
+  } catch (e) {
+    console.error('error fetching schedules', e);
+    return {};
   }
-  return schedules;
 }
 
 
