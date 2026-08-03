@@ -113,8 +113,7 @@ function mockFetchStations() {
       channel_number: num,
       network_name: 'ch' + num,
       network_long_name: 'Channel ' + num,
-      has_schedule: true,
-      schedule_summary: { start: 1, end: 1 }
+      has_schedule: true
     };
   });
 }
@@ -138,19 +137,14 @@ function mockFetchAllSchedules(slots) {
 }
 
 async function fetchStations() {
-  const all = await window.fs42Common.fetchStationSummary();
+  const all = await window.fs42Common.fetchChannels();
   stations = all.filter(s => !s.hidden);
-  stations.forEach(s => {
-    s.has_schedule = s.schedule_summary &&
-      s.schedule_summary.start !== 0 &&
-      s.schedule_summary.end !== 0;
-  });
 }
 
 async function fetchAllSchedules(slots, includeMeta) {
   if (!stations.length) return {};
 
-  const overallStart = new Date(slots[0].start.getTime() - 3 * 60 * 60 * 1000);
+  const overallStart = slots[0].start;
   const overallEnd = slots[slots.length - 1].end;
   const schedules = {};
 
@@ -579,17 +573,22 @@ async function initGridMode() {
   if (oldClock) oldClock.remove();
   buildGridDOM();
   startClock();
-  if (MOCK) mockFetchStations(); else await fetchStations();
-  await Promise.all([
+
+
+  const mediaLoaded = Promise.all([
     loadMusicPlaylist(),
     loadVideoPlaylist(),
     loadMessages()
   ]);
+
+  if (MOCK) mockFetchStations(); else await fetchStations();
+  await buildGrid();
+  startGridScrolling();
+
+  await mediaLoaded;
   setupMusic();
   setupVideo();
   startTextCarousel();
-  await buildGrid();
-  startGridScrolling();
 }
 
 
@@ -785,10 +784,11 @@ async function init() {
     await initGridMode();
   } else {
     startClock();
+    const musicLoaded = loadMusicPlaylist();
     if (MOCK) mockFetchStations(); else await fetchStations();
-    await loadMusicPlaylist();
     await buildGuide();
     startScrolling();
+    await musicLoaded;
     setupMusic();
   }
 }

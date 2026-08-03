@@ -111,6 +111,16 @@ async function fetchStationSummary() {
     }
 }
 
+
+async function fetchChannels() {
+    try {
+        const resp = await window.fs42Api.get('summary/channels');
+        return resp.channels || [];
+    } catch (e) {
+        return [];
+    }
+}
+
 // Fetch catalog for a station
 async function fetchCatalog(networkId) {
     try {
@@ -243,6 +253,7 @@ window.fs42Common = {
     createLogDisplay,
     // API functions
     fetchStationSummary,
+    fetchChannels,
     fetchCatalog,
     renderSummaryTable,
     renderCatalogTable,
