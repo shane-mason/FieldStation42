@@ -36,27 +36,32 @@ USE_SYSTEMCTL = True
 # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
 # 'esc', 'tab', 'backspace', 'delete', 'insert', 'pageup', 'pagedown', 'f1'-'f12',
 # 'a'-'z', 'leftshift', 'rightshift', 'leftctrl', 'rightctrl', 'leftalt', 'rightalt'
-KEY_MAPPINGS = {
-    # Remote control functions
-    'show_guide': 'home',        # Show program guide
-    'volume_up': 'right',        # Increase volume
-    'volume_down': 'left',       # Decrease volume
-    'channel_up': 'up',          # Next channel
-    'channel_down': 'down',      # Previous channel
-    'last_channel': 'backspace', # Switch to last channel
-    'mute': 'm',                 # Mute/unmute volume
-    'toggle_subtitles': 'v',      # Toggle subtitle visibility in mpv
-    'cycle_subtitles': 'j',       # Cycle subtitle tracks in mpv
-    'cycle_audio': 'a',           # Cycle audio tracks in mpv
-    'power_stop': 'end',         # Stop player (power button)
-    'exit': 'esc',               # Exit remote controller
+if not os.path.exists(os.path.join(os.getcwd(),'keymap.json')):
+    KEY_MAPPINGS = {
+        # Remote control functions
+        'show_guide': 'home',        # Show program guide
+        'volume_up': 'right',        # Increase volume
+        'volume_down': 'left',       # Decrease volume
+        'channel_up': 'up',          # Next channel
+        'channel_down': 'down',      # Previous channel
+        'last_channel': 'backspace', # Switch to last channel
+        'mute': 'm',                 # Mute/unmute volume
+        'toggle_subtitles': 'v',      # Toggle subtitle visibility in mpv
+        'cycle_subtitles': 'j',       # Cycle subtitle tracks in mpv
+        'cycle_audio': 'a',           # Cycle audio tracks in mpv
+        'power_stop': 'end',         # Stop player (power button)
+        'exit': 'esc',               # Exit remote controller
 
-    # Alternative mappings (uncomment to use):
-    # 'power_stop': 'space',     # Use spacebar for power/stop
-    # 'show_guide': 'g',         # Use 'g' key for guide
-    # 'volume_up': 'pageup',     # Use page up for volume up
-    # 'volume_down': 'pagedown', # Use page down for volume down
-}
+        # Alternative mappings (uncomment to use):
+        # 'power_stop': 'space',     # Use spacebar for power/stop
+        # 'show_guide': 'g',         # Use 'g' key for guide
+        # 'volume_up': 'pageup',     # Use page up for volume up
+        # 'volume_down': 'pagedown', # Use page down for volume down
+    }
+else:
+    with open(os.path.join(os.getcwd(),'keymap.json'),'r') as keymap_file:
+        KEY_MAPPINGS = json.load(keymap_file)
+
 CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
 PRESS_SOCKET = "runtime/press.socket"
 
