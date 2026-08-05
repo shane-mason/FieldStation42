@@ -36,7 +36,8 @@ USE_SYSTEMCTL = True
 # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
 # 'esc', 'tab', 'backspace', 'delete', 'insert', 'pageup', 'pagedown', 'f1'-'f12',
 # 'a'-'z', 'leftshift', 'rightshift', 'leftctrl', 'rightctrl', 'leftalt', 'rightalt'
-if not os.path.exists(os.path.join(os.getcwd(),'keymap.json')):
+if not os.path.exists('runtime/keymap.json'):
+    print("Keymap file not found: loading default mapping")
     KEY_MAPPINGS = {
         # Remote control functions
         'show_guide': 'home',        # Show program guide
@@ -59,7 +60,8 @@ if not os.path.exists(os.path.join(os.getcwd(),'keymap.json')):
         # 'volume_down': 'pagedown', # Use page down for volume down
     }
 else:
-    with open(os.path.join(os.getcwd(),'keymap.json'),'r') as keymap_file:
+    print("Loading keymap from runtime/keymap.json")
+    with open('runtime/keymap.json','r') as keymap_file:
         KEY_MAPPINGS = json.load(keymap_file)
 
 CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
