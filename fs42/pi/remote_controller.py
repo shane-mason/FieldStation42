@@ -57,6 +57,21 @@ KEY_MAPPINGS = {
     # 'volume_up': 'pageup',     # Use page up for volume up
     # 'volume_down': 'pagedown', # Use page down for volume down
 }
+if os.path.exists('runtime/remote_controller.json'):
+    print("Loading settings from runtime/remote_controller.json")
+    with open('runtime/remote_controller.json','r') as file:
+        remote_settings = json.load(file)
+    if remote_settings.get("use_systemctl") is not None:
+        print("Loading USE_SYSTEMCTL from file")
+        if remote_settings.get("use_systemctl") is False:
+            USE_SYSTEMCTL = False
+    if remote_settings.get("systemctl_to_toggle") is not None:
+        print("Loading SYSTEMCTL_TO_TOGGLE from file")
+        SYSTEMCTL_TO_TOGGLE = remote_settings.get("systemctl_to_toggle")
+    if remote_settings.get("key_mappings") is not None:
+        print("Loading KEY_MAPPINGS from file")
+        KEY_MAPPINGS = remote_settings.get("key_mappings")
+
 CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
 PRESS_SOCKET = "runtime/press.socket"
 
