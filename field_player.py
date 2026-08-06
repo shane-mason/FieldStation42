@@ -24,6 +24,7 @@ from fs42.reception import (
     none_change_effect,
 )
 from fs42.live_schedule_agent import LiveScheduleAgent
+from fs42.command_executor import execute_command
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO
@@ -188,6 +189,10 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
         elif channel_conf["network_type"] == "web" and not skip_play:
             logger.info("Starting the web channel")
             player_state = player.show_web(channel_conf)
+        elif channel_conf["network_type"] == "executable" and not skip_play:
+            logger.info("Starting an executable channel")
+            player.stop_player()
+            player_state =  execute_command(channel_conf, input_check)
         elif not skip_play:
             now = datetime.datetime.now()
 

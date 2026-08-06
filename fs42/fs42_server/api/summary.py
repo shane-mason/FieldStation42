@@ -25,6 +25,21 @@ async def get_summary():
         summaries.append(summary)
     return {"summary_data": summaries}
 
+@router.get("/channels")
+def get_channels():
+    # Minimal station listing for the guide
+    channels = [
+        {
+            "network_name": station["network_name"],
+            "network_long_name": station.get("network_long_name", ""),
+            "channel_number": station["channel_number"],
+            "hidden": station.get("hidden", False),
+            "has_schedule": station.get("_has_schedule", False),
+        }
+        for station in StationManager().stations
+    ]
+    return {"channels": channels}
+
 @router.get("/stations")
 async def get_stations():
     station_ids = [station["network_name"] for station in StationManager().stations]
