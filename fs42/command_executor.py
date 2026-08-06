@@ -30,7 +30,7 @@ class CommandExecutor:
             return "running"
 
 def execute_command(channel_conf, input_check_fn):
-    process = CommandExecutor(channel_conf["command"])
+    process = CommandExecutor(channel_conf["executable_command"])
     process.start()
     keep_going = True
     while keep_going:
@@ -39,8 +39,13 @@ def execute_command(channel_conf, input_check_fn):
         if response:
             print("Executable got shutdown command")
             keep_going = False
-            process.stop()
+            if "executable_shutdown" in channel_conf:
+                shutdown_process = CommandExecutor(channel_conf["executable_shutdown"])
+                shutdown_process.start()
+            else:
+                process.stop()
             return response
         elif process.get_status() != "running":
             print("Executable not running")
             keep_going = False
+
