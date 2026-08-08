@@ -207,7 +207,7 @@ def main():
             if station["_has_schedule"]:
                 _l.info(f"Resetting schedule for {station['network_name']}")
                 try:
-                    LiquidManager().reset_schedule(station, args.force)
+                    LiquidManager().reset_schedule(station)
                     success_messages.append(
                         f"Successfully reset schedule for {station['network_name']}"
                     )

@@ -34,8 +34,8 @@ class StationIO:
     FILE_CHECKS = ["content_dir", "sign_off_video", "off_air_video", "standby_image", "be_right_back_media"]
 
     # Network types that don't have catalogs or schedules
-    NO_CATALOG = {"guide", "streaming", "web"}
-    NO_SCHEDULE = {"guide", "streaming", "web"}
+    NO_CATALOG = {"guide", "streaming", "web", "executable"}
+    NO_SCHEDULE = {"guide", "streaming", "web", "executable"}
 
     def __init__(self):
         self._l = logging.getLogger("STATIONIO")

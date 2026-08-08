@@ -707,6 +707,12 @@ class StationPlayer:
         return PlayerOutcome(PlayerState.SUCCESS)
 
 
+    def stop_player(self):
+        try:
+            self.mpv.stop()
+            self.current_playing_file_path = None
+        except Exception:
+            self._l.error(f"Failed to stop player - might not be running")
 
     def show_web(self, web_config, blocking=True):
         if not WEB_RENDER_AVAILABLE:

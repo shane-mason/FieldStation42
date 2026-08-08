@@ -18,6 +18,11 @@ class LiquidAPI:
             return LiquidIO().query_liquid_blocks(station_config["network_name"], start, end)
 
     @staticmethod
+    def get_all_blocks(start, end):
+        """Blocks for every station in a window, keyed by network name."""
+        return LiquidIO().query_all_liquid_blocks(start, end)
+
+    @staticmethod
     def delete_blocks(station_config):
         LiquidIO().delete_liquid_blocks(station_config["network_name"])
 

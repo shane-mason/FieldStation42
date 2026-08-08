@@ -79,6 +79,71 @@ async def search_schedule(network_name: str, query: str = None):
 
     return {"network_name": network_name, "query": query, "schedule_blocks": schedule_blocks}
 
+def _attach_meta_batch(by_station):
+    """Attach metadata to every block across every station on one connection."""
+    def single_content_path(block):
+        content = getattr(block, "content", None)
+        if content is None or isinstance(content, list):
+            return None
+        return getattr(content, "path", None)
+
+    paths = []
+    for blocks in by_station.values():
+        for block in blocks:
+            path = single_content_path(block)
+            if path:
+                paths.append(path)
+
+    if not paths:
+        return
+
+    metas = MetadataIO.read_many(paths)
+    for blocks in by_station.values():
+        for block in blocks:
+            path = single_content_path(block)
+            if path and path in metas:
+                block.meta = metas[path]
+
+
+def _listing_projection(blocks, include_meta):
+    # only get the stuff we need
+    listings = []
+    for block in blocks:
+        listing = {
+            "title": block.title,
+            "start_time": block.start_time.isoformat(),
+            "end_time": block.end_time.isoformat(),
+        }
+        if include_meta:
+            meta = getattr(block, "meta", None)
+            if meta:
+                listing["meta"] = meta
+        listings.append(listing)
+    return listings
+
+
+# NOTE: must stay above /{network_name}, or that route captures "all".
+@router.get("/all")
+def get_all_schedules(start: str = None, end: str = None, include_meta: bool = False):
+
+    if not start or not end:
+        return {"error": "start and end are both required."}
+
+    try:
+        sdt = datetime.fromisoformat(start)
+        edt = datetime.fromisoformat(end)
+    except ValueError:
+        return {"error": "Invalid date format. Use ISO format (YYYY-MM-DDTHH:MM:SS) for start and end."}
+
+    by_station = LiquidAPI.get_all_blocks(sdt, edt)
+
+    if include_meta:
+        _attach_meta_batch(by_station)
+
+    schedules = {name: _listing_projection(blocks, include_meta) for name, blocks in by_station.items()}
+    return {"start": start, "end": end, "schedules": schedules}
+
+
 @router.get("/{network_name}")
 async def get_schedule(network_name: str, start: str = None, end: str = None, include_meta: bool = False):
     conf = StationManager().station_by_name(network_name)
