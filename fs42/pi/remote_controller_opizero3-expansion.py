@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+import time
 import evdev
+import glob
+import os
+from evdev import InputDevice, ecodes
 
-DEVICE_PATH = "/dev/input/event0"
+IR_DEVICE_NAME = "sunxi-ir"          # exact name reported by the kernel driver
+BY_PATH_HINT = "platform-7040000.ir"  # substring of the stable /dev/input/by-path/ symlink
 
 # Fill this in once you've logged your remote's actual codes
 # Scancodes are from Dévant EN2H27D
@@ -26,18 +31,195 @@ BUTTON_MAP = {
     0x401: "CH_DOWN"
 }
 
-def main():
-    dev = evdev.InputDevice(DEVICE_PATH)
-    print(f"Listening on {dev.name}. Ctrl+C to stop.\n")
+def _stable_path_for(event_path):
+    """
+    Prefer a /dev/input/by-path/ symlink over the raw eventN path, since
+    eventN numbering isn't guaranteed to stay the same across reboots
+    once other input devices (USB keyboard, HDMI-CEC, etc.) get added.
+    Falls back to the raw path if no matching symlink is found.
+    """
+    by_path_dir = "/dev/input/by-path/"
+    if not os.path.isdir(by_path_dir):
+        return event_path
+    try:
+        real_target = os.path.realpath(event_path)
+        for link_name in os.listdir(by_path_dir):
+            link_path = os.path.join(by_path_dir, link_name)
+            if os.path.realpath(link_path) == real_target and BY_PATH_HINT in link_name:
+                return link_path
+    except OSError:
+        pass
+    return event_path
+
+
+def find_input_device(device_spec=None):
+    """
+    Find the Orange Pi Zero 3's onboard IR receiver (sunxi-ir).
+
+    Args:
+        device_spec: Optional override. Can be:
+            - Device path (e.g. '/dev/input/event3' or a by-path symlink)
+            - Device index (e.g. '0', '1', '2') from the printed list
+            - Device name pattern (e.g. 'sunxi-ir', 'ir')
+            - None to auto-detect the sunxi-ir device specifically
+
+    Returns:
+        A stable device path string, or None if not found.
+    """
+    candidates = []  # (path, name, has_ev_key, has_ev_msc)
+
+    for event_path in sorted(glob.glob("/dev/input/event*")):
+        try:
+            device = InputDevice(event_path)
+        except (OSError, PermissionError):
+            continue
+
+        caps = device.capabilities()
+        has_ev_key = ecodes.EV_KEY in caps
+        has_ev_msc = ecodes.EV_MSC in caps
+
+        # We only care about devices that could plausibly be a remote:
+        # either real key events (keymap loaded) or raw IR scancodes.
+        if has_ev_key or has_ev_msc:
+            candidates.append((event_path, device.name, has_ev_key, has_ev_msc))
+
+    if not candidates:
+        print("No IR/keyboard-capable input devices found at all.")
+        print("Checklist:")
+        print("  1. Is the 'ir' overlay enabled? Check /boot/armbianEnv.txt for 'overlays=ir'")
+        print("  2. Did it load? Run: dmesg | grep -i sunxi-ir")
+        print("  3. Are you running with enough permissions? Try with sudo, or add")
+        print("     your user to the 'input' group.")
+        return None
+
+    print("Available input devices:")
+    for i, (path, name, has_key, has_msc) in enumerate(candidates):
+        mode = []
+        if has_key:
+            mode.append("EV_KEY")
+        if has_msc:
+            mode.append("EV_MSC/scancode")
+        print(f"  {i}: {name} ({path}) [{', '.join(mode)}]")
+
+    # --- Explicit override handling -------------------------------------
+    if device_spec:
+        if device_spec.startswith("/dev/input/"):
+            if os.path.exists(device_spec):
+                print(f"Using specified device path: {device_spec}")
+                return device_spec
+            print(f"Warning: '{device_spec}' not found, falling back to auto-detect")
+
+        elif device_spec.isdigit():
+            index = int(device_spec)
+            if 0 <= index < len(candidates):
+                path, name, *_ = candidates[index]
+                print(f"Using device at index {index}: {name} ({path})")
+                return _stable_path_for(path)
+            print(f"Warning: index {index} out of range (0-{len(candidates)-1}), "
+                  f"falling back to auto-detect")
+
+        else:
+            for path, name, *_ in candidates:
+                if device_spec.lower() in name.lower():
+                    print(f"Found device matching '{device_spec}': {name}")
+                    return _stable_path_for(path)
+            print(f"Device '{device_spec}' not found yet. Waiting...")
+            return None
+
+    # --- Default: look specifically for the sunxi-ir device -------------
+    for path, name, has_key, has_msc in candidates:
+        if IR_DEVICE_NAME.lower() in name.lower():
+            resolved = _stable_path_for(path)
+            print(f"Found sunxi-ir device: {name} ({resolved})")
+            if not has_key:
+                print("Note: no EV_KEY events — no keymap loaded yet.")
+                print("Run 'ir-keytable -s rc0' to check, or load one with "
+                      "'ir-keytable -w <file> -s rc0' if you want standard "
+                      "key events instead of raw scancodes.")
+            return resolved
+
+    # --- sunxi-ir not present: don't silently grab an unrelated device --
+    print(f"'{IR_DEVICE_NAME}' not found among input devices.")
+    print("This usually means the 'ir' device tree overlay isn't enabled, or")
+    print("the expansion board's IR receiver isn't wired/seated correctly.")
+    print("Check: dmesg | grep -i sunxi-ir")
+    return None
+
+# How long (seconds) a scancode's repeat events are allowed to keep
+# re-firing the same action while a button is held. Set to 0 to allow
+# every single repeat through unthrottled.
+REPEAT_HOLD_WINDOW = 0.4
+# Minimum gap (seconds) after a repeat window ends before the SAME
+# scancode can fire again as a fresh press (basic debounce).
+DEBOUNCE_COOLDOWN = 0.25
+
+# How long to wait between retries if the receiver isn't found yet
+# (e.g. overlay not loaded, or script started before udev settles).
+DEVICE_WAIT_RETRY_SECONDS = 5
+
+
+def wait_for_device():
+    """Block until find_input_device() locates the sunxi-ir receiver."""
+    while True:
+        path = find_input_device("sunxi-ir")
+        if path:
+            return path
+        print(f"Retrying in {DEVICE_WAIT_RETRY_SECONDS}s...")
+        time.sleep(DEVICE_WAIT_RETRY_SECONDS)
+
+
+def handle_action(action, code):
+    """
+    Replace this with the actual call into FieldStation42's channel/
+    playback control (e.g. posting to its command socket/queue).
+    Kept as a print for now since this is the "does this button work"
+    stage.
+    """
+    print(f"[{hex(code)}] -> {action}")
+
+
+def listen(dev):
+    print(f"Listening on {dev.name} ({dev.path}). Ctrl+C to stop.\n")
+
+    last_code = None
+    last_event_time = 0.0
 
     for event in dev.read_loop():
-        if event.type == evdev.ecodes.EV_MSC and event.code == evdev.ecodes.MSC_SCAN:
-            code = event.value
-            action = BUTTON_MAP.get(code)
-            if action:
-                print(f"[{hex(code)}] -> {action} button works!")
-            else:
-                print(f"[{hex(code)}] -> unmapped scancode")
+        if event.type != evdev.ecodes.EV_MSC or event.code != evdev.ecodes.MSC_SCAN:
+            continue
+
+        code = event.value
+        now = time.monotonic()
+        action = BUTTON_MAP.get(code)
+
+        if action is None:
+            print(f"[{hex(code)}] -> unmapped scancode")
+            last_code = code
+            last_event_time = now
+            continue
+
+        # First time we see this code since it went idle -> fresh press.
+        # Repeats of the SAME code within REPEAT_HOLD_WINDOW are treated
+        # as "still held" and re-fire the action (useful for volume/
+        # channel scrubbing); anything after a gap is a debounced repeat
+        # until DEBOUNCE_COOLDOWN has passed.
+        is_repeat_of_same = (code == last_code) and (now - last_event_time <= REPEAT_HOLD_WINDOW)
+
+        if is_repeat_of_same or now - last_event_time > DEBOUNCE_COOLDOWN:
+            handle_action(action, code)
+
+        last_code = code
+        last_event_time = now
+
+def main():
+    device_path = wait_for_device()
+    dev = evdev.InputDevice(device_path)
+    try:
+        listen(dev)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
 
 if __name__ == "__main__":
     main()
+
