@@ -9,6 +9,9 @@ import gpiod
 from gpiod.line import Edge
 from datetime import timedelta
 
+# TM1637
+import tm1637
+
 # Adjust chip and line offset based on your configuration
 # (e.g., /dev/gpiochip0 and line offset for your specific pin)
 # PH2 - restart button, in case FS42 freezes
@@ -25,6 +28,10 @@ class CableBox:
         self.channel_socket = channel_socket
         self.status_socket = status_socket
         self.press_socket = press_socket
+        
+        self.tm = tm1637.TM1637(CHIP_PATH, clk=230, dio=74)
+        self.tm.brightness(0)
+        self.tm.show("FS42")
 
         # In 2.x, a single LineSettings object can be reused across offsets
         line_settings = gpiod.LineSettings(edge_detection=Edge.BOTH)
