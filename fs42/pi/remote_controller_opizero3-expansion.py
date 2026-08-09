@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import requests
+import subprocess
+import threading
+import json
 import time
 import evdev
 import glob
@@ -7,6 +11,15 @@ from evdev import InputDevice, ecodes
 
 IR_DEVICE_NAME = "sunxi-ir"          # exact name reported by the kernel driver
 BY_PATH_HINT = "platform-7040000.ir"  # substring of the stable /dev/input/by-path/ symlink
+
+# ======================================
+# CONFIGURATION - CUSTOMIZE YOUR MAPPINGS
+# ======================================
+
+# Server Configuration - can be overridden by environment variables
+FS42_HOST = os.getenv('FS42_HOST', '127.0.0.1')
+FS42_PORT = os.getenv('FS42_PORT', '4242')
+FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
 
 # Fill this in once you've logged your remote's actual codes
 # Scancodes are from Dévant EN2H27D
@@ -30,6 +43,8 @@ BUTTON_MAP = {
     0x400: "CH_UP",
     0x401: "CH_DOWN"
 }
+
+PRESS_SOCKET = "runtime/press.socket"
 
 def _stable_path_for(event_path):
     """
@@ -157,6 +172,48 @@ DEBOUNCE_COOLDOWN = 0.25
 # (e.g. overlay not loaded, or script started before udev settles).
 DEVICE_WAIT_RETRY_SECONDS = 5
 
+# Channel input state
+channel_input = ''
+channel_input_timer = None
+input_lock = threading.Lock()
+
+# Last channel tracking
+current_channel = None
+last_channel = None
+
+# Debounce tracking - stores last press time for each function
+last_press_time = {}
+debounce_lock = threading.Lock()
+
+def write_press_socket(digits):
+    try:
+        with open(PRESS_SOCKET, "w") as fp:
+            json.dump({"digits": digits, "ts": time.time()}, fp)
+    except Exception as e:
+        print(f"Failed to write press socket: {e}")
+
+
+def clear_press_socket():
+    try:
+        with open(PRESS_SOCKET, "w") as fp:
+            fp.write("")
+    except Exception:
+        pass
+
+
+def should_allow_press(function_name, debounce_time=DEBOUNCE_TIME):
+    """Check if enough time has passed since last press of this function"""
+    global last_press_time
+
+    with debounce_lock:
+        current_time = time.time()
+        last_time = last_press_time.get(function_name, 0)
+
+        if current_time - last_time >= debounce_time:
+            last_press_time[function_name] = current_time
+            return True
+        else:
+            return False
 
 def wait_for_device():
     """Block until find_input_device() locates the sunxi-ir receiver."""
@@ -167,6 +224,37 @@ def wait_for_device():
         print(f"Retrying in {DEVICE_WAIT_RETRY_SECONDS}s...")
         time.sleep(DEVICE_WAIT_RETRY_SECONDS)
 
+def should_allow_press(function_name, debounce_time=DEBOUNCE_TIME):
+    """Check if enough time has passed since last press of this function"""
+    global last_press_time
+
+    with debounce_lock:
+        current_time = time.time()
+        last_time = last_press_time.get(function_name, 0)
+
+        if current_time - last_time >= debounce_time:
+            last_press_time[function_name] = current_time
+            return True
+        else:
+            return False
+
+def show_guide_pressed():
+    """Handle home key press"""
+    if not should_allow_press('show_guide'):
+        return  # Debounced - ignore this press
+
+    global current_channel, last_channel
+    try:
+        response = requests.post(f'{FS42_BASE_URL}/player/channels/guide')
+        if response.ok:
+            print("Guide displayed")
+            if current_channel is not None:
+                last_channel = current_channel
+                print(f"Stored last_channel: {last_channel} before guide")
+        else:
+            print("Guide command failed")
+    except Exception as e:
+        print(f"Guide error: {e}")
 
 def handle_action(action, code):
     """
@@ -175,6 +263,9 @@ def handle_action(action, code):
     Kept as a print for now since this is the "does this button work"
     stage.
     """
+    if action == "EPG_BTN":
+        show_guide_pressed()
+    
     print(f"[{hex(code)}] -> {action}")
 
 
