@@ -41,7 +41,8 @@ BUTTON_MAP = {
     0x402: "VOLUME_UP",
     0x403: "VOLUME_DOWN",
     0x400: "CH_UP",
-    0x401: "CH_DOWN"
+    0x401: "CH_DOWN",
+    0x40a: "DOT_BTN" # FOR OSD use
 }
 DEBOUNCE_TIME = 0.25  # 250ms default debounce time
 PRESS_SOCKET = "runtime/press.socket"
@@ -316,6 +317,11 @@ def handle_action(action, code):
         show_guide_pressed()
     if action.startswith("NUM_"):
         number_pressed(int(action.removeprefix("NUM_")))
+    if action == "CC_BTN":
+        pass # Planning to put the option to cycle between subs here
+    if action == "DOT_BTN":
+        os.system("systemctl --user restart fs42-osd")
+        time.sleep(0.3)
     
     print(f"[{hex(code)}] -> {action}")
 
