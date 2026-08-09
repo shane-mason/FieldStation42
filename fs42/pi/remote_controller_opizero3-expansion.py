@@ -43,7 +43,7 @@ BUTTON_MAP = {
     0x400: "CH_UP",
     0x401: "CH_DOWN"
 }
-
+DEBOUNCE_TIME = 0.25  # 250ms default debounce time
 PRESS_SOCKET = "runtime/press.socket"
 
 def _stable_path_for(event_path):
