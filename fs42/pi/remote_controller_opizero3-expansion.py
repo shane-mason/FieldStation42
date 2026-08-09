@@ -256,6 +256,55 @@ def show_guide_pressed():
     except Exception as e:
         print(f"Guide error: {e}")
 
+def send_channel_change():
+    """Send accumulated channel input to the server"""
+    global channel_input, channel_input_timer, current_channel, last_channel
+    
+    with input_lock:
+        if channel_input:
+            try:
+                channel_number = int(channel_input)
+                print(f"Sending channel change to {channel_number}")
+                response = requests.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
+                if response.ok:
+                    print(f"Changed to channel {channel_number}")
+                    # Update channel tracking - only update last_channel if we know the current channel
+                    if current_channel is not None and current_channel != channel_number:
+                        last_channel = current_channel
+                        print(f"Updated last_channel: {last_channel} (was on {current_channel}, now on {channel_number})")
+                    current_channel = channel_number
+                else:
+                    print(f"Channel change to {channel_number} failed")
+            except Exception as e:
+                print(f"Channel change error: {e}")
+            
+            # Clear the input
+            channel_input = ''
+            channel_input_timer = None
+            clear_press_socket()
+
+def number_pressed(number):
+    """Handle number key presses from remote"""
+    global channel_input, channel_input_timer
+    
+    with input_lock:
+        if channel_input_timer:
+            channel_input_timer.cancel()
+            channel_input_timer = None
+            
+        channel_input += str(number)
+        print(f"Channel input: {channel_input}")
+        write_press_socket(channel_input)
+        
+        if len(channel_input) >= 3:
+            # Use a very short timer to avoid race conditions
+            channel_input_timer = threading.Timer(0.1, send_channel_change)
+            channel_input_timer.start()
+        else:
+            # Set timeout for 1 second
+            channel_input_timer = threading.Timer(1.0, send_channel_change)
+            channel_input_timer.start()
+
 def handle_action(action, code):
     """
     Replace this with the actual call into FieldStation42's channel/
@@ -265,6 +314,8 @@ def handle_action(action, code):
     """
     if action == "EPG_BTN":
         show_guide_pressed()
+    if action.startswith("NUM_"):
+        number_pressed(int(action.removeprefix("NUM_")))
     
     print(f"[{hex(code)}] -> {action}")
 
