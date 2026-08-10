@@ -2,8 +2,10 @@ import sqlite3
 import json
 from contextlib import contextmanager
 from datetime import datetime
+from fs42.catalog_entry import CatalogEntry
+from fs42.autobump_agent import AutoBumpAgent
 from fs42.station_manager import StationManager
-from fs42.liquid_blocks import LiquidBlock, LiquidLoopBlock, LiquidClipBlock, LiquidOffAirBlock
+from fs42.liquid_blocks import LiquidBlock, LiquidLoopBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidWebBlock
 from fs42.block_plan import BlockPlanEntry
 from fs42.catalog_api import CatalogAPI
 from fs42.title_parser import TitleParser
@@ -242,7 +244,10 @@ class LiquidIO:
                         if cached_entry:
                             content_obj.append(cached_entry)
                     else:
-                        content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))  
+                        content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))
+        elif _liquid_type == "LiquidWebBlock":
+            jobj = _plan_json[0]
+            content_obj = CatalogEntry(jobj["path"], jobj["duration"], AutoBumpAgent.tag_str)
 
         main_normal = StationManager().server_conf.get("normalize_titles", True)
         the_title = _title
@@ -280,6 +285,8 @@ class LiquidIO:
                 return LiquidClipBlock(*args)
             case "LiquidLoopBlock":
                 return LiquidLoopBlock(*args)
+            case "LiquidWebBlock":
+                return LiquidWebBlock(*args)
             case _:
                 raise ValueError(f"Unknown liquid type: {liquid_type}")
 

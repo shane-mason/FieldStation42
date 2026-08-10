@@ -10,7 +10,7 @@ import math
 from fs42.catalog import ShowCatalog, MatchingContentNotFound
 from fs42.slot_reader import SlotReader
 from fs42 import timings
-from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock
+from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock, LiquidWebBlock
 from fs42.sequence_api import SequenceAPI
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
@@ -18,6 +18,7 @@ from fs42.marathon_agent import MarathonAgent
 from fs42.path_query import PathQuery
 from fs42.station_manager import StationManager
 from fs42.liquid_io import LiquidIO
+from fs42.autobump_agent import AutoBumpAgent
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -419,6 +420,8 @@ class LiquidSchedule:
                 # we are offair, so set onair off
                 onair_flag = False
                 
+                if candidate is None and "off_air_autobump" in self.conf:
+                        candidate = AutoBumpAgent.fill_block(self.conf, timings.HOUR)
                 if candidate is None:
                     self._l.error(f"Schedule logic error: no time slots configured for {current_mark}")
                     self._l.error("This indicates that the station is offair, but offair content is not configured")
@@ -428,7 +431,10 @@ class LiquidSchedule:
                 # make it for one hour.
                 # TODO: handle when it starts at half hour - just go to next hour (not always one hour)
                 next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-                new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
+                if candidate.tag == AutoBumpAgent.tag_str:
+                    new_block = LiquidWebBlock(candidate, current_mark, next_mark, "Offair")
+                else:
+                    new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
 
             # here
             new_blocks.append(new_block)

@@ -11,7 +11,7 @@ import urllib.parse
 class AutoBumpAgent:
     base_url = "http://127.0.0.1:4242/static/bump/bump.html"
     url_prefix = ":autobump:="
-
+    tag_str = ":autobump:"
 
     @staticmethod
     def do_fill(station_config):
@@ -25,9 +25,13 @@ class AutoBumpAgent:
 
     @staticmethod
     def fill_block(station_config, duration):
-        if "autobump" not in station_config:
+        if "autobump" in station_config:
+            ab_config = station_config["autobump"]
+        elif "off_air_autobump" in station_config:
+            ab_config = station_config["off_air_autobump"]
+        else:
             return None
-        ab_config = station_config["autobump"]
+
         ab_config["duration"] = duration
         fill_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.base_url, station_config["network_name"], False, True)
         return fill_bump
@@ -75,7 +79,7 @@ class AutoBumpAgent:
             del ab_config["next_network"]
         message_qs = AutoBumpAgent.generate_bump_query(ab_config)
         message_url = f"{AutoBumpAgent.url_prefix}{base_url}?{message_qs}"
-        block = CatalogEntry(message_url, ab_config["duration"], ":autobump:")
+        block = CatalogEntry(message_url, ab_config["duration"], AutoBumpAgent.tag_str)
         return block
 
     @staticmethod
@@ -86,7 +90,7 @@ class AutoBumpAgent:
         ab_config["countdown"] = "true" if show_countdown else "false"
         message_qs = AutoBumpAgent.generate_bump_query(ab_config)
         message_url = f"{AutoBumpAgent.url_prefix}{base_url}?{message_qs}"
-        block = CatalogEntry(message_url, ab_config["duration"], ":autobump:")
+        block = CatalogEntry(message_url, ab_config["duration"], AutoBumpAgent.tag_str)
         return block
 
     @staticmethod

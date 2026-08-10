@@ -24,7 +24,7 @@
         },
         "network_type": {
           "type": "string",
-          "enum": ["standard", "web", "guide", "loop", "streaming"],
+          "enum": ["standard", "web", "guide", "loop", "streaming", "executable"],
           "description": "Type of network station"
         },
         "schedule_increment": {
@@ -111,7 +111,7 @@
         },
         "video_scramble_fx": {
           "type": "string",
-          "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble", "spicy"],
+          "enum": ["horizontal_line", "diagonal_lines", "static_overlay", "pixel_block", "color_inversion", "severe_noise", "wavy", "random_block", "chunky_scramble", "spicy", "special_sauce"],
           "description": "Preset video scrambling effect"
         },
         "station_fx": {
@@ -389,6 +389,14 @@
           "type": "number",
           "minimum": 0,
           "description": "Interval in seconds to automatically reload the web page (web networks only). Set to 0 or omit to disable."
+        },
+        "executable_command": {
+          "type": "string",
+          "description": "Command to execute when an executable channel starts (executable networks only). Parsed with shell-style quoting and run directly, not through a shell."
+        },
+        "executable_shutdown": {
+          "type": "string",
+          "description": "Optional command to execute when switching away from an executable channel (executable networks only). When set, this command is run instead of terminating the process started by executable_command."
         },
         "messages": {
           "type": "array",

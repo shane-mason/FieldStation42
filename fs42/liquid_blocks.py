@@ -265,6 +265,14 @@ class LiquidClipBlock(LiquidBlock):
             self.content, self.reel_blocks, self.break_strategy, self.start_bump, self.end_bump
         )
 
+class LiquidWebBlock(LiquidBlock):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+        super().__init__(content, start_time, end_time, title, break_strategy, break_info)
+
+    def make_plan(self, catalog):
+        _c = self.content
+        self.plan = [BlockPlanEntry(_c.path, 0, _c.duration, content_type=_c.content_type, media_type=_c.media_type)]
+
 
 class LiquidOffAirBlock(LiquidBlock):
     def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, sign_off=None):
