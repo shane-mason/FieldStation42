@@ -257,6 +257,164 @@ def show_guide_pressed():
     except Exception as e:
         print(f"Guide error: {e}")
 
+def volume_up_pressed():
+    """Handle right arrow key press"""
+    if not should_allow_press('volume_up'):
+        return  # Debounced - ignore this press
+
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/volume/up')
+        if response.ok:
+            data = response.json()
+            print(f"Volume up: {data.get('volume', 'success')}")
+        else:
+            print("Volume up failed")
+    except Exception as e:
+        print(f"Volume up error: {e}")
+
+
+def volume_down_pressed():
+    """Handle left arrow key press"""
+    if not should_allow_press('volume_down'):
+        return  # Debounced - ignore this press
+
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/volume/down')
+        if response.ok:
+            data = response.json()
+            print(f"Volume down: {data.get('volume', 'success')}")
+        else:
+            print("Volume down failed")
+    except Exception as e:
+        print(f"Volume down error: {e}")
+
+
+def mute_pressed():
+    """Handle mute key press"""
+    if not should_allow_press('mute'):
+        return  # Debounced - ignore this press
+
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/volume/mute')
+        if response.ok:
+            data = response.json()
+            print(f"Mute toggled: {data.get('volume', 'success')}")
+        else:
+            print("Mute toggle failed")
+    except Exception as e:
+        print(f"Mute error: {e}")
+
+def channel_up_pressed():
+    """Handle up arrow key press"""
+    if not should_allow_press('channel_up'):
+        return  # Debounced - ignore this press
+
+    global current_channel, last_channel
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
+        if response.ok:
+            print("Channel up success")
+            # Poll status to wait for channel change (max 1 second)
+            try:
+                old_channel = current_channel
+                new_channel = None
+                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                for attempt in range(max_attempts):
+                    time.sleep(0.05)
+                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    if status_response.ok:
+                        status = status_response.json()
+                        new_channel = status.get('channel_number')
+
+                        # If channel changed or we have a channel number, we're done
+                        if new_channel != old_channel:
+                            break
+
+                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
+                # Only update last_channel if the channel actually changed
+                if new_channel != current_channel and current_channel is not None:
+                    last_channel = current_channel
+                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
+                else:
+                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
+                current_channel = new_channel
+            except Exception as e:
+                print(f"Failed to get current channel: {e}")
+                current_channel = None
+        else:
+            print("Channel up failed")
+    except Exception as e:
+        print(f"Channel up error: {e}")
+
+
+def channel_down_pressed():
+    """Handle down arrow key press"""
+    if not should_allow_press('channel_down'):
+        return  # Debounced - ignore this press
+
+    global current_channel, last_channel
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
+        if response.ok:
+            print("Channel down success")
+            # Poll status to wait for channel change (max 1 second)
+            try:
+                old_channel = current_channel
+                new_channel = None
+                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                for attempt in range(max_attempts):
+                    time.sleep(0.05)
+                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    if status_response.ok:
+                        status = status_response.json()
+                        new_channel = status.get('channel_number')
+
+                        # If channel changed or we have a channel number, we're done
+                        if new_channel != old_channel:
+                            break
+
+                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
+                # Only update last_channel if the channel actually changed
+                if new_channel != current_channel and current_channel is not None:
+                    last_channel = current_channel
+                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
+                else:
+                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
+                current_channel = new_channel
+            except Exception as e:
+                print(f"Failed to get current channel: {e}")
+                current_channel = None
+        else:
+            print("Channel down failed")
+    except Exception as e:
+        print(f"Channel down error: {e}")
+
+
+def last_channel_pressed():
+    """Handle last channel key press"""
+    if not should_allow_press('last_channel'):
+        return  # Debounced - ignore this press
+
+    global current_channel, last_channel
+    if last_channel is not None:
+        try:
+            print(f"Switching to last channel: {last_channel}")
+            response = requests.get(f'{FS42_BASE_URL}/player/channels/{last_channel}')
+            if response.ok:
+                print(f"Switched to last channel {last_channel}")
+                # Swap current and last channel
+                temp = current_channel
+                current_channel = last_channel
+                last_channel = temp
+            else:
+                print(f"Last channel change to {last_channel} failed")
+        except Exception as e:
+            print(f"Last channel error: {e}")
+    else:
+        print("No last channel stored")
+
 def send_channel_change():
     """Send accumulated channel input to the server"""
     global channel_input, channel_input_timer, current_channel, last_channel
@@ -322,6 +480,10 @@ def handle_action(action, code):
     if action == "DOT_BTN":
         os.system("systemctl --user restart fs42-osd")
         time.sleep(0.3)
+    if action == "CH_UP":
+        channel_up_pressed()
+    if action == "CH_DOWN":
+        channel_down_pressed()
     
     print(f"[{hex(code)}] -> {action}")
 
