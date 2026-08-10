@@ -32,6 +32,8 @@ class CableBox:
         self.tm = tm1637.TM1637(CHIP_PATH, clk=230, dio=74)
         self.tm.brightness(0)
         self.tm.show("FS42")
+        
+        self.last_stat = ""
 
         # In 2.x, a single LineSettings object can be reused across offsets
         line_settings = gpiod.LineSettings(edge_detection=Edge.BOTH)
