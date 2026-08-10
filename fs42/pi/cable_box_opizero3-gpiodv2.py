@@ -81,10 +81,13 @@ class CableBox:
         return None
 
     def event_loop(self):
+        last_pressed = ""
+        in_selection = False
+        last_selection_tick = -1
         channel_num = 0
+        tick_count = 0
         while True:
             key_pressed = self.read_keys()
-
             # Print something here for now
             if key_pressed:
                 print("Key pressed:", key_pressed)
@@ -96,12 +99,27 @@ class CableBox:
                 elif key_pressed == "CHANNEL_UP_BUTTON":  # Moves channel UP
                     self.send_command("up")
                     channel_num += 1
+                    self.tm.show("----")
                     in_selection = False
                 elif key_pressed == "CHANNEL_DOWN_BUTTON":  # Moves channel DOWN
                     if channel_num > 0:
                         self.send_command("down")
                         channel_num -= 1
+                        self.tm.show("----")
                     in_selection = False
+                    
+            if in_selection:
+                tick_diff = time.monotonic() - last_selection_tick
+                if tick_diff > 1.5:
+                    print(f"Applying selection CH{as_num:02d}")
+                    self.tm.show(f"CH{as_num:02d}")
+                    last_selection_tick = -1
+                    in_selection = False
+                    last_pressed = ""
+                    channel_num = as_num
+                    self.send_command("direct", channel_num)
+                    
+            time.sleep(0.1)
 
 
 if __name__ == "__main__":
