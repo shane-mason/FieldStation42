@@ -23,6 +23,7 @@ FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
 
 # Fill this in once you've logged your remote's actual codes
 # Scancodes are from Dévant EN2H27D
+# Please determine the scancodes from your own remote by using sudo ir-keytable -t
 BUTTON_MAP = {
     0x408: "POWER_MAIN",
     0x40b: "SOURCE_BTN",
@@ -42,6 +43,7 @@ BUTTON_MAP = {
     0x403: "VOLUME_DOWN",
     0x400: "CH_UP",
     0x401: "CH_DOWN",
+    0x404: "BACK_BTN",
     0x40a: "DOT_BTN" # FOR OSD use
 }
 DEBOUNCE_TIME = 0.25  # 250ms default debounce time
@@ -477,13 +479,20 @@ def handle_action(action, code):
         number_pressed(int(action.removeprefix("NUM_")))
     if action == "CC_BTN":
         pass # Planning to put the option to cycle between subs here
-    if action == "DOT_BTN":
+    if action == "DOT_BTN": # Restarts the OSD
         os.system("systemctl --user restart fs42-osd")
         time.sleep(0.3)
     if action == "CH_UP":
         channel_up_pressed()
     if action == "CH_DOWN":
         channel_down_pressed()
+    if action == "SOURCE_BTN": # Restarts FieldPlayer
+        os.system("systemctl --user restart fs42")
+        time.sleep(0.3)
+    if action == "VOLUME_UP":
+        volume_up_pressed()
+    if action == "VOLUME_DOWN":
+        volume_down_pressed()
     
     print(f"[{hex(code)}] -> {action}")
 
