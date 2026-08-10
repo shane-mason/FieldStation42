@@ -625,6 +625,40 @@
           "type": "string",
           "description": "Sequence identifier"
         },
+        "sequence_strategy": {
+          "type": "string",
+          "enum": ["random_show"],
+          "description": "Optional sequence strategy. random_show picks a child show under the tag and plays it sequentially until completion."
+        },
+        "airing_id": {
+          "type": "string",
+          "description": "Stable logical airing stream identifier. Blocks with this value are recorded in airing history for encore replay."
+        },
+        "encore": {
+          "type": "object",
+          "description": "Replay a programme from a prior airing history instead of selecting new content.",
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "Source airing_id to replay"
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["offset", "queue"],
+              "description": "offset replays the airing at current time minus offset; queue consumes the oldest unconsumed prior source airing for the cursor."
+            },
+            "offset": {
+              "type": "string",
+              "pattern": "^\\s*\\d+\\s*[smhd]\\s*$",
+              "description": "Offset duration for offset encores, such as 12h or 1d."
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Persistent cursor name for queue encores."
+            }
+          },
+          "required": ["source", "strategy"]
+        },
         "sequence_start": {
           "type": "number",
           "minimum": -1,

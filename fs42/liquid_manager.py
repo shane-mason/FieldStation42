@@ -6,6 +6,7 @@ from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
 from fs42.catalog import ShowCatalog
 from fs42.sequence_api import SequenceAPI
 from fs42.liquid_api import LiquidAPI
+from fs42.encore_agent import EncoreAgent
 
 
 class ScheduleQueryNotInBounds(Exception):
@@ -58,6 +59,7 @@ class LiquidManager(object):
             if station_config["_has_schedule"]:
                 logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
                 self.reset_sequences(station_config)
+                self.reset_encore_cursors(station_config)
                 LiquidAPI.delete_blocks(station_config)
         self.reload_schedules()
 
@@ -66,8 +68,16 @@ class LiquidManager(object):
         if station_config["_has_schedule"]:
             logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
             self.reset_sequences(station_config)
+            self.reset_encore_cursors(station_config)
             LiquidAPI.delete_blocks(station_config)
         self.reload_schedules()
+
+    def reset_encore_cursors(self, station_config):
+        logging.getLogger("liquid").info(f"Resetting encore cursors for {station_config['network_name']}")
+        _blocks: list[LiquidBlock] = self.schedules.get(station_config["network_name"], [])
+        now = datetime.datetime.now()
+        today = datetime.datetime(now.year, now.month, now.day)
+        EncoreAgent.reset_cursors_from_blocks(station_config, _blocks, today)
 
     def reset_sequences(self, station_config):
         logging.getLogger("liquid").info(f"Resetting sequences for {station_config['network_name']}")

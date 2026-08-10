@@ -27,6 +27,7 @@ class LiquidBlock:
         self.break_info = break_info if break_info else {}
         
         self.sequence_key = None
+        self.encore_key = None
 
         if break_info:
             #print("break info: ", break_info)

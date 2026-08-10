@@ -60,15 +60,18 @@ class SequenceAPI:
             _l.error(f"Sequence {sequence_name} for {station_config['network_name']} not found.")
             return None
 
-        if not SequenceAPI._normalize_sequence_position(seq):
+        if not seq.episodes:
             _l.error(
                 f"Sequence {sequence_name}:{tag_path} "
                 f"contains no episodes"
             )
             return None
+
+        if seq.current_index < -1:
+            seq.current_index = -1
             
         # Handle end of sequence - reset to 0 to loop back to beginning
-        elif seq.current_index >= seq.end_index:
+        if seq.current_index >= seq.end_index:
             _l.info(
                 f"Sequence completed: "
                 f"{sequence_name}:{seq.tag_path}"
@@ -138,6 +141,13 @@ class SequenceAPI:
                 f"Current index {seq.current_index} reached end of sequence {sequence_name}. Looping back to 0."
             )
             seq.current_index = 0
+
+        if not SequenceAPI._normalize_sequence_position(seq):
+            _l.error(
+                f"Sequence {sequence_name}:{tag_path} "
+                f"contains no episodes"
+            )
+            return None
 
         try:
             next_entry = seq.episodes[seq.current_index]

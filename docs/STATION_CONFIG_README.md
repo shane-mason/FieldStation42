@@ -373,8 +373,10 @@ Sequences allow playing episodes in order from a specific range:
 | Property | Type | Description |
 |----------|------|-------------|
 | `sequence` | string | Sequence identifier |
+| `sequence_strategy` | string | Optional strategy such as `"random_show"` |
 | `sequence_start` | number | Starting point (0.0 to 1.0) |
 | `sequence_end` | number | Ending point (0.0 to 1.0) |
+| `airing_id` | string | Stable broadcast-history stream to record this selected programme under |
 
 Example:
 ```json
@@ -387,6 +389,61 @@ Example:
 ```
 
 This plays the first half of the `gg-season1` sequence in order.
+
+`airing_id` is separate from `sequence`: the sequence decides what airs next, while the airing ID names the logical broadcast stream for later encore replay. This is especially useful with `"sequence_strategy": "random_show"` because encores replay the exact historical programme that was scheduled, not the currently active random-show child.
+
+### Encores
+
+Encores replay programmes from airing history. An encore slot does not require `tags` because it is not selecting new catalog content. It reuses the original programme file, then builds a fresh plan using the encore slot's own bumps, commercials, break strategy, and schedule increment. Encore broadcasts count as normal plays, but never advance the source sequence.
+
+Authoritative source:
+```json
+{
+  "tags": "autumn/prime",
+  "sequence": "prime1",
+  "sequence_strategy": "random_show",
+  "airing_id": "prime1"
+}
+```
+
+Fixed-time replay:
+```json
+{
+  "encore": {
+    "source": "prime1",
+    "strategy": "offset",
+    "offset": "12h"
+  }
+}
+```
+
+Queue replay:
+```json
+{
+  "encore": {
+    "source": "prime1",
+    "strategy": "queue",
+    "cursor": "prime1_sunday"
+  },
+  "marathon": {
+    "chance": 1.0,
+    "count": 6
+  }
+}
+```
+
+Encore properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `encore.source` | string | Source `airing_id` to replay |
+| `encore.strategy` | string | `"offset"` or `"queue"` |
+| `encore.offset` | string | Duration for offset replay, such as `"12h"` |
+| `encore.cursor` | string | Persistent cursor name for queue replay |
+
+Offset encores look up the source occurrence at `encore_start_time - offset`. Queue encores select the oldest source occurrence before the encore start time that the named cursor has not consumed yet. Queue cursors are independent from source sequences and from each other.
+
+If no matching history exists, the scheduler uses `fallback_tag` when configured; otherwise scheduling fails the same way it does for missing catalog content. Deleting future schedules rewinds queue cursor progress to the latest retained encore block, so generated future Sunday marathons do not permanently consume history.
 
 ### Marathons
 

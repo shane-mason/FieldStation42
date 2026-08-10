@@ -50,8 +50,13 @@ class LiquidIO:
                                 sequence_key TEXT,
                                 break_info TEXT,
                                 content_json TEXT NOT NULL,
-                                plan_json TEXT NOT NULL
+                                plan_json TEXT NOT NULL,
+                                encore_key TEXT
                             )""")
+            cursor.execute("PRAGMA table_info(liquid_blocks)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if "encore_key" not in columns:
+                cursor.execute("ALTER TABLE liquid_blocks ADD COLUMN encore_key TEXT")
 
             # Create indexes for performance
             cursor.execute("""CREATE INDEX IF NOT EXISTS idx_liquid_blocks_station
@@ -180,11 +185,12 @@ class LiquidIO:
                 block_type = type(block).__name__
                 break_info = json.dumps(block.break_info) if block.break_info else None
                 seq_json = json.dumps(block.sequence_key) if block.sequence_key else None
+                encore_json = json.dumps(block.encore_key) if getattr(block, "encore_key", None) else None
                
                 cursor.execute(
                     """INSERT OR REPLACE INTO liquid_blocks 
-                       (station, liquid_type, start_time, end_time, break_strategy, title, sequence_key, break_info, content_json, plan_json) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       (station, liquid_type, start_time, end_time, break_strategy, title, sequence_key, break_info, content_json, plan_json, encore_key)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         station_name,
                         block_type,
@@ -196,6 +202,7 @@ class LiquidIO:
                         break_info,
                         content_json,
                         plan_json,
+                        encore_json,
                     ),
                 )
             cursor.close()
@@ -225,6 +232,7 @@ class LiquidIO:
         _break_info = json.loads(row[8]) if row[8] else None 
         _content_json = json.loads(row[9]) if row[9] else None
         _plan_json = json.loads(row[10]) if row[10] else []
+        _encore_key = json.loads(row[11]) if len(row) > 11 and row[11] else None
     
 
         content_obj = None
@@ -267,6 +275,7 @@ class LiquidIO:
 
         block = LiquidIO._block_factory(_liquid_type, args)
         block.sequence_key = _sequence_key
+        block.encore_key = _encore_key
 
         plans = []
         for p in _plan_json:

@@ -19,6 +19,7 @@ from fs42.path_query import PathQuery
 from fs42.station_manager import StationManager
 from fs42.liquid_io import LiquidIO
 from fs42.autobump_agent import AutoBumpAgent
+from fs42.encore_agent import EncoreAgent, EncoreUnavailable
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
@@ -79,6 +80,19 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
+    def _block_for_candidate(self, slot_config, tag_str, current_mark, candidate) -> LiquidBlock:
+        the_match =  PathQuery.match_any_from_base(candidate.path, self.conf["content_dir"], self.conf["clip_shows"].keys())
+
+        if the_match:
+            raise ClipShowKickBack(the_match, the_match)
+
+        break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path)
+
+        target_duration = self._calc_target_duration(candidate.duration, increment)
+        next_mark = current_mark + datetime.timedelta(seconds=target_duration)
+        new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
+        return (new_block, next_mark)
+
     def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None) -> LiquidBlock:
         seq_key = None
         candidate = None
@@ -129,17 +143,7 @@ class LiquidSchedule:
                     raise
 
         if candidate:
-
-            the_match =  PathQuery.match_any_from_base(candidate.path, self.conf["content_dir"], self.conf["clip_shows"].keys())
-            
-            if the_match:
-                raise ClipShowKickBack(the_match, the_match)
-
-            break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path)
-
-            target_duration = self._calc_target_duration(candidate.duration, increment)
-            next_mark = current_mark + datetime.timedelta(seconds=target_duration)
-            new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
+            new_block, next_mark = self._block_for_candidate(slot_config, tag_str, current_mark, candidate)
             # add sequence information
             if seq_key:
                 new_block.sequence_key = seq_key
@@ -366,6 +370,7 @@ class LiquidSchedule:
             current_mark = datetime.datetime.now()
 
         forward_buffer = []
+        encore_agent = EncoreAgent(self.conf, self.catalog)
 
         # build exclusion index from sibling channels that share the same content_dir
         exclusion_index = self._build_exclusion_index(start_time, end_target)
@@ -379,16 +384,35 @@ class LiquidSchedule:
             else:
                 slot_config = forward_buffer.pop(0)
 
-            tag_str,tag_index = SlotReader.get_tag_from_slot(slot_config, current_mark)
+            if slot_config and MarathonAgent.detect_marathon(slot_config, current_mark):
+                forward_buffer = MarathonAgent.fill_marathon(slot_config)
+
+            is_encore = bool(slot_config and "encore" in slot_config)
+            tag_str = None
+            tag_index = None
+            if not is_encore:
+                tag_str,tag_index = SlotReader.get_tag_from_slot(slot_config, current_mark)
 
             new_block = None
             onair_flag = True
-            if tag_str is not None:
+            if is_encore:
                 onair_flag = True
-                
-                
-                if MarathonAgent.detect_marathon(slot_config, current_mark):
-                    forward_buffer = MarathonAgent.fill_marathon(slot_config)
+                try:
+                    candidate, encore_key = encore_agent.resolve(slot_config["encore"], current_mark)
+                    slot_tags = slot_config.get("tags")
+                    tag_for_breaks = slot_tags if isinstance(slot_tags, str) else candidate.tag
+                    new_block, next_mark = self._block_for_candidate(slot_config, tag_for_breaks, current_mark, candidate)
+                    new_block.encore_key = encore_key
+                except (EncoreUnavailable, ClipShowKickBack, MatchingContentNotFound) as e:
+                    if "fallback_tag" in self.conf:
+                        fb_config = {"tags": self.conf["fallback_tag"]}
+                        new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, exclusion_index=exclusion_index)
+                    else:
+                        self._l.warning("Encore content not found, but no fallback_tag specified.")
+                        raise e
+
+            elif tag_str is not None:
+                onair_flag = True
 
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
@@ -438,6 +462,7 @@ class LiquidSchedule:
 
             # here
             new_blocks.append(new_block)
+            encore_agent.record_airing(slot_config.get("airing_id") if slot_config else None, new_block)
             self._register_exclusion(exclusion_index, new_block)
             current_mark = next_mark
         self._l.info("Content and reel schedules are completed")
@@ -469,6 +494,7 @@ class LiquidSchedule:
         self._blocks = new_blocks
         self._l.info("Saving blocks to disk")
         LiquidAPI.add_blocks(self.conf, new_blocks)
+        encore_agent.commit()
         self._load_blocks()
 
     def _increment(self, how_much):
