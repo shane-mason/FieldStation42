@@ -51,6 +51,21 @@ class CableBox:
         self.last_button_time = time.monotonic()
         self.show_time = True
         self.time_format = "%H:%M"
+        
+    def check_status(self):
+        new_stat = None
+        with open(self.status_socket) as fp:
+            as_str = fp.read()
+
+            if as_str != self.last_stat:
+                print(f"Status changed: {as_str}")
+                self.last_stat = as_str
+                try:
+                    new_stat = json.loads(as_str)
+                except:
+                    # assume that it was a partial read and try again next time
+                    print(f"Error decoding status: {as_str}")
+        return new_stat
 
     def send_command(self, command, channel=-1):
         as_obj = {"command": command, "channel": channel}
@@ -120,6 +135,33 @@ class CableBox:
                     self.send_command("direct", channel_num)
                     
             time.sleep(0.1)
+            
+            new_stat = self.check_status()
+            if new_stat:
+                self.temp_mode = False
+                try:
+                    new_channel_num = int(new_stat["channel_number"])
+                    if new_channel_num != channel_num:
+                        self.last_button_time = time.monotonic()
+                        channel_num = new_channel_num
+                    if channel_num >= 0:
+                        self.tm.show(f"CH{channel_num:02d}")
+                        print("Set channel: ", channel_num)
+                    else:
+                        self.tm.show("FS42")
+                except:
+                    self.tm.show("FS42")
+
+            elapsed_since_press = time.monotonic() - self.last_button_time
+            if self.show_time and elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
+                formatted = time.strftime(self.time_format, time.localtime())
+                if ":" in formatted:
+                    h, m = formatted.split(":", 1)
+                    self.tm.numbers(int(h), int(m))
+                else:
+                    self.tm.show(formatted)
+            
+            tick_count += 1
 
 
 if __name__ == "__main__":
