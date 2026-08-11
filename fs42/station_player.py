@@ -381,7 +381,11 @@ class StationPlayer:
                         params['duration'] = [str(int(remaining * 1000))]
                         web_url = urlunparse(parsed._replace(query=urlencode({k: v[0] for k, v in params.items()})))
                     conf = {
-                        "web_url": web_url
+                        "web_url": web_url,
+                        "width": 1920,
+                        "height": 1080,
+                        "x": 0,
+                        "y": 0,
                     }
                     if remaining:
                         conf["duration"] = remaining
