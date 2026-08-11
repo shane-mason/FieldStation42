@@ -603,15 +603,15 @@ def handle_key_event(event):
             number_pressed(0)
             return True
         elif key_code in (ecodes.KEY_ENTER, ecodes.KEY_KPENTER):
-            # Confirm channel input immediately instead of waiting for the timeout
-            global channel_input, channel_input_timer
+            global channel_input_timer
             with input_lock:
-                if channel_input_timer:
+                confirming = bool(channel_input)
+                if confirming and channel_input_timer:
                     channel_input_timer.cancel()
                     channel_input_timer = None
-            if channel_input:
+            if confirming:
                 send_channel_change()
-            return True
+                return True
 
         # Get the key name and check if it's mapped to a function
         key_name = get_key_name_from_code(key_code)
