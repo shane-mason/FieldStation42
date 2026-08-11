@@ -83,6 +83,33 @@ class BumpHint:
     def fromJSON(json_data):
         return BumpHint(json_data["where"])
 
+class WeekNumberHint:
+    pattern = re.compile("^week number ([1-9]|[1-4][0-9]|5[0-3])$", re.IGNORECASE)
+
+    def __init__(self, week_name):
+        self.week_name = week_name
+        self.week_number = datetime
+        if WeekNumberHint.test_pattern(week_name):
+            self.week_number = int(self.week_name.lower().strip("week number"))
+        else:
+            raise ValueError(f"Week Number not valid: {week_name}- Sholud be 'week number <1-53>'")
+        self.type = "week_number"
+
+    @staticmethod
+    def test_pattern(to_test):
+        m = WeekNumberHint.pattern.match(to_test)
+        a = False if m is None else True
+        return a
+
+    # when should be a datetime object
+    def hint(self, when):
+        return when.isocalendar().week == self.week_number
+
+    def toJSON(self):
+        return {"type": self.type, "week_number": self.week_name}
+
+    def fromJSON(json_data):
+        return WeekNumberHint(json_data["week_number"])
 
 class MonthHint:
     def __init__(self, month_name):
@@ -223,7 +250,7 @@ class RangeHint:
 
 
 def hint_klass_matcher(to_test: str):
-    klasses = [MonthHint, QuarterHint, RangeHint, DayofWeekHint]
+    klasses = [MonthHint, QuarterHint, RangeHint, DayofWeekHint, WeekNumberHint]
     for klass in klasses:
         if klass.test_pattern(to_test):
             return klass
