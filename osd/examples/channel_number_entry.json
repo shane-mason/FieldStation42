@@ -1,0 +1,18 @@
+[
+	{
+		"halign": "LEFT",
+		"valign": "TOP",
+		"font_size": 40,
+		"text_color": [0, 255, 0, 200],
+		"format_text": "{channel_number} - {network_name}"
+	},
+	{
+		"socket_file": "runtime/press.socket",
+		"format_text": "CH {digits}",
+		"halign": "CENTER",
+		"valign": "CENTER",
+		"font_size": 90,
+		"text_color": [0, 255, 0, 220],
+		"display_time": 1.5
+	}
+]

@@ -65,6 +65,10 @@
             <button class="remote-btn function-btn" data-key="exit">EXIT</button>
             <button class="remote-btn function-btn" data-key="mute">MUTE</button>
             <button class="remote-btn function-btn" data-key="info">INFO</button>
+            <!-- Cycle MPV tracks without changing channel playback. The player shows
+                 the selected audio/subtitle track on MPV's on-screen display. -->
+            <button class="remote-btn function-btn" data-key="subtitles">SUBS</button>
+            <button class="remote-btn function-btn" data-key="audio">AUDIO</button>
         </div>
     </div>
 
@@ -427,6 +431,29 @@
                     break;
                 case 'info':
                     toggleInfoMode();
+                    break;
+                case 'subtitles':
+                    try {
+                        // Queue a non-interrupting MPV command; station_player.py
+                        // cycles the selected subtitle track and displays its label.
+                        await window.fs42Api.post('player/mpv/cycle-subtitles');
+                        display.textContent = 'SUBTITLES';
+                        console.log('Cycle subtitles command sent');
+                    } catch (error) {
+                        console.error('Cycle subtitles failed:', error);
+                        display.textContent = 'ERROR';
+                    }
+                    break;
+                case 'audio':
+                    try {
+                        // Same path as subtitles, but cycling the active audio track.
+                        await window.fs42Api.post('player/mpv/cycle-audio');
+                        display.textContent = 'AUDIO';
+                        console.log('Cycle audio command sent');
+                    } catch (error) {
+                        console.error('Cycle audio failed:', error);
+                        display.textContent = 'ERROR';
+                    }
                     break;
                 default:
                     display.textContent = key.toUpperCase();

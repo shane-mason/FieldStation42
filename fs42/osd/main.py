@@ -38,6 +38,7 @@ class VAlignment(Enum):
 
 
 class StatusDisplayConfig(BaseModel):
+    socket_file: str = SOCKET_FILE
     display_time: float = 2.0
     halign: HAlignment = HAlignment.LEFT
     valign: VAlignment = VAlignment.TOP
@@ -70,25 +71,34 @@ class StatusDisplay(object):
 
         self.check_status()
 
-    def check_status(self, socket_file=SOCKET_FILE):
-        with open(socket_file, "r") as f:
-            status = f.read()
-            try:
-                status = json.loads(status)
-            except:
-                print(f"Unable to parse player status, {status}")
+    def check_status(self, socket_file=None):
+        if socket_file is None:
+            socket_file = self.config.socket_file
+        try:
+            with open(socket_file, "r") as f:
+                status = f.read()
+        except OSError:
+            return
 
-            else:
-                # Check if status field changed (e.g., from "stopped" to "playing")
-                status_changed = self.last_status is None or status.get("status") != self.last_status.get("status")
-                self.last_status = status
+        if not status.strip():
+            return
 
-                new_string = self.config.format_text.format_map(defaultdict(str, status))
-                # Reset timer if text changed OR if status changed (like stopped->playing)
-                if new_string != self._text.string or status_changed:
-                    self.time_since_change = -self.config.delay
-                    if new_string:
-                        self._text.string = new_string
+        try:
+            status = json.loads(status)
+        except (json.JSONDecodeError, ValueError):
+            print(f"Unable to parse player status, {status}")
+            return
+
+        # Check if status field changed (e.g., from "stopped" to "playing")
+        status_changed = self.last_status is None or status.get("status") != self.last_status.get("status")
+        self.last_status = status
+
+        new_string = self.config.format_text.format_map(defaultdict(str, status))
+        # Reset timer if text changed OR if status changed (like stopped->playing)
+        if new_string != self._text.string or status_changed:
+            self.time_since_change = -self.config.delay
+            if new_string:
+                self._text.string = new_string
 
     def update(self, dt):
         self.time_since_change += dt

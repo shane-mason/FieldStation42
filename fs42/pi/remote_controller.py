@@ -602,6 +602,16 @@ def handle_key_event(event):
         elif key_code == ecodes.KEY_0:
             number_pressed(0)
             return True
+        elif key_code in (ecodes.KEY_ENTER, ecodes.KEY_KPENTER):
+            global channel_input_timer
+            with input_lock:
+                confirming = bool(channel_input)
+                if confirming and channel_input_timer:
+                    channel_input_timer.cancel()
+                    channel_input_timer = None
+            if confirming:
+                send_channel_change()
+                return True
 
         # Get the key name and check if it's mapped to a function
         key_name = get_key_name_from_code(key_code)
