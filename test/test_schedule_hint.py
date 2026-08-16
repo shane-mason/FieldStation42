@@ -3,7 +3,7 @@ from datetime import datetime
 from fs42.timings import MONTHS
 from fs42.station_manager import StationManager
 from fs42.station_io import StationIO
-from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, CustomHolidayHint, WeekNumberHint
+from fs42.schedule_hint import WeekNumberHint, MonthHint, QuarterHint, CustomHolidayHint, RangeHint
 import pytest
 
 class TestWeekNumberHint:
