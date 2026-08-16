@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 from fs42 import timings
@@ -167,6 +167,93 @@ class QuarterHint:
     def fromJSON(json_data):
         return QuarterHint(json_data["quarter"])
 
+class CustomHolidayHint:
+    fixed_pattern = re.compile(f"^ *({'|'.join(timings.MONTHS)}) *([0-3]?[0-9])$", re.IGNORECASE)
+    ordinal_pattern = re.compile(f"^(1st|2nd|3rd|4th|last) ({'|'.join(timings.DAYS)}) ({'|'.join(timings.MONTHS)})$", re.IGNORECASE)
+
+    def __init__(self, holiday_name):
+        self.holiday_name = holiday_name
+
+        # grab config from the station_manager
+        if CustomHolidayHint.test_pattern(holiday_name):
+            holiday_conf_str = station_manager.StationManager().get_custom_holidays().get(holiday_name)
+        else:
+            raise ValueError(f"Custom Holiday: {holiday_name} not found in main config")
+        
+        fixed_m = CustomHolidayHint.fixed_pattern.match(holiday_conf_str)
+        ordinal_m = CustomHolidayHint.ordinal_pattern.match(holiday_conf_str)
+
+        self.month = None
+        self.day = None
+        self.weekday_str = None
+        self.n = None
+
+        if fixed_m:
+            self.month = fixed_m.group(1).capitalize()
+            self.day = int(fixed_m.group(2))
+        elif ordinal_m:
+            self.month = ordinal_m.group(3).capitalize()
+            self.weekday_str = ordinal_m.group(2).lower()
+            self.n = -1 if not ordinal_m.group(1)[0].isdigit() else int(ordinal_m.group(1)[0])
+
+        else:
+            raise ValueError(f"Custom Holiday: {holiday_name} date string not valid.")
+
+        self.type = "custom_holiday"
+
+    @staticmethod        
+    def test_pattern(to_test):
+        return to_test in station_manager.StationManager().get_custom_holidays().keys()
+
+    def hint(self, when):
+        year = when.year
+        if self.day:
+            raw_date = datetime.strptime(f"{year} {self.month} {self.day}", "%Y %B %d")
+            calc_date = self._find_weekday(raw_date)
+        elif self.weekday_str:
+            raw_date = datetime.strptime(f"{year} {self.month} 1", "%Y %B %d")
+            calc_date = self._nth_weekday(raw_date, self.weekday_str, self.n)
+        else:
+            # left for expansion
+            # raise error in case we find ourselves here
+            raise ValueError(f"Custom Holiday: {self.holiday_name} configuration read error.")
+
+        return calc_date.day == when.day and calc_date.month == when.month
+    
+    def _find_weekday(self, raw_date):
+        # finds the nearest weekday
+        if raw_date.weekday() == 5:
+            return raw_date - timedelta(days=1)
+        elif raw_date.weekday() == 6:
+            return raw_date + timedelta(days=1)
+        return raw_date
+    
+    def _nth_weekday(self, month, weekday_str, n):
+        # Assumes month is a datetime set to the 1st of the month.
+        # Find the offset from the first
+        weekday = timings.DAYS.index(weekday_str.lower())
+        offset = (weekday - month.weekday()) % 7
+        last_day = self._find_last_day(month)
+        if n >= 0:
+            day = 1 + offset + (n-1) * 7
+            return month.replace(day=day)
+        else:
+            return last_day - timedelta(days=(last_day.weekday() - weekday) % 7)
+
+
+    def _find_last_day(self, when):
+        if when.month == 12:
+            next_first = when.replace(year=when.year+1, month=1, day=1)
+        else:
+            next_first = when.replace(month=when.month+1, day=1)
+        return next_first - timedelta(days=1) 
+
+    def toJSON(self):
+        return {"type": self.type, "custom_holiday": self.holiday_name}
+
+    def fromJSON(json_data):
+        return CustomHolidayHint(json_data["custom_holiday"])
+
 
 class RangeHint:
     # matches patterns like: December 1 - December 25
@@ -250,7 +337,7 @@ class RangeHint:
 
 
 def hint_klass_matcher(to_test: str):
-    klasses = [MonthHint, QuarterHint, RangeHint, DayofWeekHint, WeekNumberHint]
+    klasses = [MonthHint, QuarterHint, RangeHint, DayofWeekHint, WeekNumberHint, CustomHolidayHint]
     for klass in klasses:
         if klass.test_pattern(to_test):
             return klass
