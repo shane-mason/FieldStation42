@@ -3,8 +3,30 @@ from datetime import datetime
 from fs42.timings import MONTHS
 from fs42.station_manager import StationManager
 from fs42.station_io import StationIO
-from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, CustomHolidayHint
+from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, CustomHolidayHint, WeekNumberHint
 import pytest
+
+class TestWeekNumberHint:
+    def test_hint_week_1(self):
+        hint = WeekNumberHint('week number 1')
+        assert hint.hint(datetime.fromisoformat('2025-12-29'))
+        assert not hint.hint(datetime.fromisoformat('2027-01-02'))
+
+    def test_hint_week_53(self):
+        hint = WeekNumberHint('week number 53')
+        assert hint.hint(datetime.fromisoformat('2026-12-29'))
+        assert not hint.hint(datetime.fromisoformat('2026-12-27'))
+
+    def test_wrong_hint(self):
+        hint = WeekNumberHint('week number 2')
+        assert not hint.hint(datetime.fromisoformat('2026-03-18'))
+
+    def test_test_pattern(self):
+        assert WeekNumberHint.test_pattern('week number 2')
+        assert WeekNumberHint.test_pattern('Week Number 5')
+        assert not WeekNumberHint.test_pattern('week number 54')
+        assert not WeekNumberHint.test_pattern('aaaaa')
+        assert not WeekNumberHint.test_pattern('week number -10')
 
 class TestMonthHint:
     def test_hint(self):
