@@ -4,9 +4,9 @@ import asyncio
 import logging
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 # Add paths for module imports
 cwd = os.getcwd()
@@ -14,7 +14,7 @@ parent = os.path.abspath(os.path.join(cwd, os.pardir))
 sys.path.append(cwd)
 sys.path.append(parent)
 
-from fs42.station_manager import StationManager
+from fs42.station_manager import StationManager, StationConfigError
 from .api import routers
 
 _shutdown_queue = None
@@ -37,6 +37,14 @@ async def _lifespan(app):
 
 # Create FastAPI app
 fapi = FastAPI(title="FieldStation42 API", lifespan=_lifespan)
+
+
+@fapi.exception_handler(StationConfigError)
+async def _station_config_error_handler(request: Request, exc: StationConfigError):
+    # Configuration problems are the operator's to fix, not a server fault -
+    # report them instead of letting them take the request (or the process) down
+    logging.getLogger("FS42SERVER").error(f"Station configuration error: {exc}")
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
 @fapi.get("/")
 async def root():

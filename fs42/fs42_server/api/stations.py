@@ -9,7 +9,6 @@ router = APIRouter(prefix="/stations", tags=["stations"])
 
 # Pydantic Models
 class StationConfigRequest(BaseModel):
-    """Request model for creating/updating station configurations."""
     station_conf: Dict[str, Any] = Field(
         ...,
         description="Station configuration object containing network_name, channel_number, and other settings"
@@ -47,11 +46,23 @@ class ErrorResponse(BaseModel):
 
 @router.get("", response_model=StationListResponse)
 async def list_stations():
-    """
-    List all stations returning raw file data without processing.
-    """
     station_io = StationIO()
     raw_stations = station_io.list_raw_station_configs()
+
+    skipped_by_name = {
+        entry["network_name"]: entry["error"]
+        for entry in StationManager().skipped_stations
+        if entry["network_name"]
+    }
+
+    for raw in raw_stations:
+        station_conf = raw.get("station_conf")
+        if not isinstance(station_conf, dict):
+            continue
+        reason = skipped_by_name.get(station_conf.get("network_name"))
+        if reason:
+            station_conf["_draft"] = True
+            station_conf["_draft_reason"] = reason
 
     return {
         "count": len(raw_stations),
@@ -60,9 +71,7 @@ async def list_stations():
 
 @router.get("/{network_name}")
 async def get_station_config(network_name: str):
-    """
-    Get a specific station configuration returning raw file data without processing.
-    """
+
     station_io = StationIO()
     success, raw_data, error_msg = station_io.read_raw_station_config(network_name)
 
@@ -76,10 +85,7 @@ async def get_station_config(network_name: str):
 
 @router.post("", response_model=StationConfigResponse, status_code=status.HTTP_201_CREATED)
 async def create_station(config: StationConfigRequest):
-    """
-    Create a new station configuration.
-    Uses StationManager for validation and processing, then reloads.
-    """
+
     station_manager = StationManager()
 
     # Extract network_name for checking
@@ -91,8 +97,7 @@ async def create_station(config: StationConfigRequest):
 
     network_name = config.station_conf["network_name"]
 
-    # Check if station already exists
-    if station_manager.station_by_name(network_name) is not None:
+    if StationIO().find_config_by_network_name(network_name) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Station '{network_name}' already exists. Use PUT to update."
@@ -131,14 +136,9 @@ async def create_station(config: StationConfigRequest):
 
 @router.put("/{network_name}", response_model=StationConfigResponse)
 async def update_station(network_name: str, config: StationConfigRequest):
-    """
-    Update an existing station configuration.
-    Uses StationManager for validation and processing, then reloads.
-    """
     station_manager = StationManager()
 
-    # Check if station exists
-    if station_manager.station_by_name(network_name) is None:
+    if StationIO().find_config_by_network_name(network_name) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Station '{network_name}' not found"
@@ -179,14 +179,10 @@ async def update_station(network_name: str, config: StationConfigRequest):
 
 @router.delete("/{network_name}", response_model=StationConfigResponse)
 async def delete_station(network_name: str):
-    """
-    Delete a station configuration.
-    Uses StationManager for existence checks and file deletion, then reloads.
-    """
+
     station_manager = StationManager()
 
-    # Check if station exists
-    if station_manager.station_by_name(network_name) is None:
+    if StationIO().find_config_by_network_name(network_name) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Station '{network_name}' not found"

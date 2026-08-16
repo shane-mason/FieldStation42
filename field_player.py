@@ -9,7 +9,7 @@ import signal
 import logging
 
 from fs42.liquid_manager import LiquidManager
-from fs42.station_manager import StationManager
+from fs42.station_manager import StationManager, StationConfigError
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import (
     StationPlayer,
@@ -396,6 +396,9 @@ if __name__ == "__main__":
 
     try:
         main_loop(trans_fn, shutdown_queue=shutdown_queue, api_proc=api_proc, schedule_lock=schedule_lock)
+    except StationConfigError as e:
+        logging.getLogger("FieldPlayer").error(str(e))
+        raise SystemExit(-1)
     finally:
         if shutdown_queue is not None:
             shutdown_queue.put("shutdown")

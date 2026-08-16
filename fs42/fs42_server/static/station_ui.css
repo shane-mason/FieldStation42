@@ -70,6 +70,28 @@
     letter-spacing: 0.5px;
 }
 
+.station-card-draft {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #9e6a03;
+    color: #ffffff;
+}
+
+.station-card-draft-reason {
+    margin-top: 0.5em;
+    padding: 0.5em 0.75em;
+    border-left: 3px solid #9e6a03;
+    background: #1c1917;
+    color: #d29922;
+    font-size: 0.8em;
+    word-break: break-word;
+}
+
 /* Type-specific colors */
 .station-type-standard {
     background: #1f6feb;
