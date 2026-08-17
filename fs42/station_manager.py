@@ -3,6 +3,18 @@ import os
 from fs42.slot_reader import SlotReader
 from fs42.station_io import StationIO
 
+
+class StationConfigError(Exception):
+    pass
+
+
+def _schedule_error_message(e):
+
+    if isinstance(e, KeyError):
+        return f"No schedule defined for {e.args[0]}" if e.args else "Incomplete schedule"
+    return str(e)
+
+
 class StationManager(object):
     # the borg singleton pattern
     __we_are_all_one = {}
@@ -49,14 +61,12 @@ class StationManager(object):
                 }
                 self._number_index = {}
                 self._name_index = {}
+                self.skipped_stations = []
                 self.load_main_config()
                 self.load_json_stations()
             self.guide_config = None
             for i in range(len(self.stations)):
                 station = self.stations[i]
-                if station["network_type"] == "standard":
-                    self.stations[i] = SlotReader.smooth_tags(station)
-
                 if station["network_type"] == "guide":
                     self.guide_config = station
                     logging.getLogger().info("Loading and checking guide channel")
@@ -69,7 +79,9 @@ class StationManager(object):
                         for err in errors:
                             logging.getLogger().error(err)
                         logging.getLogger().error("Please check your configuration and try agian.")
-                        exit(-1)
+                        raise StationConfigError(
+                            "Errors found in Guide Channel configuration: " + "; ".join(str(e) for e in errors)
+                        )
                     else:
                         logging.getLogger().info("Guide channel checks completed.")
                 elif station["network_type"] == "web":
@@ -189,46 +201,72 @@ class StationManager(object):
                 print(e)
                 _l.exception(e)
                 _l.error(f"Error loading main config overrides from {self.station_io.main_config_path}")
-                exit(-1)
+                raise StationConfigError(
+                    f"Error loading main config overrides from {self.station_io.main_config_path}: {e}"
+                ) from e
         # else: skip, no overrides (title_patterns already initialized to [] in __init__)
 
     def load_json_stations(self):
-        """Load and index all station configurations."""
         _l = logging.getLogger("STATIONMANAGER")
 
         try:
             # Let StationIO do all the heavy lifting
-            station_configs = self.station_io.load_and_process_all_stations()
-
-            # Sort by channel number
-            self.stations = sorted(station_configs, key=lambda station: station["channel_number"])
-
-            # Build indexes
-            self._build_indexes()
-
+            station_configs, skipped = self.station_io.load_and_process_all_stations()
         except Exception as e:
             _l.error("*" * 60)
             _l.error("Error loading station configurations")
             _l.exception(e)
             _l.error("*" * 60)
-            exit(-1)
+            raise StationConfigError(f"Error loading station configurations: {e}") from e
+
+        loaded = []
+        for station in station_configs:
+            if station["network_type"] == "standard":
+                try:
+                    station = SlotReader.smooth_tags(station)
+                except Exception as e:
+                    network_name = station.get("network_name")
+                    _l.error("*" * 60)
+                    _l.error(f"Skipping station with unusable schedule: {network_name}")
+                    _l.error(f"Station will not be live until this is fixed: {e}")
+                    _l.error("*" * 60)
+                    skipped.append({
+                        "filename": self.station_io.find_config_by_network_name(network_name),
+                        "network_name": network_name,
+                        "error": _schedule_error_message(e),
+                    })
+                    continue
+            loaded.append(station)
+
+        self.stations = sorted(loaded, key=lambda station: station["channel_number"])
+        self.skipped_stations = skipped
+        self._build_indexes()
+
+        if skipped:
+            _l.warning(f"{len(skipped)} station config(s) skipped and not live:")
+            for entry in skipped:
+                _l.warning(f"  {entry['filename']}: {entry['error']}")
 
     def _build_indexes(self):
         """Build name and channel number indexes for fast lookup."""
+        _l = logging.getLogger("STATIONMANAGER")
         self._name_index = {}
         self._number_index = {}
         for station in self.stations:
-            self._name_index[station["network_name"]] = station
-            self._number_index[station["channel_number"]] = station
+            name = station["network_name"]
+            number = station["channel_number"]
+            if name in self._name_index:
+                _l.warning(f"Duplicate network_name '{name}' - only one will be reachable by name")
+            if number in self._number_index:
+                _l.warning(f"Duplicate channel_number {number} - only one will be reachable by channel")
+            self._name_index[name] = station
+            self._number_index[number] = station
 
     def write_station_config(self, network_name, config_data, is_update=False):
-        """
-        Write a station configuration.
-        Delegates to StationIO for all the work, then reloads.
-        """
+
         # Let StationIO handle validation, uniqueness checks, and file writing
         success, message, file_path = self.station_io.save_station_config(
-            network_name, config_data, self.stations, is_update
+            network_name, config_data, is_update
         )
 
         if success:
@@ -238,12 +276,9 @@ class StationManager(object):
         return success, message, file_path
 
     def delete_station_config(self, network_name):
-        """
-        Delete a station configuration.
-        Delegates to StationIO for all the work, then reloads.
-        """
+
         # Let StationIO handle existence checks and file deletion
-        success, message = self.station_io.remove_station_config(network_name, self.stations)
+        success, message = self.station_io.remove_station_config(network_name)
 
         if success:
             # Reload stations
@@ -252,25 +287,11 @@ class StationManager(object):
         return success, message
 
     def _reload_stations(self):
-        """Reload all station configurations from disk."""
+
         _l = logging.getLogger("STATIONMANAGER")
         _l.info("Reloading station configurations...")
 
-        # Clear current stations and indexes
-        self.stations = []
-        self._name_index = {}
-        self._number_index = {}
-
-        # Reload from disk (this also rebuilds indexes)
+        # Reload from disk - smooths tags and rebuilds indexes
         self.load_json_stations()
-
-        # Re-apply tag smoothing for standard networks
-        for i in range(len(self.stations)):
-            station = self.stations[i]
-            if station["network_type"] == "standard":
-                self.stations[i] = SlotReader.smooth_tags(station)
-
-        # Rebuild indexes after tag smoothing
-        self._build_indexes()
 
         _l.info(f"Reloaded {len(self.stations)} station(s)")

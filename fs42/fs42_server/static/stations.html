@@ -175,6 +175,12 @@
                 const channel = station.channel_number || 'N/A';
                 const type = station.network_type || 'standard';
                 const description = getStationDescription(station);
+                const draftBadge = station._draft
+                    ? '<span class="station-card-draft">draft &bull; not on air</span>'
+                    : '';
+                const draftReason = station._draft
+                    ? `<div class="station-card-draft-reason">${escapeHtml(station._draft_reason || 'Configuration could not be loaded')}</div>`
+                    : '';
 
                 html += `
                     <div class="station-card">
@@ -185,9 +191,11 @@
                             </div>
                             <div class="station-card-meta">
                                 <span class="station-card-type station-type-${type}">${type}</span>
+                                ${draftBadge}
                             </div>
                         </div>
                         <div class="station-card-description">${description}</div>
+                        ${draftReason}
                         <div class="station-card-actions">
                             <button class="pure-button pure-button-primary" data-name="${escapeHtml(station.network_name)}" onclick="editStation(this.dataset.name)">
                                 Edit Config
