@@ -382,8 +382,8 @@ class StationPlayer:
                         web_url = urlunparse(parsed._replace(query=urlencode({k: v[0] for k, v in params.items()})))
                     conf = {
                         "web_url": web_url,
-                        "width": 1920,
-                        "height": 1080,
+                        "width": 854,
+                        "height": 480,
                         "x": 0,
                         "y": 0,
                     }
