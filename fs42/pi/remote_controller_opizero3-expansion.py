@@ -444,6 +444,16 @@ def send_channel_change():
             channel_input_timer = None
             clear_press_socket()
 
+def send_cycle_subs():
+    try:
+        response = requests.get(f'{FS42_BASE_URL}/player/mpv/cycle-subtitles')
+        if response.ok:
+            print("Subtitles cycled!")
+        else:
+            print("Subtitles cycle fail!")
+    except Exception as e:
+        print(f"Subtitles change error: {e}")
+
 def number_pressed(number):
     """Handle number key presses from remote"""
     global channel_input, channel_input_timer
@@ -493,6 +503,8 @@ def handle_action(action, code):
         volume_up_pressed()
     if action == "VOLUME_DOWN":
         volume_down_pressed()
+    if action == "CC_BTN":
+        send_cycle_subs()
     
     print(f"[{hex(code)}] -> {action}")
 
