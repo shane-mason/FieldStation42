@@ -79,7 +79,7 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
-    def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None) -> LiquidBlock:
+    def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None, first_in_slot=True) -> LiquidBlock:
         seq_key = None
         candidate = None
         new_block = None
@@ -135,7 +135,8 @@ class LiquidSchedule:
             if the_match:
                 raise ClipShowKickBack(the_match, the_match)
 
-            break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path)
+            # right here - figure out where we are in the hour so we know if we should use start_bump
+            break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path, first_in_slot)
 
             target_duration = self._calc_target_duration(candidate.duration, increment)
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
@@ -175,7 +176,7 @@ class LiquidSchedule:
             new_block = clip_block
         return (new_block, next_mark)
 
-    def _break_info(self, slot_config, tag_str, candidate_path):
+    def _break_info(self, slot_config, tag_str, candidate_path, first_in_slot=True):
         break_info = {
             "start_bump": None,
             "end_bump": None,
@@ -187,7 +188,7 @@ class LiquidSchedule:
 
         #first - extract slot level overrides
         # does this slot have a start bump?
-        if "start_bump" in slot_config:
+        if "start_bump" in slot_config and first_in_slot:
             break_info["start_bump"] = self.catalog.get_start_bump(slot_config["start_bump"])
         if "end_bump" in slot_config:
             break_info["end_bump"] = self.catalog.get_end_bump(slot_config["end_bump"])
@@ -371,15 +372,24 @@ class LiquidSchedule:
         exclusion_index = self._build_exclusion_index(start_time, end_target)
 
         self._l.info(f"Starting to build blocks for {self.conf['network_name']}")
+        slot_number = None
         while current_mark < end_target:
             self._l.debug(f"Making schedule for: {current_mark} {current_mark.weekday()} {current_mark.hour}")
 
+            first_in_slot = False
+            this_slot_number = None
+
             if not len(forward_buffer):
-                slot_config = SlotReader.get_slot(self.conf, current_mark)
+                slot_config, this_slot_number = SlotReader.get_slot(self.conf, current_mark)
             else:
                 slot_config = forward_buffer.pop(0)
 
+            if this_slot_number != slot_number:
+                first_in_slot = True
+                slot_number = this_slot_number
+
             tag_str,tag_index = SlotReader.get_tag_from_slot(slot_config, current_mark)
+            encore = slot_config.get("encore", None)
 
             new_block = None
             onair_flag = True
@@ -393,13 +403,13 @@ class LiquidSchedule:
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
                     try:
-                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, tag_index=tag_index, exclusion_index=exclusion_index)
+                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, tag_index=tag_index, exclusion_index=exclusion_index, first_in_slot=first_in_slot)
                     except ClipShowKickBack as e:
                         new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, slot_config)
                     except MatchingContentNotFound as e:
                         if "fallback_tag" in self.conf:
                             fb_config = {"tags": self.conf["fallback_tag"]}
-                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, tag_index=tag_index, exclusion_index=exclusion_index)
+                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, tag_index=tag_index, exclusion_index=exclusion_index, first_in_slot=first_in_slot)
                         else:
                             self._l.warning("Content not found, but no fallback_tag specified.")
                             raise e

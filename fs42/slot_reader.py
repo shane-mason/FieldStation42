@@ -133,7 +133,7 @@ class SlotReader:
             if slot_number in conf[day_str]:
                 response = conf[day_str][slot_number]
 
-        return response
+        return response, slot_number
 
     @staticmethod
     def _smooth_week(source_days, target_days, network_name, where=""):
