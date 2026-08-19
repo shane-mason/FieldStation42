@@ -94,16 +94,7 @@ class StationIO:
         return station_configs
 
     def read_raw_station_config(self, network_name):
-        """
-        Read a station configuration file without any processing or normalization.
-        Returns the raw JSON data exactly as it appears on disk.
 
-        Args:
-            network_name: The network name to look up
-
-        Returns:
-            tuple: (success: bool, data: dict or None, error_message: str or None)
-        """
         file_path = self.find_config_by_network_name(network_name)
 
         if file_path is None:
@@ -119,13 +110,7 @@ class StationIO:
             return False, None, f"Failed to read configuration: {str(e)}"
 
     def list_raw_station_configs(self):
-        """
-        List all station configurations without processing or normalization.
-        Returns raw JSON data exactly as it appears on disk.
 
-        Returns:
-            list: List of raw station configuration dictionaries
-        """
         cfiles = glob.glob(f"{self.confs_dir}*.json")
         raw_configs = []
 
