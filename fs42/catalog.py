@@ -13,6 +13,7 @@ from fs42.liquid_blocks import ReelBlock
 from fs42.media_processor import MediaProcessor
 from fs42.sequence_api import SequenceAPI
 from fs42.autobump_agent import AutoBumpAgent
+from fs42.slot_reader import SlotReader
 
 
 
@@ -693,37 +694,48 @@ class ShowCatalog:
         target_break_duration = self.config["break_duration"]
 
         strategy = self.config.get("break_strategy", None)
+
+        break_info = SlotReader.get_break_info(self.config, when)
+        strategy = break_info["break_strategy"] if break_info["break_strategy"] else strategy
+        blocks = []
+        remaining = length
         if strategy == "end":
             target_break_duration = length
-        elif strict_count:
-            target_break_duration = length / strict_count
+            block = self.make_reel_block(
+                when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
+                lookahead=lookahead
+            )
+            remaining -= block.duration
+            blocks.append(block)
+        else:
+            if strict_count:
+                target_break_duration = length / strict_count
 
-        remaining = length
-        blocks = []
-        keep_going = True
-        while remaining and keep_going:
-            block = None
-            try:
-                block = self.make_reel_block(
-                    when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
-                    lookahead=lookahead
-                )
-            except MatchingContentNotFound:
-                self._l.debug(
-                    f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
-                )
 
-            if block and (remaining - block.duration) > 0:
-                remaining -= block.duration
-                blocks.append(block)
 
-                if strict_count and len(blocks) >= strict_count:
+            keep_going = True
+            while remaining and keep_going:
+                block = None
+                try:
+                    block = self.make_reel_block(
+                        when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
+                        lookahead=lookahead
+                    )
+                except MatchingContentNotFound:
+                    self._l.debug(
+                        f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
+                    )
+
+                if block and (remaining - block.duration) > 0:
+                    remaining -= block.duration
+                    blocks.append(block)
+
+                    if strict_count and len(blocks) >= strict_count:
+                        keep_going = False
+
+                else:
                     keep_going = False
 
-            else:
-                keep_going = False
-
-        keep_going = True
 
         # discard that block and fill using the tightest technique possible
         additional_reels = []
@@ -732,6 +744,7 @@ class ShowCatalog:
             fill = AutoBumpAgent.fill_block(self.config, remaining)
             blocks.append(ReelBlock(fill, [], None))
         else:
+            keep_going = True
             while remaining and keep_going:
                 candidate = None
                 try:

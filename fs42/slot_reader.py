@@ -7,23 +7,8 @@ from fs42 import timings
 
 
 class SlotReader:
+
     @staticmethod
-    def get_tag(conf, when: datetime):
-        response = None
-        slot = SlotReader.get_slot(conf, when)
-        if slot and "tags" in slot:
-            tags = slot["tags"]
-
-            if type(tags) is list:
-                if len(tags) == 1 or when.minute < 30:
-                    response = tags[0]
-                else:
-                    response = tags[1]
-            else:
-                response = tags
-
-        return response
-
     def get_tag_from_slot(slot, when: datetime):
         response = None
         tag_index = None
@@ -112,6 +97,19 @@ class SlotReader:
 
         return None
 
+    @staticmethod
+    def get_break_info(conf, when: datetime):
+        slot, slot_num = SlotReader.get_slot(conf, when)
+        if slot is None:
+            slot = {}
+        break_info = {
+            "break_strategy" : slot.get("break_strategy", None),
+            "start_bump" : slot.get("start_bump", None),
+            "end_bump"  : slot.get("end_bump", None),
+        }
+        return break_info
+
+    @staticmethod
     def get_slot(conf, when: datetime):
         slot_number = str(when.hour)
         day_str = timings.DAYS[when.weekday()]
