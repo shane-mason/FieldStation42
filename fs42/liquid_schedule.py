@@ -389,7 +389,7 @@ class LiquidSchedule:
                 slot_number = this_slot_number
 
             tag_str,tag_index = SlotReader.get_tag_from_slot(slot_config, current_mark)
-            encore = slot_config.get("encore", None)
+
 
             new_block = None
             onair_flag = True
