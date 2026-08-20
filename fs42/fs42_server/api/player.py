@@ -259,6 +259,29 @@ async def mpv_cycle_audio(request: Request):
     return await _queue_mpv_command(request, "cycle_audio")
 
 
+@router.post("/parental/digit/{digit}")
+async def parental_digit(request: Request, digit: str):
+    if not digit.isdigit() or len(digit) != 1:
+        raise HTTPException(status_code=400, detail="Digit must be a single number.")
+
+    command_queue = request.app.state.player_command_queue
+    if not command_queue:
+        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
+
+    command_queue.put({"command": "parental_digit", "digit": digit})
+    return {"handled": True}
+
+
+@router.post("/parental/clear")
+async def parental_clear(request: Request):
+    command_queue = request.app.state.player_command_queue
+    if not command_queue:
+        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
+
+    command_queue.put({"command": "parental_clear"})
+    return {"handled": True}
+
+
 @router.post("/ticker")
 async def show_ticker(request: Request):
     data = await request.json()

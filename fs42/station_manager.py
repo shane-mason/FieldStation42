@@ -132,7 +132,9 @@ class StationManager(object):
                     "video_seek_timeout",
                     "overlay_conf",
                     "start_channel",
-                    "follow_static_symlinks"
+                    "follow_static_symlinks",
+                    "parental_controls_pin",
+                    "parental_controls_theme"
                 ]
 
                 for key in to_check:

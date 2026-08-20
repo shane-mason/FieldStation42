@@ -493,6 +493,10 @@
             }
           }
         },
+        "parental_controls": {
+          "type": "boolean",
+          "description": "Require the global parental controls PIN before playing this station"
+        },
         "streams": {
           "type": "array",
           "description": "Stream configurations for streaming networks",
