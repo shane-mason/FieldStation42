@@ -111,6 +111,9 @@ class StationManager(object):
     def get_day_parts(self):
         return self.server_conf["day_parts"]
 
+    def get_custom_holidays(self):
+        return self.server_conf["custom_holidays"]
+
     def load_main_config(self):
         _l = logging.getLogger("STATIONMANAGER")
         d = self.station_io.load_main_config()
@@ -132,7 +135,8 @@ class StationManager(object):
                     "video_seek_timeout",
                     "overlay_conf",
                     "start_channel",
-                    "follow_static_symlinks"
+                    "follow_static_symlinks",
+                    "custom_holidays",
                 ]
 
                 for key in to_check:
