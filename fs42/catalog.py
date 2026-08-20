@@ -701,12 +701,17 @@ class ShowCatalog:
         remaining = length
         if strategy == "end":
             target_break_duration = length
-            block = self.make_reel_block(
-                when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
-                lookahead=lookahead
-            )
-            remaining -= block.duration
-            blocks.append(block)
+            try:
+                block = self.make_reel_block(
+                    when, use_bumpers, target_break_duration, commercial_dir=commercial_dir, bump_dir=bump_dir,
+                    lookahead=lookahead
+                )
+                remaining -= block.duration
+                blocks.append(block)
+            except MatchingContentNotFound:
+                self._l.debug(
+                    f"Could not find matching content for {remaining} seconds - will attempt to fill with BRB"
+                )
         else:
             if strict_count:
                 target_break_duration = length / strict_count
