@@ -308,12 +308,12 @@ class StationPlayer:
         return None
 
     def _parental_controls_theme(self):
-        theme = StationManager().server_conf.get("parental_controls_theme", "classic")
+        theme = StationManager().server_conf.get("parental_controls_theme", "minimal")
         if theme in ("classic", "modern", "minimal"):
             return theme
 
         self._l.warning(f"Unknown parental_controls_theme: {theme}")
-        return "classic"
+        return "minimal"
 
     def _parental_controls_required(self, network_name):
         if not self._parental_controls_pin():

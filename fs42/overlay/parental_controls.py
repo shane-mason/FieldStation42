@@ -14,9 +14,9 @@ THEMES = {
         "box": QColor(12, 20, 38, 235),
         "border": QColor(230, 230, 230),
         "pin_box": QColor(0, 0, 0, 170),
-        "text": QColor(255, 255, 255),
-        "muted": QColor(190, 190, 190),
-        "message": QColor(220, 220, 220),
+        "text": QColor(255, 230, 80),
+        "muted": QColor(220, 205, 120),
+        "message": QColor(255, 230, 80),
         "error": QColor(255, 210, 210),
     },
     "modern": {
