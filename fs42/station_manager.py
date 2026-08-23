@@ -58,6 +58,7 @@ class StationManager(object):
                     "title_patterns": [],
                     "video_seek_timeout": 10,
                     "follow_static_symlinks": False,
+                    "custom_holidays": {},
                 }
                 self._number_index = {}
                 self._name_index = {}
