@@ -265,6 +265,15 @@ class StationIO:
                 else:
                     raise Exception(f"No meta_hints tag specified in {filename}")
 
+
+                allowed = set(schedule_hint.META_HINT_KEYS) | {"tags", "exclusive"}
+                unknown = set(hint.keys()) - allowed
+                if unknown:
+                    raise Exception(
+                        f"Unknown meta_hints field(s) {sorted(unknown)} in {filename} - "
+                        f"expected one of: {', '.join(sorted(allowed))}"
+                    )
+
         # Add metadata flags
         station_conf["_has_catalog"] = station_conf["network_type"] not in StationIO.NO_CATALOG
         station_conf["_has_schedule"] = station_conf["network_type"] not in StationIO.NO_SCHEDULE

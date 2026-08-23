@@ -115,6 +115,29 @@ class StationManager(object):
     def get_custom_holidays(self):
         return self.server_conf["custom_holidays"]
 
+    def _validate_custom_holiday_names(self):
+        # a holiday name is matched against folder names and marathon hints as a
+        # bare string, so one that also reads as a built-in hint either stacks with
+        # it (folders apply every match) or loses to it (marathons take the first).
+        # both fail quietly, so reject the name instead.
+        # imported here rather than at module scope - schedule_hint imports
+        # station_manager, so a top level import would be circular
+        from fs42 import schedule_hint
+
+        others = [
+            klass for klass in schedule_hint.FOLDER_HINT_KLASSES
+            if klass is not schedule_hint.CustomHolidayHint
+        ] + [schedule_hint.BumpHint]
+
+        for name in self.server_conf.get("custom_holidays", {}):
+            conflict = schedule_hint.hint_klass_matcher(name, klasses=others)
+            if conflict:
+                raise ValueError(
+                    f"Custom holiday name '{name}' collides with the {conflict.__name__} "
+                    "hint type. Pick a name that isn't a month, quarter, weekday, "
+                    "day part, week number, date range, or bump position."
+                )
+
     def load_main_config(self):
         _l = logging.getLogger("STATIONMANAGER")
         d = self.station_io.load_main_config()
@@ -194,7 +217,12 @@ class StationManager(object):
                                 hour += 1
                             new_parts[key] = hours
                     self.server_conf["day_parts"] = new_parts
-                    
+
+                # has to run after day_parts is final, since a holiday can collide
+                # with a custom day part name just as easily as a built-in one
+                self._validate_custom_holiday_names()
+
+
 
                 if "date_time_format" not in d:
                     # check the environment variable or set default then

@@ -87,14 +87,27 @@ class TestCustomHolidayHint:
             with patch('fs42.station_io.glob.glob', return_value=[]):
                 return StationManager()
 
-    def test_nearest_weekday(self):
+    def test_fixed_date_is_literal(self):
         self._make_manager({"christmas": "December 25"})
         hint = CustomHolidayHint("christmas")
-        # Dec 25, 2027 is a Saturday -> observed Friday Dec 24
-        assert hint.hint(datetime.fromisoformat('2027-12-24'))
-        assert not hint.hint(datetime.fromisoformat('2027-12-25'))
-        # Dec 25, 2025 is a Thursday Should show up on the day.
+        # Dec 25, 2025 is a Thursday
         assert hint.hint(datetime.fromisoformat('2025-12-25'))
+        assert not hint.hint(datetime.fromisoformat('2025-12-24'))
+        # Dec 25, 2027 is a Saturday - still the 25th, no shifting to the 24th
+        assert hint.hint(datetime.fromisoformat('2027-12-25'))
+        assert not hint.hint(datetime.fromisoformat('2027-12-24'))
+        # Dec 25, 2021 is a Sunday - still the 25th, no shifting to the 26th
+        assert hint.hint(datetime.fromisoformat('2021-12-25'))
+        assert not hint.hint(datetime.fromisoformat('2021-12-26'))
+
+    def test_fixed_date_across_year_boundary(self):
+        # the old weekend shift could push a date into an adjacent year, where the
+        # month/day comparison then matched nothing at all
+        self._make_manager({"newyears": "January 1"})
+        hint = CustomHolidayHint("newyears")
+        # Jan 1, 2028 is a Saturday
+        assert hint.hint(datetime.fromisoformat('2028-01-01'))
+        assert not hint.hint(datetime.fromisoformat('2027-12-31'))
 
     def test_ordinal_holiday(self):
         self._make_manager({"thanksgiving": "4th thursday november"})
