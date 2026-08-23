@@ -389,12 +389,12 @@ class MediaProcessor:
         for bump in bumps:
             found = False
             for hint in bump.hints:
-                if type(hint) is BumpHint:
-                    if hint.where == BumpHint.pre:
+                if type(hint) is schedule_hint.BumpHint:
+                    if hint.where == schedule_hint.BumpHint.pre:
                         bump.tag = pre_tag
                         pre.append(bump)
                         found = True
-                    elif hint.where == BumpHint.post:
+                    elif hint.where == schedule_hint.BumpHint.post:
                         bump.tag = post_tag
                         post.append(bump)
                         found = True
