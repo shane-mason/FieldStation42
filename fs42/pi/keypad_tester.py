@@ -4,7 +4,7 @@ from gpiod.line import Direction, Value, Bias
 CHIP = "/dev/gpiochip0"
 
 COLS = [70, 228, 72]
-ROWS = [73, 232, 71, 69]
+ROWS = [226, 232, 71, 69]
 
 print("Testing columns as INPUT + PULL_UP")
 
