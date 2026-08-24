@@ -117,13 +117,13 @@ class SlotReader:
         # highest priority: exact date override
         date_override = SlotReader._get_date_override(conf, when)
         if date_override and slot_number in date_override:
-            return date_override[slot_number]
+            return date_override[slot_number], slot_number
 
         # second priority: week override for date range
         week_override = SlotReader._get_week_override(conf, when)
         if week_override is not None:
             if day_str in week_override and slot_number in week_override[day_str]:
-                return week_override[day_str][slot_number]
+                return week_override[day_str][slot_number], slot_number
 
         # fallback: normal weekday schedule
         response = None
