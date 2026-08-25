@@ -1,6 +1,6 @@
 import math
 import random
-
+import logging
 
 class SequenceEntry:
     def __init__(self, fpath):
@@ -22,6 +22,7 @@ class NamedSequence:
         file_list: list[str],
         initialized: bool = False
     ):
+        self._l = logging.getLogger(f"{self.__class__.__name__}")
         self.station_name = station_name
         self.sequence_name = sequence_name
         self.tag_path = tag_path
@@ -55,12 +56,11 @@ class NamedSequence:
             try:
                 self.current_index = random.randrange(self.start_index,self.end_index)
             except Exception as e:
-                print("ERROR SETTING INDEX ON SEQUENCE--------------------------------------")
-                print("SEQUENCE NAME: ", self.sequence_name)
-                print("TAG PATH:", str(self.tag_path))
-                print("START INDEX: ", self.start_index)
-                print("END INDEX: ", self.end_index)
-                print("Episode count:", len(self.episodes))
+                self._l.error("Error populating sequence - please check that you have the correct configuration")
+                self._l.error("Current configuration for this sequence below:")
+                self._l.error(str(self))
+                if len(self.episodes) < 1:
+                    self._l.error("The error is caused by not having any episodes in your sequence - check your tag path and sequence name")
                 raise e
             self.initialized = True
         elif self.start_perc >= 0 and not self.initialized:
