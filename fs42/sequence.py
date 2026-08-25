@@ -52,7 +52,16 @@ class NamedSequence:
 
         if self.start_perc < 0 and not self.initialized:
             self.start_index = 0
-            self.current_index = random.randrange(self.start_index,self.end_index)
+            try:
+                self.current_index = random.randrange(self.start_index,self.end_index)
+            except IndexError as e:
+                print("ERROR SETTING INDEX ON SEQUENCE--------------------------------------")
+                print("SEQUENCE NAME: ", self.sequence_name)
+                print("TAG PATH:", str(self.tag_path))
+                print("START INDEX: ", self.start_index)
+                print("END INDEX: ", self.end_index)
+                print("Episode count:", len(self.episodes))
+                raise e
             self.initialized = True
         elif self.start_perc >= 0 and not self.initialized:
             self.start_index = math.floor(self.start_perc * (len(self.episodes)))
