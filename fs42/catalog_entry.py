@@ -112,18 +112,9 @@ class CatalogEntry:
                     hint = json.loads(hint_str)
                     # Convert each hint JSON back to its object
                     if isinstance(hint, dict) and "type" in hint:
-                        if hint["type"] == "day_part":
-                            hints.append(schedule_hint.DayPartHint(hint["part"]))
-                        elif hint["type"] == "bump":
-                            hints.append(schedule_hint.BumpHint(hint["where"]))
-                        elif hint["type"] == "range":
-                            hints.append(schedule_hint.RangeHint(hint["range_string"]))
-                        elif hint["type"] == "quarter":
-                            hints.append(schedule_hint.QuarterHint(hint["quarter"]))
-                        elif hint["type"] == "month":
-                            hints.append(schedule_hint.MonthHint(hint["month"]))
-                        elif hint["type"] == "day_of_week":
-                            hints.append(schedule_hint.DayofWeekHint(hint["day"]))
+                        klass = schedule_hint.HINT_KLASS_BY_TYPE.get(hint["type"])
+                        if klass:
+                            hints.append(klass.fromJSON(hint))
                         else:
                             print(f"Warning: Unknown hint type {hint['type']}. Skipping.")
                     else:

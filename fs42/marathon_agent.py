@@ -1,7 +1,10 @@
+import logging
 import random
 from fs42.schedule_hint import hint_klass_matcher
 
 class MarathonAgent:
+    _l = logging.getLogger("MARATHONAGENT")
+
     @staticmethod
     def detect_marathon(slot: dict, when):
         if "marathon" in slot and "count" in slot["marathon"]:
@@ -19,6 +22,11 @@ class MarathonAgent:
                     if not hint_instance.hint(when):
                         # there was a hint, but the time doesn't fit
                         return False
+                else:
+                    MarathonAgent._l.warning(
+                        f"Marathon hint '{hint_str}' doesn't match any hint type "
+                        "and will be ignored - this marathon is unrestricted"
+                    )
 
             if random.random() < marathon["chance"]:
                 return True
