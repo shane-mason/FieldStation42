@@ -54,7 +54,7 @@ class NamedSequence:
             self.start_index = 0
             try:
                 self.current_index = random.randrange(self.start_index,self.end_index)
-            except IndexError as e:
+            except Exception as e:
                 print("ERROR SETTING INDEX ON SEQUENCE--------------------------------------")
                 print("SEQUENCE NAME: ", self.sequence_name)
                 print("TAG PATH:", str(self.tag_path))
