@@ -161,7 +161,7 @@ class StationManager(object):
                     "start_channel",
                     "follow_static_symlinks",
                     "parental_controls_pin",
-                    "parental_controls_theme"
+                    "parental_controls_theme",
                     "custom_holidays",
                 ]
 
