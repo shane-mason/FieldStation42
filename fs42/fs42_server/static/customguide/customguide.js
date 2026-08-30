@@ -5,6 +5,7 @@ const HEADER_TEXT = params.get('header') || null;
 const PAUSE_OVERRIDE = params.get('pause');
 const MOCK = params.get('mock') === '1';
 const USE_META = params.get('use_meta') !== '0';
+const SHOW_DESCRIPTION = ['1', 'true'].includes((params.get('show_description') || '').toLowerCase());
 const MUSIC_PATH = params.get('music');
 const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');
@@ -387,10 +388,16 @@ function createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now) {
   titleSpan.textContent = block.title || 'Untitled';
   el.appendChild(titleSpan);
 
-  const desc = USE_META && block.meta && block.meta.plot;
+  const meta = USE_META && block.meta;
+  let desc = meta && meta.plot;
+  let isEpisodeTitle = false;
+  if (meta && meta.type === 'episode' && !SHOW_DESCRIPTION && meta.title) {
+    desc = meta.title;
+    isEpisodeTitle = true;
+  }
   if (desc) {
     const descSpan = document.createElement('span');
-    descSpan.className = 'program-desc';
+    descSpan.className = isEpisodeTitle ? 'program-desc is-episode-title' : 'program-desc';
     descSpan.textContent = desc;
     el.appendChild(descSpan);
   }

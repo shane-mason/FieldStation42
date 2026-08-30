@@ -44,13 +44,24 @@ logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", lev
 
 
 def update_status_socket(
-    status, network_name, channel, title=None, timestamp="%Y-%m-%dT%H:%M:%S", duration=None, file_path=None, content_type=None
+    status,
+    network_name,
+    channel,
+    title=None,
+    timestamp="%Y-%m-%dT%H:%M:%S",
+    duration=None,
+    file_path=None,
+    content_type=None,
+    awaiting_pin=False,
+    pin_digits_entered=0,
 ):
     status_obj = {
         "status": status,
         "network_name": network_name,
         "channel_number": channel,
         "timestamp": datetime.datetime.now().strftime(timestamp),
+        "awaiting_pin": awaiting_pin,
+        "pin_digits_entered": pin_digits_entered,
     }
     if title is not None:
         status_obj["title"] = title
@@ -73,6 +84,7 @@ class PlayerState(Enum):
     CHANNEL_CHANGE = 4
     EXIT_COMMAND = 5
     PLAY_FILE = 6
+    PARENTAL_CONTROLS = 7
 
 
 class PlayerOutcome:
@@ -192,6 +204,9 @@ class StationPlayer:
         self.skip_reception_check = False
         self.web_process = None
         self.web_queue = None
+        self.parental_controls_process = None
+        self.parental_controls_queue = None
+        self.parental_unlocked_network = None
         self.scrambler = None
         self.now_playing_process = None
         self.schedule_lock = None
@@ -235,6 +250,173 @@ class StationPlayer:
             return True
 
         return False
+
+    def _start_parental_controls_overlay(self, network_name):
+        self._close_parental_controls_overlay()
+
+        try:
+            from fs42.overlay.parental_controls import run_parental_controls
+
+            self.parental_controls_queue = multiprocessing.Queue()
+            self.parental_controls_process = run_parental_controls(
+                network_name,
+                self.parental_controls_queue,
+                self._parental_controls_theme(),
+            )
+            self._update_parental_controls_overlay()
+        except Exception as e:
+            self._l.warning(f"Could not start parental controls overlay: {e}")
+            self.parental_controls_process = None
+            self.parental_controls_queue = None
+
+    def _update_parental_controls_overlay(self, digits=0, error=False):
+        if self.parental_controls_queue:
+            self.parental_controls_queue.put({
+                "digits": digits,
+                "error": error
+            })
+
+    def _close_parental_controls_overlay(self):
+        if self.parental_controls_queue:
+            try:
+                self.parental_controls_queue.put({"close": True})
+            except Exception:
+                pass
+
+        if self.parental_controls_process and self.parental_controls_process.is_alive():
+            try:
+                self.parental_controls_process.join(timeout=0.2)
+                if self.parental_controls_process.is_alive():
+                    self.parental_controls_process.terminate()
+                    self.parental_controls_process.join(timeout=0.2)
+                if self.parental_controls_process.is_alive():
+                    self.parental_controls_process.kill()
+                    self.parental_controls_process.join(timeout=0.1)
+            except Exception as e:
+                self._l.warning(f"Error terminating parental controls overlay: {e}")
+
+        self.parental_controls_process = None
+        self.parental_controls_queue = None
+
+    def _parental_controls_pin(self):
+        pin = str(StationManager().server_conf.get("parental_controls_pin", ""))
+        if len(pin) == 4 and pin.isdigit():
+            return pin
+
+        if pin:
+            self._l.warning("parental_controls_pin must be exactly 4 digits")
+        return None
+
+    def _parental_controls_theme(self):
+        theme = StationManager().server_conf.get("parental_controls_theme", "minimal")
+        if theme in ("classic", "modern", "minimal"):
+            return theme
+
+        self._l.warning(f"Unknown parental_controls_theme: {theme}")
+        return "minimal"
+
+    def _parental_controls_required(self, network_name):
+        if not self._parental_controls_pin():
+            return False
+
+        station_config = StationManager().station_by_name(network_name)
+        if not station_config:
+            return False
+
+        station_conf = station_config.get("station_conf", {})
+        return bool(
+            station_config.get("parental_controls")
+            or station_conf.get("parental_controls")
+        )
+
+    def prompt_parental_controls(self, station_config):
+        network_name = station_config["network_name"]
+        channel_number = station_config["channel_number"]
+        pin = self._parental_controls_pin()
+
+        if not pin:
+            return PlayerOutcome(PlayerState.SUCCESS)
+
+        entered = ""
+        self.stop_player()
+        self._start_parental_controls_overlay(network_name)
+        update_status_socket(
+            "playing",
+            network_name,
+            channel_number,
+            title="Parental Controls",
+            awaiting_pin=True,
+            pin_digits_entered=0,
+        )
+
+        try:
+            while True:
+                response = self.input_check_fn()
+                if not response:
+                    time.sleep(0.05)
+                    continue
+
+                if self.handle_runtime_command_outcome(response):
+                    continue
+
+                if response.status != PlayerState.SUCCESS:
+                    return response
+
+                if not isinstance(response.payload, str):
+                    continue
+
+                if response.payload.startswith("parental_digit:"):
+                    digit = response.payload.split(":", 1)[1]
+                    if not digit.isdigit() or len(digit) != 1:
+                        continue
+
+                    entered += digit
+                    self._update_parental_controls_overlay(len(entered), False)
+                    update_status_socket(
+                        "playing",
+                        network_name,
+                        channel_number,
+                        title="Parental Controls",
+                        awaiting_pin=True,
+                        pin_digits_entered=len(entered),
+                    )
+
+                    if len(entered) >= len(pin):
+                        if entered == pin:
+                            self.parental_unlocked_network = network_name
+                            return PlayerOutcome(PlayerState.SUCCESS)
+
+                        entered = ""
+                        self._update_parental_controls_overlay(0, True)
+                        update_status_socket(
+                            "playing",
+                            network_name,
+                            channel_number,
+                            title="Parental Controls",
+                            awaiting_pin=True,
+                            pin_digits_entered=0,
+                        )
+
+                elif response.payload == "parental_clear":
+                    entered = ""
+                    self._update_parental_controls_overlay(0, False)
+                    update_status_socket(
+                        "playing",
+                        network_name,
+                        channel_number,
+                        title="Parental Controls",
+                        awaiting_pin=True,
+                        pin_digits_entered=0,
+                    )
+        finally:
+            self._close_parental_controls_overlay()
+            update_status_socket(
+                "idle",
+                network_name,
+                channel_number,
+                awaiting_pin=False,
+                pin_digits_entered=0,
+            )
 
     def _close_now_playing(self):
         # terminate the Now Playing overlay if it's running
@@ -317,6 +499,8 @@ class StationPlayer:
 
         self.web_process = None
         self.web_queue = None
+
+        self._close_parental_controls_overlay()
 
         # Terminate any running now playing overlay
         self._l.info("Terminating now playing overlay")
@@ -819,6 +1003,10 @@ class StationPlayer:
 
     def play_slot(self, network_name, when):
         liquid = LiquidManager()
+
+        if self._parental_controls_required(network_name):
+            if self.parental_unlocked_network != network_name:
+                return PlayerOutcome(PlayerState.PARENTAL_CONTROLS, network_name)
 
         try:
             play_point = liquid.get_play_point(network_name, when)

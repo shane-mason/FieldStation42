@@ -493,6 +493,10 @@
             }
           }
         },
+        "parental_controls": {
+          "type": "boolean",
+          "description": "Require the global parental controls PIN before playing this station"
+        },
         "streams": {
           "type": "array",
           "description": "Stream configurations for streaming networks",
@@ -546,12 +550,45 @@
           "type": "string",
           "description": "Name of a day part defined in the main config (e.g., 'morning', 'daytime', 'prime', 'late', 'overnight'). Content under the tag(s) is only eligible during that day part."
         },
+        "month": {
+          "type": "string",
+          "description": "Full month name (e.g., 'October'). Case insensitive here, unlike a month folder name. Content under the tag(s) is only eligible during that calendar month."
+        },
+        "quarter": {
+          "type": "string",
+          "description": "Quarter of the year: Q1, Q2, Q3, or Q4. Content under the tag(s) is only eligible during that three month window.",
+          "pattern": "^[Qq][1-4]$"
+        },
+        "day_of_week": {
+          "type": "string",
+          "description": "Weekday name (e.g., 'friday'). Case insensitive here, unlike a weekday folder name. Content under the tag(s) is only eligible on that day."
+        },
+        "week_number": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "description": "ISO week number, 1 through 53",
+              "minimum": 1,
+              "maximum": 53
+            },
+            {
+              "type": "string",
+              "description": "ISO week number as a string, either '20' or 'week number 20'"
+            }
+          ],
+          "description": "Content under the tag(s) is only eligible during that ISO week. ISO weeks start on Monday, and week 1 is the week containing the first Thursday of January."
+        },
+        "custom_holiday": {
+          "type": "string",
+          "description": "Name of a holiday defined in the custom_holidays block of the main config. Matched exactly, including case. Content under the tag(s) is only eligible on that date."
+        },
         "exclusive": {
           "type": "boolean",
           "description": "When true and conditions match, only this hint's tagged content is eligible for that content type; all other content of that type is excluded for the duration of the match. Defaults to false.",
           "default": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "daySchedule": {
       "oneOf": [

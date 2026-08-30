@@ -3,7 +3,7 @@ import datetime
 from fs42.catalog_entry import CatalogEntry
 from pathlib import Path
 
-from fs42.schedule_hint import DayPartHint, RangeHint
+from fs42 import schedule_hint
 
 
 class HintAgent(object):
@@ -32,16 +32,9 @@ class HintAgent(object):
 
                 for candidate_hint in candidate_hints:
 
-                    if "day_part" in candidate_hint:
-                        hint = DayPartHint(candidate_hint["day_part"])
-                        if not hint.hint(when):
-                            all_passed = False
-                            break
-                    if "date_range" in candidate_hint:
-                        hint = RangeHint(candidate_hint["date_range"])
-                        if not hint.hint(when):
-                            all_passed = False
-                            break
+                    if not HintAgent._entry_passes(candidate_hint, when):
+                        all_passed = False
+                        break
                     if candidate_hint.get("exclusive", False):
                         found_exclusive = True
 
@@ -60,6 +53,15 @@ class HintAgent(object):
                 filtered_candidates = no_meta + valid_candidates
 
         return filtered_candidates
+
+
+    @staticmethod
+    def _entry_passes(candidate_hint, when):
+        for key, klass in schedule_hint.META_HINT_KEYS.items():
+            if key in candidate_hint:
+                if not klass(candidate_hint[key]).hint(when):
+                    return False
+        return True
 
 
     @staticmethod

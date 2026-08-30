@@ -19,7 +19,11 @@ class TemporalHint:
 
 class DayofWeekHint:
     def __init__(self, day_name):
-        self.day_name = day_name
+        self.day_name = str(day_name).strip().lower()
+        if self.day_name not in timings.DAYS:
+            raise ValueError(
+                f"Day of week not valid: {day_name!r} - should be one of: {', '.join(timings.DAYS)}"
+            )
         self.type = "day_of_week"
 
     @staticmethod
@@ -34,8 +38,8 @@ class DayofWeekHint:
         return {"type": self.type, "day": self.day_name}
 
     def fromJSON(json_data):
-        return MonthHint(json_data["day"])
-    
+        return DayofWeekHint(json_data["day"])
+
 class DayPartHint:
     def __init__(self, part_name):
         self.part_name = part_name
@@ -85,18 +89,29 @@ class BumpHint:
 
 class WeekNumberHint:
     pattern = re.compile("^week number ([1-9]|[1-4][0-9]|5[0-3])$", re.IGNORECASE)
+    # meta_hints name the field explicitly, so they pass the number on its own
+    bare_pattern = re.compile("^([1-9]|[1-4][0-9]|5[0-3])$")
 
     def __init__(self, week_name):
-        self.week_name = week_name
-        self.week_number = datetime
-        if WeekNumberHint.test_pattern(week_name):
-            self.week_number = int(self.week_name.lower().strip("week number"))
-        else:
-            raise ValueError(f"Week Number not valid: {week_name}- Sholud be 'week number <1-53>'")
+        self.week_number = WeekNumberHint._parse(week_name)
+        self.week_name = f"week number {self.week_number}"
         self.type = "week_number"
+
+    # accepts 20, "20" and "week number 20"
+    @staticmethod
+    def _parse(value):
+        as_text = str(value).strip()
+        m = WeekNumberHint.pattern.match(as_text) or WeekNumberHint.bare_pattern.match(as_text)
+        if m is None:
+            raise ValueError(
+                f"Week number not valid: {value!r} - should be 1-53 or 'week number <1-53>'"
+            )
+        return int(m.group(1))
 
     @staticmethod
     def test_pattern(to_test):
+        if not isinstance(to_test, str):
+            return False
         m = WeekNumberHint.pattern.match(to_test)
         a = False if m is None else True
         return a
@@ -208,8 +223,8 @@ class CustomHolidayHint:
     def hint(self, when):
         year = when.year
         if self.day:
-            raw_date = datetime.strptime(f"{year} {self.month} {self.day}", "%Y %B %d")
-            calc_date = self._find_weekday(raw_date)
+            # a fixed date means that date - no shifting off the weekend
+            calc_date = datetime.strptime(f"{year} {self.month} {self.day}", "%Y %B %d")
         elif self.weekday_str:
             raw_date = datetime.strptime(f"{year} {self.month} 1", "%Y %B %d")
             calc_date = self._nth_weekday(raw_date, self.weekday_str, self.n)
@@ -219,14 +234,6 @@ class CustomHolidayHint:
             raise ValueError(f"Custom Holiday: {self.holiday_name} configuration read error.")
 
         return calc_date.day == when.day and calc_date.month == when.month
-    
-    def _find_weekday(self, raw_date):
-        # finds the nearest weekday
-        if raw_date.weekday() == 5:
-            return raw_date - timedelta(days=1)
-        elif raw_date.weekday() == 6:
-            return raw_date + timedelta(days=1)
-        return raw_date
     
     def _nth_weekday(self, month, weekday_str, n):
         # Assumes month is a datetime set to the 1st of the month.
@@ -336,8 +343,42 @@ class RangeHint:
         return RangeHint(f"{json_data['range_string']}")
 
 
-def hint_klass_matcher(to_test: str):
-    klasses = [MonthHint, QuarterHint, RangeHint, DayofWeekHint, WeekNumberHint, CustomHolidayHint]
+
+MARATHON_HINT_KLASSES = [
+    MonthHint,
+    QuarterHint,
+    RangeHint,
+    DayofWeekHint,
+    WeekNumberHint,
+    CustomHolidayHint,
+]
+
+FOLDER_HINT_KLASSES = MARATHON_HINT_KLASSES + [DayPartHint]
+
+META_HINT_KEYS = {
+    "month": MonthHint,
+    "quarter": QuarterHint,
+    "date_range": RangeHint,
+    "week_number": WeekNumberHint,
+    "day_of_week": DayofWeekHint,
+    "day_part": DayPartHint,
+    "custom_holiday": CustomHolidayHint,
+}
+
+
+HINT_KLASS_BY_TYPE = {
+    "month": MonthHint,
+    "quarter": QuarterHint,
+    "range": RangeHint,
+    "day_part": DayPartHint,
+    "day_of_week": DayofWeekHint,
+    "bump": BumpHint,
+    "week_number": WeekNumberHint,
+    "custom_holiday": CustomHolidayHint,
+}
+
+
+def hint_klass_matcher(to_test: str, klasses=MARATHON_HINT_KLASSES):
     for klass in klasses:
         if klass.test_pattern(to_test):
             return klass

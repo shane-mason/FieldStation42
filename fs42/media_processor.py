@@ -48,7 +48,7 @@ try:
 except ImportError:
     mutagen = None
 
-from fs42.schedule_hint import MonthHint, QuarterHint, RangeHint, BumpHint, DayPartHint, DayofWeekHint
+from fs42 import schedule_hint
 from fs42.catalog_entry import CatalogEntry
 
 
@@ -328,19 +328,12 @@ class MediaProcessor:
     def _process_hints(path, tag, bumpdir=False):
         base = os.path.basename(path)
         hints = []
-        if MonthHint.test_pattern(base):
-            hints.append(MonthHint(base))
-        if QuarterHint.test_pattern(base):
-            hints.append(QuarterHint(base))
-        if RangeHint.test_pattern(base):
-            hints.append(RangeHint(base))
-        if DayPartHint.test_pattern(base):
-            hints.append(DayPartHint(base))
-        if DayofWeekHint.test_pattern(base):
-            hints.append(DayofWeekHint(base))
+        for klass in schedule_hint.FOLDER_HINT_KLASSES:
+            if klass.test_pattern(base):
+                hints.append(klass(base))
         if bumpdir:
-            if BumpHint.test_pattern(base):
-                hints.append(BumpHint(base))
+            if schedule_hint.BumpHint.test_pattern(base):
+                hints.append(schedule_hint.BumpHint(base))
 
         return hints
 
@@ -396,12 +389,12 @@ class MediaProcessor:
         for bump in bumps:
             found = False
             for hint in bump.hints:
-                if type(hint) is BumpHint:
-                    if hint.where == BumpHint.pre:
+                if type(hint) is schedule_hint.BumpHint:
+                    if hint.where == schedule_hint.BumpHint.pre:
                         bump.tag = pre_tag
                         pre.append(bump)
                         found = True
-                    elif hint.where == BumpHint.post:
+                    elif hint.where == schedule_hint.BumpHint.post:
                         bump.tag = post_tag
                         post.append(bump)
                         found = True

@@ -377,6 +377,11 @@ body {
   margin-top: 0.15em;
 }
 
+.grid-program-block .program-desc.is-episode-title {
+  opacity: var(--episode-title-opacity, 0.9);
+  font-size: var(--episode-title-size, 0.72em);
+}
+
 .grid-program-block.current .program-desc {
   color: if(
     style(--current-show-title-color: null): var(--program-current-color, #b0ffe8);
