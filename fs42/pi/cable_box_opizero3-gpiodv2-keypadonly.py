@@ -18,7 +18,7 @@ CHIP_PATH = "/dev/gpiochip0"
 # 4x3 keypad GPIO lines.
 # Change these if your final physical wiring uses different pins.
 KEYPAD_COLS = [70, 228, 72]       # C1, C2, C3
-KEYPAD_ROWS = [226, 232, 71, 69]   # R1, R2, R3, R4
+KEYPAD_ROWS = [226, 232, 69, 71]   # R1, R2, R3, R4
 
 KEYPAD = [
     ["1", "2", "3"],
