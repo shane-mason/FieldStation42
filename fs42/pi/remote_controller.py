@@ -57,18 +57,20 @@ DEFAULT_KEY_MAPPINGS = {
     # 'volume_up': 'pageup',     # Use page up for volume up
     # 'volume_down': 'pagedown', # Use page down for volume down
 }
-if os.path.exists('runtime/remote_controller.json'):
-    print("Loading settings from runtime/remote_controller.json")
+SETTINGS_FILE = "runtime/remote_controller.json"
+KEY_MAPPINGS = DEFAULT_KEY_MAPPINGS.copy()
+
+if os.path.exists(SETTINGS_FILE):
+    print(f"Loading settings from {SETTINGS_FILE}")
     try:
-        with open('runtime/remote_controller.json','r') as file:
+        with open(SETTINGS_FILE, 'r') as file:
             remote_settings = json.load(file)
         if remote_settings.get("use_systemctl") is not None:
             print("Loading USE_SYSTEMCTL from file")
-            if remote_settings.get("use_systemctl") is False:
-                USE_SYSTEMCTL = False
+            USE_SYSTEMCTL = bool(remote_settings["use_systemctl"])
         if remote_settings.get("systemctl_to_toggle") is not None:
             print("Loading SYSTEMCTL_TO_TOGGLE from file")
-            SYSTEMCTL_TO_TOGGLE = remote_settings.get("systemctl_to_toggle")
+            SYSTEMCTL_TO_TOGGLE = remote_settings["systemctl_to_toggle"]
         if remote_settings.get("key_mappings") is not None:
             print("Loading KEY_MAPPINGS from file")
             file_mappings = remote_settings["key_mappings"]
@@ -76,11 +78,9 @@ if os.path.exists('runtime/remote_controller.json'):
             for function, key in DEFAULT_KEY_MAPPINGS.items():
                 if function not in KEY_MAPPINGS and key not in KEY_MAPPINGS.values():
                     KEY_MAPPINGS[function] = key
-    except:
-        print("Error loading settings from file")
-else:
-    KEY_MAPPINGS = DEFAULT_KEY_MAPPINGS.copy()
-    
+    except Exception as e:
+        print(f"Error loading settings from file: {e}")
+
 CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
 PRESS_SOCKET = "runtime/press.socket"
 
