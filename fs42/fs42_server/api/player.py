@@ -335,13 +335,13 @@ async def _control_volume(action: str):
         except Exception as e:
             print(f"pactl failed: {e}")
             
-    if amixer_available:
+    if amixer_available and response is None:
         try:
             response = await _volume_amixer(action)
         except Exception as e:
             print(f"amixer failed (expected in WSL): {e}")
             
-    if wpctl_available:
+    if wpctl_available and response is None:
         try:
             response = await _volume_wireplumber(action)
         except Exception as e:

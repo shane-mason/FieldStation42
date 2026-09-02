@@ -36,7 +36,7 @@ USE_SYSTEMCTL = True
 # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
 # 'esc', 'tab', 'backspace', 'delete', 'insert', 'pageup', 'pagedown', 'f1'-'f12',
 # 'a'-'z', 'leftshift', 'rightshift', 'leftctrl', 'rightctrl', 'leftalt', 'rightalt'
-KEY_MAPPINGS = {
+DEFAULT_KEY_MAPPINGS = {
     # Remote control functions
     'show_guide': 'home',        # Show program guide
     'volume_up': 'right',        # Increase volume
@@ -57,6 +57,30 @@ KEY_MAPPINGS = {
     # 'volume_up': 'pageup',     # Use page up for volume up
     # 'volume_down': 'pagedown', # Use page down for volume down
 }
+SETTINGS_FILE = "runtime/remote_controller.json"
+KEY_MAPPINGS = DEFAULT_KEY_MAPPINGS.copy()
+
+if os.path.exists(SETTINGS_FILE):
+    print(f"Loading settings from {SETTINGS_FILE}")
+    try:
+        with open(SETTINGS_FILE, 'r') as file:
+            remote_settings = json.load(file)
+        if remote_settings.get("use_systemctl") is not None:
+            print("Loading USE_SYSTEMCTL from file")
+            USE_SYSTEMCTL = bool(remote_settings["use_systemctl"])
+        if remote_settings.get("systemctl_to_toggle") is not None:
+            print("Loading SYSTEMCTL_TO_TOGGLE from file")
+            SYSTEMCTL_TO_TOGGLE = remote_settings["systemctl_to_toggle"]
+        if remote_settings.get("key_mappings") is not None:
+            print("Loading KEY_MAPPINGS from file")
+            file_mappings = remote_settings["key_mappings"]
+            KEY_MAPPINGS = file_mappings.copy()
+            for function, key in DEFAULT_KEY_MAPPINGS.items():
+                if function not in KEY_MAPPINGS and key not in KEY_MAPPINGS.values():
+                    KEY_MAPPINGS[function] = key
+    except Exception as e:
+        print(f"Error loading settings from file: {e}")
+
 CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
 PRESS_SOCKET = "runtime/press.socket"
 
