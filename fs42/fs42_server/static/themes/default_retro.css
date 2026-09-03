@@ -585,6 +585,69 @@ fieldset {
     grid-column: 2;
 }
 
+/* The number pad and the nav pad occupy the same slot - only one is shown. */
+.button-grid[hidden] {
+    display: none;
+}
+
+.nav-pad {
+    grid-template-columns: repeat(3, 1fr);
+    margin-bottom: 15px;
+}
+
+.nav-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 16px;
+    border-radius: 50%;
+}
+
+.nav-up {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.nav-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.nav-enter {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+.nav-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.nav-down {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+/* The pad toggle sits in the same corner on both pads so it stays put. */
+.nav-pad .pad-toggle-btn {
+    grid-column: 1;
+    grid-row: 3;
+}
+
+.number-pad .pad-toggle-btn {
+    grid-column: 1;
+    grid-row: 4;
+}
+
+.number-pad .clear-btn {
+    grid-column: 3;
+    grid-row: 4;
+}
+
+.remote-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 .channel-btn, .volume-btn {
     width: 80px;
     height: 50px;
@@ -624,7 +687,8 @@ fieldset {
         padding: 10px 6px;
     }
 
-    .number-btn {
+    .number-btn,
+    .nav-btn {
         width: 50px;
         height: 50px;
         font-size: 14px;

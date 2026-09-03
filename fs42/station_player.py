@@ -251,6 +251,10 @@ class StationPlayer:
 
         return False
 
+    @staticmethod
+    def is_non_interrupting(response):
+        return response.status == PlayerState.SUCCESS
+
     def _start_parental_controls_overlay(self, network_name):
         self._close_parental_controls_overlay()
 
@@ -602,7 +606,11 @@ class StationPlayer:
                             return False
                         if is_stream:
                             response = self.input_check_fn()
-                            if response and not self.handle_runtime_command_outcome(response):
+                            if (
+                                response
+                                and not self.handle_runtime_command_outcome(response)
+                                and not self.is_non_interrupting(response)
+                            ):
                                 self._pending_response = response
                                 return False
                         time.sleep(0.05)
@@ -715,6 +723,9 @@ class StationPlayer:
             response = self.input_check_fn()
             if response:
                 if self.handle_runtime_command_outcome(response):
+                    continue
+                if self.is_non_interrupting(response):
+                    self._l.debug(f"Ignoring non-interrupting command during playback: {response.payload}")
                     continue
                 self._close_now_playing()
                 return response
@@ -883,6 +894,9 @@ class StationPlayer:
             if response:
                 if self.handle_runtime_command_outcome(response):
                     continue
+                if self.is_non_interrupting(response):
+                    self._l.debug(f"Ignoring non-interrupting command on guide channel: {response.payload}")
+                    continue
                 self._l.info("Sending the guide channel shutdown command")
                 queue.put(GuideCommands.hide_window)
                 guide_process.join()
@@ -972,6 +986,8 @@ class StationPlayer:
                     if self.web_queue:
                         self.web_queue.put(f"key:{key_name}")
                         self._l.info(f"Forwarded key '{key_name}' to web process")
+                elif self.is_non_interrupting(response):
+                    self._l.debug(f"Ignoring non-interrupting command on web channel: {response.payload}")
                 else:
                     self._l.info("Sending the web channel shutdown command")
                     self.web_queue.put("hide_window")
@@ -1151,6 +1167,9 @@ class StationPlayer:
                             response = self.input_check_fn()
                             if response:
                                 if self.handle_runtime_command_outcome(response):
+                                    continue
+                                if self.is_non_interrupting(response):
+                                    self._l.debug(f"Ignoring non-interrupting command during slot: {response.payload}")
                                     continue
                                 if response.status == PlayerState.CHANNEL_CHANGE:
                                     if stream_is_down:
