@@ -549,11 +549,11 @@ def find_input_device(device_spec=None):
 def get_key_name_from_code(key_code):
     name = ecodes.KEY.get(key_code)
 
-    print(f"Key code: {key_code}")
+    #print(f"Key code: {key_code}")
 
     if name is None:
-        print("Unknown key")
-        return key_code
+        #print("Unknown key")
+        return str(key_code)
 
     # evdev can return multiple names for the same key code
     if isinstance(name, tuple):
