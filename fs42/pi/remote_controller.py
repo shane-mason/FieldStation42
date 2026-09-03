@@ -9,6 +9,8 @@ import sys
 import time
 import json
 import argparse
+import select
+import glob
 
 
 # ======================================
@@ -479,7 +481,7 @@ def find_input_device(device_spec=None):
             - Device name pattern (e.g., 'flirc', 'keyboard')
             - None to auto-detect
     """
-    import glob
+    
     devices = []
     default = False
     # Look for input devices
@@ -545,55 +547,33 @@ def find_input_device(device_spec=None):
     return devices[0][0]
 
 def get_key_name_from_code(key_code):
-    """Convert evdev key code to readable key name"""
-    key_map = {
-        ecodes.KEY_HOME: 'home', ecodes.KEY_END: 'end',
-        ecodes.KEY_UP: 'up', ecodes.KEY_DOWN: 'down',
-        ecodes.KEY_LEFT: 'left', ecodes.KEY_RIGHT: 'right',
-        ecodes.KEY_SPACE: 'space', ecodes.KEY_ENTER: 'enter',
-        ecodes.KEY_ESC: 'esc', ecodes.KEY_TAB: 'tab',
-        ecodes.KEY_BACKSPACE: 'backspace', ecodes.KEY_DELETE: 'delete',
-        ecodes.KEY_INSERT: 'insert', ecodes.KEY_PAGEUP: 'pageup',
-        ecodes.KEY_PAGEDOWN: 'pagedown',
-        ecodes.KEY_F1: 'f1', ecodes.KEY_F2: 'f2', ecodes.KEY_F3: 'f3',
-        ecodes.KEY_F4: 'f4', ecodes.KEY_F5: 'f5', ecodes.KEY_F6: 'f6',
-        ecodes.KEY_F7: 'f7', ecodes.KEY_F8: 'f8', ecodes.KEY_F9: 'f9',
-        ecodes.KEY_F10: 'f10', ecodes.KEY_F11: 'f11', ecodes.KEY_F12: 'f12',
-        ecodes.KEY_LEFTSHIFT: 'leftshift', ecodes.KEY_RIGHTSHIFT: 'rightshift',
-        ecodes.KEY_LEFTCTRL: 'leftctrl', ecodes.KEY_RIGHTCTRL: 'rightctrl',
-        ecodes.KEY_LEFTALT: 'leftalt', ecodes.KEY_RIGHTALT: 'rightalt',
-    }
+    name = ecodes.KEY.get(key_code)
 
-    # Add letter keys a-z using ecodes constants
-    key_map[ecodes.KEY_A] = 'a'
-    key_map[ecodes.KEY_B] = 'b'
-    key_map[ecodes.KEY_C] = 'c'
-    key_map[ecodes.KEY_D] = 'd'
-    key_map[ecodes.KEY_E] = 'e'
-    key_map[ecodes.KEY_F] = 'f'
-    key_map[ecodes.KEY_G] = 'g'
-    key_map[ecodes.KEY_H] = 'h'
-    key_map[ecodes.KEY_I] = 'i'
-    key_map[ecodes.KEY_J] = 'j'
-    key_map[ecodes.KEY_K] = 'k'
-    key_map[ecodes.KEY_L] = 'l'
-    key_map[ecodes.KEY_M] = 'm'
-    key_map[ecodes.KEY_N] = 'n'
-    key_map[ecodes.KEY_O] = 'o'
-    key_map[ecodes.KEY_P] = 'p'
-    key_map[ecodes.KEY_Q] = 'q'
-    key_map[ecodes.KEY_R] = 'r'
-    key_map[ecodes.KEY_S] = 's'
-    key_map[ecodes.KEY_T] = 't'
-    key_map[ecodes.KEY_U] = 'u'
-    key_map[ecodes.KEY_V] = 'v'
-    key_map[ecodes.KEY_W] = 'w'
-    key_map[ecodes.KEY_X] = 'x'
-    key_map[ecodes.KEY_Y] = 'y'
-    key_map[ecodes.KEY_Z] = 'z'
-    
-    return key_map.get(key_code)
+    print(f"Key code: {key_code}")
 
+    if name is None:
+        print("Unknown key")
+        return key_code
+
+    # evdev can return multiple names for the same key code
+    if isinstance(name, tuple):
+        print(f"Key aliases: {name}")
+
+        # Filter for meaningful key name
+        preferred = [
+            n for n in name
+            if not n.endswith("_MIN_INTERESTING")
+            and not n.endswith("_MAX_INTERESTING")
+        ]
+
+        if preferred:
+            name = preferred[0]
+        else:
+            name = name[0]
+
+    print(f"Key name: {name}")
+
+    return name.removeprefix("KEY_").lower()
 
 def handle_key_name(key_name):
     """Handle a key press by key name (common logic for evdev and test mode)"""
@@ -737,6 +717,98 @@ def test_mode():
             break
 
 
+def listen_all_devices():
+    """Listen for key events from all available input devices."""
+    devices = {}
+
+    try:
+        while True:
+            # Discover newly connected devices
+            for device_path in glob.glob('/dev/input/event*'):
+                if device_path in devices:
+                    continue
+
+                try:
+                    device = InputDevice(device_path)
+
+                    if ecodes.EV_KEY not in device.capabilities():
+                        continue
+
+                    device.grab()
+                    devices[device_path] = device
+
+                    print(f"Listening to device: {device.name} ({device.path})")
+
+                except (OSError, PermissionError):
+                    # Device may have disconnected between glob() and InputDevice()
+                    continue
+
+            if not devices or len(devices) == 0:
+                print("No keyboard/remote devices found. Waiting...")
+                time.sleep(5)
+                continue
+
+            try:
+                readable, _, _ = select.select(
+                    list(devices.values()),
+                    [],
+                    [],
+                    1.0
+                )
+
+                for device in readable:
+                    try:
+                        for event in device.read():
+                            if not handle_key_event(event):
+                                return
+
+                    except FileNotFoundError:
+                        print(f"Input device missing: {device.name}")
+
+                        try:
+                            device.ungrab()
+                        except OSError:
+                            pass
+
+                        devices.pop(device.path, None)
+
+                    except OSError as e:
+                        if e.errno == 19 or e.errno == 2:
+                            print(f"Input device disconnected: {device.name}")
+
+                            try:
+                                device.ungrab()
+                            except OSError:
+                                pass
+
+                            devices.pop(device.path, None)
+                        else:
+                            raise
+
+            except FileNotFoundError:
+                # A device disconnected while select/read was operating.
+                continue
+
+    except PermissionError:
+        print("Permission denied. Try running with sudo.")
+        sys.exit(1)
+
+    except KeyboardInterrupt:
+        print("\nExiting remote controller...")
+
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    finally:
+        # Release devices
+        for device in devices.values():
+            try:
+                device.ungrab()
+            except OSError:
+                pass
+
+
 def main():
     """Main function to start the input device listener"""
     # Parse command-line arguments
@@ -780,11 +852,18 @@ Environment variables:
         find_input_device(device_spec)
         return
 
-    # Find input device
-    if device_spec != "test":
-        device_path = find_input_device(device_spec)
-    else:
+    # Handle input modes
+    if device_spec == "test":
         test_mode()
+        return
+
+    if device_spec == "all":
+        print("Using all keyboard/remote input devices")
+        listen_all_devices()
+        return
+
+    # Find single input device
+    device_path = find_input_device(device_spec)
 
     print("Press ESC to exit.")
     
