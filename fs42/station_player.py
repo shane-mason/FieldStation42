@@ -194,6 +194,8 @@ class StationPlayer:
                 script_opts="osc-idlescreen=no",
                 hr_seek="yes",
             )
+        else:
+            self.mpv = mpv
 
         self.station_config = station_config
         # self.playlist = self.read_json(runtime_filepath)
@@ -212,6 +214,12 @@ class StationPlayer:
         self.schedule_lock = None
         self._active_afx = None
         self._pending_response = None
+        self._track_preference_block = None
+        self._preferred_audio_track_index = None
+        self._preferred_subtitle_track_index = None
+        self._preferred_subtitle_visibility = None
+        self._current_content_type = None
+        self._current_media_type = None
 
     def load_up(self):
         start_time = time.perf_counter()
@@ -222,6 +230,94 @@ class StationPlayer:
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
 
+    def _set_track_preference_block(self, block_title):
+        """Clear manual track preferences when the scheduled programme changes."""
+        if block_title != self._track_preference_block:
+            self._track_preference_block = block_title
+            self._preferred_audio_track_index = None
+            self._preferred_subtitle_track_index = None
+            self._preferred_subtitle_visibility = None
+
+    def _track_list(self):
+        try:
+            tracks = getattr(self.mpv, "track_list")
+        except Exception:
+            tracks = None
+
+        if tracks is None:
+            try:
+                tracks = self.mpv.command("get_property", "track-list")
+            except Exception as e:
+                self._l.debug(f"Could not read mpv track-list: {e}")
+                return []
+
+        return tracks or []
+
+    def _tracks_of_type(self, track_type):
+        return [track for track in self._track_list() if track.get("type") == track_type]
+
+    @staticmethod
+    def _track_is_selected(track):
+        return track.get("selected") or track.get("selected?")
+
+    def _selected_track_index(self, track_type):
+        tracks = self._tracks_of_type(track_type)
+        for index, track in enumerate(tracks):
+            if self._track_is_selected(track):
+                return index
+        return None
+
+    def _track_id_at_index(self, track_type, index):
+        tracks = self._tracks_of_type(track_type)
+        if index is None or index < 0 or index >= len(tracks):
+            return None
+        return tracks[index].get("id")
+
+    def _set_mpv_property(self, name, value):
+        try:
+            setattr(self.mpv, name.replace("-", "_"), value)
+        except Exception:
+            self.mpv.command("set_property", name, value)
+
+    def _remember_runtime_track_preference(self, action):
+        """Remember manual AV choices made while the feature itself is playing."""
+        if self._current_content_type != "feature" or self._current_media_type != "video":
+            return
+
+        if action == "cycle_audio":
+            self._preferred_audio_track_index = self._selected_track_index("audio")
+        elif action == "cycle_subtitles":
+            self._preferred_subtitle_track_index = self._selected_track_index("sub")
+            try:
+                self._preferred_subtitle_visibility = bool(getattr(self.mpv, "sub_visibility"))
+            except Exception:
+                self._preferred_subtitle_visibility = True
+
+    def _apply_runtime_track_preferences(self, content_type=None, media_type=None):
+        """Reapply block-scoped manual AV choices when the same feature resumes."""
+        if content_type != "feature" or media_type != "video":
+            return
+
+        audio_id = self._track_id_at_index("audio", self._preferred_audio_track_index)
+        if audio_id is not None:
+            try:
+                self._set_mpv_property("audio", audio_id)
+            except Exception as e:
+                self._l.debug(f"Could not reapply audio track preference: {e}")
+
+        subtitle_id = self._track_id_at_index("sub", self._preferred_subtitle_track_index)
+        if subtitle_id is not None:
+            try:
+                self._set_mpv_property("sub", subtitle_id)
+            except Exception as e:
+                self._l.debug(f"Could not reapply subtitle track preference: {e}")
+
+        if self._preferred_subtitle_visibility is not None:
+            try:
+                self._set_mpv_property("sub-visibility", self._preferred_subtitle_visibility)
+            except Exception as e:
+                self._l.debug(f"Could not reapply subtitle visibility preference: {e}")
+
     def mpv_runtime_command(self, action):
         """Run a small set of user-facing mpv runtime commands."""
         mpv_command = self.MPV_RUNTIME_COMMANDS.get(action)
@@ -231,6 +327,7 @@ class StationPlayer:
 
         try:
             self.mpv.command(*mpv_command)
+            self._remember_runtime_track_preference(action)
             self._l.info(f"Ran mpv runtime command: {action}")
             return True
         except Exception as e:
@@ -525,6 +622,8 @@ class StationPlayer:
             if os.path.exists(file_path) or is_stream or AutoBumpAgent.is_autobump_url(file_path):
                 self._l.debug(f"%%%Attempting to play {file_path}")
                 self.current_playing_file_path = file_path
+                self._current_content_type = content_type
+                self._current_media_type = media_type
 
                 if self.station_config:
                     self._l.debug("Got station config, updating status socket")
@@ -611,6 +710,8 @@ class StationPlayer:
                             self._l.error(f"Error waiting for playback: {e}")
                             return False
                         time.sleep(0.05)
+
+                self._apply_runtime_track_preferences(content_type, media_type)
 
                 # Perform seek if needed (before showing overlay)
                 if not is_stream and offset_seconds is not None and offset_seconds > 0:
@@ -1028,6 +1129,7 @@ class StationPlayer:
         # Close any existing now playing overlay when starting a new play point
         # This handles channel changes and ensures clean state
         self._close_now_playing()
+        self._set_track_preference_block(play_point.block_title)
 
         if len(play_point.plan):
             initial_skip = play_point.offset
