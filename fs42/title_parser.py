@@ -17,7 +17,7 @@ DEFAULT_UPPERCASE_WORDS = {
     "NBC", "CBS", "ABC", "PBS", "MTV", "VH1", "TBS", "TNT",
     "TLC", "HBO", "ESPN", "CNN", "CNBC", "MSNBC", "BBC", "ITV",
     "CBC", "QVC", "HSN", "WGN", "KTLA", "TCM", "IFC", "SYFY",
-    "AMC", "FX", "CW", "HLN", "WB", "MGM", "PG"
+    "AMC", "FX", "CW", "HLN", "WB", "MGM", "PG", "UPN",
 }
 
 
