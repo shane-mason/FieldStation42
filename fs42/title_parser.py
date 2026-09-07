@@ -8,12 +8,16 @@ DEFAULT_UPPERCASE_WORDS = {
     "AI", "GI", "RIPD", "THX", "UHF", "SHIELD", "SEAL", "ALF",
     "RV", "POW", "MIA", "XXX", "DEBS", "PCU", "FUBAR", "TMNT",
     "RRR", "RBG", "JCVD", "WWE", "WWF", "BMX", "CHIPS", "MXC",
-    "SAS", "MI5", "CB4", "PK", "LOL", "BFG", "II",
+    "SAS", "MI5", "CB4", "PK", "LOL", "BFG", "II", "PM"
     "III", "IV", "VI", "VII", "VIII", "IX", "XI", "XII",
     "XIII", "XIV", "XV",
     "NFL", "MLB", "NBA", "NHL", "MLS", "NCAA", "WNBA", "PGA",
     "ATP", "WTA", "UFC", "NASCAR", "FIFA", "UEFA", "F1", "MMA",
     "AHL", "XFL", "CFL", "EPL",
+    "NBC", "CBS", "ABC", "PBS", "MTV", "VH1", "TBS", "TNT",
+    "TLC", "HBO", "ESPN", "CNN", "CNBC", "MSNBC", "BBC", "ITV",
+    "CBC", "QVC", "HSN", "WGN", "KTLA", "TCM", "IFC", "SYFY",
+    "AMC", "FX", "CW", "HLN", "WB", "MGM", "PG"
 }
 
 
