@@ -155,73 +155,12 @@
           }
         },
         "autobump": {
-          "type": "object",
-          "description": "Auto-generated bump configuration",
-          "properties": {
-            "title": {
-              "type": "string"
-            },
-            "subtitle": {
-              "type": "string"
-            },
-            "variation": {
-              "type": "string"
-            },
-            "detail1": {
-              "type": "string"
-            },
-            "detail2": {
-              "type": "string"
-            },
-            "detail3": {
-              "type": "string"
-            },
-            "bg_music": {
-              "type": "string"
-            },
-            "bg_video": {
-              "type": "string",
-              "description": "Background video URL or filename for the autobump"
-            },
-            "bg_video_loop_count": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Number of times to play the background video when no explicit duration is set"
-            },
-            "bg_video_audio": {
-              "type": "boolean",
-              "description": "Whether to play background video audio when bg_music is not set"
-            },
-            "text_position": {
-              "type": "string",
-              "enum": ["left", "right", "center", "top-left", "top-right", "top-center", "bottom-left", "bottom-right", "bottom-center"],
-              "description": "Position of the autobump text overlay"
-            },
-            "text_delay": {
-              "type": "number",
-              "minimum": 0,
-              "description": "Delay in seconds before showing autobump text"
-            },
-            "text_fade_in": {
-              "type": "number",
-              "minimum": 0,
-              "description": "Text fade-in duration in seconds"
-            },
-            "text_fade_out": {
-              "type": "number",
-              "minimum": 0,
-              "description": "Text fade-out duration in seconds"
-            },
-            "text_hide_before_end": {
-              "type": "number",
-              "minimum": 0,
-              "description": "How many seconds before the autobump ends (or before each video loop ends, when bg_video is used) that text should be fully hidden"
-            },
-            "strategy": {
-              "type": "string",
-              "enum": ["both", "end", "start"]
-            }
-          }
+          "$ref": "#/$defs/autobumpConfig",
+          "description": "Auto-generated bump configuration"
+        },
+        "off_air_autobump": {
+          "$ref": "#/$defs/autobumpConfig",
+          "description": "Fallback auto-generated bump configuration used to fill a scheduled hour that has no programming and no off_air_video/off_air_image configured. Accepts the same fields as autobump."
         },
         "day_templates": {
           "type": "object",
@@ -709,6 +648,75 @@
               "description": "Disable video scrambling (false)"
             }
           ]
+        }
+      }
+    },
+    "autobumpConfig": {
+      "type": "object",
+      "description": "Auto-generated bump configuration",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "variation": {
+          "type": "string"
+        },
+        "detail1": {
+          "type": "string"
+        },
+        "detail2": {
+          "type": "string"
+        },
+        "detail3": {
+          "type": "string"
+        },
+        "bg_music": {
+          "type": "string"
+        },
+        "bg_video": {
+          "type": "string",
+          "description": "Background video URL or filename for the autobump"
+        },
+        "bg_video_loop_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of times to play the background video when no explicit duration is set"
+        },
+        "bg_video_audio": {
+          "type": "boolean",
+          "description": "Whether to play background video audio when bg_music is not set"
+        },
+        "text_position": {
+          "type": "string",
+          "enum": ["left", "right", "center", "top-left", "top-right", "top-center", "bottom-left", "bottom-right", "bottom-center"],
+          "description": "Position of the autobump text overlay"
+        },
+        "text_delay": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Delay in seconds before showing autobump text"
+        },
+        "text_fade_in": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Text fade-in duration in seconds"
+        },
+        "text_fade_out": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Text fade-out duration in seconds"
+        },
+        "text_hide_before_end": {
+          "type": "number",
+          "minimum": 0,
+          "description": "How many seconds before the autobump ends (or before each video loop ends, when bg_video is used) that text should be fully hidden"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["both", "end", "start"]
         }
       }
     }

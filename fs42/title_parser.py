@@ -2,9 +2,30 @@ import re
 from pathlib import Path
 
 
+DEFAULT_UPPERCASE_WORDS = {
+    "FBI", "CIA", "USA", "UK", "NY", "DC", "CSI", "NCIS",
+    "SVU", "SWAT", "JAG", "ER", "MASH", "NYPD", "WKRP", "UFO",
+    "AI", "GI", "RIPD", "THX", "UHF", "SHIELD", "SEAL", "ALF",
+    "RV", "POW", "MIA", "XXX", "DEBS", "PCU", "FUBAR", "TMNT",
+    "RRR", "RBG", "JCVD", "WWE", "WWF", "BMX", "CHIPS", "MXC",
+    "SAS", "MI5", "CB4", "PK", "LOL", "BFG", "II",
+    "III", "IV", "VI", "VII", "VIII", "IX", "XI", "XII",
+    "XIII", "XIV", "XV",
+    "NFL", "MLB", "NBA", "NHL", "MLS", "NCAA", "WNBA", "PGA",
+    "ATP", "WTA", "UFC", "NASCAR", "FIFA", "UEFA", "F1", "MMA",
+    "AHL", "XFL", "CFL", "EPL",
+}
+
+
 class TitleParser:
     @staticmethod
-    def parse_title(in_str: str, custom_patterns: list = None) -> str:
+    def _apply_case(word: str, upper_words: set) -> str:
+        if word.upper() in upper_words:
+            return word.upper()
+        return word.capitalize()
+
+    @staticmethod
+    def parse_title(in_str: str, custom_patterns: list = None, uppercase_words: list = None) -> str:
         if not in_str:
             return ""  # Consider defaulting to No Information or No Data to match TV Guides
 
@@ -12,6 +33,11 @@ class TitleParser:
 
         # Remove file extension
         filename = Path(filename).stem
+
+        # Additions to (not replacements of) the default uppercase word set
+        upper_words = DEFAULT_UPPERCASE_WORDS
+        if uppercase_words:
+            upper_words = upper_words | {w.upper() for w in uppercase_words}
 
         # Define separator pattern - spaces, dots, underscores, dashes
         sep = r"[\s._-]+"
@@ -62,9 +88,9 @@ class TitleParser:
                 title = re.sub(r"\s+", " ", title)  # Normalize multiple spaces
                 title = title.strip()
                 # Convert to title case
-                return " ".join(word.capitalize() for word in title.split())
+                return " ".join(TitleParser._apply_case(word, upper_words) for word in title.split())
 
         # Fallback: return cleaned filename
         cleaned = re.sub(r"[._-]", " ", filename)
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
-        return " ".join(word.capitalize() for word in cleaned.split())
+        return " ".join(TitleParser._apply_case(word, upper_words) for word in cleaned.split())

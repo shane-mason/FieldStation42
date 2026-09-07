@@ -14,6 +14,14 @@ class MetadataIO:
         return StationManager().server_conf["db_path"]
 
     @staticmethod
+    def pick_title(meta):
+        if not meta:
+            return None
+        if meta.get("type") == "episode":
+            return meta.get("show_title") or None
+        return meta.get("title") or None
+
+    @staticmethod
     def normalize(meta):
         if not isinstance(meta, dict):
             return meta
@@ -32,12 +40,6 @@ class MetadataIO:
 
     @staticmethod
     def read_many(file_paths, db_path=None):
-        """Read metadata for many paths on one connection.
-
-        Returns {original_path: meta} for paths that have metadata. Callers
-        fetching more than one path should prefer this over read(), which
-        opens a connection per call.
-        """
         if not file_paths:
             return {}
 
