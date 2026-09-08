@@ -49,12 +49,32 @@ class NamedSequence:
         # explicitely sort them by file path for alpha-numeric ordering:
         self.episodes = sorted(self.episodes, key=lambda entry: entry.fpath)
 
-        self.end_index = math.floor(self.end_perc * (len(self.episodes)))
+        # Clamp to the episode count - end_perc > 1 (misconfiguration) must not
+        # push end_index past the last episode, or the completion check in
+        # SequenceAPI.get_next_in_sequence can be skipped and cause an IndexError.
+        self.end_index = min(
+            math.floor(self.end_perc * (len(self.episodes))),
+            len(self.episodes),
+        )
 
-        if self.start_perc < 0 and not self.initialized:
+        # start_index is derived from start_perc - recompute it on every load,
+        # not just on first init, so loop-back / reset lands on the configured
+        # start rather than 0. A negative start_perc means "start anywhere", so
+        # the window opens at 0.
+        if self.start_perc < 0:
             self.start_index = 0
+        else:
+            self.start_index = min(
+                math.floor(self.start_perc * (len(self.episodes))),
+                max(self.end_index - 1, 0),
+            )
+
+        if not self.initialized:
             try:
-                self.current_index = random.randrange(self.start_index,self.end_index)
+                if self.start_perc < 0:
+                    self.current_index = random.randrange(self.start_index, self.end_index)
+                else:
+                    self.current_index = self.start_index
             except Exception as e:
                 self._l.error("Error populating sequence - please check that you have the correct configuration")
                 self._l.error("Current configuration for this sequence below:")
@@ -62,10 +82,6 @@ class NamedSequence:
                 if len(self.episodes) < 1:
                     self._l.error("The error is caused by not having any episodes in your sequence - check your tag path and sequence name")
                 raise e
-            self.initialized = True
-        elif self.start_perc >= 0 and not self.initialized:
-            self.start_index = math.floor(self.start_perc * (len(self.episodes)))
-            self.current_index = self.start_index
             self.initialized = True
 
     def get_series_length(self):
