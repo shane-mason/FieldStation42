@@ -16,7 +16,6 @@ TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 # Cache directory for TMDB results
 CACHE_DIR = Path("catalog/.tmdb_cache")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class TMDBHelper:
@@ -106,6 +105,7 @@ class TMDBHelper:
         """Save TMDB data to cache."""
         cache_path = self._get_cache_path(title)
         try:
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
             with open(cache_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
             logger.info(f"Saved TMDB data to cache for '{title}'")
