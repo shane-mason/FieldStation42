@@ -108,9 +108,7 @@ class SequenceAPI:
                     next_child
                 )
                 
-                next_seq.current_index = 0
-                if next_seq.start_index > 0:
-                    next_seq.current_index = next_seq.start_index
+                next_seq.current_index = next_seq.start_index
 
                 if not SequenceAPI._normalize_sequence_position(next_seq):
                     _l.error(
@@ -135,9 +133,10 @@ class SequenceAPI:
                 return next_entry
             
             _l.debug(
-                f"Current index {seq.current_index} reached end of sequence {sequence_name}. Looping back to 0."
+                f"Current index {seq.current_index} reached end of sequence "
+                f"{sequence_name}. Looping back to {seq.start_index}."
             )
-            seq.current_index = 0
+            seq.current_index = seq.start_index
 
         try:
             next_entry = seq.episodes[seq.current_index]
@@ -516,7 +515,12 @@ class SequenceAPI:
         if seq.current_index < -1:
             seq.current_index = -1
 
-        if seq.current_index >= len(seq.episodes):
+        # Pure array-safety guard: only reset when current_index is genuinely
+        # past the end of the list. The end-of-sequence case
+        # (current_index == len(episodes), which happens when end_perc == 1)
+        # must fall through to the completion logic in get_next_in_sequence so
+        # that looping / random child-sequence rotation still happens.
+        if seq.current_index > len(seq.episodes):
             seq.current_index = 0
 
         return True

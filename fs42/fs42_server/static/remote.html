@@ -30,7 +30,7 @@
         </div>
 
         <!-- Number Pad -->
-        <div class="button-grid number-pad">
+        <div class="button-grid number-pad" id="number-pad">
             <button class="remote-btn number-btn" data-key="1">1</button>
             <button class="remote-btn number-btn" data-key="2">2</button>
             <button class="remote-btn number-btn" data-key="3">3</button>
@@ -40,7 +40,21 @@
             <button class="remote-btn number-btn" data-key="7">7</button>
             <button class="remote-btn number-btn" data-key="8">8</button>
             <button class="remote-btn number-btn" data-key="9">9</button>
+            <button class="remote-btn number-btn pad-toggle-btn" data-key="pad_toggle">NAV</button>
             <button class="remote-btn number-btn zero-btn" data-key="0">0</button>
+            <!-- Clears a half-typed channel number, or a half-typed parental PIN. -->
+            <button class="remote-btn number-btn clear-btn" data-key="clear">CLR</button>
+        </div>
+
+        <!-- Nav Pad - swaps in for the number pad to drive web channels (PPV). -->
+        <div class="button-grid nav-pad" id="nav-pad" hidden>
+            <button class="remote-btn nav-btn nav-up" data-key="nav_up">▲</button>
+            <!-- PPV binds no horizontal keys - present for the pad shape, inert. -->
+            <button class="remote-btn nav-btn nav-left" data-key="nav_left" disabled>◀</button>
+            <button class="remote-btn nav-btn nav-enter" data-key="nav_enter">OK</button>
+            <button class="remote-btn nav-btn nav-right" data-key="nav_right" disabled>▶</button>
+            <button class="remote-btn nav-btn pad-toggle-btn" data-key="pad_toggle">123</button>
+            <button class="remote-btn nav-btn nav-down" data-key="nav_down">▼</button>
         </div>
 
         <!-- Volume and Channel Controls in Vertical Columns -->
@@ -89,6 +103,14 @@
         let isShowingVolume = false;
         let isShowingInfo = false;
         let infoMode = 'playing'; // 'playing' or 'system'
+        let padMode = 'number'; // 'number' or 'nav'
+        // Mirrors the player status: while a station is locked, digits enter the
+        // PIN instead of changing channel (same rule as fs42/pi/remote_controller.py).
+        let awaitingPin = false;
+        let pinDigitsEntered = 0;
+
+        const numberPad = document.getElementById('number-pad');
+        const navPad = document.getElementById('nav-pad');
 
         // Sample program data (could be fetched from API later)
         const programData = {
@@ -110,7 +132,18 @@
             }
         }
 
+        // What the display falls back to whenever nothing transient is showing.
+        function idleDisplayText() {
+            if (awaitingPin) {
+                return pinDigitsEntered > 0 ? '•'.repeat(pinDigitsEntered) : 'ENTER PIN';
+            }
+            return `CH ${currentChannel}`;
+        }
+
         function updateNowPlayingFromStatus(status) {
+            awaitingPin = !!status.awaiting_pin;
+            pinDigitsEntered = status.pin_digits_entered || 0;
+
             if (infoMode === 'playing') {
                 if (status.status === 'playing') {
                     // Top line: "Playing"
@@ -125,7 +158,7 @@
                     if (status.channel_number && status.channel_number > 0) {
                         currentChannel = String(status.channel_number).padStart(3, '0');
                         if (!isInputtingChannel && !isShowingVolume) {
-                            display.textContent = `CH ${currentChannel}`;
+                            display.textContent = idleDisplayText();
                         }
                     }
                 } else if (status.status === 'stopped') {
@@ -134,6 +167,15 @@
                     nowPlayingTitle.textContent = '';
                     if (!isInputtingChannel && !isShowingVolume) {
                         display.textContent = 'STOPPED';
+                    }
+                } else if (status.status === 'idle') {
+                    // The player hands back from parental controls as 'idle' and
+                    // starts playing a moment later - a transition, not a fault.
+                    nowPlayingNetwork.textContent = 'Ready';
+                    nowPlayingStatus.textContent = status.network_name || '';
+                    nowPlayingTitle.textContent = '';
+                    if (!isInputtingChannel && !isShowingVolume) {
+                        display.textContent = idleDisplayText();
                     }
                 } else {
                     nowPlayingNetwork.textContent = status.status || 'Unknown';
@@ -167,7 +209,7 @@
                 volumeDisplayTimeout = null;
                 // Return to normal display (will be updated by next status poll)
                 if (!isInputtingChannel) {
-                    display.textContent = `CH ${currentChannel}`;
+                    display.textContent = idleDisplayText();
                 }
             }, 3000);
         }
@@ -263,6 +305,66 @@
             }
         }
 
+        function togglePad() {
+            padMode = padMode === 'number' ? 'nav' : 'number';
+            numberPad.hidden = padMode !== 'number';
+            navPad.hidden = padMode !== 'nav';
+            display.textContent = padMode === 'nav' ? 'NAV PAD' : 'NUMBERS';
+        }
+
+        // Web channels read keystrokes rather than commands, so the nav pad
+        // forwards the keys ppv.js listens for. The channel in the path is the
+        // one status polling last reported.
+        async function sendPpvKey(keyName, label) {
+            const channelNumber = parseInt(currentChannel, 10);
+            try {
+                await window.fs42Api.post(`ppv/${channelNumber}/key/${keyName}`);
+                display.textContent = label;
+                console.log(`PPV key ${keyName} sent to channel ${channelNumber}`);
+            } catch (error) {
+                console.error(`PPV key ${keyName} failed:`, error);
+                display.textContent = 'ERROR';
+            }
+        }
+
+        async function sendParentalDigit(digit) {
+            try {
+                await window.fs42Api.post(`player/parental/digit/${digit}`);
+                // Count it locally so the display reacts at once - the next poll
+                // replaces this with the count the player confirms.
+                pinDigitsEntered += 1;
+                display.textContent = idleDisplayText();
+                console.log('Parental PIN digit sent');
+            } catch (error) {
+                console.error('Parental digit failed:', error);
+                display.textContent = 'ERROR';
+            }
+        }
+
+        async function handleClear() {
+            if (awaitingPin) {
+                try {
+                    await window.fs42Api.post('player/parental/clear');
+                    pinDigitsEntered = 0;
+                    display.textContent = idleDisplayText();
+                    console.log('Parental PIN cleared');
+                } catch (error) {
+                    console.error('Parental clear failed:', error);
+                    display.textContent = 'ERROR';
+                }
+                return;
+            }
+
+            // Not locked, so drop whatever channel number is half-entered.
+            if (channelInputTimeout) {
+                clearTimeout(channelInputTimeout);
+                channelInputTimeout = null;
+            }
+            channelInput = '';
+            isInputtingChannel = false;
+            display.textContent = idleDisplayText();
+        }
+
         function handleNumberInput(digit) {
             // Set input mode
             isInputtingChannel = true;
@@ -306,7 +408,7 @@
                     display.textContent = 'ERROR';
                     setTimeout(() => {
                         isInputtingChannel = false;
-                        display.textContent = `CH ${currentChannel}`;
+                        display.textContent = idleDisplayText();
                     }, 2000);
                     return;
                 }
@@ -353,7 +455,26 @@
                 case '7':
                 case '8':
                 case '9':
-                    handleNumberInput(key);
+                    if (awaitingPin) {
+                        await sendParentalDigit(key);
+                    } else {
+                        handleNumberInput(key);
+                    }
+                    break;
+                case 'clear':
+                    await handleClear();
+                    break;
+                case 'pad_toggle':
+                    togglePad();
+                    break;
+                case 'nav_up':
+                    await sendPpvKey('PageUp', 'NEXT');
+                    break;
+                case 'nav_down':
+                    await sendPpvKey('PageDown', 'PREV');
+                    break;
+                case 'nav_enter':
+                    await sendPpvKey('Enter', 'SELECT');
                     break;
                 case 'ch_up':
                     display.textContent = 'CHANNEL UP';
@@ -366,7 +487,7 @@
                         display.textContent = 'ERROR';
                         // Return to previous display after 2 seconds
                         setTimeout(() => {
-                            display.textContent = `CH ${currentChannel}`;
+                            display.textContent = idleDisplayText();
                         }, 2000);
                     }
                     break;
@@ -381,7 +502,7 @@
                         display.textContent = 'ERROR';
                         // Return to previous display after 2 seconds
                         setTimeout(() => {
-                            display.textContent = `CH ${currentChannel}`;
+                            display.textContent = idleDisplayText();
                         }, 2000);
                     }
                     break;
@@ -463,14 +584,14 @@
             if (!['power', 'mute'].includes(key)) {
                 setTimeout(() => {
                     if (display.textContent !== 'OFF') {
-                        display.textContent = muted ? 'MUTED' : `CH ${currentChannel}`;
+                        display.textContent = muted ? 'MUTED' : idleDisplayText();
                     }
                 }, 2000);
             }
         }
 
         // Initialize display and start polling
-        display.textContent = `CH ${currentChannel}`;
+        display.textContent = idleDisplayText();
         // Don't show sample data, let the polling populate it
         nowPlayingNetwork.textContent = 'Loading...';
         nowPlayingStatus.textContent = '';

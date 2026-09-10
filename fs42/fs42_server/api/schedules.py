@@ -109,15 +109,14 @@ def _listing_projection(blocks, include_meta):
     # only get the stuff we need
     listings = []
     for block in blocks:
+        meta = getattr(block, "meta", None)
         listing = {
-            "title": block.title,
+            "title": MetadataIO.pick_title(meta) or block.title,
             "start_time": block.start_time.isoformat(),
             "end_time": block.end_time.isoformat(),
         }
-        if include_meta:
-            meta = getattr(block, "meta", None)
-            if meta:
-                listing["meta"] = meta
+        if include_meta and meta:
+            listing["meta"] = meta
         listings.append(listing)
     return listings
 
@@ -137,8 +136,9 @@ def get_all_schedules(start: str = None, end: str = None, include_meta: bool = F
 
     by_station = LiquidAPI.get_all_blocks(sdt, edt)
 
-    if include_meta:
-        _attach_meta_batch(by_station)
+    # Always attach metadata: even when include_meta is off, the listing
+    # title still prefers metadata over the filename-parsed title.
+    _attach_meta_batch(by_station)
 
     schedules = {name: _listing_projection(blocks, include_meta) for name, blocks in by_station.items()}
     return {"start": start, "end": end, "schedules": schedules}

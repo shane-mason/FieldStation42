@@ -83,7 +83,7 @@ function getPauseDuration() {
 
 function getScrollSpeed() {
   const val = parseFloat(getCSSVar('--scroll-speed'));
-  return (!isNaN(val) && val > 0) ? val : 0.8;
+  return (!isNaN(val) && val > 0) ? val : 1.1;
 }
 
 function computeSlotTimes() {

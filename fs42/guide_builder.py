@@ -8,10 +8,18 @@ from fs42.station_manager import StationManager
 from fs42.liquid_manager import LiquidManager, ScheduleNotFound, ScheduleQueryNotInBounds
 from fs42.liquid_blocks import LiquidBlock
 from fs42.title_parser import TitleParser
+from fs42.metadata_io import MetadataIO
 
 def normalize_video_title(title):
     custom_patterns = StationManager().server_conf.get("title_patterns", [])
     return TitleParser.parse_title(title, custom_patterns)
+
+
+def metadata_title_for_block(programming_block):
+    content = programming_block.content
+    if content is None or isinstance(content, list):
+        return None
+    return MetadataIO.pick_title(MetadataIO.read(content.path))
 
 
 class PreviewBlock:
@@ -55,9 +63,12 @@ class ScheduleQuery:
                 ends_later = True
 
             _display_title = programming_block.title
+            _meta_title = metadata_title_for_block(programming_block)
 
-            #normalize if explicitely told to
-            if normalize:
+            if _meta_title:
+                _display_title = _meta_title
+            elif normalize:
+                #normalize if explicitely told to
                 _display_title = normalize_video_title(programming_block.title)
 
             _block = PreviewBlock(_display_title)
