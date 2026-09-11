@@ -107,8 +107,9 @@ class GuideBuilder:
             start_time = now.replace(minute=0, second=1, microsecond=0)
 
         # each statio is a row
-        for station in StationManager().stations:
-            if station["hidden"]:
+        manager = StationManager()
+        for station in manager.stations:
+            if manager.is_hidden(station):
                 continue
             elif not station["_has_schedule"]:
                 to_display = station.get("network_long_name", station["network_name"])

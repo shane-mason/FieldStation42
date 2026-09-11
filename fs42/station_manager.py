@@ -59,6 +59,9 @@ class StationManager(object):
                     "video_seek_timeout": 10,
                     "follow_static_symlinks": False,
                     "custom_holidays": {},
+                    "reachability_check": True,
+                    "reachability_interval": 30,
+                    "reachability_timeout": 5,
                 }
                 self._number_index = {}
                 self._name_index = {}
@@ -100,6 +103,28 @@ class StationManager(object):
         if channel_number in self._number_index:
             return self._number_index[channel_number]
         return None
+
+    def is_channel_offline(self, station):
+        """True when a web/streaming station's remote URL(s) are currently unreachable.
+
+        Stations of other types, stations flagged ``always_available`` and all
+        stations when ``reachability_check`` is disabled are never offline.
+        """
+        if station.get("always_available", False):
+            return False
+        if station.get("network_type") not in ("web", "streaming"):
+            return False
+        if not self.server_conf.get("reachability_check", True):
+            return False
+        from fs42.reachability import get_monitor
+
+        return not get_monitor().is_reachable(station["network_name"])
+
+    def is_hidden(self, station):
+        """Effective visibility for tuning and the native guide: config ``hidden`` OR offline."""
+        if station.get("hidden", False):
+            return True
+        return self.is_channel_offline(station)
 
     def index_from_channel(self, channel):
         index = 0
@@ -163,6 +188,9 @@ class StationManager(object):
                     "parental_controls_pin",
                     "parental_controls_theme",
                     "custom_holidays",
+                    "reachability_check",
+                    "reachability_interval",
+                    "reachability_timeout",
                 ]
 
                 for key in to_check:

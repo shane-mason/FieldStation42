@@ -97,11 +97,53 @@ def input_check():
 
 
 
+def skip_offline_start_channel(manager, channel_index, logger):
+    """If the initial channel is a web/streaming station, wait (bounded) for the first
+    reachability check and advance to the next visible station when it is offline.
+    Explicit ``hidden`` stations are left alone here - that is existing behaviour."""
+    stations = manager.stations
+    if not stations:
+        return channel_index
+    station = stations[channel_index]
+    if station.get("network_type") not in ("web", "streaming"):
+        return channel_index
+    if station.get("always_available", False):
+        return channel_index
+    if not manager.server_conf.get("reachability_check", True):
+        return channel_index
+
+    from fs42.reachability import get_monitor
+
+    monitor = get_monitor()
+    timeout = float(manager.server_conf.get("reachability_timeout", 5)) + 2.0
+    if not monitor.wait_first_check(timeout=timeout):
+        logger.warning("Reachability check did not finish in %.1fs - starting on saved channel", timeout)
+        return channel_index
+    if not manager.is_channel_offline(station):
+        return channel_index
+
+    logger.warning(f"Start channel '{station['network_name']}' is offline - advancing to next visible channel")
+    idx = channel_index
+    for _ in range(len(stations)):
+        idx = idx + 1 if idx + 1 < len(stations) else 0
+        if not manager.is_hidden(stations[idx]):
+            return idx
+    logger.warning("No visible station found - starting on saved channel anyway")
+    return channel_index
+
+
 def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=None):
     manager = StationManager()
     reception = ReceptionStatus()
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
+
+    if manager.server_conf.get("reachability_check", True) and any(
+        s.get("network_type") in ("web", "streaming") for s in manager.stations
+    ):
+        from fs42.reachability import get_monitor
+        get_monitor()
+        logger.info("Reachability monitor started for web/streaming channels")
 
     # set up the live schedule agent if configured
     schedule_agent = None
@@ -148,6 +190,8 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
     if channel_index >= len(manager.stations):
         logger.warning("Saved channel index %d is out of range, resetting to 0", channel_index)
         channel_index = 0
+
+    channel_index = skip_offline_start_channel(manager, channel_index, logger)
 
     player = StationPlayer(manager.stations[channel_index], input_check)
     if schedule_lock:
@@ -258,13 +302,18 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
                             tune_up = False
                             logger.debug("Got channel down command")
                             found = False
-                            while not found:
+                            start_index = channel_index
+                            for _ in range(stations_len):
                                 channel_index -= 1
-                                
+
                                 if channel_index < 0:
                                     channel_index = stations_len-1
-                                if not station_cache[channel_index]["hidden"]:
+                                if not manager.is_hidden(station_cache[channel_index]):
                                     found = True
+                                    break
+                            if not found:
+                                logger.warning("No visible station to tune down to - staying on current channel")
+                                channel_index = start_index
 
 
                 except Exception as e:
@@ -276,10 +325,16 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
             if tune_up:
                 logger.info("Starting channel change")
                 found = False
-                while not found:
+                start_index = channel_index
+                for _ in range(stations_len):
                     channel_index += 1
                     channel_index = channel_index if channel_index < stations_len else 0
-                    found = not station_cache[channel_index]["hidden"]
+                    if not manager.is_hidden(station_cache[channel_index]):
+                        found = True
+                        break
+                if not found:
+                    logger.warning("No visible station to tune up to - staying on current channel")
+                    channel_index = start_index
 
             # save the player state
             with shelve.open(STATE_SHELVE) as s:

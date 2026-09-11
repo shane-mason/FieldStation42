@@ -70,6 +70,31 @@
     letter-spacing: 0.5px;
 }
 
+.station-card-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    flex: 0 0 48px;
+    align-self: center;
+    border-radius: 4px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+}
+
+.station-card-status {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 3px;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-online  { background: #238636; color: #ffffff; }
+.status-offline { background: #da3633; color: #ffffff; }
+.status-always  { background: #1f6feb; color: #ffffff; }
+
 .station-card-draft {
     display: inline-block;
     padding: 0.2em 0.6em;

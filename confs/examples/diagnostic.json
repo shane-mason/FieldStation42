@@ -1,0 +1,9 @@
+{"station_conf" : {
+    "network_name" : "Diagnostics",
+    "network_long_name": "System Diagnostics",
+    "network_type" : "web",
+    "channel_number": 99,
+    "web_url": "http://localhost:4242/static/diagnostics.html",
+    "refresh_interval": 0,
+    "always_available": true
+}}

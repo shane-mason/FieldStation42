@@ -137,6 +137,15 @@ function mockFetchAllSchedules(slots) {
   return schedules;
 }
 
+function markOffline(nameSpan, station) {
+  if (!station.channel_offline) return;
+  nameSpan.classList.add('channel-offline');
+  const tag = document.createElement('span');
+  tag.className = 'offline-tag';
+  tag.textContent = 'OFFLINE';
+  nameSpan.appendChild(tag);
+}
+
 async function fetchStations() {
   const all = await window.fs42Common.fetchChannels();
   stations = all.filter(s => !s.hidden);
@@ -203,6 +212,7 @@ function buildScrollStrip(slots, schedules) {
       nameSpan.className = 'channel-name';
       const name = station.network_name;
       nameSpan.textContent = name.length > 10 ? name.slice(0, 10) + '…' : name;
+      markOffline(nameSpan, station);
 
       channelInfo.appendChild(numSpan);
       channelInfo.appendChild(nameSpan);
@@ -429,6 +439,7 @@ function buildGridStrip(slots, schedules) {
     const nameSpan = document.createElement('span');
     nameSpan.className = 'channel-name';
     nameSpan.textContent = station.network_name;
+    markOffline(nameSpan, station);
 
     channelDiv.appendChild(numSpan);
     channelDiv.appendChild(nameSpan);

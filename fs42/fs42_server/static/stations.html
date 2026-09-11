@@ -15,6 +15,8 @@
     <script>
         let allStations = [];
         let filteredStations = [];
+        let channelStatus = {};
+        const STATUS_REFRESH_MS = 15000;
 
         // Initialize page layout
         document.addEventListener('DOMContentLoaded', async function() {
@@ -102,12 +104,45 @@
             document.body.innerHTML = await window.fs42Common.createPageLayout('', content);
 
             // Load stations
+            await loadStatus();
             await loadStations();
+            setInterval(async () => { await loadStatus(); renderStations(); }, STATUS_REFRESH_MS);
 
             // Setup event listeners
             document.getElementById('type-filter').addEventListener('change', applyFilters);
             document.getElementById('search-input').addEventListener('input', applyFilters);
         });
+
+        async function loadStatus() {
+            try {
+                const channels = await window.fs42Common.fetchChannels();
+                channelStatus = {};
+                for (const c of channels) channelStatus[c.network_name] = c;
+            } catch (e) {
+            }
+        }
+
+        function logoPath(station) {
+            if (!station.default_logo) return null;
+            const parts = [];
+            if (station.content_dir) parts.push(station.content_dir.replace(/\/+$/, ''));
+            if (station.logo_dir) parts.push(station.logo_dir.replace(/^\/+|\/+$/g, ''));
+            parts.push(station.default_logo);
+            return parts.join('/');
+        }
+
+        function statusBadge(station) {
+            const type = station.network_type || 'standard';
+            if (type !== 'web' && type !== 'streaming') return '';
+            if (station.always_available) {
+                return '<span class="station-card-status status-always" title="always_available: never treated as offline">always available</span>';
+            }
+            const st = channelStatus[station.network_name];
+            if (!st) return '';
+            return st.channel_offline
+                ? '<span class="station-card-status status-offline" title="URL(s) unreachable - skipped by channel up/down and hidden from the native guide">offline</span>'
+                : '<span class="station-card-status status-online">online</span>';
+        }
 
         async function loadStations() {
             try {
@@ -181,16 +216,22 @@
                 const draftReason = station._draft
                     ? `<div class="station-card-draft-reason">${escapeHtml(station._draft_reason || 'Configuration could not be loaded')}</div>`
                     : '';
+                const logo = logoPath(station);
+                const logoHtml = logo
+                    ? `<img class="station-card-logo" src="/media/image?path=${encodeURIComponent(logo)}" alt="" onerror="this.style.display='none'">`
+                    : '';
 
                 html += `
                     <div class="station-card">
                         <div class="station-card-header">
                             <div class="station-card-title-row">
+                                ${logoHtml}
                                 <h3 class="station-card-name">${name}</h3>
                                 <span class="station-card-channel">#${channel}</span>
                             </div>
                             <div class="station-card-meta">
                                 <span class="station-card-type station-type-${type}">${type}</span>
+                                ${statusBadge(station)}
                                 ${draftBadge}
                             </div>
                         </div>
@@ -235,8 +276,12 @@
                     return `Continuous loop<br><small style="color:#61afef;">${escapeHtml(dir)}</small>`;
 
                 case 'streaming':
-                    const streams = station.streams?.length || 0;
-                    return `External streams &bull; ${streams} source(s)`;
+                    const streamList = station.streams || [];
+                    const urls = streamList
+                        .filter(st => st && st.url)
+                        .map(st => `<small style="color:#61afef;">${escapeHtml(st.url)}</small>`)
+                        .join('<br>');
+                    return `External streams &bull; ${streamList.length} source(s)` + (urls ? `<br>${urls}` : '');
 
                 default:
                     return 'Custom configuration';
