@@ -277,11 +277,13 @@
             for (const station of stations) {
                 const channelNumber = station.channel_number || '?';
                 const displayName = station.network_long_name || station.network_name;
+                const offlineClass = station.channel_offline ? ' station-offline' : '';
+                const offlineTag = station.channel_offline ? '<span class="offline-tag">OFFLINE</span>' : '';
                 stationsHTML += `
-                    <div class="station-row">
+                    <div class="station-row${offlineClass}">
                         <div class="station-name">
                             <div class="channel-number">${channelNumber}</div>
-                            <div class="network-name">${displayName}</div>
+                            <div class="network-name">${displayName}${offlineTag}</div>
                         </div>
                     </div>
                 `;

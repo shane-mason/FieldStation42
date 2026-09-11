@@ -133,6 +133,13 @@ async function fetchCatalog(networkId) {
 }
 
 // Render summary table (used in index.html)
+function offlineBadge(station) {
+    if (!station || !station.channel_offline) return '';
+    return '<span class="fs42-offline-badge" title="Remote URL(s) unreachable - hidden from channel up/down and the native guide" ' +
+        'style="display:inline-block;margin-left:0.5em;padding:0.05em 0.45em;border-radius:3px;font-size:0.7em;font-weight:700;' +
+        'letter-spacing:0.05em;background:#da3633;color:#fff;vertical-align:middle;">OFFLINE</span>';
+}
+
 function renderSummaryTable(stations) {
     if (!stations.length) return '<p>No stations found.</p>';
     let html = '<table class="pure-table pure-table-horizontal" style="width:100%;margin-top:1em;">';
@@ -150,7 +157,7 @@ function renderSummaryTable(stations) {
         if (typeof start === 'string' && start.length > 10) start = start.replace('T', ' ');
         if (typeof end === 'string' && end.length > 10) end = end.replace('T', ' ');
         html += `<tr>
-            <td data-label='Network'><strong>${name}</strong></td>
+            <td data-label='Network'><strong>${name}</strong>${offlineBadge(station)}</td>
             <td data-label='Catalog Entries'>${entryCount}</td>
             <td data-label='Total Duration'>${totalDuration}</td>
             <td data-label='Schedule Start'>${start}</td>
@@ -271,6 +278,7 @@ window.fs42Common = {
     fetchStationSummary,
     fetchChannels,
     fetchCatalog,
+    offlineBadge,
     renderSummaryTable,
     renderCatalogTable,
     fetchScheduleSummary,

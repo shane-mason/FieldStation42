@@ -324,6 +324,10 @@
           "type": "string",
           "description": "URL for web-type networks"
         },
+        "always_available": {
+          "type": "boolean",
+          "description": "web and streaming networks only. If true the channel is never treated as offline - it stays in channel up/down navigation and the guide even when its URL(s) are unreachable (e.g. a locally hosted diagnostic channel). Defaults to false."
+        },
         "refresh_interval": {
           "type": "number",
           "minimum": 0,
