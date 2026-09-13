@@ -18,11 +18,16 @@ from fs42.slot_reader import SlotReader
 
 
 try:
-    # try to import from version > 2.0
-    from moviepy import VideoFileClip
+    try:
+        # try to import from version > 2.0
+        from moviepy import VideoFileClip
+    except ImportError:
+        # fall back to import from version 1.0
+        from moviepy.editor import VideoFileClip  # type: ignore
 except ImportError:
-    # fall back to import from version 1.0
-    from moviepy.editor import VideoFileClip  # type: ignore
+    # moviepy not installed at all - it's only used as a fallback duration
+    # probe when ffmpeg.probe() can't determine a file's duration
+    VideoFileClip = None
 
 
 FF_USE_FLUID_FILE_CACHE = True
@@ -60,6 +65,26 @@ class ShowCatalog:
         is a no-op since the set is always empty at process start.
         """  
         cls._fluid_cache_scanned.clear()
+
+    @staticmethod
+    def _get_required_video_duration(path: str) -> float:
+
+        duration, error_hint = MediaProcessor._get_duration(path)
+        if duration > 0.0:
+            return duration
+
+        if VideoFileClip is not None:
+            try:
+                video_clip = VideoFileClip(path)
+                duration = video_clip.duration
+                video_clip.close()
+                if duration and duration > 0.0:
+                    return duration
+            except Exception:
+                pass
+
+        hint = f" ({error_hint})" if error_hint else ""
+        raise RuntimeError(f"Could not determine duration for required video file: {path}{hint}")
 
     def __init__(self, config, rebuild_catalog=False, load=True, debug=False, force=False, skip_chapter_scan=False):
         self.config = config
@@ -316,17 +341,15 @@ class ShowCatalog:
         # add sign-off and off-air videos to the clip index
         if "sign_off_video" in self.config:
             self._l.debug("Adding sign-off video")
-            video_clip = VideoFileClip(self.config["sign_off_video"])
-            self.clip_index["sign_off"] = [CatalogEntry(self.config["sign_off_video"], video_clip.duration, "sign_off", content_type="sign_off")]
-            video_clip.close()
+            duration = self._get_required_video_duration(self.config["sign_off_video"])
+            self.clip_index["sign_off"] = [CatalogEntry(self.config["sign_off_video"], duration, "sign_off", content_type="sign_off")]
             self._l.debug(f"Added sign-off video {self.config['sign_off_video']}")
             total_count += 1
 
         if "off_air_video" in self.config:
             self._l.debug("Adding off air video")
-            video_clip = VideoFileClip(self.config["off_air_video"])
-            self.clip_index["off_air"] = [CatalogEntry(self.config["off_air_video"], video_clip.duration, "off_air", content_type="off_air")]
-            video_clip.close()
+            duration = self._get_required_video_duration(self.config["off_air_video"])
+            self.clip_index["off_air"] = [CatalogEntry(self.config["off_air_video"], duration, "off_air", content_type="off_air")]
             self._l.debug(f"Added off air video {self.config['off_air_video']}")
             total_count += 1
 
