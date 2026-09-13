@@ -401,3 +401,19 @@
         font-size: 0.55rem;
     }
 }
+.station-row.station-offline .network-name {
+    opacity: 0.55;
+}
+
+.offline-tag {
+    display: inline-block;
+    margin-left: 0.4em;
+    padding: 0 0.35em;
+    border-radius: 3px;
+    font-size: 0.6em;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: #da3633;
+    color: #fff;
+    vertical-align: middle;
+}

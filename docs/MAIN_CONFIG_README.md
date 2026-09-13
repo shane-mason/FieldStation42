@@ -45,6 +45,9 @@ The `confs/main_config.json` file is optional. If it doesn't exist, FieldStation
 | `normalize_titles` | boolean | `false` | Enable automatic title normalization from filenames |
 | `title_patterns` | array | `[]` | Custom regex patterns for title parsing (see below) |
 | `follow_static_symlinks` | boolean | `false` | Serve symlinks that point outside the static directories (see below) |
+| `reachability_check` | boolean | `true` | Probe `web`/`streaming` stations' URLs and treat unreachable ones as offline (skipped by channel up/down, dropped from the native guide, badged OFFLINE in the web UI). Set `false` to disable entirely. |
+| `reachability_interval` | integer | `30` | Seconds between reachability probe cycles |
+| `reachability_timeout` | number | `5` | Per-connection TCP timeout in seconds for each probe |
 
 ## Day Parts
 

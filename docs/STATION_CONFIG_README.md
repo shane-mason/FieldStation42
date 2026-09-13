@@ -75,6 +75,7 @@ The `network_type` property determines how the station operates:
 | `channel_number` | integer | **Required.** Channel number | Any positive integer |
 | `network_type` | string | Type of network operation | `"standard"`, `"web"`, `"guide"`, `"loop"`, `"streaming"` |
 | `hidden` | boolean | Hide channel from guide listings | `true`, `false` |
+| `always_available` | boolean | Web/streaming only. Never treat this channel as offline (see [Offline Channels](#offline-channels)) | `true`, `false` |
 | `active_rules` | object | Availability rules for when this config should be active | See [Active Rules](#active-rules) below |
 
 ### Scheduling Properties (Standard Networks)
@@ -221,6 +222,7 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 |----------|------|-------------|
 | `web_url` | string | URL to display (e.g., `"http://localhost:4242/diagnostics.html"`) |
 | `refresh_interval` | number | Seconds between automatic page reloads. Omit or set to `0` to disable. |
+| `always_available` | boolean | If `true`, the channel is never treated as offline even when `web_url` is unreachable. Use this for locally hosted pages such as the diagnostics channel. Defaults to `false`. |
 
 ### Guide Network Properties
 
@@ -279,6 +281,39 @@ Each stream object contains:
   "url": "https://example.com/stream.m3u8",
   "duration": 30,
   "title": "Stream Title"
+}
+```
+
+Streaming networks also accept `always_available` (boolean) - see [Offline Channels](#offline-channels).
+
+### Offline Channels
+
+`web` and `streaming` networks depend on remote hosts. FieldStation42 periodically TCP-connects to the
+host/port of each `web_url` and `streams[*].url`. When **none** of a station's URLs are reachable the
+station is treated as **offline**:
+
+- it is skipped by channel up/down (a direct tune to its channel number still works),
+- it is removed from the native (`guide` network type) TV guide,
+- it stays listed on the port-4242 web UI (Home table, web guide, Channels page) with an **OFFLINE** badge.
+
+Reachability is unknown until the first probe cycle finishes after start-up (a few seconds), and
+unknown counts as reachable, so a guide channel that is the start channel may list an offline
+station on its first render; the guide rebuilds about once a minute and drops it then.
+
+Web/streaming stations with no URLs configured are treated as reachable. Set `"always_available": true`
+on a station to opt out of the check entirely (recommended for the locally hosted diagnostics channel).
+The probe interval/timeout and a global on/off switch live in `main_config.json` - see
+`reachability_check`, `reachability_interval` and `reachability_timeout` in `MAIN_CONFIG_README.md`.
+
+```json
+{
+  "station_conf": {
+    "network_name": "Diagnostics",
+    "network_type": "web",
+    "channel_number": 99,
+    "web_url": "http://localhost:4242/static/diagnostics.html",
+    "always_available": true
+  }
 }
 ```
 
