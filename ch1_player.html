@@ -2,89 +2,637 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Voxi.Live - Channel 1</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .player-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
-        video { width: 100%; height: 100%; object-fit: contain; background: #000; }
-        .overlay { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; z-index: 10; opacity: 0; transition: opacity 0.3s ease; }
-        .player-container:hover .overlay { opacity: 1; }
-        .badge { background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.2); }
-        .badge-live { background: #e50914; border: none; }
-        .unmute-btn { position: absolute; background: rgba(0,0,0,0.85); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 15px; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); cursor: pointer; display: none; z-index: 20; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+        }
+
+        .tv-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+            overflow: hidden;
+            cursor: default;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000000;
+            display: block;
+            pointer-events: none; /* Disallow clicking video to pause */
+        }
+
+        /* -------------------------------------------------------------
+           Channel OSD / Bug (Top Left)
+           ------------------------------------------------------------- */
+        .channel-bug {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: rgba(12, 12, 16, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            z-index: 10;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .live-dot {
+            width: 9px;
+            height: 9px;
+            background: #ff3333;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff3333;
+            animation: pulse-live 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse-live {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .channel-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .channel-badge {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: #e50914;
+            color: #ffffff;
+            padding: 2px 7px;
+            border-radius: 12px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* -------------------------------------------------------------
+           "Start Sound" Splash / Prompt (Center)
+           ------------------------------------------------------------- */
+        .start-sound-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 50;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+
+        .start-sound-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .start-sound-btn {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 32px;
+            background: rgba(22, 22, 28, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50px;
+            color: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7), 0 0 20px rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .start-sound-btn:hover {
+            transform: scale(1.05);
+            background: rgba(36, 36, 46, 0.96);
+            border-color: rgba(255, 255, 255, 0.45);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+
+        .start-sound-btn:active {
+            transform: scale(0.98);
+        }
+
+        .sound-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sound-text-group {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+        }
+
+        .sound-title {
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            color: #ffffff;
+        }
+
+        .sound-sub {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.65);
+            margin-top: 2px;
+        }
+
+        /* -------------------------------------------------------------
+           TV Volume & Controls OSD (Bottom Right)
+           ------------------------------------------------------------- */
+        .controls-osd {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 18px;
+            background: rgba(14, 14, 18, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 40px;
+            z-index: 20;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            opacity: 1;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .controls-osd.autohide {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(8px);
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            border-radius: 50%;
+            transition: background 0.2s, transform 0.15s, color 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            transform: scale(1.1);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .volume-slider-wrap {
+            display: flex;
+            align-items: center;
+            width: 100px;
+            position: relative;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(0,0,0,0.6);
+            transition: transform 0.15s ease;
+        }
+
+        .volume-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(0,0,0,0.6);
+            transition: transform 0.15s ease;
+        }
+
+        .volume-slider::-moz-range-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .volume-level-label {
+            font-size: 12px;
+            font-weight: 600;
+            width: 38px;
+            text-align: right;
+            color: rgba(255, 255, 255, 0.85);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .osd-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 2px;
+        }
+
+        /* -------------------------------------------------------------
+           TV Static / Signal Tuning Indicator (Disappears when live)
+           ------------------------------------------------------------- */
+        .tuning-indicator {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @media (max-width: 600px) {
+            .channel-bug {
+                top: 12px;
+                left: 12px;
+                padding: 6px 10px;
+            }
+            .channel-title { font-size: 11px; }
+            .channel-badge { font-size: 9px; padding: 1px 5px; }
+
+            .controls-osd {
+                bottom: 14px;
+                right: 14px;
+                padding: 8px 12px;
+                gap: 8px;
+            }
+            .volume-slider-wrap { width: 70px; }
+            .volume-level-label { width: 32px; font-size: 11px; }
+            .start-sound-btn { padding: 12px 22px; gap: 12px; }
+            .sound-icon-circle { width: 36px; height: 36px; }
+            .sound-title { font-size: 14px; }
+            .sound-sub { font-size: 11px; }
+        }
     </style>
 </head>
 <body>
-    <div class="player-container">
-        <video id="video" playsinline controls></video>
-        <button id="unmute-btn" class="unmute-btn">🔊 Click to Unmute</button>
-        <div class="overlay">
-            <span class="badge badge-live">LIVE</span>
-            <span class="badge">Voxi.Live CH1</span>
+    <div class="tv-container" id="tvContainer">
+        <!-- Live Video Element - Strictly No Native Controls (No pause, stop, or scrub) -->
+        <video id="video" playsinline preload="auto"></video>
+
+        <!-- TV Watermark / Channel Bug -->
+        <div class="channel-bug">
+            <span class="live-dot"></span>
+            <span class="channel-title">VOXI CH 1</span>
+            <span class="channel-badge">LIVE</span>
         </div>
+
+        <!-- Initial "Start Sound" Splash Overlay -->
+        <div class="start-sound-overlay" id="soundOverlay">
+            <button class="start-sound-btn" id="startSoundBtn" title="Unmute live broadcast">
+                <div class="sound-icon-circle">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>
+                </div>
+                <div class="sound-text-group">
+                    <span class="sound-title">START SOUND</span>
+                    <span class="sound-sub">Click to listen live</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- Volume Controls Only -->
+        <div class="controls-osd" id="controlsOsd">
+            <!-- Mute / Unmute Toggle -->
+            <button class="icon-btn" id="muteBtn" title="Toggle Mute (M)">
+                <svg id="volumeIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <!-- Default: Muted Icon (since broadcast starts muted) -->
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+            </button>
+
+            <!-- Volume Slider -->
+            <div class="volume-slider-wrap">
+                <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.01" value="0.8" title="Adjust Volume (Up/Down)">
+            </div>
+            <span class="volume-level-label" id="volumeLabel">80%</span>
+
+            <div class="osd-divider"></div>
+
+            <!-- Fullscreen Toggle -->
+            <button class="icon-btn" id="fullscreenBtn" title="Fullscreen (F)">
+                <svg id="fullscreenIcon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="tuning-indicator" id="tuningStatus">Direct Feed</div>
     </div>
 
     <script>
         const video = document.getElementById('video');
-        const unmuteBtn = document.getElementById('unmute-btn');
-        const streamUrl = 'index.m3u8';
+        const tvContainer = document.getElementById('tvContainer');
+        const soundOverlay = document.getElementById('soundOverlay');
+        const startSoundBtn = document.getElementById('startSoundBtn');
+        const controlsOsd = document.getElementById('controlsOsd');
+        const muteBtn = document.getElementById('muteBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeLabel = document.getElementById('volumeLabel');
+        const volumeIcon = document.getElementById('volumeIcon');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const fullscreenIcon = document.getElementById('fullscreenIcon');
+        const tuningStatus = document.getElementById('tuningStatus');
 
-        function initPlayer() {
+        const streamUrl = 'index.m3u8';
+        let hlsInstance = null;
+
+        // Remember user volume preference or default to 80%
+        let savedVolume = parseFloat(localStorage.getItem('fs42_tv_vol') || '0.8');
+        if (isNaN(savedVolume) || savedVolume <= 0) savedVolume = 0.8;
+        volumeSlider.value = savedVolume;
+        video.volume = savedVolume;
+        volumeLabel.textContent = Math.round(savedVolume * 100) + '%';
+
+        // Broadcast rule: Always start with sound off (muted)
+        video.muted = true;
+
+        // SVG Icon Templates
+        const ICONS = {
+            mute: '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>',
+            low: '<path d="M7 9v6h4l5 5V4L11 9H7z"/>',
+            med: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>',
+            high: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>',
+            fsEnter: '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>',
+            fsExit: '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>'
+        };
+
+        function updateVolumeUI() {
+            if (video.muted || video.volume === 0) {
+                volumeIcon.innerHTML = ICONS.mute;
+                volumeLabel.textContent = '0%';
+                volumeSlider.value = 0;
+            } else {
+                const vol = video.volume;
+                volumeSlider.value = vol;
+                volumeLabel.textContent = Math.round(vol * 100) + '%';
+                if (vol < 0.35) {
+                    volumeIcon.innerHTML = ICONS.low;
+                } else if (vol < 0.75) {
+                    volumeIcon.innerHTML = ICONS.med;
+                } else {
+                    volumeIcon.innerHTML = ICONS.high;
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Old Fashioned TV Rule: CANNOT BE PAUSED OR STOPPED
+        // -------------------------------------------------------------
+        // If pause is ever triggered (e.g. headphone disconnect, OS lock, etc.), resume instantly
+        video.addEventListener('pause', () => {
+            if (!video.ended) {
+                video.play().catch(() => {});
+            }
+        });
+
+        // Intercept spacebar / K key to prevent browser play/pause shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.key === ' ' || e.code === 'KeyK') {
+                e.preventDefault();
+            } else if (e.code === 'ArrowUp') {
+                e.preventDefault();
+                setVolume(Math.min(1.0, video.volume + 0.05));
+            } else if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                setVolume(Math.max(0.0, video.volume - 0.05));
+            } else if (e.code === 'KeyM') {
+                e.preventDefault();
+                toggleMute();
+            } else if (e.code === 'KeyF') {
+                e.preventDefault();
+                toggleFullscreen();
+            }
+        });
+
+        function setVolume(val) {
+            val = Math.max(0, Math.min(1, val));
+            video.volume = val;
+            if (val > 0) {
+                video.muted = false;
+                savedVolume = val;
+                localStorage.setItem('fs42_tv_vol', val.toString());
+            } else {
+                video.muted = true;
+            }
+            updateVolumeUI();
+            resetOsdTimer();
+        }
+
+        function toggleMute() {
+            if (video.muted) {
+                video.muted = false;
+                if (video.volume === 0) {
+                    setVolume(savedVolume || 0.8);
+                } else {
+                    updateVolumeUI();
+                }
+            } else {
+                video.muted = true;
+                updateVolumeUI();
+            }
+            resetOsdTimer();
+        }
+
+        // Start Sound Button Handlers
+        startSoundBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            video.muted = false;
+            setVolume(savedVolume);
+            video.play().catch(() => {});
+            soundOverlay.classList.add('hidden');
+        });
+
+        // Volume Slider input
+        volumeSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            setVolume(val);
+        });
+
+        // Mute Button click
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMute();
+        });
+
+        // Fullscreen toggle
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                tvContainer.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        fullscreenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFullscreen();
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenIcon.innerHTML = ICONS.fsExit;
+            } else {
+                fullscreenIcon.innerHTML = ICONS.fsEnter;
+            }
+        });
+
+        // -------------------------------------------------------------
+        // Auto-hiding OSD Controls (Fade out on idle, reappear on move)
+        // -------------------------------------------------------------
+        let osdTimeout = null;
+        function resetOsdTimer() {
+            controlsOsd.classList.remove('autohide');
+            clearTimeout(osdTimeout);
+            osdTimeout = setTimeout(() => {
+                controlsOsd.classList.add('autohide');
+            }, 3500);
+        }
+
+        window.addEventListener('mousemove', resetOsdTimer);
+        window.addEventListener('touchstart', resetOsdTimer, { passive: true });
+        resetOsdTimer();
+
+        // -------------------------------------------------------------
+        // HLS Player Setup with Live Sync
+        // -------------------------------------------------------------
+        function initHlsPlayer() {
             if (Hls.isSupported()) {
-                const hls = new Hls({
+                hlsInstance = new Hls({
                     liveSyncDurationCount: 3,
                     liveMaxLatencyDurationCount: 6,
                     enableWorker: true,
                     lowLatencyMode: true,
+                    manifestLoadingTimeOut: 10000,
                 });
-                hls.loadSource(streamUrl);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    attemptAutoplay();
+
+                hlsInstance.loadSource(streamUrl);
+                hlsInstance.attachMedia(video);
+
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    startLivePlayback();
                 });
-                hls.on(Hls.Events.ERROR, (event, data) => {
+
+                hlsInstance.on(Hls.Events.ERROR, (event, data) => {
                     if (data.fatal) {
                         switch (data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
-                                hls.startLoad();
+                                tuningStatus.textContent = 'Signal tuning...';
+                                hlsInstance.startLoad();
                                 break;
                             case Hls.ErrorTypes.MEDIA_ERROR:
-                                hls.recoverMediaError();
+                                tuningStatus.textContent = 'Signal recovery...';
+                                hlsInstance.recoverMediaError();
                                 break;
                             default:
-                                hls.destroy();
+                                tuningStatus.textContent = 'Reconnecting...';
+                                setTimeout(() => {
+                                    hlsInstance.loadSource(streamUrl);
+                                    hlsInstance.attachMedia(video);
+                                }, 3000);
                                 break;
                         }
                     }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Native Safari iOS / macOS
                 video.src = streamUrl;
                 video.addEventListener('loadedmetadata', () => {
-                    attemptAutoplay();
+                    startLivePlayback();
                 });
             }
         }
 
-        function attemptAutoplay() {
+        function startLivePlayback() {
             video.muted = true;
             video.play().then(() => {
-                unmuteBtn.style.display = 'block';
+                tuningStatus.textContent = 'Direct Feed';
+                updateVolumeUI();
             }).catch(() => {
-                unmuteBtn.innerText = '▶ Click to Play';
-                unmuteBtn.style.display = 'block';
+                // If autoplay is completely blocked, user can click "Start Sound"
+                tuningStatus.textContent = 'Ready';
             });
         }
 
-        unmuteBtn.addEventListener('click', () => {
-            video.muted = false;
-            video.play();
-            unmuteBtn.style.display = 'none';
+        // When tab is restored from background, re-sync to live broadcast edge
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                if (hlsInstance) {
+                    hlsInstance.startLoad();
+                }
+                video.play().catch(() => {});
+            }
         });
 
-        initPlayer();
+        initHlsPlayer();
     </script>
 </body>
 </html>
