@@ -1,3 +1,5 @@
+# moviepy is an optional fallback duration probe (ffmpeg-python is primary);
+# safe to omit
 moviepy>=2.1.1
 python-mpv-jsonipc
 pyserial
