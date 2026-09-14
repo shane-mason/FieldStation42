@@ -56,7 +56,7 @@ fi
 echo "[3/6] Configuring PulseAudio Virtual Sink..."
 unset PULSE_SERVER
 pulseaudio -D --system=false --disallow-exit --exit-idle-time=-1 2>/dev/null || true
-pactl load-module module-null-sink sink_name=VirtualSink sink_properties=device.description="Virtual_Sink" 2>/dev/null || true
+pactl load-module module-null-sink sink_name=VirtualSink rate=48000 sink_properties=device.description="Virtual_Sink" 2>/dev/null || true
 pactl set-default-sink VirtualSink 2>/dev/null || true
 pactl unload-module module-suspend-on-idle 2>/dev/null || true
 pactl set-sink-volume VirtualSink 100% 2>/dev/null || true
@@ -65,13 +65,16 @@ pactl set-sink-mute VirtualSink 0 2>/dev/null || true
 # ------------------------------------------------------------------------------
 # 3. Ensure MPV is Configured for NVDEC & PulseAudio
 # ------------------------------------------------------------------------------
-echo "[4/6] Verifying MPV hardware configuration..."
+echo "[4/6] Verifying MPV hardware configuration & low-latency A/V sync..."
 mkdir -p /etc/mpv
 cat << 'EOF' > /etc/mpv/mpv.conf
 ao=pulse
 vo=gpu,x11
 hwdec=nvdec-copy,auto
 volume=100
+pulse-latency-hacks=yes
+audio-buffer=0.05
+video-sync=audio
 EOF
 
 # ------------------------------------------------------------------------------
@@ -102,7 +105,7 @@ HTTP_PID=$!
 # ------------------------------------------------------------------------------
 # 5. Start Hardware-Accelerated FFmpeg Streamer
 # ------------------------------------------------------------------------------
-echo "[6/6] Launching FFmpeg hardware streamer (RTX 4090 NVENC)..."
+echo "[6/6] Launching FFmpeg hardware streamer with active A/V sync..."
 
 # Select NVENC if available, fallback to ultrafast libx264
 if ffmpeg -encoders 2>/dev/null | grep -q "h264_nvenc"; then
@@ -113,10 +116,12 @@ fi
 
 pkill -f "ffmpeg.*${DISPLAY_STR}" 2>/dev/null || true
 ffmpeg -y \
+    -fflags +nobuffer+genpts \
     -f x11grab -draw_mouse 0 -thread_queue_size 1024 -framerate 30 -video_size 1280x720 -i "${DISPLAY_STR}.0" \
-    -f pulse -thread_queue_size 1024 -i VirtualSink.monitor \
+    -f pulse -thread_queue_size 1024 -fragment_size 16 -i VirtualSink.monitor \
     "${V_ENCODER[@]}" \
-    -c:a aac -b:a 128k \
+    -af "aresample=async=1:first_pts=0" \
+    -c:a aac -b:a 128k -ar 48000 \
     -f hls -hls_time 2 -hls_list_size 5 -hls_flags delete_segments+append_list \
     "$CH1_DIR/index.m3u8" > "$LOG_DIR/ffmpeg_stream.log" 2>&1 &
 FFMPEG_PID=$!
