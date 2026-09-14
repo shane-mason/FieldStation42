@@ -77,11 +77,16 @@ EOF
 # ------------------------------------------------------------------------------
 # 4. Start HTTP Stream Server
 # ------------------------------------------------------------------------------
-echo "[5/6] Starting HLS HTTP server on port ${STREAM_PORT}..."
-mkdir -p "$STREAM_DIR"
-rm -f "$STREAM_DIR"/*
+echo "[5/6] Starting CORS-enabled HLS HTTP server on port ${STREAM_PORT}..."
+CH1_DIR="$STREAM_DIR/ch1"
+rm -rf "$STREAM_DIR"
+mkdir -p "$CH1_DIR"
+if [ -f "$SCRIPT_DIR/ch1_player.html" ]; then
+    cp "$SCRIPT_DIR/ch1_player.html" "$CH1_DIR/index.html"
+fi
 pkill -f "http.server ${STREAM_PORT}" 2>/dev/null || true
-python3 -m http.server "${STREAM_PORT}" --directory "$STREAM_DIR" > "$LOG_DIR/http_stream.log" 2>&1 &
+pkill -f "hls_cors_server.py ${STREAM_PORT}" 2>/dev/null || true
+python3 "$SCRIPT_DIR/hls_cors_server.py" "${STREAM_PORT}" "$STREAM_DIR" > "$LOG_DIR/http_stream.log" 2>&1 &
 HTTP_PID=$!
 
 # ------------------------------------------------------------------------------
@@ -103,8 +108,11 @@ ffmpeg -y \
     "${V_ENCODER[@]}" \
     -c:a aac -b:a 128k \
     -f hls -hls_time 2 -hls_list_size 5 -hls_flags delete_segments+append_list \
-    "$STREAM_DIR/index.m3u8" > "$LOG_DIR/ffmpeg_stream.log" 2>&1 &
+    "$CH1_DIR/index.m3u8" > "$LOG_DIR/ffmpeg_stream.log" 2>&1 &
 FFMPEG_PID=$!
+
+# Backward compatibility symlink at root
+ln -sf ch1/index.m3u8 "$STREAM_DIR/index.m3u8" 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
 # Cleanup Handler
@@ -116,6 +124,7 @@ cleanup() {
     echo "============================================================"
     kill "$FFMPEG_PID" 2>/dev/null || true
     kill "$HTTP_PID" 2>/dev/null || true
+    pkill -f "hls_cors_server.py ${STREAM_PORT}" 2>/dev/null || true
     killall -9 mpv 2>/dev/null || true
     rm -f /tmp/mpvsocket
     echo "Clean shutdown complete."
@@ -127,7 +136,11 @@ trap cleanup EXIT INT TERM
 # ------------------------------------------------------------------------------
 HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
 echo ""
-echo "Broadcast live at: http://${HOST_IP}:${STREAM_PORT}/index.m3u8"
+echo "Broadcast live at:"
+echo "  - Stream M3U8:   http://${HOST_IP}:${STREAM_PORT}/ch1/index.m3u8"
+echo "  - Web Player:    http://${HOST_IP}:${STREAM_PORT}/ch1"
+echo "  - Cloudflare:    https://tv.voxi.live/ch1/index.m3u8"
+echo "  - Cloudflare UI: https://tv.voxi.live/ch1"
 echo "Starting field_player.py (Press Ctrl+C to stop)..."
 echo "------------------------------------------------------------"
 

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxi.Live - Channel 1</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .player-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+        video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .overlay { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; z-index: 10; opacity: 0; transition: opacity 0.3s ease; }
+        .player-container:hover .overlay { opacity: 1; }
+        .badge { background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,0.2); }
+        .badge-live { background: #e50914; border: none; }
+        .unmute-btn { position: absolute; background: rgba(0,0,0,0.85); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 15px; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); cursor: pointer; display: none; z-index: 20; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <video id="video" playsinline controls></video>
+        <button id="unmute-btn" class="unmute-btn">🔊 Click to Unmute</button>
+        <div class="overlay">
+            <span class="badge badge-live">LIVE</span>
+            <span class="badge">Voxi.Live CH1</span>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const unmuteBtn = document.getElementById('unmute-btn');
+        const streamUrl = 'index.m3u8';
+
+        function initPlayer() {
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    liveSyncDurationCount: 3,
+                    liveMaxLatencyDurationCount: 6,
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                });
+                hls.loadSource(streamUrl);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    attemptAutoplay();
+                });
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                hls.destroy();
+                                break;
+                        }
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = streamUrl;
+                video.addEventListener('loadedmetadata', () => {
+                    attemptAutoplay();
+                });
+            }
+        }
+
+        function attemptAutoplay() {
+            video.muted = true;
+            video.play().then(() => {
+                unmuteBtn.style.display = 'block';
+            }).catch(() => {
+                unmuteBtn.innerText = '▶ Click to Play';
+                unmuteBtn.style.display = 'block';
+            });
+        }
+
+        unmuteBtn.addEventListener('click', () => {
+            video.muted = false;
+            video.play();
+            unmuteBtn.style.display = 'none';
+        });
+
+        initPlayer();
+    </script>
+</body>
+</html>
