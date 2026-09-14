@@ -1,0 +1,17 @@
+[Unit]
+Description=FieldStation42 Automated Headless Playout & Stream Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=/usr/bin/env bash __INSTALL_DIR__/start_headless_broadcast.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+KillMode=mixed
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
