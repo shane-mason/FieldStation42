@@ -84,6 +84,16 @@ mkdir -p "$CH1_DIR"
 if [ -f "$SCRIPT_DIR/ch1_player.html" ]; then
     cp "$SCRIPT_DIR/ch1_player.html" "$CH1_DIR/index.html"
 fi
+cat << 'EOF' > "$STREAM_DIR/index.html"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="0; url=/ch1/">
+    <script>window.location.replace("/ch1/");</script>
+</head>
+<body style="background:#000;"></body>
+</html>
+EOF
 pkill -f "http.server ${STREAM_PORT}" 2>/dev/null || true
 pkill -f "hls_cors_server.py ${STREAM_PORT}" 2>/dev/null || true
 python3 "$SCRIPT_DIR/hls_cors_server.py" "${STREAM_PORT}" "$STREAM_DIR" > "$LOG_DIR/http_stream.log" 2>&1 &

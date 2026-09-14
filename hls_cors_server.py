@@ -24,6 +24,21 @@ class HLSRequestHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "video/mp2t")
         super().end_headers()
 
+    def do_GET(self):
+        # Redirect root directly to /ch1/ player
+        if self.path in ("/", ""):
+            self.send_response(302)
+            self.send_header("Location", "/ch1/")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            return
+        super().do_GET()
+
+    def list_directory(self, path):
+        # Disable raw directory listings
+        self.send_error(404, "Not Found")
+        return None
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
