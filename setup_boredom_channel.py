@@ -128,8 +128,18 @@ def main():
             pass
 
     print(f"Station configuration verified: {boredom_json}")
+    print("-" * 65)
+    print("Rebuilding catalog and generating schedule with station_42.py...")
+    import subprocess
+    try:
+        subprocess.run([sys.executable, "station_42.py", "--rebuild_catalog"], check=True)
+        subprocess.run([sys.executable, "station_42.py", "--add_week"], check=True)
+        print("Catalog and schedule successfully built!")
+    except Exception as e:
+        print(f"[WARN] Error running station_42.py: {e}")
+
     print("=" * 65)
-    print("Setup complete! You can now restart FieldStation42:")
+    print("Setup complete! You can now start FieldStation42:")
     print("  systemctl restart fs42-broadcast")
     print("=" * 65)
 
