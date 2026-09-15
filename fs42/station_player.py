@@ -918,9 +918,11 @@ class StationPlayer:
             msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
             return PlayerOutcome(PlayerState.EXIT_COMMAND, msg)
 
+        ctx = multiprocessing.get_context("spawn")
+
         # create the pipe to communicate with the web channel
-        self.web_queue = multiprocessing.Queue()
-        self.web_process = multiprocessing.Process(
+        self.web_queue = ctx.Queue()
+        self.web_process = ctx.Process(
             target=web_render_runner,
             args=(
                 web_config,
