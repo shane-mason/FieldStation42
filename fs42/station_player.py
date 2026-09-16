@@ -181,12 +181,12 @@ class StationPlayer:
 
         if not mpv:
             self._l.info("Starting MPV instance")
-            # command on client: mpv --input-ipc-server=/tmp/mpvsocket --idle --force-window 
+            # command on client: mpv --input-ipc-server=runtime/mpv.socket --idle --force-window
 
             # if not running on trixie
             self.mpv = MPV(
                 start_mpv=start_it,
-                ipc_socket="/tmp/mpvsocket",
+                ipc_socket="runtime/mpv.socket",
                 input_default_bindings=False,
                 fs=True,
                 idle=True,
@@ -922,9 +922,11 @@ class StationPlayer:
             msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
             return PlayerOutcome(PlayerState.EXIT_COMMAND, msg)
 
+        ctx = multiprocessing.get_context("spawn")
+
         # create the pipe to communicate with the web channel
-        self.web_queue = multiprocessing.Queue()
-        self.web_process = multiprocessing.Process(
+        self.web_queue = ctx.Queue()
+        self.web_process = ctx.Process(
             target=web_render_runner,
             args=(
                 web_config,
