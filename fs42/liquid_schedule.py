@@ -170,8 +170,7 @@ class LiquidSchedule:
         else:
             break_info, break_strategy, schedule_increment = self._break_info(slot_config, tag_str, clip_content[0].path)
             clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info)
-            target_duration = self._calc_target_duration(clip_block.content_duration())
-            next_mark = current_mark + datetime.timedelta(seconds=target_duration)
+            next_mark = current_mark + datetime.timedelta(seconds=clip_config.get("total_duration"))
             clip_block.end_time = next_mark
             new_block = clip_block
         return (new_block, next_mark)

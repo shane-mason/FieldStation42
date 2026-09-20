@@ -314,7 +314,11 @@ class StationIO:
 
             # Convert minutes to seconds and apply fill ratio
             target_seconds = (requested_duration * timings.MIN_1) * fill_target
-            clip_dict[clip_tag] = {"tags": clip_tag, "duration": target_seconds}
+            clip_dict[clip_tag] = {
+                "tags": clip_tag,
+                "duration": target_seconds,
+                "total_duration": requested_duration * timings.MIN_1,
+            }
             if start_clip:
                 clip_dict[clip_tag]["start_clip"] = start_clip
                 clip_dict[clip_tag]["end_clip"] = end_clip
