@@ -221,6 +221,8 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
         if player_state.status == PlayerState.CHANNEL_CHANGE:
             stuck_timer = 0
             player.parental_unlocked_network = None
+            # Close any lingering pop-up overlay
+            player._close_now_playing()
             # Cache stations to prevent race conditions during reload
             station_cache = manager.stations
             stations_len = len(station_cache)

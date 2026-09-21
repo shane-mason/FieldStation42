@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from datetime import datetime
 from fs42.station_manager import StationManager
 from fs42.liquid_api import LiquidAPI
@@ -72,6 +72,8 @@ async def search_all_schedules(query: str = None):
 @router.get("/search/{network_name}")
 async def search_schedule(network_name: str, query: str = None):
     conf = StationManager().station_by_name(network_name)
+    if conf is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Station '{network_name}' not found")
     if query:
         schedule_blocks = LiquidAPI.search_blocks(conf, query)
     else:
@@ -147,6 +149,8 @@ def get_all_schedules(start: str = None, end: str = None, include_meta: bool = F
 @router.get("/{network_name}")
 async def get_schedule(network_name: str, start: str = None, end: str = None, include_meta: bool = False):
     conf = StationManager().station_by_name(network_name)
+    if conf is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Station '{network_name}' not found")
     sdt = None
     edt = None
     if start and end:

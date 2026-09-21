@@ -1,3 +1,10 @@
+function randomOtherIndex(playlist, current) {
+    if (playlist.length <= 1) return 0;
+    let next;
+    do { next = Math.floor(Math.random() * playlist.length); } while (next === current);
+    return next;
+}
+
 class PPVViewer {
     constructor(config = {}) {
         // Container elements
@@ -20,6 +27,8 @@ class PPVViewer {
             backgroundImage: null,
             bgColor: null,
             slideDuration: 10000, // 10 seconds per slide
+            musicPath: null,
+            randomMusic: true,
             ...config
         };
 
@@ -280,12 +289,21 @@ class PPVViewer {
 
     async loadMusicPlaylist() {
         try {
-            const response = await fetch('music_playlist.json');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (this.config.musicPath) {
+                const response = await fetch(`/media/list?path=${encodeURIComponent(this.config.musicPath)}&type=audio`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                this.musicPlaylist = data.files || [];
+            } else {
+                const response = await fetch('music_playlist.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                this.musicPlaylist = data.music_files || [];
             }
-            const data = await response.json();
-            this.musicPlaylist = data.music_files || [];
             console.log('Loaded music playlist:', this.musicPlaylist);
         } catch (error) {
             console.warn('Failed to load music playlist:', error);
@@ -304,7 +322,11 @@ class PPVViewer {
         this.bgMusicPlayer.volume = 0.3;
 
         // Load first track
-        this.playMusicTrack(0);
+        if (this.config.randomMusic) {
+            this.playMusicTrack(Math.floor(Math.random() * this.musicPlaylist.length));
+        } else {
+            this.playMusicTrack(0);
+        }
 
         // When a track ends, play the next one
         this.bgMusicPlayer.addEventListener('ended', () => {
@@ -336,6 +358,10 @@ class PPVViewer {
     }
 
     playNextTrack() {
+        if (this.config.randomMusic) {
+            this.playMusicTrack(randomOtherIndex(this.musicPlaylist, this.currentMusicIndex));
+            return;
+        }
         // Loop back to first track after last one
         const nextIndex = (this.currentMusicIndex + 1) % this.musicPlaylist.length;
         this.playMusicTrack(nextIndex);
@@ -357,7 +383,9 @@ class PPVViewer {
             cssOverride: params.get('css') || null,
             backgroundImage: params.get('bg') || null,
             bgColor: params.get('bg_color') || null,
-            slideDuration: parseInt(params.get('duration')) || 10000
+            slideDuration: parseInt(params.get('duration')) || 10000,
+            musicPath: params.get('music') || null,
+            randomMusic: params.get('random_music') !== 'false'
         };
 
         return new PPVViewer(config);
