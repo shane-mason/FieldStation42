@@ -19,6 +19,8 @@ async def get_summary():
             "channel_number": station["channel_number"],
             "_has_schedule": station["_has_schedule"],
             "hidden": station.get("hidden", False),
+            "channel_offline": StationManager().is_channel_offline(station),
+            "network_type": station.get("network_type", "standard"),
             "catalog_summary": CatalogAPI.get_summary(station),
             "schedule_summary": sched_summary,
         }
@@ -34,6 +36,8 @@ def get_channels():
             "network_long_name": station.get("network_long_name", ""),
             "channel_number": station["channel_number"],
             "hidden": station.get("hidden", False),
+            "channel_offline": StationManager().is_channel_offline(station),
+            "network_type": station.get("network_type", "standard"),
             "has_schedule": station.get("_has_schedule", False),
         }
         for station in StationManager().stations
