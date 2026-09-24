@@ -52,6 +52,13 @@ body {
     );
 }
 
+.station-logo {
+    display: block;
+    width: 256px;
+    height: 256px;
+    object-fit: contain;
+}
+
 #bgVideoPlayer {
     position: absolute;
     top: 0;
