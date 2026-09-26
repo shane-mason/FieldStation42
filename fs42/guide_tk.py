@@ -2,6 +2,7 @@ import os
 import sys
 import datetime
 import glob
+import random
 
 sys.path.append(os.getcwd())
 
@@ -206,17 +207,27 @@ class AdFrame(tk.Frame):
 
 
 class ScheduleFrame(tk.Frame):
-    def __init__(self, parent, conf):
+    def __init__(self, parent, conf, tuning_in=True):
         super().__init__(parent, bg=conf.bottom_bg)
         self.parent = parent
         self.conf = conf
-        self.populate_frame()
+
+        self.build_header()
+        self.build_footer_overlay()
+        self.update_time()
+
+        self.build_schedule()
+
+        if tuning_in:
+            # Skip the blank lead-in on first tune-in so content shows right away.
+            self.canvas.yview_moveto(self.content_start_y / self.canvas_h)
+            self.footer_overlay.lower(self.canvas)
+
         self.place(x=0, y=conf.top_section_height, height=conf.bottom_section_height, width=conf.width)
         self.start_time = datetime.datetime.now()
+        self.after(1000, self.scroll_canvas_view)
 
-    def populate_frame(self):
-        gb = GuideBuilder()
-        
+    def build_header(self):
         self.lbl_current_time = tk.Label(
             self,
             text="Network",
@@ -228,12 +239,13 @@ class ScheduleFrame(tk.Frame):
         )
         self.lbl_current_time.place(x=0, y=0, height=self.conf.sched_h, width=self.conf.network_w)
 
+
+        self.time_slot_labels = []
         l_offset = self.conf.network_w
-        view = gb.build_view(normalize=self.conf.normalize_titles)
-        for timing in view["timings"]:
+        for _ in range(self.conf.schedule_col_count):
             lbl_time_slot = tk.Label(
                 self,
-                text=timing,
+                text="",
                 bg=self.conf.bottom_bg,
                 fg=self.conf.schedule_highlight_fg,
                 font=self.conf._schedule_font,
@@ -241,28 +253,58 @@ class ScheduleFrame(tk.Frame):
                 relief=self.conf.schedule_border_relief,
             )
             lbl_time_slot.place(x=l_offset, y=0, height=self.conf.sched_h, width=self.conf.sched_w)
-
+            self.time_slot_labels.append(lbl_time_slot)
             l_offset += self.conf.sched_w
 
-        canvas_h = (
-            self.conf.sched_h * len(view["rows"]) + self.conf.footer_height * len(self.conf.footer_messages) + 200
+    def build_footer_overlay(self):
+        viewport_h = self.conf.bottom_section_height - self.conf.sched_h
+        self.footer_overlay = tk.Frame(self, bg=self.conf.bottom_bg)
+        self.footer_overlay.place(x=0, y=self.conf.sched_h, width=self.conf.width, height=viewport_h)
+        self.footer_label = tk.Label(
+            self.footer_overlay,
+            text="",
+            bg=self.conf.bottom_bg,
+            fg=self.conf.message_fg,
+            font=self.conf._message_font,
+            justify="center",
         )
+        self.footer_label.place(relx=0.5, rely=0.5, anchor="center")
+
+    def build_schedule(self):
+
+        if hasattr(self, "canvas"):
+            self.canvas.destroy()
+
+        gb = GuideBuilder()
+        view = gb.build_view(normalize=self.conf.normalize_titles)
+
+        for lbl, timing in zip(self.time_slot_labels, view["timings"]):
+            lbl.config(text=timing)
+
+        viewport_h = self.conf.bottom_section_height - self.conf.sched_h
+
+
+        self.content_start_y = viewport_h
+        self.canvas_h = self.content_start_y + len(view["rows"]) * self.conf.sched_h + viewport_h
+
         self.canvas = tk.Canvas(
             self,
-            bg="green",
-            height=self.conf.bottom_section_height - self.conf.sched_h,
+            bg=self.conf.bottom_bg,
+            height=viewport_h,
             width=self.conf.width,
-            scrollregion=(0, 0, canvas_h, self.conf.width),
+            scrollregion=(0, 0, self.canvas_h, self.conf.width),
+            borderwidth=0,
+            highlightthickness=0,
         )
         self.canvas.place(x=0, y=self.conf.sched_h)
 
         # Initialize scroll speed (1.0 = normal speed, 0 = no scrolling)
         self.scroll_speed = self.conf.scroll_speed
 
-        self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=canvas_h, bg=self.conf.bottom_bg)
+        self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=self.canvas_h, bg=self.conf.bottom_bg)
 
         x_offset = 0
-        y_offset = 0
+        y_offset = self.content_start_y
         for r in range(len(view["rows"])):
             x_offset = 0
             row = view["rows"][r]
@@ -279,7 +321,6 @@ class ScheduleFrame(tk.Frame):
             )
 
             channel_label.place(x=x_offset, y=y_offset, height=int(self.conf.sched_h), width=int(self.conf.network_w))
-            self.update_time()
 
             x_offset = self.conf.network_w
 
@@ -303,27 +344,9 @@ class ScheduleFrame(tk.Frame):
 
             y_offset += self.conf.sched_h
 
-        self.scroll_frame_id = self.canvas.create_window((0, 0), window=self.scroll_frame, anchor=tk.NW)
-        self.after(1000, self.scroll_canvas_view)
-
-
-        y_offset = (len(view["rows"]) + 1) * self.conf.sched_h
-
-        for msg in self.conf.footer_messages:
-            # labels that go at the bottom
-            lbl_footer = tk.Label(
-                self.scroll_frame,
-                text=msg,
-                bg=self.conf.bottom_bg,
-                fg=self.conf.message_fg,
-                font=self.conf._message_font,
-            )
-            lbl_footer.place(
-                x=self.conf.pad, y=y_offset, height=self.conf.footer_height, width=self.conf.width - self.conf.pad * 2
-            )
-
-        # canvas.yview_moveto(.9)
+        self.canvas.create_window((0, 0), window=self.scroll_frame, anchor=tk.NW)
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        self.footer_overlay.tkraise()
 
     def scroll_canvas_view(self):
         # If scroll speed is zero, don't scroll at all
@@ -333,42 +356,40 @@ class ScheduleFrame(tk.Frame):
 
         # get the current bounds
         top, bottom = self.canvas.yview()
-        # print(bottom)
         if bottom >= 1.0:
-            diff = datetime.datetime.now() - self.start_time
-            # check to see if its been more than a minute since we started
-            if diff > datetime.timedelta(minutes=1):
-                self.refresh()
-                return
-            else:
-                # Cool slide transition: animate back to top
-                self.slide_to_top(steps=20, current_step=0)
-                return
-        else:
-            # Continue scrolling up (moving view down in content)
-            self.canvas.yview_moveto(top + 0.001)
+
+            self.start_pause()
+            return
+
+        # Continue scrolling up (moving view down in content)
+        self.canvas.yview_moveto(top + 0.001)
 
         # Calculate delay based on scroll speed (higher speed = shorter delay)
         delay = int(100 / self.scroll_speed) if self.scroll_speed > 0 else 100
         self.after(delay, self.scroll_canvas_view)
 
-    def slide_to_top(self, steps, current_step):
-        if current_step >= steps:
-            # Animation complete, resume normal scrolling
-            self.canvas.yview_moveto(0.0)
-            self.after(100, self.scroll_canvas_view)
-            return
-        
-        # Calculate eased position (ease-out effect)
-        progress = current_step / steps
-        eased_progress = 1 - (1 - progress) ** 3  # cubic ease-out
-        
-        # Animate from current position (1.0) to top (0.0)
-        current_pos = 1.0 - eased_progress
-        self.canvas.yview_moveto(current_pos)
-        
-        # Continue animation
-        self.after(50, lambda: self.slide_to_top(steps, current_step + 1))
+    def start_pause(self):
+        # Cover the canvas and show a random footer message for a beat.
+        self.footer_label.config(text=random.choice(self.conf.footer_messages))
+        self.footer_overlay.tkraise()
+        self.after(2500, self.clear_pause_message)
+
+    def clear_pause_message(self):
+        # Swap to a plain blue screen (still covering the canvas) before looping.
+        self.footer_label.config(text="")
+        self.after(1000, self.end_pause)
+
+    def end_pause(self):
+        # check to see if its been more than a minute since we started
+        diff = datetime.datetime.now() - self.start_time
+        if diff > datetime.timedelta(minutes=1):
+
+            self.build_schedule()
+            self.start_time = datetime.datetime.now()
+
+        self.canvas.yview_moveto(0.0)
+        self.footer_overlay.lower(self.canvas)
+        self.after(100, self.scroll_canvas_view)
 
     def update_time(self):
         time_f = StationManager().server_conf["time_format"]
@@ -376,10 +397,6 @@ class ScheduleFrame(tk.Frame):
 
         self.lbl_current_time.config(text=current_time)
         self.after(1000, self.update_time)
-
-    def refresh(self):
-        self.destroy()
-        self.__init__(self.parent, self.conf)
 
 
 class GuideApp(tk.Tk):
@@ -424,6 +441,9 @@ class GuideApp(tk.Tk):
             merge_conf.merge_config(user_conf)
 
         self.conf = merge_conf
+
+
+        self.config(bg=merge_conf.bottom_bg)
 
         # self.resizable(False, False)
         self.after(1000, self.tick)
