@@ -53,7 +53,7 @@ function loadTheme(name) {
         resolve();
       }
     });
-    document.head.insertBefore(link, document.head.firstChild);
+    document.head.appendChild(link);
   });
 }
 
