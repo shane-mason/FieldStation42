@@ -9,7 +9,7 @@ const SHOW_DESCRIPTION = ['1', 'true'].includes((params.get('show_description') 
 const MUSIC_PATH = params.get('music');
 const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');
-const LOOP = params.get('loop') === '1';
+const LOOP = params.get('loop') !== '0';
 let RANDOM_START = params.get('random_start') === '1';
 
 let stations = [];
