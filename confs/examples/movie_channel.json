@@ -1,0 +1,52 @@
+{"station_conf" : {
+    "network_name" : "MovieTV",
+    "channel_number": 1,
+
+    "network_type": "standard",
+    "schedule_increment": 10,
+    "break_strategy": "end",
+    "commercial_free": true, 
+
+    "content_dir" : "catalog/movie_content",
+    "bump_dir" : "bump",
+
+    "standby_image": "runtime/standby.png",
+    "be_right_back_media" : "runtime/brb.png",
+    "day_templates": {
+        "daily": {
+            "0": {"tags" : "90s-bmovie"},
+            "1": {"tags" : "blue-movie"},
+            "2": {"tags" : "blue-movie"},
+            "3": {"tags" : "blue-movie"},
+            "4": {"tags" : "80s-prime"},
+            "5": {"tags" : "80s-prime"},
+            "6":  {"tags": "kids"},
+            "7":  {"tags": "kids"},
+            "8":  {"tags": "kids"},
+            "9":  {"tags": "kids"},
+            "10": {"tags" : "kids"},
+            "11": {"tags": "80s-prime"},
+            "12": {"tags" : "80s-prime"},
+            "13": {"tags": "80s-prime"},
+            "14": {"tags" : "80s-prime"},
+            "15": {"tags" : "90s-bmovie"},
+            "16": {"tags" : "90s-bmovie"},
+            "17": {"tags" : "90s-bmovie"},
+            "18": {"tags": "90s-bmovie"},
+            "19": {"tags" : "90s-prime"},
+            "20": {"tags" : "90s-prime"},
+            "21": {"tags" : "90s-prime"},
+            "22": {"tags" : "90s-prime"},
+            "23": {"tags" : "90s-prime"}
+
+        }
+    },
+    "monday": "daily",
+    "tuesday": "daily",
+    "wednesday": "daily",
+    "thursday": "daily",
+    "friday": "daily",
+    "saturday": "daily",
+    "sunday": "daily"
+}
+}
