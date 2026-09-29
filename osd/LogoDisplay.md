@@ -8,6 +8,8 @@ The on-screen logo display can be configured at two levels:
 
 ### 1. `osd.json` Configuration
 
+`osd.json` is your own local configuration and is not tracked by git (each person's OSD setup differs). Copy `osd.json.example` to `osd.json` in this directory to get started, then edit it freely — your changes won't show up as repo changes or get overwritten by future pulls.
+
 Stores the default and global settings related to Logo Display including:
 *   define default logo location display parameters (size, position, margin)
 *   define default logo display timing
