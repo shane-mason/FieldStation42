@@ -8,8 +8,6 @@ textual
 ffmpeg-python
 fastapi
 uvicorn
-glfw
-PyOpenGL
 PySide6>=6.8
 jsonschema
 requests
