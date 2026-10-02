@@ -317,6 +317,7 @@ class LiquidLoopBlock(LiquidBlock):
         current_mark: datetime.datetime = self.start_time
         next_mark: datetime.datetime = None
         current_index = 0
+        random.shuffle(self.content)
         while keep_going:
             clip = self.content[current_index]
             next_mark = current_mark + datetime.timedelta(seconds=clip.duration)
