@@ -12,6 +12,7 @@ class StationBump {
         this.bgMusicPlayer = document.getElementById('bgMusicPlayer');
         this.countdownTimer = document.getElementById('countdownTimer');
         this.countdownDisplay = document.getElementById('countdownDisplay');
+        this.stationLogo = document.getElementById('stationLogo');
 
         this.videoLoopsRemaining = 1;
         this.textLoopTimers = [];
@@ -34,6 +35,8 @@ class StationBump {
             variation: 'modern',
             cssOverride: null,
             bgMusic: null,
+            stationLogo: null,
+            hideTitle: false,
             loopMusic: true,
             countdown: false,
             textPosition: null,
@@ -58,6 +61,18 @@ class StationBump {
         // Set content
         this.mainTitle.textContent = this.config.title;
         this.subtitle.textContent = this.config.subtitle;
+
+        // Handle title visibility
+        this.mainTitle.style.display = this.config.hideTitle ? 'none' : '';
+
+        // Handle station logo
+        if (this.config.stationLogo) {
+            this.stationLogo.src = this.config.stationLogo;
+            this.stationLogo.style.display = 'block';
+        } else {
+            this.stationLogo.removeAttribute('src');
+            this.stationLogo.style.display = 'none';
+        }
 
         // Handle nextUp shows or regular details
         if (this.config.nextUp) {
@@ -518,7 +533,7 @@ class StationBump {
         if (this.config.bgMusic && this.bgMusicPlayer) {
             this.bgMusicPlayer.src = this.config.bgMusic;
             this.bgMusicPlayer.loop = this.config.loopMusic;
-            this.bgMusicPlayer.volume = 0.3; // Set a reasonable default volume
+            this.bgMusicPlayer.volume = 1.0; // Set a reasonable default volume
 
             // Try to play the music
             this.bgMusicPlayer.play().then(() => {
@@ -544,7 +559,7 @@ class StationBump {
                     this.bgMusicPlayer.volume = Math.max(0, this.bgMusicPlayer.volume - 0.05);
                 } else {
                     this.bgMusicPlayer.pause();
-                    this.bgMusicPlayer.volume = 0.3; // Reset for next time
+                    this.bgMusicPlayer.volume = 1.0; // Reset for next time
                     clearInterval(fadeInterval);
                 }
             }, 50); // Fade over ~1 second
@@ -577,6 +592,8 @@ class StationBump {
             variation: params.get('variation') || 'modern',
             cssOverride: params.get('css') || null,
             bgMusic: params.get('bg_music') || null,
+            stationLogo: params.get('station_logo') || null,
+            hideTitle: params.get('hide_title') === 'true',
             loopMusic: params.get('loopmusic') !== 'false',
             countdown: params.get('countdown') === 'true',
             textPosition: params.get('text_position') || null,
