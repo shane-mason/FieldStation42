@@ -6,6 +6,7 @@ import re
 from fs42.timings import DAYS
 from fs42.sequence_io import SequenceIO
 from fs42.media_processor import MediaProcessor
+from fs42.catalog_api import CatalogAPI
 from fs42.sequence import NamedSequence, SequenceEntry
 
 SEASON_RE = re.compile(
@@ -255,6 +256,20 @@ class SequenceAPI:
             SequenceAPI._build_sequence(station_config, slot["tags"], slot)
 
     @staticmethod
+    def _catalogued_only(catalog_paths, file_list, seq_name, tag):
+        kept = [f for f in file_list if str(f) in catalog_paths]
+        skipped = [f for f in file_list if str(f) not in catalog_paths]
+        if skipped:
+            _l = logging.getLogger("SEQUENCE")
+            _l.warning(
+                f"Sequence {seq_name}:{tag}: skipping {len(skipped)} file(s) not in the catalog "
+                f"(unreadable or zero length?). Run --rebuild_catalog if they should be there."
+            )
+            for f in skipped:
+                _l.warning(f"  not in catalog: {f}")
+        return kept
+
+    @staticmethod
     def _build_sequence(station_config, this_tag, slot):
         _l = logging.getLogger("SEQUENCE")
         seq_tag = this_tag
@@ -276,6 +291,7 @@ class SequenceAPI:
         
         seq_start = slot.get("sequence_start", 0)
         seq_end = slot.get("sequence_end", 1)
+        catalog_paths = set(e.path for e in CatalogAPI.get_entries(station_config))
 
         if slot.get("sequence_strategy") == "random_show":
 
@@ -306,7 +322,9 @@ class SequenceAPI:
                     child_tag
                 )
 
-                file_list = MediaProcessor._rfind_media(show_dir)
+                file_list = SequenceAPI._catalogued_only(
+                    catalog_paths, MediaProcessor._rfind_media(show_dir), seq_name, child_tag
+                )
 
                 if not file_list:
                     continue
@@ -387,7 +405,14 @@ class SequenceAPI:
 
             return
         else:
-            file_list = MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}")
+            file_list = SequenceAPI._catalogued_only(
+                catalog_paths,
+                MediaProcessor._rfind_media(f"{station_config['content_dir']}/{real_tag}"),
+                seq_name,
+                seq_tag,
+            )
+            if not file_list:
+                _l.error(f"Sequence {seq_name}:{seq_tag} has no catalogued files - check content and rebuild the catalog.")
 
         if not existing:
             seq_start = 0

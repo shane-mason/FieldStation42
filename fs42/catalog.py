@@ -278,8 +278,6 @@ class ShowCatalog:
 
         
 
-        SequenceAPI.scan_sequences(self.config)
-
         self.clip_index["start_bumps"] = []
         self.clip_index["end_bumps"] = []
 
@@ -364,6 +362,9 @@ class ShowCatalog:
         self._l.info(f"Catalog build complete. Added {total_count} clips to catalog.")
         self._build_tags()
         self._write_catalog()
+
+        # sequences only include catalogued files, so scan them once the catalog is written
+        SequenceAPI.scan_sequences(self.config)
 
     def _scan_directory(self, tag, is_bumps=False, content_type="feature"):
         count_added = 0
