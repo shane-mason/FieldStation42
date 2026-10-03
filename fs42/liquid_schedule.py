@@ -36,14 +36,23 @@ class LiquidSchedule:
         self.catalog = ShowCatalog(conf)
         self._load_blocks()
 
-    def _calc_target_duration(self, duration, increment=None):
+    def _calc_target_duration(self, duration, increment=None, break_info=None):
         # get the target duration for the show based on the schedule increment
         if increment is None:
             increment = self.conf["schedule_increment"]
+
+        # everything that has to play in the slot: content plus any start/end bumps
+        required = duration
+        if break_info:
+            for key in ("start_bump", "end_bump"):
+                bump = break_info.get(key)
+                if bump:
+                    required += bump["duration"]
+
         multiple = increment * 60
         if multiple == 0:
-            return duration
-        return multiple * math.ceil(duration / multiple)
+            return required
+        return multiple * math.ceil(required / multiple)
 
     def _load_blocks(self):
         self._blocks = LiquidAPI.get_blocks(self.conf)
@@ -138,7 +147,7 @@ class LiquidSchedule:
             # right here - figure out where we are in the hour so we know if we should use start_bump
             break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path, first_in_slot)
 
-            target_duration = self._calc_target_duration(candidate.duration, increment)
+            target_duration = self._calc_target_duration(candidate.duration, increment, break_info)
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
             new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
             # add sequence information
