@@ -22,6 +22,11 @@ from fs42.autobump_agent import AutoBumpAgent
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
 
+# share of a slot that is not content (commercials and break bumps)
+# at least ~2 minutes per 30, ~4 per 60; no more than ~30% commercials
+MIN_BREAK_RATIO = 0.067
+MAX_BREAK_RATIO = 0.30
+
 class ClipShowKickBack(Exception):
 
     def __init__(self, message, clip_tag):
@@ -36,7 +41,7 @@ class LiquidSchedule:
         self.catalog = ShowCatalog(conf)
         self._load_blocks()
 
-    def _calc_target_duration(self, duration, increment=None, break_info=None):
+    def _calc_target_duration(self, duration, increment=None, break_info=None, break_strategy=None):
         # get the target duration for the show based on the schedule increment
         if increment is None:
             increment = self.conf["schedule_increment"]
@@ -52,7 +57,16 @@ class LiquidSchedule:
         multiple = increment * 60
         if multiple == 0:
             return required
-        return multiple * math.ceil(required / multiple)
+        target = multiple * math.ceil(required / multiple)
+
+        # if there is too little room for commercials, try the next increment up
+        # as long as that doesn't leave the slot mostly commercials
+        if not self.conf.get("commercial_free") and break_strategy == "standard":
+            if (target - required) / target < MIN_BREAK_RATIO:
+                bumped = target + multiple
+                if (bumped - required) / bumped <= MAX_BREAK_RATIO:
+                    target = bumped
+        return target
 
     def _load_blocks(self):
         self._blocks = LiquidAPI.get_blocks(self.conf)
@@ -147,7 +161,7 @@ class LiquidSchedule:
             # right here - figure out where we are in the hour so we know if we should use start_bump
             break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path, first_in_slot)
 
-            target_duration = self._calc_target_duration(candidate.duration, increment, break_info)
+            target_duration = self._calc_target_duration(candidate.duration, increment, break_info, break_strategy)
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
             new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
             # add sequence information
