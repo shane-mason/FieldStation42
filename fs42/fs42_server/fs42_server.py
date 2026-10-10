@@ -20,6 +20,16 @@ from .api import routers
 _shutdown_queue = None
 player_command_queue = None
 
+# browsers must check for updated files on every load, or they keep running old UI code after an update
+REVALIDATE = {"Cache-Control": "no-cache"}
+
+
+class RevalidatingStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers.update(REVALIDATE)
+        return response
+
 @asynccontextmanager
 async def _lifespan(app):
     if _shutdown_queue is not None:
@@ -48,11 +58,11 @@ async def _station_config_error_handler(request: Request, exc: StationConfigErro
 
 @fapi.get("/")
 async def root():
-    return FileResponse("fs42/fs42_server/static/index.html")
+    return FileResponse("fs42/fs42_server/static/index.html", headers=REVALIDATE)
 
 @fapi.get("/remote")
 async def remote():
-    return FileResponse("fs42/fs42_server/static/remote.html")
+    return FileResponse("fs42/fs42_server/static/remote.html", headers=REVALIDATE)
 
 @fapi.get('/favicon.ico', include_in_schema=False)
 async def favicon():
@@ -74,7 +84,7 @@ def _mount_static():
 
     fapi.mount(
         "/static",
-        StaticFiles(directory="fs42/fs42_server/static", html="true", follow_symlink=follow_symlink),
+        RevalidatingStaticFiles(directory="fs42/fs42_server/static", html="true", follow_symlink=follow_symlink),
         name="static",
     )
     os.makedirs("runtime/guide_videos", exist_ok=True)
