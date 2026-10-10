@@ -125,12 +125,18 @@ class TestFindShowDirs(ScanFixtureMixin, unittest.TestCase):
         self.assertNotIn("ShowD", shows)
 
 
+class TestCatalogedOnly(unittest.TestCase):
+    def test_drops_files_not_in_catalog(self):
+        files = ["/m/a.mp4", "/m/empty.mp4", "/m/b.mp4"]
+        kept = SequenceAPI._catalogued_only({"/m/a.mp4", "/m/b.mp4"}, files, "seq", "tag")
+        self.assertEqual(kept, ["/m/a.mp4", "/m/b.mp4"])
+
+    def test_all_uncatalogued_gives_empty_list(self):
+        self.assertEqual(SequenceAPI._catalogued_only(set(), ["/m/a.mp4"], "seq", "tag"), [])
+
+
 class TestPutSequence(unittest.TestCase):
-    """
-    put_sequence upserts on (station, sequence_name, tag_path). Re-writing the
-    same sequence must reuse the row id and replace its entries rather than
-    minting a new id and orphaning the old ones.
-    """
+
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
