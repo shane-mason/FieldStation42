@@ -193,6 +193,7 @@ class StationPlayer:
                 force_window=True,
                 script_opts="osc-idlescreen=no",
                 hr_seek="yes",
+                image_display_duration="inf",
             )
 
         self.station_config = station_config
