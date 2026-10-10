@@ -13,6 +13,13 @@ VOLUME_SOCKET = "runtime/volume.socket"
 # Percentage the volume changes by on each volume up/down request.
 VOLUME_STEP = 2
 
+
+def connected_command_queue(request: Request):
+    command_queue = request.app.state.player_command_queue
+    if not command_queue:
+        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
+    return command_queue
+
 @router.get("/info")
 async def get_info():
     """Get system information including CPU temp, memory usage, and CPU usage"""
@@ -217,23 +224,20 @@ async def player_channel(channel: str):
 
 @router.post("/channels/guide")
 async def show_guide(request:Request):
-    command_queue = request.app.state.player_command_queue
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "guide"})
     return {"status" : "ok"}
 
 @router.get("/commands/stop")
 @router.post("/commands/stop")
 async def player_stop(request: Request):
-    command_queue = request.app.state.player_command_queue
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "exit"})
     return {"status": "stopped"}
 
 
 async def _queue_mpv_command(request: Request, action: str):
-    command_queue = request.app.state.player_command_queue
-    if not command_queue:
-        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
-
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "mpv_command", "action": action})
     return {"status": "ok", "command": "mpv_command", "action": action}
 
@@ -264,28 +268,22 @@ async def parental_digit(request: Request, digit: str):
     if not digit.isdigit() or len(digit) != 1:
         raise HTTPException(status_code=400, detail="Digit must be a single number.")
 
-    command_queue = request.app.state.player_command_queue
-    if not command_queue:
-        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
-
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "parental_digit", "digit": digit})
     return {"handled": True}
 
 
 @router.post("/parental/clear")
 async def parental_clear(request: Request):
-    command_queue = request.app.state.player_command_queue
-    if not command_queue:
-        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
-
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "parental_clear"})
     return {"handled": True}
 
 
 @router.post("/ticker")
 async def show_ticker(request: Request):
+    command_queue = connected_command_queue(request)
     data = await request.json()
-    command_queue = request.app.state.player_command_queue
     command_queue.put({
         "command": "ticker", 
         "message": data.get("message", ""), 
