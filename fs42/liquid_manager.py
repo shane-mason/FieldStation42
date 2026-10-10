@@ -198,6 +198,13 @@ class LiquidManager(object):
             current_mark = next_mark
             found_index += 1
 
+        # the plan ran out before the block did - cover the gap with be right back media if the station has it
+        gap = (_block.end_time - when).total_seconds()
+        brb = station_conf.get("be_right_back_media")
+        if brb and gap > 0:
+            return PlayPoint(0, 0, [BlockPlanEntry(brb, 0, gap, content_type="bump")], _block.title)
+        return None
+
     def print_schedule(self, network_name, go_deep=False):
         for _block in self.schedules[network_name]:
             print(_block)
