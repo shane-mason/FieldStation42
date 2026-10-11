@@ -173,6 +173,7 @@ class LiquidBlock:
                 bump_dir=self.bump_override,
                 strict_count=strict_count,
                 lookahead=self.lookahead,
+                break_strategy=self.break_strategy,
             )
             
         else:
@@ -257,6 +258,7 @@ class LiquidClipBlock(LiquidBlock):
                 self.start_time, diff, commercial_dir=self.commercial_override, bump_dir=self.bump_override,
                 strict_count=strict_count,
                 lookahead=self.lookahead,
+                break_strategy=self.break_strategy,
             )
         else:
             self.reel_blocks = []
@@ -266,12 +268,19 @@ class LiquidClipBlock(LiquidBlock):
         )
 
 class LiquidWebBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, sign_off=None):
         super().__init__(content, start_time, end_time, title, break_strategy, break_info)
+        self.sign_off = sign_off
 
     def make_plan(self, catalog):
-        _c = self.content
-        self.plan = [BlockPlanEntry(_c.path, 0, _c.duration, content_type=_c.content_type, media_type=_c.media_type)]
+        self.plan = []
+        remaining = (self.end_time - self.start_time).total_seconds()
+        for _c in [self.sign_off, self.content]:
+            if _c is None or remaining <= 0:
+                continue
+            duration = min(float(_c.duration), remaining)
+            self.plan.append(BlockPlanEntry(_c.path, 0, duration, content_type=_c.content_type, media_type=_c.media_type))
+            remaining -= duration
 
 
 class LiquidOffAirBlock(LiquidBlock):

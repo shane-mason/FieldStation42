@@ -460,8 +460,11 @@ class ShowCatalog:
             candidate = all_offair[0]
         return candidate
 
+    def __bump_path(self, fp):
+        return fp if os.path.isabs(fp) else f"{self.config['content_dir']}/{fp}"
+
     def __bump_collector(self, tag, fp):
-        bump_path = f"{self.config['content_dir']}/{fp}"
+        bump_path = self.__bump_path(fp)
 
         to_process = [bump_path]
         # check if this is a dir
@@ -475,7 +478,7 @@ class ShowCatalog:
                 self.clip_index[tag].append(fp)
         else:
             self._l.error(f"{tag} specified but not found: {fp}")
-            self._l.error(f"File paths for {tag} should be relative to the content_dir")
+            self._l.error(f"File paths for {tag} should be relative to the content_dir, or absolute")
 
     def get_start_bump(self, fp):
         return self.__bump_finder("start_bumps", fp)
@@ -495,11 +498,11 @@ class ShowCatalog:
 
         if not len(candidates):
             clean_match = fp.removesuffix("/")
+            bump_dir = Path(self.__bump_path(clean_match))
             for bump in self.clip_index[bump_tag]:
-                path_obj = Path(bump.path)
-                parent_path = path_obj.parent.name
+                parent = Path(bump.path).parent
 
-                if parent_path == clean_match:
+                if parent.name == clean_match or parent == bump_dir:
                     candidates.append(bump)
 
         if len(candidates):
@@ -691,7 +694,7 @@ class ShowCatalog:
                 end_candidate = autos.get("next_bump", None)
 
                 if strategy == "start":
-                    end_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
+                    end_candidate = self.find_bump(target_duration, when, ShowCatalog.postbump, bump_tag=bump_dir,
                                                    lookahead=lookahead)
                 elif strategy == "end":
                     start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
@@ -714,13 +717,14 @@ class ShowCatalog:
 
 
     def make_reel_fill(self, when, length, use_bumpers=True, commercial_dir=None, bump_dir=None, strict_count=None,
-                       lookahead=None):
+                       lookahead=None, break_strategy=None):
         target_break_duration = self.config["break_duration"]
 
         strategy = self.config.get("break_strategy", None)
 
         break_info = SlotReader.get_break_info(self.config, when)
         strategy = break_info["break_strategy"] if break_info["break_strategy"] else strategy
+        strategy = break_strategy if break_strategy else strategy
         blocks = []
         remaining = length
         if strategy == "end":

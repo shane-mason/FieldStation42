@@ -246,7 +246,7 @@ class LiquidIO:
                     else:
                         content_obj.append(CatalogAPI.get_entry_by_id(int(entry)))
         elif _liquid_type == "LiquidWebBlock":
-            jobj = _plan_json[0]
+            jobj = next((j for j in _plan_json if AutoBumpAgent.is_autobump_url(j["path"])), _plan_json[0])
             content_obj = CatalogEntry(jobj["path"], jobj["duration"], AutoBumpAgent.tag_str)
 
         main_normal = StationManager().server_conf.get("normalize_titles", True)

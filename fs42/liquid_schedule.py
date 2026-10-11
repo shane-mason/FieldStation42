@@ -246,8 +246,8 @@ class LiquidSchedule:
     @staticmethod
     def _get_block_tag(block):
         """Safely extract the content tag from a block, returning None for
-        off-air, loop, or clip blocks where a single tag doesn't apply."""
-        if isinstance(block, (LiquidOffAirBlock, LiquidLoopBlock)):
+        off-air (video or autobump), loop, or clip blocks where a single tag doesn't apply."""
+        if isinstance(block, (LiquidOffAirBlock, LiquidWebBlock, LiquidLoopBlock)):
             return None
         if isinstance(block, LiquidClipBlock):
             # clip blocks have a list of content - use the block title which is set to the tag string
@@ -451,20 +451,24 @@ class LiquidSchedule:
 
                 # we are offair, so set onair off
                 onair_flag = False
-                
+
+                # make it for one hour.
+                # TODO: handle when it starts at half hour - just go to next hour (not always one hour)
+                next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+
                 if candidate is None and "off_air_autobump" in self.conf:
-                        candidate = AutoBumpAgent.fill_block(self.conf, timings.HOUR)
+                    off_air_seconds = (next_mark - current_mark).total_seconds()
+                    if sign_off:
+                        off_air_seconds -= min(float(sign_off.duration), off_air_seconds)
+                    candidate = AutoBumpAgent.fill_block(self.conf, max(off_air_seconds, 1))
                 if candidate is None:
                     self._l.error(f"Schedule logic error: no time slots configured for {current_mark}")
                     self._l.error("This indicates that the station is offair, but offair content is not configured")
                     self._l.error(f"Configure 'off_air_video' or 'off_air_image' for {self.conf['network_name']}")
                     sys.exit(-1)
 
-                # make it for one hour.
-                # TODO: handle when it starts at half hour - just go to next hour (not always one hour)
-                next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
                 if candidate.tag == AutoBumpAgent.tag_str:
-                    new_block = LiquidWebBlock(candidate, current_mark, next_mark, "Offair")
+                    new_block = LiquidWebBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
                 else:
                     new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
 
@@ -510,16 +514,13 @@ class LiquidSchedule:
         start_building = None
         end_building = None
         if current_end:
-            # then there is an existing schedule
+            # then there is an existing schedule - it already carries any offset, so continue exactly where it ends
             start_building = current_end
         else:
-            # then there is no schedule, so start with today (but at midnight)
+            # then there is no schedule, so start with today (but at midnight), shifted by any offset
             now = datetime.datetime.now()
             start_building = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        if "schedule_offset" in self.conf:
-            # then we have an offset to apply
-            start_building += datetime.timedelta(minutes=self.conf["schedule_offset"])
+            start_building += datetime.timedelta(minutes=self.conf.get("schedule_offset", 0))
 
         match how_much:
             case "day":
