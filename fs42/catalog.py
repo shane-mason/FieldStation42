@@ -1,5 +1,6 @@
 import datetime
 import logging
+import math
 import os.path
 import sys
 import random
@@ -183,6 +184,21 @@ class ShowCatalog:
         self.tags = list(self.clip_index.keys())
 
     @staticmethod
+    def _unpack_bump_dir(spec):
+        """Validate a bump source without sampling it during catalog harvesting."""
+        if spec is None or isinstance(spec, str):
+            return spec, 1
+        if (isinstance(spec, list) and len(spec) == 2
+                and isinstance(spec[0], str)
+                and type(spec[1]) in (int, float)
+                and 0 <= spec[1] <= 1 and math.isfinite(spec[1])):
+            return spec[0], spec[1]
+        raise ValueError(
+            f"Invalid bump specification {spec!r}: expected a directory string or "
+            "[directory, probability] with a finite numeric probability between 0 and 1"
+        )
+
+    @staticmethod
     def _harvest_slot(slot, tags, bump_overrides, commercial_overrides, start_bumps, end_bumps):
         # collects the tags and directory overrides declared by a single slot
         if "tags" in slot:
@@ -193,7 +209,9 @@ class ShowCatalog:
                 tags[slot["tags"]] = True
 
         if "bump_dir" in slot:
-            bump_overrides[slot["bump_dir"]] = True
+            bump_dir, _ = ShowCatalog._unpack_bump_dir(slot["bump_dir"])
+            if bump_dir:
+                bump_overrides[bump_dir] = True
         if "commercial_dir" in slot:
             commercial_overrides[slot["commercial_dir"]] = True
         if "start_bump" in slot:
@@ -232,7 +250,9 @@ class ShowCatalog:
         tag_overrides = self.config.get("tag_overrides", {})
         for override in tag_overrides.values():
             if "bump_dir" in override:
-                bump_overrides[override["bump_dir"]] = True
+                bump_dir, _ = self._unpack_bump_dir(override["bump_dir"])
+                if bump_dir:
+                    bump_overrides[bump_dir] = True
             if "commercial_dir" in override:
                 commercial_overrides[override["commercial_dir"]] = True
             if "start_bump" in override:
@@ -303,7 +323,8 @@ class ShowCatalog:
             total_count += self._scan_directory(self.config["bump_dir"], is_bumps=True, content_type="bump")
 
         for override_dir in bump_overrides:
-            total_count += self._scan_directory(override_dir, is_bumps=True, content_type="bump")
+            if override_dir != self.config.get("bump_dir"):
+                total_count += self._scan_directory(override_dir, is_bumps=True, content_type="bump")
 
         for override_dir in commercial_overrides:
             total_count += self._scan_directory(override_dir, content_type="commercial")
@@ -589,7 +610,8 @@ class ShowCatalog:
         return candidates
 
     def find_bump(self, seconds, when, position=None, bump_tag=None, lookahead=None):
-        if not bump_tag:
+        bump_tag, probability = self._unpack_bump_dir(bump_tag)
+        if not bump_tag or probability == 0 or (probability < 1 and random.random() >= probability):
             bump_tag = self.config["bump_dir"]
 
         if position:

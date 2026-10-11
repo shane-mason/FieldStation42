@@ -581,8 +581,19 @@
           "description": "Path to end bump video"
         },
         "bump_dir": {
-          "type": "string",
-          "description": "Directory for bumps"
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "array",
+              "items": [
+                {"type": "string"},
+                {"type": "number", "minimum": 0, "maximum": 1}
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          ],
+          "description": "Bump directory, or [directory, probability] to mix with the station default per bump"
         },
         "commercial_dir": {
           "type": "string",

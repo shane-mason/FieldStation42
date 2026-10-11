@@ -355,7 +355,7 @@ Tags can be:
 |----------|------|-------------|
 | `start_bump` | string | Path to bump video before content |
 | `end_bump` | string | Path to bump video after content |
-| `bump_dir` | string | Override bump directory for this slot |
+| `bump_dir` | string or [string, number] | Override bump directory, optionally with a probability from 0 to 1 |
 | `commercial_dir` | string | Override commercial directory for this slot |
 | `video_scramble_fx` | string or boolean | Apply video scrambling effect (see available effects above) or `false` to disable |
 
@@ -466,6 +466,22 @@ Define tag-based overrides that are automatically applied when content from a sp
   }
 }
 ```
+
+To mix tag-specific bumps with the channel's default bumps, use `[directory, probability]`:
+
+```json
+"tag_overrides": {
+  "sitcoms/70sShow": {
+    "bump_dir": ["Special_Program_Bumpers/70sShow", 0.75]
+  }
+}
+```
+
+Each bump selection independently chooses the override with probability `0.75` and otherwise uses the station-level `bump_dir`, even if the scheduled slot has another bump override. The probability is a fraction from `0` to `1`, not a percentage from 0 to 100. `0` always uses the default; `1` always uses the override. A plain directory string remains unconditional. Other tag overrides, including commercial directories and explicit start/end bumps, remain unconditional.
+
+The same array format is supported in day, date, and week schedule slots and in reusable `slot_overrides`, for example `"20": {"tags": "sitcoms", "bump_dir": ["extra/evening_bumps", 0.5]}`. The station-level `bump_dir` must remain a string. Both directories are cataloged, including when the probability is zero.
+
+This probability chooses a bump source; it does not guarantee exact observed proportions. Existing duration and hint filtering, pre/post folders, coming-up-next augmentation, and autobump behavior still apply. An empty or ineligible chosen pool keeps the existing missing-content behavior; it does not trigger a retry from the other directory.
 
 **How Tag Overrides Work:**
 
