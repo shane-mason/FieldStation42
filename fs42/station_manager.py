@@ -91,6 +91,9 @@ class StationManager(object):
                         self.guide_config = station
                         logging.getLogger().info("Setting web channel as guide channel")
 
+    def local_server_url(self):
+        return f"http://127.0.0.1:{self.server_conf.get('server_port', 4242)}"
+
     def station_by_name(self, name):
         if name in self._name_index:
             return self._name_index[name]
