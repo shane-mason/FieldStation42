@@ -584,16 +584,16 @@
           "oneOf": [
             {"type": "string"},
             {
-              "type": "array",
-              "items": [
-                {"type": "string"},
-                {"type": "number", "minimum": 0, "maximum": 1}
-              ],
-              "minItems": 2,
-              "maxItems": 2
+              "type": "object",
+              "properties": {
+                "tags": {"type": "string"},
+                "chance": {"type": "number", "minimum": 0, "maximum": 1}
+              },
+              "required": ["tags"],
+              "additionalProperties": false
             }
           ],
-          "description": "Bump directory, or [directory, probability] to mix with the station default per bump"
+          "description": "Bump directory, or {\"tags\": directory, \"chance\": probability} to mix with the station default per bump"
         },
         "commercial_dir": {
           "type": "string",

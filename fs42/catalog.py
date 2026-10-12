@@ -188,14 +188,14 @@ class ShowCatalog:
         """Validate a bump source without sampling it during catalog harvesting."""
         if spec is None or isinstance(spec, str):
             return spec, 1
-        if (isinstance(spec, list) and len(spec) == 2
-                and isinstance(spec[0], str)
-                and type(spec[1]) in (int, float)
-                and 0 <= spec[1] <= 1 and math.isfinite(spec[1])):
-            return spec[0], spec[1]
+        if isinstance(spec, dict) and set(spec) <= {"tags", "chance"} and isinstance(spec.get("tags"), str):
+            chance = spec.get("chance", 1)
+            if type(chance) in (int, float) and math.isfinite(chance) and 0 <= chance <= 1:
+                return spec["tags"], chance
         raise ValueError(
             f"Invalid bump specification {spec!r}: expected a directory string or "
-            "[directory, probability] with a finite numeric probability between 0 and 1"
+            '{"tags": directory, "chance": probability} with an optional finite '
+            "numeric chance between 0 and 1"
         )
 
     @staticmethod
