@@ -682,7 +682,10 @@ def handle_key_event(event):
                 return True
 
         # Get the key name and check if it's mapped to a function
-        key_name = get_key_name_from_code(key_code)
+        if key_code == ecodes.KEY_KPENTER:
+            key_name = 'enter'
+        else:
+            key_name = get_key_name_from_code(key_code)
         if not key_name:
             print(f"DEBUG: Unknown key code: {key_code}")
             return True
