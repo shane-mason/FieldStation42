@@ -585,7 +585,7 @@ def get_key_name_from_code(key_code):
         return str(key_code)
 
     # evdev can return multiple names for the same key code
-    if isinstance(name, tuple):
+    if isinstance(name, (tuple, list)):
         print(f"Key aliases: {name}")
 
         # Filter for meaningful key name
@@ -857,6 +857,7 @@ Device specification examples:
   -d flirc                  Use first device with 'flirc' in its name
   -d keyboard               Use first device with 'keyboard' in its name
   -d test                   Run test mode
+  -d all                    Listen to all keyboard/remote input devices
 
 Environment variables:
   FS42_INPUT_DEVICE         Device specification (same format as -d)
@@ -866,7 +867,7 @@ Environment variables:
     )
     parser.add_argument(
         '-d', '--device',
-        help='Input device to use (path, index, or name pattern)',
+        help='Input device to use (path, index, name pattern, "all", or "test")',
         default=None
     )
     parser.add_argument(
