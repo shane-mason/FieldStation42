@@ -43,6 +43,9 @@ DEFAULT_KEY_MAPPINGS = {
     'volume_down': 'left',       # Decrease volume
     'channel_up': 'up',          # Next channel
     'channel_down': 'down',      # Previous channel
+    'navigation_up': 'pageup',   # Next item on web channels (PPV)
+    'navigation_down': 'pagedown', # Previous item on web channels (PPV)
+    'confirm': 'enter',          # Select item on web channels (PPV)
     'last_channel': 'backspace', # Switch to last channel
     'mute': 'm',                 # Mute/unmute volume
     'toggle_subtitles': 'v',      # Toggle subtitle visibility in mpv
@@ -291,6 +294,32 @@ def mute_pressed():
             print("Mute toggle failed")
     except Exception as e:
         print(f"Mute error: {e}")
+
+
+def nav_key_pressed(function_name, key_name):
+    """Forward a navigation key to the web channel (PPV) through the server"""
+    if not should_allow_press(function_name):
+        return
+
+    global current_channel
+    try:
+        channel = current_channel
+        if channel is None:
+            status_response = requests.get(f'{FS42_BASE_URL}/player/status', timeout=2)
+            if status_response.ok:
+                channel = status_response.json().get('channel_number')
+                current_channel = channel
+        if channel is None:
+            print(f"Nav key {key_name} skipped: current channel unknown")
+            return
+
+        response = requests.post(f'{FS42_BASE_URL}/ppv/{channel}/key/{key_name}', timeout=2)
+        if response.ok:
+            print(f"Nav key {key_name} sent to channel {channel}")
+        else:
+            print(f"Nav key {key_name} failed")
+    except Exception as e:
+        print(f"Nav key {key_name} error: {e}")
 
 
 def channel_up_pressed():
@@ -619,6 +648,12 @@ def handle_key_name(key_name):
                 channel_up_pressed()
             elif function_name == 'channel_down':
                 channel_down_pressed()
+            elif function_name == 'navigation_up':
+                nav_key_pressed('navigation_up', 'PageUp')
+            elif function_name == 'navigation_down':
+                nav_key_pressed('navigation_down', 'PageDown')
+            elif function_name == 'confirm':
+                nav_key_pressed('confirm', 'Enter')
             elif function_name == 'last_channel':
                 last_channel_pressed()
             elif function_name == 'power_stop':
