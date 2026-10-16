@@ -436,6 +436,11 @@
           "type": "boolean",
           "description": "Require the global parental controls PIN before playing this station"
         },
+        "visual_editor": {
+          "type": "string",
+          "enum": ["created", "edited"],
+          "description": "Set by the web station editor. 'created' stations were made from a template in the UI and open in the visual editor; 'edited' stations started outside the UI and were later saved with visual changes. Absent means hand-written. Remove it to stop the editor treating the station as UI-managed."
+        },
         "streams": {
           "type": "array",
           "description": "Stream configurations for streaming networks",

@@ -1,6 +1,7 @@
 {
   "station_conf": {
     "network_name": "New Channel",
-    "channel_number": 1
+    "channel_number": 1,
+    "visual_editor": "created"
   }
 }

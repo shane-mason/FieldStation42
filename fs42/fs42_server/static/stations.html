@@ -268,7 +268,7 @@
 
             try {
                 // Load the template
-                const response = await fetch(`/static/templates/${templateName}.json`);
+                const response = await fetch(`/static/templates/${templateName}.json`, { cache: 'no-cache' });
                 if (!response.ok) {
                     throw new Error(`Failed to load template: ${response.statusText}`);
                 }
@@ -277,6 +277,10 @@
                 // Suggest next available channel number
                 const channelNumber = await findNextAvailableChannel();
                 template.station_conf.channel_number = channelNumber;
+                const defaultName = `Channel${channelNumber}`;
+                template.station_conf.network_name = allStations.some(s => s.network_name === defaultName)
+                    ? generateDuplicateName(defaultName)
+                    : defaultName;
 
                 // Store template in sessionStorage and navigate to editor
                 sessionStorage.setItem('newStationTemplate', JSON.stringify(template));

@@ -54,6 +54,33 @@ async def list_media(path: str, type: str = "audio"):
     return {"path": path, "files": urls}
 
 
+def lexical_resolve(path):
+    if os.path.isabs(path):
+        return os.path.normpath(path)
+    joined = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    if joined != PROJECT_ROOT and not joined.startswith(PROJECT_ROOT + os.sep):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid path")
+    return joined
+
+
+@router.get("/folders")
+async def list_folders(path: str):
+    resolved = lexical_resolve(path)
+
+    if not os.path.isdir(resolved):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"directory not found: {path}")
+
+    try:
+        folders = sorted(
+            entry for entry in os.listdir(resolved)
+            if os.path.isdir(os.path.join(resolved, entry)) and not entry.startswith('.')
+        )
+    except PermissionError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="permission denied")
+
+    return {"path": path, "folders": folders}
+
+
 @router.get("/file")
 async def serve_file(path: str):
     resolved = safe_resolve(path)
