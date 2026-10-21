@@ -15,6 +15,29 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
+# All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad" and/or "display"
+PINOUT_FILE = "runtime/cable_box.json"
+DEFAULT_PINOUT = {
+    "keypad": {"cols": [26, 20, 21], "rows": [5, 6, 13, 19]},
+    "display": {"clk": 17, "dio": 18},
+}
+
+
+def load_pinout():
+    pinout = dict(DEFAULT_PINOUT)
+    if os.path.exists(PINOUT_FILE):
+        print(f"Loading pinout from {PINOUT_FILE}")
+        try:
+            with open(PINOUT_FILE) as fp:
+                overrides = json.load(fp)
+            for section in ("keypad", "display"):
+                if section in overrides:
+                    pinout[section] = overrides[section]
+        except Exception as e:
+            print(f"Error loading pinout from {PINOUT_FILE}, using defaults: {e}")
+            pinout = dict(DEFAULT_PINOUT)
+    return pinout
+
 
 def get_temperature():
     a = str(subprocess.check_output(["vcgencmd", "measure_temp"]))
@@ -33,12 +56,14 @@ class CableBox:
         self.status_socket = status_socket
         self.press_socket = press_socket
 
-        self.tm = tm1637.TM1637(clk=17, dio=18)
+        pinout = load_pinout()
+
+        self.tm = tm1637.TM1637(clk=pinout["display"]["clk"], dio=pinout["display"]["dio"])
         self.tm.brightness(0)
         self.tm.show("FS42")
 
-        column_pins = [digitalio.DigitalInOut(x) for x in (board.D26, board.D20, board.D21)]
-        row_pins = [digitalio.DigitalInOut(x) for x in (board.D5, board.D6, board.D13, board.D19)]
+        column_pins = [digitalio.DigitalInOut(getattr(board, f"D{n}")) for n in pinout["keypad"]["cols"]]
+        row_pins = [digitalio.DigitalInOut(getattr(board, f"D{n}")) for n in pinout["keypad"]["rows"]]
 
         # Define keypad layout
         keys = (("1", "2", "3"), ("4", "5", "6"), ("7", "8", "9"), ("down", "0", "up"))
