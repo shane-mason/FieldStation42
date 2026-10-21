@@ -146,14 +146,6 @@ class LiquidSchedule:
             if max_duration is not None:
                 max_duration = float(abs(max_duration)) * 60
 
-            # If minimum exceeds maximum, defer to maximum.
-            if (
-                min_duration is not None
-                and max_duration is not None
-                and min_duration > max_duration
-            ):
-                min_duration = None
-
             # If minimum duration is a higher value than the maximum, defer to maximum and ignore minimum
             if min_duration is not None and max_duration is not None:
                 if min_duration > max_duration:
