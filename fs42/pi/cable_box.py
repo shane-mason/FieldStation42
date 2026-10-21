@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 import os
 import sys
@@ -15,6 +16,8 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
+_l = logging.getLogger("CABLEBOX")
+
 # All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad" and/or "display"
 PINOUT_FILE = "runtime/cable_box.json"
 DEFAULT_PINOUT = {
@@ -26,7 +29,7 @@ DEFAULT_PINOUT = {
 def load_pinout():
     pinout = dict(DEFAULT_PINOUT)
     if os.path.exists(PINOUT_FILE):
-        print(f"Loading pinout from {PINOUT_FILE}")
+        _l.info(f"Loading pinout from {PINOUT_FILE}")
         try:
             with open(PINOUT_FILE) as fp:
                 overrides = json.load(fp)
@@ -34,14 +37,14 @@ def load_pinout():
                 if section in overrides:
                     pinout[section] = overrides[section]
         except Exception as e:
-            print(f"Error loading pinout from {PINOUT_FILE}, using defaults: {e}")
+            _l.error(f"Error loading pinout from {PINOUT_FILE}, using defaults: {e}")
             pinout = dict(DEFAULT_PINOUT)
     return pinout
 
 
 def get_temperature():
     a = str(subprocess.check_output(["vcgencmd", "measure_temp"]))
-    print("A is", a)
+    _l.debug(f"Temperature reading: {a}")
     b = a.split("=")[1]
     c = float(b.split("'")[0])
     # output in form: temp=49.4'C
@@ -108,7 +111,7 @@ class CableBox:
             # self.tm.show(f"{temp}*")
             self.temp_mode = True
         else:
-            print(f"Sending command: {as_str}")
+            _l.info(f"Sending command: {as_str}")
             with open(self.channel_socket, "w") as fp:
                 fp.write(as_str)
 
@@ -118,13 +121,13 @@ class CableBox:
             as_str = fp.read()
 
             if as_str != self.last_stat:
-                print(f"Status changed: {as_str}")
+                _l.info(f"Status changed: {as_str}")
                 self.last_stat = as_str
                 try:
                     new_stat = json.loads(as_str)
                 except:
                     # assume that it was a partial read and try again next time
-                    print(f"Error decoding status: {as_str}")
+                    _l.warning(f"Error decoding status: {as_str}")
         return new_stat
 
     def check_press(self):
@@ -165,7 +168,7 @@ class CableBox:
                 in_selection = True
 
                 as_num = None
-                print("Key pressed:", key_pressed)
+                _l.info(f"Key pressed: {key_pressed}")
 
                 if key_pressed in ("up", "down"):
                     last_pressed = ""
@@ -192,7 +195,7 @@ class CableBox:
             if in_selection:
                 tick_diff = time.monotonic() - last_selection_tick
                 if tick_diff > 1.5 or len(last_pressed) >= 3:
-                    print(f"Applying selection {as_num}")
+                    _l.info(f"Applying selection {as_num}")
                     self.tm.show(channel_label(as_num))
                     last_selection_tick = -1
                     in_selection = False
@@ -218,7 +221,7 @@ class CableBox:
                         channel_num = new_channel_num
                     if channel_num >= 0:
                         self.tm.show(channel_label(channel_num))
-                        print("Set channel: ", channel_num)
+                        _l.info(f"Set channel: {channel_num}")
                     else:
                         self.tm.show("FS42")
                 except:
@@ -239,5 +242,6 @@ class CableBox:
             tick_count += 1
 
 if __name__ == "__main__":
+    logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
     cable_box = CableBox()
     cable_box.event_loop()
