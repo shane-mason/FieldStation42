@@ -17,6 +17,10 @@ Run it from the FieldStation42 root directory:
 python3 fs42/pi/cable_box.py
 ```
 
+## 🔢 Channel Entry
+
+Type up to three digits for channels 0–999. After one or two digits the cable box waits 1.5 seconds and then tunes; a third digit tunes right away. The display shows the channel number right-aligned and zero-padded to two digits (`  05`, `  12`, ` 178`).
+
 ## 🔌 Pinout
 
 The keypad layout is:

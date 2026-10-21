@@ -50,6 +50,10 @@ def get_temperature():
     # return c
 
 
+def channel_label(num):
+    return f"{num:02d}".rjust(4)
+
+
 class CableBox:
     def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
         self.channel_socket = channel_socket
@@ -163,6 +167,9 @@ class CableBox:
                 as_num = None
                 print("Key pressed:", key_pressed)
 
+                if key_pressed in ("up", "down"):
+                    last_pressed = ""
+
                 if key_pressed == "up":
                     self.send_command("up")
                     channel_num += 1
@@ -175,21 +182,18 @@ class CableBox:
                         self.tm.show("----")
                     in_selection = False
                 else:
-                    try:
-                        as_num = int(last_pressed + key_pressed)
-                        last_pressed = key_pressed
-                        self.tm.show(f"  {as_num:02d}")
-                    except Exception:
-                        pass
+                    last_pressed += key_pressed
+                    as_num = int(last_pressed)
+                    self.tm.show(channel_label(as_num))
 
                 time.sleep(0.3)
 
             # see if we need to reset selection or apply it
             if in_selection:
                 tick_diff = time.monotonic() - last_selection_tick
-                if tick_diff > 1.5:
-                    print(f"Applying selection CH{as_num:02d}")
-                    self.tm.show(f"CH{as_num:02d}")
+                if tick_diff > 1.5 or len(last_pressed) >= 3:
+                    print(f"Applying selection {as_num}")
+                    self.tm.show(channel_label(as_num))
                     last_selection_tick = -1
                     in_selection = False
                     last_pressed = ""
@@ -202,7 +206,7 @@ class CableBox:
                 remote_digits = self.check_press()
                 if remote_digits:
                     self.last_button_time = time.monotonic()
-                    self.tm.show(f"  {int(remote_digits):02d}")
+                    self.tm.show(channel_label(int(remote_digits)))
 
             new_stat = self.check_status()
             if new_stat:
@@ -213,7 +217,7 @@ class CableBox:
                         self.last_button_time = time.monotonic()
                         channel_num = new_channel_num
                     if channel_num >= 0:
-                        self.tm.show(f"CH{channel_num:02d}")
+                        self.tm.show(channel_label(channel_num))
                         print("Set channel: ", channel_num)
                     else:
                         self.tm.show("FS42")
