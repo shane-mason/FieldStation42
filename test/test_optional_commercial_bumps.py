@@ -3,10 +3,11 @@ import logging
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from fs42.catalog import ShowCatalog
-from fs42.catalog_entry import MatchingContentNotFound
-from fs42.liquid_blocks import LiquidBlock
+import pytest
 
+from fs42.catalog import ShowCatalog
+from fs42.catalog_entry import MatchingContentNotFound, NoFillerContentFound
+from fs42.liquid_blocks import LiquidBlock
 
 MONDAY_8PM = datetime.datetime(2026, 10, 12, 20, 0)
 
@@ -27,6 +28,7 @@ def _catalog():
     }
     catalog._l = logging.getLogger("test")
     catalog.min_gap = 3
+
     def find_commercial(seconds, when, commercial_dir=None):
         if seconds < 30:
             raise MatchingContentNotFound("nothing fits")
@@ -67,6 +69,14 @@ def test_selected_slot_bump_directory_is_used_without_station_default():
 
     assert block.start_bump.path == "special.mp4"
     assert block.end_bump.path == "special.mp4"
+
+
+def test_commercial_free_reel_still_requires_bump_media():
+    catalog = _catalog()
+    catalog.config["commercial_free"] = True
+
+    with pytest.raises(NoFillerContentFound, match="no bump directory is configured"):
+        catalog.make_reel_block(MONDAY_8PM, target_duration=120)
 
 
 def test_explicit_start_and_end_bumps_remain_without_a_bump_directory():
