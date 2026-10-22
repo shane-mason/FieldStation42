@@ -615,7 +615,11 @@ class ShowCatalog:
     def find_bump(self, seconds, when, position=None, bump_tag=None, lookahead=None):
         bump_tag, probability = self._unpack_bump_dir(bump_tag)
         if not bump_tag or probability == 0 or (probability < 1 and random.random() >= probability):
-            bump_tag = self.config["bump_dir"]
+            bump_tag = self.config.get("bump_dir")
+            if not bump_tag:
+                if position in (ShowCatalog.prebump, ShowCatalog.postbump):
+                    return None
+                raise NoFillerContentFound("Can't find bump folder: no bump directory is configured")
 
         if position:
             pre_key = f"{bump_tag}-{ShowCatalog.prebump}"
@@ -722,8 +726,10 @@ class ShowCatalog:
                     start_candidate = self.find_bump(target_duration, when, ShowCatalog.prebump, bump_tag=bump_dir,
                                                      lookahead=lookahead)
 
-            remaining -= start_candidate.duration
-            remaining -= end_candidate.duration
+            if start_candidate is not None:
+                remaining -= start_candidate.duration
+            if end_candidate is not None:
+                remaining -= end_candidate.duration
 
         # aim for lower and should average close over time since the returned can be larger
         while remaining > (target_duration * 0.1):
