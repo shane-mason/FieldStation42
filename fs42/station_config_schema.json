@@ -58,7 +58,7 @@
         },
         "bump_dir": {
           "type": "string",
-          "description": "Optional directory containing bump videos. When omitted, generated break bump clips are skipped. Commercial-free stations still need bump media to fill breaks."
+          "description": "Directory containing bump videos. Optional for stations with commercials. Commercial-free stations need bump media for breaks unless schedule_increment is 0 or autobump fill_break selects a fill."
         },
         "commercial_dir": {
           "type": "string",
@@ -598,7 +598,7 @@
               "additionalProperties": false
             }
           ],
-          "description": "Optional bump directory, or {\"tags\": directory, \"chance\": probability} to mix with the station default per bump. If neither a slot nor station bump directory is selected, the generated bump is skipped."
+          "description": "Bump directory, or {\"tags\": directory, \"chance\": probability} to mix with the station default per bump."
         },
         "commercial_dir": {
           "type": "string",

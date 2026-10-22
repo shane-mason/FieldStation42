@@ -93,11 +93,11 @@ The `network_type` property determines how the station operates:
 | Property | Type | Description |
 |----------|------|-------------|
 | `content_dir` | string | Directory containing video content files |
-| `bump_dir` | string | Optional directory containing bump/interstitial videos |
+| `bump_dir` | string | Directory containing bump/interstitial videos. Optional for stations with commercials |
 | `commercial_dir` | string | Directory containing commercial videos |
 | `runtime_dir` | string | Directory for runtime data (schedules, catalogs) |
 
-For stations with commercials, `bump_dir` is optional. If it is omitted, commercial breaks play without automatically selected bump clips. Explicit `start_bump` and `end_bump` settings still play when configured. Commercial-free stations still need bump media to fill their breaks.
+For stations with commercials, `bump_dir` can be omitted. Their breaks then play commercials without automatically selected bump clips, and explicit `start_bump` and `end_bump` settings still play when configured. Commercial-free stations with `schedule_increment` set to `0` have no breaks and need no bump media. Other commercial-free breaks need bump media from `bump_dir`, unless `autobump` with `fill_break` selects an autobump fill for that break.
 
 ### Media Files
 
@@ -357,7 +357,7 @@ Tags can be:
 |----------|------|-------------|
 | `start_bump` | string | Path to bump video before content |
 | `end_bump` | string | Path to bump video after content |
-| `bump_dir` | string or object | Optional override bump directory, or `{"tags": directory, "chance": 0-1}` to mix it with the station default |
+| `bump_dir` | string or object | Override bump directory, or `{"tags": directory, "chance": 0-1}` to mix it with the station default |
 | `commercial_dir` | string | Override commercial directory for this slot |
 | `video_scramble_fx` | string or boolean | Apply video scrambling effect (see available effects above) or `false` to disable |
 
@@ -483,8 +483,6 @@ To mix tag-specific bumps with the channel's default bumps, use an object instea
 - `chance` (optional number from `0` to `1`, default `1`): the probability of using `tags` for each bump.
 
 No other keys are allowed. Each bump selection independently chooses the override with probability `0.75` and otherwise uses the station-level `bump_dir`, even if the scheduled slot has another bump override. The chance is a fraction from `0` to `1`, not a percentage from 0 to 100. `0` always uses the default; `1` always uses the override. A plain directory string remains unconditional. Other tag overrides, including commercial directories and explicit start/end bumps, remain unconditional.
-
-If the slot override is not selected and the station has no `bump_dir`, that generated bump is skipped.
 
 The same object format is supported in day, date, and week schedule slots and in reusable `slot_overrides`, for example `"20": {"tags": "sitcoms", "bump_dir": {"tags": "extra/evening_bumps", "chance": 0.5}}`. The station-level `bump_dir` must remain a string. Both directories are cataloged, including when the chance is zero.
 
