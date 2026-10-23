@@ -126,17 +126,43 @@ class LiquidSchedule:
 
             seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
         else:
+            min_duration = slot_config.get("min_duration")
+            if isinstance(min_duration, list):
+                min_duration = (
+                    min_duration[tag_index]
+                    if tag_index is not None and 0 <= tag_index < len(min_duration)
+                    else None
+                )
+            if min_duration is not None:
+                min_duration = float(abs(min_duration)) * 60
+
+            max_duration = slot_config.get("max_duration")
+            if isinstance(max_duration, list):
+                max_duration = (
+                    max_duration[tag_index]
+                    if tag_index is not None and 0 <= tag_index < len(max_duration)
+                    else None
+                )
+            if max_duration is not None:
+                max_duration = float(abs(max_duration)) * 60
+
+            # If minimum duration is a higher value than the maximum, defer to maximum and ignore minimum
+            if min_duration is not None and max_duration is not None:
+                if min_duration > max_duration:
+                    min_duration = None
+
             try:
                 candidate = self.catalog.find_candidate(
                     tag_str, timings.HOUR * 23, current_mark,
-                    exclusion_index=exclusion_index, proposed_start=current_mark
+                    exclusion_index=exclusion_index, proposed_start=current_mark, 
+                    min_duration=min_duration, max_duration=max_duration
                 )
             except MatchingContentNotFound:
                 if exclusion_index:
                     # Exclusion may have blocked everything - retry without it.
                     # If this also fails it is a genuine content shortage.
                     try:
-                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
+                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark, min_duration=min_duration, max_duration=max_duration)
                         self._l.warning(
                             f"[{self.conf['network_name']}] Sibling exclusion blocked all candidates "
                             f"for tag={tag_str} at {current_mark} - "

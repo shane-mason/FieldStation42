@@ -554,7 +554,7 @@ class ShowCatalog:
         else:
             return None
 
-    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None, meta_hints=None):
+    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None, meta_hints=None, min_duration=None, max_duration=None):
         """Find the best candidate for a given tag and duration.
 
         exclusion_index: optional dict of {realpath: [(start, end), ...]} built from
@@ -576,6 +576,8 @@ class ShowCatalog:
                 # restrict content to fit and be valid (zero duration is likely not valid)
                 if (
                     seconds > candidate.duration >= 1
+                        and (min_duration is None or candidate.duration >= min_duration)
+                        and (max_duration is None or candidate.duration <= max_duration)
                         and MediaProcessor._test_candidate_hints(candidate.hints, when)
                 ):
                     # skip if a sibling channel is already playing this file in an
