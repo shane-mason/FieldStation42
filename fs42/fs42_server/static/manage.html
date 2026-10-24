@@ -183,9 +183,13 @@
         function renderStatus(s) {
             const git = s.git;
             const facts = [];
-            facts.push(fact('Service', s.systemd
-                ? pill('systemd', 'ok') + (s.units.length ? `<br>${s.units.map(escapeHtml).join('<br>')}` : '')
-                : pill('not a service', 'warn')));
+            if (s.standby) {
+                facts.push(fact('Service', pill('stopped', 'warn') + '<br><small>console in standby</small>'));
+            } else {
+                facts.push(fact('Service', s.systemd
+                    ? pill('running', 'ok') + (s.units.length ? `<br>${s.units.map(escapeHtml).join('<br>')}` : '')
+                    : pill('not a service', 'warn')));
+            }
             if (git.is_repo) {
                 facts.push(fact('Branch', `${escapeHtml(git.branch || 'detached')}` +
                     (git.upstream ? `<br><small>tracking ${escapeHtml(git.upstream)}</small>` : '')));
@@ -224,6 +228,38 @@
                 return;
             }
 
+            const updatePanel = renderPanel({
+                id: 'update',
+                title: 'Update',
+                text: 'Pulls the latest version of your branch from git. Your local changes are never overwritten - if git can\'t update cleanly, nothing changes.',
+                button: '<button class="pure-button" onclick="checkForUpdates()">Check for Updates</button>',
+                disabledReason: s.update_blocker ? escapeHtml(s.update_blocker) : null,
+            });
+
+            if (s.standby) {
+                el.innerHTML = `
+                    <div class="manage-panels">
+                        ${renderStatus(s)}
+                        ${renderPanel({
+                            id: 'start',
+                            title: 'Start',
+                            text: 'FieldStation42 is stopped. Starts every FieldStation42 service that normally runs at boot.',
+                            button: '<button class="pure-button pure-button-primary" onclick="startServices()">Start FieldStation42</button>',
+                        })}
+                        ${updatePanel}
+                    </div>`;
+                return;
+            }
+
+            let stopText = 'Shuts FieldStation42 down. This page goes away too, and can\'t start it again - that has to be done on the box.';
+            let stopClass = 'manage-danger';
+            if (s.standby_available) {
+                stopText = 'Stops playback and every FieldStation42 service. This page stays up so you can start it again.';
+                stopClass = '';
+            } else if (s.systemd) {
+                stopText += ' To keep this page available while stopped, run <code>install/install_services.sh</code> again.';
+            }
+
             el.innerHTML = `
                 <div class="manage-panels">
                     ${renderStatus(s)}
@@ -237,16 +273,10 @@
                     ${renderPanel({
                         id: 'stop',
                         title: 'Stop',
-                        text: 'Shuts FieldStation42 down. This page goes away too, and can\'t start it again - that has to be done on the box.',
-                        button: '<button class="pure-button manage-danger" onclick="stopServices()">Stop FieldStation42</button>',
+                        text: stopText,
+                        button: `<button class="pure-button ${stopClass}" onclick="stopServices()">Stop FieldStation42</button>`,
                     })}
-                    ${renderPanel({
-                        id: 'update',
-                        title: 'Update',
-                        text: 'Pulls the latest version of your branch from git. Your local changes are never overwritten - if git can\'t update cleanly, nothing changes.',
-                        button: '<button class="pure-button" onclick="checkForUpdates()">Check for Updates</button>',
-                        disabledReason: s.update_blocker ? escapeHtml(s.update_blocker) : null,
-                    })}
+                    ${updatePanel}
                 </div>`;
         }
 
@@ -259,10 +289,11 @@
                 return;
             }
             showResult('restart', '<p>Restarting… this page reloads when FieldStation42 is back.</p>');
-            waitForRestart(before);
+            waitForServer(before, 'restart');
         }
 
-        function waitForRestart(before) {
+        // the server process is replaced, so wait for one with a new start time
+        function waitForServer(before, panel) {
             const deadline = Date.now() + 3 * 60 * 1000;
             const poll = async () => {
                 try {
@@ -276,7 +307,7 @@
                     }
                 } catch (e) { }
                 if (Date.now() > deadline) {
-                    showResult('restart', '<p class="manage-bad">FieldStation42 hasn\'t come back after 3 minutes. Check <code>journalctl --user -u fs42</code> on the box.</p>');
+                    showResult(panel, '<p class="manage-bad">FieldStation42 hasn\'t come back after 3 minutes. Check <code>journalctl --user -u fs42</code> on the box.</p>');
                     return;
                 }
                 setTimeout(poll, 2000);
@@ -285,13 +316,33 @@
         }
 
         async function stopServices() {
-            if (!confirm('Stop FieldStation42? This page stops too, and can\'t start it again - you will need to start it on the box.')) return;
+            const question = manageStatus.standby_available
+                ? 'Stop FieldStation42? Playback stops, and this page stays up so you can start it again.'
+                : 'Stop FieldStation42? This page stops too, and can\'t start it again - you will need to start it on the box.';
+            if (!confirm(question)) return;
+            const before = manageStatus.started_at;
             const result = await postManage('/manage/stop');
             if (!result.ok) {
                 showResult('stop', failureHtml(result));
                 return;
             }
+            if (result.body.status === 'standby') {
+                showResult('stop', '<p>Stopping… this page reloads when the console is back in standby.</p>');
+                waitForServer(before, 'stop');
+                return;
+            }
             showResult('stop', '<p>FieldStation42 is stopping.</p>');
+        }
+
+        async function startServices() {
+            const before = manageStatus.started_at;
+            const result = await postManage('/manage/start');
+            if (!result.ok) {
+                showResult('start', failureHtml(result));
+                return;
+            }
+            showResult('start', '<p>Starting… this page reloads when FieldStation42 is back.</p>');
+            waitForServer(before, 'start');
         }
 
         async function checkForUpdates() {
@@ -334,7 +385,7 @@
             }
             let html = `<p class="manage-ok"><strong>Updated</strong> <code>${escapeHtml(u.from)}</code> → <code>${escapeHtml(u.to)}</code>
                 (${u.changed_files.length} file${u.changed_files.length === 1 ? '' : 's'} changed).</p>
-                <p>Restart FieldStation42 to apply it. Until then, pages may be a mix of old and new.</p>`;
+                <p>${manageStatus.standby ? 'Start' : 'Restart'} FieldStation42 to apply it. Until then, pages may be a mix of old and new.</p>`;
             if (u.requirements_changed) {
                 html += '<p class="manage-warn"><strong>Dependencies changed</strong> - run <code>bash install.sh</code> on the box before restarting.</p>';
             }
@@ -342,7 +393,9 @@
             manageStatus = await statusResponse.json();
             renderManage();
             showResult('update', html);
-            if (manageStatus.systemd) {
+            if (manageStatus.standby) {
+                showResult('start', '<p class="manage-warn">An update is waiting - start to apply it.</p>');
+            } else if (manageStatus.systemd) {
                 showResult('restart', '<p class="manage-warn">An update is waiting - restart to apply it.</p>');
             }
         }

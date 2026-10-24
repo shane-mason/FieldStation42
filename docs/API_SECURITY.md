@@ -101,7 +101,7 @@ One caveat: a web channel whose `web_url` points at the box's own LAN address (e
 The **Manage** page in the web console (formerly About) can restart FieldStation42, stop it, and update it from git. These controls only work when `api_key` is set. Without a key, the `/manage` actions are refused with a `403`, whether you use the page or call the API.
 
 - **Restart** restarts every running `fs42*` systemd user service. It needs FieldStation42 to be [running as a service](../install/systemd/README.md). When it's started from a terminal, Restart is disabled.
-- **Stop** stops those services, or the player if it isn't running as a service. The web console stops with it, and can't start FieldStation42 again.
+- **Stop** stops every FieldStation42 service, and the web console stays up in *standby* so you can press **Start** later. **Start** brings up the same services a boot would (every enabled `fs42*` service). Standby needs the `fs42-standby` service, which is installed by `install/install_services.sh`. On installs set up before it existed, rerun that script. Until then, Stop shuts everything down, including the web console, and FieldStation42 has to be started again on the box. If FieldStation42 isn't running as a service, Stop exits the player.
 - **Check for Updates** fetches from git and lists the new commits on your branch.
 - **Update Now** runs `git pull --ff-only`. It never merges, stashes, or resets. If git can't fast-forward, for example because you have local edits to files the update changes, or your branch has its own commits, nothing is changed. The page shows what git said. Nothing restarts automatically after an update, so restart when you're ready. If `requirements.txt` changed, run `bash install.sh` first.
 

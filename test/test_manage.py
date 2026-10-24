@@ -72,6 +72,7 @@ def test_status_shape(key_on, monkeypatch):
     assert status["enabled"] is True
     assert status["systemd"] is False
     assert status["units"] == []
+    assert status["standby"] is False and status["standby_available"] is False
     assert "is_repo" in status["git"]
     assert status["started_at"] == manage.STARTED_AT
 
@@ -106,12 +107,98 @@ def test_restart_hands_off_to_systemd_run(monkeypatch):
 
 def test_stop_without_systemd_uses_player_queue(monkeypatch):
     monkeypatch.delenv("INVOCATION_ID", raising=False)
+    monkeypatch.delenv("FS42_STANDBY", raising=False)
     queue = MagicMock()
     request = _request()
     request.scope["app"] = MagicMock()
     request.app.state.player_command_queue = queue
     manage.stop(request)
     queue.put.assert_called_once_with({"command": "exit"})
+
+
+def _fake_systemctl(active="", enabled="", standby_installed=True):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        out = ""
+        if "list-units" in argv:
+            out = active
+        elif "list-unit-files" in argv and manage.STANDBY_UNIT in argv:
+            out = f"{manage.STANDBY_UNIT} static -\n" if standby_installed else ""
+        elif "list-unit-files" in argv:
+            out = enabled
+        return subprocess.CompletedProcess(argv, 0, out, "")
+
+    return calls, fake_run
+
+
+ACTIVE = "fs42.service loaded active running FS42\nfs42-osd.service loaded active running OSD\n"
+
+
+def test_stop_goes_to_standby_when_installed(monkeypatch):
+    monkeypatch.setenv("INVOCATION_ID", "abc")
+    monkeypatch.delenv("FS42_STANDBY", raising=False)
+    calls, fake_run = _fake_systemctl(active=ACTIVE)
+    with patch("fs42.fs42_server.api.manage.subprocess.run", fake_run):
+        result = manage.stop(_request())
+    assert result["status"] == "standby"
+    assert calls[-1][0] == "systemd-run" and calls[-1][-2:] == ["start", manage.STANDBY_UNIT]
+
+
+def test_stop_without_standby_stops_units(monkeypatch):
+    monkeypatch.setenv("INVOCATION_ID", "abc")
+    monkeypatch.delenv("FS42_STANDBY", raising=False)
+    calls, fake_run = _fake_systemctl(active=ACTIVE, standby_installed=False)
+    with patch("fs42.fs42_server.api.manage.subprocess.run", fake_run):
+        result = manage.stop(_request())
+    assert result["status"] == "stopping"
+    assert calls[-1][-3:] == ["stop", "fs42.service", "fs42-osd.service"]
+
+
+def test_stop_in_standby_is_refused(monkeypatch):
+    monkeypatch.setenv("FS42_STANDBY", "1")
+    with pytest.raises(HTTPException) as e:
+        manage.stop(_request())
+    assert e.value.status_code == 409
+
+
+def test_start_brings_up_enabled_units_like_boot(monkeypatch):
+    monkeypatch.setenv("INVOCATION_ID", "abc")
+    monkeypatch.setenv("FS42_STANDBY", "1")
+    enabled = "fs42.service enabled enabled\nfs42-remote-controller.service enabled enabled\n"
+    calls, fake_run = _fake_systemctl(enabled=enabled)
+    with patch("fs42.fs42_server.api.manage.subprocess.run", fake_run):
+        result = manage.start(_request())
+    assert result["units"] == ["fs42.service", "fs42-remote-controller.service"]
+    assert calls[-1][0] == "systemd-run" and calls[-1][-3:] == ["start", "fs42.service", "fs42-remote-controller.service"]
+
+
+def test_start_falls_back_to_main_service(monkeypatch):
+    monkeypatch.setenv("FS42_STANDBY", "1")
+    calls, fake_run = _fake_systemctl()
+    with patch("fs42.fs42_server.api.manage.subprocess.run", fake_run):
+        assert manage.start(_request())["units"] == ["fs42.service"]
+
+
+def test_start_when_running_is_refused(monkeypatch):
+    monkeypatch.delenv("FS42_STANDBY", raising=False)
+    with pytest.raises(HTTPException) as e:
+        manage.start(_request())
+    assert e.value.status_code == 409
+
+
+def test_standby_unit_conflicts_with_every_fs42_unit():
+    import glob
+    template = os.path.join(manage.PROJECT_ROOT, "install", "systemd", "fs42-standby.service.template")
+    text = open(template).read()
+    assert "[Install]" not in text
+    units = [os.path.basename(t)[:-len(".template")]
+             for t in glob.glob(os.path.join(manage.PROJECT_ROOT, "install", "systemd", "*.service.template"))]
+    conflicts = next(line for line in text.splitlines() if line.startswith("Conflicts="))
+    for unit in units:
+        if unit != manage.STANDBY_UNIT:
+            assert unit in conflicts
 
 
 # --- git, against real throwaway repos ---

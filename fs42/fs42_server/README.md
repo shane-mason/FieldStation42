@@ -213,7 +213,8 @@ GET /build/schedule/add_time/status/{task_id}
 |--------|----------|-------------|
 | `GET` | `/manage/status` | Service, git and docker status (`{"enabled": false}` with no key) |
 | `POST` | `/manage/restart` | Restart all active `fs42*` systemd user services (`409` if not running under systemd) |
-| `POST` | `/manage/stop` | Stop those services, or the player when not under systemd |
+| `POST` | `/manage/stop` | Stop every `fs42*` service and switch to the standby console (`fs42-standby.service`). Without the standby unit it stops everything, and when not under systemd it stops the player. `409` in standby |
+| `POST` | `/manage/start` | From standby, start every enabled `fs42*` service as a boot would. `409` when already running |
 | `POST` | `/manage/update/check` | `git fetch`; returns `behind`, `ahead` and the incoming commits |
 | `POST` | `/manage/update` | `git pull --ff-only`; `409` with git's output and a `reason` (`local edits`, `diverged`, `no upstream`, `detached`, `network`, `unknown`) if it can't fast-forward |
 

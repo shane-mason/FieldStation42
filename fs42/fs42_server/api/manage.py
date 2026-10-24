@@ -15,6 +15,7 @@ router = APIRouter(prefix="/manage", tags=["manage"])
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 STARTED_AT = time.time()
 INCOMING_LIMIT = 50
+STANDBY_UNIT = "fs42-standby.service"
 
 _l = logging.getLogger("FS42SERVER")
 
@@ -56,20 +57,32 @@ def _in_docker():
     return os.path.exists("/.dockerenv")
 
 
-def _active_units():
+def _in_standby():
+    return os.environ.get("FS42_STANDBY") == "1"
+
+
+def _unit_names(*args):
     try:
-        result = subprocess.run(
-            ["systemctl", "--user", "list-units", "fs42*", "--state=active", "--plain", "--no-legend"],
-            capture_output=True, text=True, timeout=10,
-        )
+        result = subprocess.run(["systemctl", "--user", *args, "--plain", "--no-legend"],
+                                capture_output=True, text=True, timeout=10)
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
-    units = []
-    for line in result.stdout.splitlines():
-        name = line.split()[0] if line.split() else ""
-        if name.endswith(".service"):
-            units.append(name)
-    return units
+    names = [line.split()[0] for line in result.stdout.splitlines() if line.split()]
+    return [name for name in names if name.endswith(".service")]
+
+
+def _active_units():
+    return _unit_names("list-units", "fs42*", "--state=active")
+
+
+def _boot_units():
+    # what a boot would bring up: every enabled fs42 unit (standby is never enabled)
+    units = [u for u in _unit_names("list-unit-files", "fs42*", "--state=enabled") if u != STANDBY_UNIT]
+    return units or ["fs42.service"]
+
+
+def _standby_available():
+    return bool(_unit_names("list-unit-files", STANDBY_UNIT))
 
 
 def _git_status():
@@ -118,6 +131,8 @@ def status():
         "systemd": _under_systemd(),
         "docker": _in_docker(),
         "units": _active_units() if _under_systemd() else [],
+        "standby": _in_standby(),
+        "standby_available": _under_systemd() and _standby_available(),
         "started_at": STARTED_AT,
         "git": git,
         "update_blocker": _update_blocker(git),
@@ -139,6 +154,12 @@ def restart(request: Request):
 @router.post("/stop", dependencies=[Depends(auth.require_admin)])
 def stop(request: Request):
     _l.warning(f"manage: stop requested from {auth.client_ip(request)}")
+    if _in_standby():
+        raise HTTPException(status_code=409, detail="FieldStation42 is already stopped.")
+    if _under_systemd() and _standby_available():
+        # standby conflicts with every fs42 unit, so starting it stops them and keeps the console up
+        _handoff("start", [STANDBY_UNIT])
+        return {"status": "standby", "units": [STANDBY_UNIT]}
     if _under_systemd():
         units = _active_units()
         if units:
@@ -146,6 +167,16 @@ def stop(request: Request):
             return {"status": "stopping", "units": units}
     connected_command_queue(request).put({"command": "exit"})
     return {"status": "stopping", "units": []}
+
+
+@router.post("/start", dependencies=[Depends(auth.require_admin)])
+def start(request: Request):
+    if not _in_standby():
+        raise HTTPException(status_code=409, detail="FieldStation42 is already running.")
+    units = _boot_units()
+    _l.warning(f"manage: start {' '.join(units)} requested from {auth.client_ip(request)}")
+    _handoff("start", units)
+    return {"status": "starting", "units": units}
 
 
 @router.post("/update/check", dependencies=[Depends(auth.require_admin)])

@@ -24,7 +24,7 @@ SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 
 # Stop services
 echo -e "${INFO} Stopping services..."
-for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service; do
+for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service fs42-standby.service; do
     if systemctl --user is-active --quiet "$service"; then
         systemctl --user stop "$service"
         echo -e "${CHECK} Stopped $service"
@@ -36,7 +36,7 @@ done
 # Disable services
 echo ""
 echo -e "${INFO} Disabling services..."
-for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service; do
+for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service fs42-standby.service; do
     if systemctl --user is-enabled --quiet "$service" 2>/dev/null; then
         systemctl --user disable "$service"
         echo -e "${CHECK} Disabled $service"
@@ -48,7 +48,7 @@ done
 # Remove service files
 echo ""
 echo -e "${INFO} Removing service files..."
-for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service; do
+for service in fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service fs42-standby.service; do
     if [ -f "$SYSTEMD_USER_DIR/$service" ]; then
         rm "$SYSTEMD_USER_DIR/$service"
         echo -e "${CHECK} Removed $service"

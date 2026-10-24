@@ -73,8 +73,11 @@ journalctl --user -u fs42-* -f
 - `fs42-cable-box` - Cable Box interface
 - `fs42-remote-controller` - Remote Controller
 - `fs42-osd` - On-Screen Display (waits 30s before starting)
+- `fs42-standby` - Web console only, used while FieldStation42 is stopped from the Manage page
 
 If `api_key` is set, the **Manage** page in the web console can also restart or stop all running `fs42*` services.
+
+`fs42-standby` is installed but never enabled, and the installer doesn't ask about it. It runs only the web console, and the Manage page's **Stop** button starts it. It conflicts with the other FieldStation42 services, so starting it stops them, and starting `fs42` again stops it. It isn't restarted at boot, so a stopped box comes back up playing.
 
 ## Uninstall
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=FieldStation42 Standby (web console only, started by Stop on the Manage page)
+Conflicts=fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service
+After=fs42.service fs42-cable-box.service fs42-remote-controller.service fs42-osd.service
+
+[Service]
+Type=simple
+WorkingDirectory=__INSTALL_DIR__
+Environment="FS42_STANDBY=1"
+ExecStart=__INSTALL_DIR__/env/bin/python3 station_42.py --server
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
