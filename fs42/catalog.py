@@ -597,7 +597,15 @@ class ShowCatalog:
                     matches.append(candidate)
             #random.shuffle(matches)
             if not len(matches):
-                err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
+                if min_duration is not None or max_duration is not None:
+                    low = f"{min_duration / 60:g}" if min_duration is not None else "0"
+                    high = f"{max_duration / 60:g}" if max_duration is not None else "any"
+                    err = (
+                        f"Could not find candidate video for tag={tag} between {low} and {high} minutes "
+                        f"- check the slot's min_duration/max_duration or add content in that range"
+                    )
+                else:
+                    err = f"Could not find candidate video for tag={tag} under {seconds} in len - maybe add some shorter content?"
                 raise (MatchingContentNotFound(err))
             result = self._lowest_count(matches)
             # note, this has been migrated

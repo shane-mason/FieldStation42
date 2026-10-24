@@ -365,6 +365,39 @@ Tags can be:
 |----------|------|-------------|
 | `schedule_increment` | integer | Override time increment for this slot |
 | `break_strategy` | string | Override break strategy (`"standard"`, `"end"`, or `"center"`) |
+| `min_duration` | number or array | Minimum content length in minutes (see [Duration Limits](#duration-limits)) |
+| `max_duration` | number or array | Maximum content length in minutes (see [Duration Limits](#duration-limits)) |
+
+### Duration Limits
+
+`min_duration` and `max_duration` restrict which content can be picked for a slot, by length in minutes.
+
+- **Number**: applies to every tag in the slot
+- **Array**: applies by tag position - the first value to the first tag, and so on. Use `null` to leave a tag unrestricted
+- Array positions follow the tag that was chosen: the time segment for split tags, or the randomly picked tag with `random_tags`
+- If `min_duration` is greater than `max_duration`, the minimum is ignored and a warning is logged
+- Limits apply to random selection only and are ignored for slots with a `sequence`
+
+Cap movies at 135 minutes:
+```json
+"20": {
+  "tags": ["movies/PG", "movies/PG-13", "movies/R"],
+  "random_tags": true,
+  "max_duration": 135
+}
+```
+
+Keep the first show between 22 and 55 minutes and the second between 22 and 30 minutes, so nothing runs into the next hour:
+```json
+"9": {
+  "tags": ["cartoons", "cartoons"],
+  "schedule_increment": 30,
+  "min_duration": 22,
+  "max_duration": [55, 30]
+}
+```
+
+If no content in the tag fits the limits, the slot falls back to `fallback_tag` when one is set.
 
 ### Sequences
 

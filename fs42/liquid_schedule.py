@@ -102,6 +102,14 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
+    @staticmethod
+    def _slot_duration_limit(slot_config, key, tag_index):
+        # minutes in config, seconds out - a list applies per tag position
+        limit = slot_config.get(key)
+        if isinstance(limit, list):
+            limit = limit[tag_index] if tag_index is not None and 0 <= tag_index < len(limit) else None
+        return float(limit) * 60 if limit is not None else None
+
     def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None, first_in_slot=True) -> LiquidBlock:
         seq_key = None
         candidate = None
@@ -110,7 +118,13 @@ class LiquidSchedule:
         # see if this is a series with a sequence defined
         if "sequence" in slot_config:
             seq_name = slot_config["sequence"]
-            
+
+            if "min_duration" in slot_config or "max_duration" in slot_config:
+                self._l.warning(
+                    f"[{self.conf['network_name']}] min_duration/max_duration are ignored "
+                    f"for sequence slots (tag={tag_str} at {current_mark})"
+                )
+
             if slot_config.get("sequence_strategy") == "random_show" and tag_index is not None:
                 seq_ids = slot_config.get("sequence_id_array", [])
                     
@@ -126,35 +140,21 @@ class LiquidSchedule:
 
             seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
         else:
-            min_duration = slot_config.get("min_duration")
-            if isinstance(min_duration, list):
-                min_duration = (
-                    min_duration[tag_index]
-                    if tag_index is not None and 0 <= tag_index < len(min_duration)
-                    else None
-                )
-            if min_duration is not None:
-                min_duration = float(abs(min_duration)) * 60
+            min_duration = self._slot_duration_limit(slot_config, "min_duration", tag_index)
+            max_duration = self._slot_duration_limit(slot_config, "max_duration", tag_index)
 
-            max_duration = slot_config.get("max_duration")
-            if isinstance(max_duration, list):
-                max_duration = (
-                    max_duration[tag_index]
-                    if tag_index is not None and 0 <= tag_index < len(max_duration)
-                    else None
+            # if min is higher than max, defer to max and ignore min
+            if min_duration is not None and max_duration is not None and min_duration > max_duration:
+                self._l.warning(
+                    f"[{self.conf['network_name']}] min_duration is greater than max_duration "
+                    f"for tag={tag_str} at {current_mark} - ignoring min_duration"
                 )
-            if max_duration is not None:
-                max_duration = float(abs(max_duration)) * 60
-
-            # If minimum duration is a higher value than the maximum, defer to maximum and ignore minimum
-            if min_duration is not None and max_duration is not None:
-                if min_duration > max_duration:
-                    min_duration = None
+                min_duration = None
 
             try:
                 candidate = self.catalog.find_candidate(
                     tag_str, timings.HOUR * 23, current_mark,
-                    exclusion_index=exclusion_index, proposed_start=current_mark, 
+                    exclusion_index=exclusion_index, proposed_start=current_mark,
                     min_duration=min_duration, max_duration=max_duration
                 )
             except MatchingContentNotFound:

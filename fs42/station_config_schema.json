@@ -613,6 +613,26 @@
           "type": "integer",
           "description": "Time increment for this slot"
         },
+        "min_duration": {
+          "oneOf": [
+            {"type": "number", "minimum": 0},
+            {
+              "type": "array",
+              "items": {"oneOf": [{"type": "number", "minimum": 0}, {"type": "null"}]}
+            }
+          ],
+          "description": "Minimum content length in minutes for random selection. An array applies per tag position; null leaves that tag unrestricted. Ignored for sequences."
+        },
+        "max_duration": {
+          "oneOf": [
+            {"type": "number", "minimum": 0},
+            {
+              "type": "array",
+              "items": {"oneOf": [{"type": "number", "minimum": 0}, {"type": "null"}]}
+            }
+          ],
+          "description": "Maximum content length in minutes for random selection. An array applies per tag position; null leaves that tag unrestricted. Ignored for sequences."
+        },
         "sequence": {
           "type": "string",
           "description": "Sequence identifier"
