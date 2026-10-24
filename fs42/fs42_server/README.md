@@ -33,6 +33,10 @@ The FieldStation42 API is organized around two main concepts:
 
 All endpoints return JSON responses and follow RESTful conventions.
 
+### 🔒 API Key
+
+If `api_key` is set in `main_config.json`, the web console asks for it and every API call must send it, as `?api_key=`, an `X-API-Key` header or `Authorization: Bearer`. See [docs/API_SECURITY.md](../../docs/API_SECURITY.md).
+
 ---
 
 ## 🔧 Build-Time APIs
@@ -200,6 +204,18 @@ Adds specified time period to all station schedules (e.g., "1d", "12h", "30m").
 ```http
 GET /build/schedule/add_time/status/{task_id}
 ```
+
+### 🧰 Server Management
+
+*Require `api_key` to be set - `403` otherwise. See [API Security](../../docs/API_SECURITY.md).*
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/manage/status` | Service, git and docker status (`{"enabled": false}` with no key) |
+| `POST` | `/manage/restart` | Restart all active `fs42*` systemd user services (`409` if not running under systemd) |
+| `POST` | `/manage/stop` | Stop those services, or the player when not under systemd |
+| `POST` | `/manage/update/check` | `git fetch`; returns `behind`, `ahead` and the incoming commits |
+| `POST` | `/manage/update` | `git pull --ff-only`; `409` with git's output and a `reason` (`local edits`, `diverged`, `no upstream`, `detached`, `network`, `unknown`) if it can't fast-forward |
 
 ---
 
