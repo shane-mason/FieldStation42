@@ -74,6 +74,8 @@ journalctl --user -u fs42-* -f
 - `fs42-remote-controller` - Remote Controller
 - `fs42-osd` - On-Screen Display (waits 30s before starting)
 
+If `api_key` is set, the **Manage** page in the web console can also restart or stop all running `fs42*` services.
+
 ## Uninstall
 
 ```bash

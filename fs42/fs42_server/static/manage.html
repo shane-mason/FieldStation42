@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <style>
+        /* Ensure checkbox works properly */
+        input[type="checkbox"] {
+            appearance: auto;
+            -webkit-appearance: checkbox;
+            -moz-appearance: checkbox;
+        }
+
+        .manage-section { margin-bottom: 2.5em; }
+        .manage-section > h2 { margin-bottom: 0.75em; }
+
+        .manage-panels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1em;
+        }
+
+        .manage-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 1.25em;
+            border: 1px solid rgba(160, 170, 190, 0.25);
+            border-radius: 8px;
+            background: rgba(160, 170, 190, 0.05);
+        }
+        .manage-panel h3 { margin: 0 0 0.5em 0; }
+        .manage-panel p { margin: 0 0 1em 0; line-height: 1.45; opacity: 0.85; }
+        .manage-panel .manage-actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: 0.5em; }
+        .manage-panel.is-disabled { opacity: 0.55; }
+        .manage-panel.is-disabled .pure-button { pointer-events: none; }
+        .manage-panel-wide { grid-column: 1 / -1; }
+
+        .manage-reason { font-size: 0.9em; font-style: italic; }
+
+        .manage-facts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1em;
+        }
+        .manage-fact .label {
+            display: block;
+            font-size: 0.75em;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.6;
+            margin-bottom: 0.3em;
+        }
+        .manage-fact .value { word-break: break-word; }
+
+        .manage-pill {
+            display: inline-block;
+            padding: 0.1em 0.6em;
+            border-radius: 999px;
+            font-size: 0.85em;
+            border: 1px solid currentColor;
+        }
+        .manage-ok { color: #7fd18b; }
+        .manage-warn { color: #e5c07b; }
+        .manage-bad { color: #e06c75; }
+
+        .pure-button.manage-danger {
+            background: transparent;
+            color: #e06c75;
+            border: 1px solid #e06c75;
+        }
+        .pure-button.manage-danger:hover { background: rgba(224, 108, 117, 0.15); }
+
+        .manage-result { margin-top: 1em; }
+        .manage-result:empty { display: none; }
+        .manage-result ul { margin: 0.5em 0 1em 0; padding-left: 1.2em; }
+        .manage-result li { margin-bottom: 0.25em; }
+        .manage-output {
+            white-space: pre-wrap;
+            max-height: 20em;
+            overflow: auto;
+            padding: 0.75em;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            font-size: 0.85em;
+        }
+    </style>
+    <script>
+        // Theme management
+        async function loadThemes() {
+            try {
+                const response = await fetch('/about/themes');
+                const data = await response.json();
+                const select = document.getElementById('theme-select');
+                select.innerHTML = '';
+
+                data.themes.forEach(theme => {
+                    const option = document.createElement('option');
+                    option.value = theme.id;
+                    option.textContent = theme.name;
+                    select.appendChild(option);
+                });
+
+                // Set the current theme
+                const savedTheme = localStorage.getItem('fs42-theme') || 'default';
+                select.value = savedTheme;
+            } catch (e) {
+                console.error('Error loading themes:', e);
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('fs42-theme') || 'default';
+            setTheme(savedTheme);
+            loadThemes();
+        }
+
+        function setTheme(themeName) {
+            const themeLink = document.getElementById('theme-css');
+            themeLink.href = `/static/themes/${themeName}.css`;
+            localStorage.setItem('fs42-theme', themeName);
+        }
+
+        function toggleAutoScroll(enabled) {
+            localStorage.setItem('fs42-autoscroll', enabled ? 'true' : 'false');
+        }
+
+        function initAutoScrollCheckbox() {
+            const checkbox = document.getElementById('autoscroll-checkbox');
+            if (checkbox) {
+                const savedSetting = localStorage.getItem('fs42-autoscroll');
+                checkbox.checked = savedSetting !== 'false'; // Default to true if not set
+            }
+        }
+
+        // Server management
+        let manageStatus = null;
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function showResult(panel, html) {
+            document.getElementById(`${panel}-result`).innerHTML = html;
+        }
+
+        async function postManage(path) {
+            const response = await fetch(path, { method: 'POST' });
+            let body = {};
+            try { body = await response.json(); } catch (e) { }
+            return { ok: response.ok, status: response.status, body };
+        }
+
+        function failureHtml(result) {
+            const body = result.body || {};
+            if (body.output !== undefined) {
+                return `<p class="manage-bad"><strong>${escapeHtml(body.message)}</strong></p>
+                        <pre class="manage-output">${escapeHtml(body.output)}</pre>`;
+            }
+            return `<p class="manage-bad">${escapeHtml(body.detail || 'Request failed (HTTP ' + result.status + ')')}</p>`;
+        }
+
+        function pill(text, kind) {
+            return `<span class="manage-pill manage-${kind}">${escapeHtml(text)}</span>`;
+        }
+
+        function fact(label, value) {
+            return `<div class="manage-fact"><span class="label">${label}</span><span class="value">${value}</span></div>`;
+        }
+
+        async function loadManageStatus() {
+            const response = await fetch('/manage/status');
+            manageStatus = await response.json();
+            renderManage();
+        }
+
+        function renderStatus(s) {
+            const git = s.git;
+            const facts = [];
+            facts.push(fact('Service', s.systemd
+                ? pill('systemd', 'ok') + (s.units.length ? `<br>${s.units.map(escapeHtml).join('<br>')}` : '')
+                : pill('not a service', 'warn')));
+            if (git.is_repo) {
+                facts.push(fact('Branch', `${escapeHtml(git.branch || 'detached')}` +
+                    (git.upstream ? `<br><small>tracking ${escapeHtml(git.upstream)}</small>` : '')));
+                facts.push(fact('Version', `<code>${escapeHtml(git.commit)}</code> · ${escapeHtml(git.date)}<br><small>${escapeHtml(git.subject)}</small>`));
+                facts.push(fact('Local edits', git.dirty ? pill('changed files', 'warn') : pill('none', 'ok')));
+            } else {
+                facts.push(fact('Version', pill('not a git checkout', 'warn')));
+            }
+            if (s.docker) facts.push(fact('Docker', pill('container', 'ok')));
+            return `<div class="manage-panel manage-panel-wide"><div class="manage-facts">${facts.join('')}</div></div>`;
+        }
+
+        function renderPanel({ id, title, text, button, disabledReason }) {
+            return `
+                <div class="manage-panel ${disabledReason ? 'is-disabled' : ''}">
+                    <h3>${title}</h3>
+                    <p>${text}</p>
+                    ${disabledReason ? `<p class="manage-reason">${disabledReason}</p>` : ''}
+                    <div class="manage-actions">${disabledReason ? button.replace('<button ', '<button disabled ') : button}</div>
+                    <div id="${id}-result" class="manage-result"></div>
+                </div>`;
+        }
+
+        function renderManage() {
+            const s = manageStatus;
+            const el = document.getElementById('manage-server');
+
+            if (!s.enabled) {
+                el.innerHTML = `
+                    <div class="manage-panel manage-panel-wide">
+                        <h3>API key required</h3>
+                        <p>Restarting, stopping and updating FieldStation42 from here only works when an
+                        <code>api_key</code> is set in <code>confs/main_config.json</code>.
+                        See <code>docs/API_SECURITY.md</code>.</p>
+                    </div>`;
+                return;
+            }
+
+            el.innerHTML = `
+                <div class="manage-panels">
+                    ${renderStatus(s)}
+                    ${renderPanel({
+                        id: 'restart',
+                        title: 'Restart',
+                        text: 'Restarts every running FieldStation42 service. Playback stops for a few seconds.',
+                        button: '<button class="pure-button pure-button-primary" onclick="restartServices()">Restart FieldStation42</button>',
+                        disabledReason: s.systemd ? null : 'Needs FieldStation42 to run as a systemd service - see install/systemd/README.md.',
+                    })}
+                    ${renderPanel({
+                        id: 'stop',
+                        title: 'Stop',
+                        text: 'Shuts FieldStation42 down. This page goes away too, and can\'t start it again - that has to be done on the box.',
+                        button: '<button class="pure-button manage-danger" onclick="stopServices()">Stop FieldStation42</button>',
+                    })}
+                    ${renderPanel({
+                        id: 'update',
+                        title: 'Update',
+                        text: 'Pulls the latest version of your branch from git. Your local changes are never overwritten - if git can\'t update cleanly, nothing changes.',
+                        button: '<button class="pure-button" onclick="checkForUpdates()">Check for Updates</button>',
+                        disabledReason: s.update_blocker ? escapeHtml(s.update_blocker) : null,
+                    })}
+                </div>`;
+        }
+
+        async function restartServices() {
+            if (!confirm('Restart all running FieldStation42 services? Playback will stop briefly.')) return;
+            const before = manageStatus.started_at;
+            const result = await postManage('/manage/restart');
+            if (!result.ok) {
+                showResult('restart', failureHtml(result));
+                return;
+            }
+            showResult('restart', '<p>Restarting… this page reloads when FieldStation42 is back.</p>');
+            waitForRestart(before);
+        }
+
+        function waitForRestart(before) {
+            const deadline = Date.now() + 3 * 60 * 1000;
+            const poll = async () => {
+                try {
+                    const response = await fetch('/manage/status');
+                    if (response.ok) {
+                        const s = await response.json();
+                        if (s.started_at && s.started_at !== before) {
+                            location.reload();
+                            return;
+                        }
+                    }
+                } catch (e) { }
+                if (Date.now() > deadline) {
+                    showResult('restart', '<p class="manage-bad">FieldStation42 hasn\'t come back after 3 minutes. Check <code>journalctl --user -u fs42</code> on the box.</p>');
+                    return;
+                }
+                setTimeout(poll, 2000);
+            };
+            setTimeout(poll, 3000);
+        }
+
+        async function stopServices() {
+            if (!confirm('Stop FieldStation42? This page stops too, and can\'t start it again - you will need to start it on the box.')) return;
+            const result = await postManage('/manage/stop');
+            if (!result.ok) {
+                showResult('stop', failureHtml(result));
+                return;
+            }
+            showResult('stop', '<p>FieldStation42 is stopping.</p>');
+        }
+
+        async function checkForUpdates() {
+            showResult('update', '<p>Checking for updates…</p>');
+            const result = await postManage('/manage/update/check');
+            if (!result.ok) {
+                showResult('update', failureHtml(result));
+                return;
+            }
+            const c = result.body;
+            let html = '';
+            if (c.behind === 0) {
+                html += `<p class="manage-ok">Up to date with ${escapeHtml(c.upstream)}.</p>`;
+            } else {
+                html += `<p><strong>${c.behind} new commit${c.behind === 1 ? '' : 's'}</strong> on ${escapeHtml(c.upstream)}:</p>`;
+                html += `<ul>${c.incoming.map(i => `<li><code>${escapeHtml(i.commit)}</code> ${escapeHtml(i.subject)}</li>`).join('')}</ul>`;
+                if (c.behind > c.incoming.length) html += `<p>…and ${c.behind - c.incoming.length} more.</p>`;
+            }
+            if (c.ahead) {
+                html += `<p class="manage-warn">This copy has ${c.ahead} local commit${c.ahead === 1 ? '' : 's'} that aren't upstream, so updating will probably fail.</p>`;
+            }
+            if (c.behind > 0) {
+                html += '<button class="pure-button pure-button-primary" onclick="runUpdate()">Update Now</button>';
+            }
+            showResult('update', html);
+        }
+
+        async function runUpdate() {
+            if (!confirm('Update FieldStation42 from git? Nothing restarts until you choose to.')) return;
+            showResult('update', '<p>Updating…</p>');
+            const result = await postManage('/manage/update');
+            if (!result.ok) {
+                showResult('update', failureHtml(result));
+                return;
+            }
+            const u = result.body;
+            if (u.status === 'current') {
+                showResult('update', '<p class="manage-ok">Already up to date.</p>');
+                return;
+            }
+            let html = `<p class="manage-ok"><strong>Updated</strong> <code>${escapeHtml(u.from)}</code> → <code>${escapeHtml(u.to)}</code>
+                (${u.changed_files.length} file${u.changed_files.length === 1 ? '' : 's'} changed).</p>
+                <p>Restart FieldStation42 to apply it. Until then, pages may be a mix of old and new.</p>`;
+            if (u.requirements_changed) {
+                html += '<p class="manage-warn"><strong>Dependencies changed</strong> - run <code>bash install.sh</code> on the box before restarting.</p>';
+            }
+            const statusResponse = await fetch('/manage/status');
+            manageStatus = await statusResponse.json();
+            renderManage();
+            showResult('update', html);
+            if (manageStatus.systemd) {
+                showResult('restart', '<p class="manage-warn">An update is waiting - restart to apply it.</p>');
+            }
+        }
+
+        // Initialize page layout
+        document.addEventListener('DOMContentLoaded', async function () {
+            initTheme();
+
+            const content = `
+                <div class="pure-u-1 manage-section">
+                    <h2>Server</h2>
+                    <div id="manage-server"><p>Loading…</p></div>
+                </div>
+
+                <div class="pure-u-1 manage-section">
+                    <h2>Application Settings</h2>
+                    <div class="manage-panels">
+                        <div class="manage-panel">
+                            <h3>Theme</h3>
+                            <p>Choose your preferred visual theme for FieldStation42.</p>
+                            <div class="manage-actions">
+                                <select id="theme-select" class="pure-input-1" style="width: 100%;" onchange="setTheme(this.value)">
+                                    <option>Loading themes...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="manage-panel">
+                            <h3>Guide Auto-Scroll</h3>
+                            <p>Scroll the TV Guide automatically.</p>
+                            <div class="manage-actions">
+                                <label style="display: inline-flex; align-items: center; gap: 0.5em; cursor: pointer; user-select: none;">
+                                    <input type="checkbox" id="autoscroll-checkbox" onchange="toggleAutoScroll(this.checked)" style="width: 18px; height: 18px; cursor: pointer; margin: 0; flex-shrink: 0;">
+                                    <span style="line-height: 18px;">Enable auto-scroll</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pure-u-1 manage-section">
+                    <h2>About FieldStation42</h2>
+                    <div class="manage-panel">
+                        <p>FieldStation42 is a modern system that simulates retro TV.</p>
+                        <div class="manage-facts">
+                            ${fact('License', 'Mozilla Public License')}
+                            ${fact('Author', 'Shane Mason')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.innerHTML = await window.fs42Common.createPageLayout('Manage FieldStation42', content);
+
+            // Load themes after the HTML is inserted
+            loadThemes();
+
+            // Initialize auto-scroll checkbox
+            initAutoScrollCheckbox();
+
+            loadManageStatus();
+        });
+    </script>
+</head>
+
+<body>
+    <script src="/static/fs42_client.js"></script>
+    <script src="/static/common.js"></script>
+</body>
+
+</html>
