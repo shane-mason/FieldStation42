@@ -16,6 +16,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 STARTED_AT = time.time()
 INCOMING_LIMIT = 50
 STANDBY_UNIT = "fs42-standby.service"
+# never stopped, so its power button can start FieldStation42 again
+REMOTE_UNIT = "fs42-remote-controller.service"
 
 _l = logging.getLogger("FS42SERVER")
 
@@ -161,7 +163,7 @@ def stop(request: Request):
         _handoff("start", [STANDBY_UNIT])
         return {"status": "standby", "units": [STANDBY_UNIT]}
     if _under_systemd():
-        units = _active_units()
+        units = [u for u in _active_units() if u != REMOTE_UNIT]
         if units:
             _handoff("stop", units)
             return {"status": "stopping", "units": units}
