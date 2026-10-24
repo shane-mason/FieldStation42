@@ -192,7 +192,7 @@ echo -e "${CYAN}═════════════════════�
 echo ""
 echo -e "${INFO} You can find example configurations in ${CYAN}confs/examples${NC}"
 echo -e "${INFO} API security settings (api_key) are in ${CYAN}confs/main_config.json${NC} - see ${CYAN}docs/API_SECURITY.md${NC}"
-echo -e "${INFO} Visit the wiki for details ${CYAN}https://github.com/shane-mason/FieldStation42/wiki${NC}"
+echo -e "${INFO} Visit the site for details ${CYAN}https://fieldstation42.com${NC}"
 echo ""
 echo -e "${INFO} To set up FieldStation42 as auto-starting systemd services:"
 echo -e "       ${CYAN}bash install/install_services.sh${NC}"
