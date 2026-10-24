@@ -6,7 +6,7 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 # Add paths for module imports
 cwd = os.getcwd()
@@ -16,6 +16,7 @@ sys.path.append(parent)
 
 from fs42.station_manager import StationManager, StationConfigError
 from .api import routers
+from . import auth
 
 _shutdown_queue = None
 player_command_queue = None
@@ -47,6 +48,7 @@ async def _lifespan(app):
 
 # Create FastAPI app
 fapi = FastAPI(title="FieldStation42 API", lifespan=_lifespan)
+fapi.middleware("http")(auth.auth_middleware)
 
 
 @fapi.exception_handler(StationConfigError)
@@ -67,6 +69,48 @@ async def remote():
 @fapi.get('/favicon.ico', include_in_schema=False)
 async def favicon():
     return FileResponse("fs42/fs42_server/static/favicon.ico")
+
+@fapi.get("/login", include_in_schema=False)
+async def login_page(request: Request, next: str = "/", api_key: str = None):
+    key = StationManager().api_key()
+    if key is None:
+        return RedirectResponse(auth.safe_next(next), status_code=302)
+    if api_key is not None:
+        if auth.login_blocked(request):
+            return JSONResponse(status_code=429, content={"detail": "too many failed attempts - try again later"})
+        if auth.key_matches(api_key, key):
+            auth.clear_login_failures(request)
+            response = RedirectResponse(auth.safe_next(next), status_code=302)
+            auth.set_session_cookie(response, key)
+            return response
+        auth.record_login_failure(request)
+    return FileResponse("fs42/fs42_server/static/login.html", headers=REVALIDATE)
+
+@fapi.post("/login", include_in_schema=False)
+async def login(request: Request):
+    key = StationManager().api_key()
+    if key is None:
+        return {"status": "ok"}
+    if auth.login_blocked(request):
+        return JSONResponse(status_code=429, content={"detail": "too many failed attempts - try again later"})
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    candidate = body.get("api_key") if isinstance(body, dict) else None
+    if not isinstance(candidate, str) or not auth.key_matches(candidate, key):
+        auth.record_login_failure(request)
+        return JSONResponse(status_code=401, content={"detail": "invalid api key"})
+    auth.clear_login_failures(request)
+    response = JSONResponse(content={"status": "ok"})
+    auth.set_session_cookie(response, key)
+    return response
+
+@fapi.post("/logout", include_in_schema=False)
+async def logout():
+    response = JSONResponse(content={"status": "ok"})
+    response.delete_cookie(auth.SESSION_COOKIE, path="/")
+    return response
 
 # Include routers from the api package
 for router in routers:
@@ -95,34 +139,33 @@ def _mount_static():
     )
 
 
+class PlayerStatusFilter(logging.Filter):
+    def filter(self, record):
+        return ('/player/status' not in record.getMessage())
+
+
+def _serve():
+    access_log = logging.getLogger("uvicorn.access")
+    access_log.addFilter(PlayerStatusFilter())
+    access_log.addFilter(auth.ApiKeyLogFilter())
+
+    _mount_static()
+    auth.log_security_status()
+    conf = StationManager().server_conf
+    uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
+
+
 def run_with_shutdown_queue(shutdown_queue, command_queue):
-    class PlayerStatusFilter(logging.Filter):
-        def filter(self, record):
-            return ('/player/status' not in record.getMessage())
-
-    logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
-
     global player_command_queue, _shutdown_queue
     player_command_queue = command_queue
     _shutdown_queue = shutdown_queue
     fapi.state.player_command_queue = command_queue
-
-    _mount_static()
-    conf = StationManager().server_conf
-    uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
+    _serve()
 
 
 def mount_fs42_api():
-    class PlayerStatusFilter(logging.Filter):
-        def filter(self, record):
-            return ('/player/status' not in record.getMessage())
-    
-    logging.getLogger("uvicorn.access").addFilter(PlayerStatusFilter())
-    
     fapi.state.player_command_queue = None
-    _mount_static()
-    conf = StationManager().server_conf
-    uvicorn.run(fapi, host=conf["server_host"], port=conf["server_port"])
+    _serve()
 
 
 # Method 1: Basic uvicorn.run()

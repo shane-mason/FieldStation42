@@ -21,6 +21,7 @@ RUN mkdir -p /root/.config/mpv
 COPY docker/mpv.conf /root/.config/mpv/mpv.conf
 
 # Use install script - will get python dependencies
-RUN bash install.sh
+RUN FS42_SKIP_API_KEY_SETUP=1 bash install.sh
 
+ENTRYPOINT ["bash", "docker/entrypoint.sh"]
 CMD ["bash"]

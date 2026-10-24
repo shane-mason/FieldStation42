@@ -58,6 +58,14 @@ To bring the container down:
 make docker-down
 ```
 
+### API key
+
+When the container starts, it checks the mounted `confs/` folder:
+- An empty config folder (a new setup) gets a random `api_key` in `confs/main_config.json`, and the key is printed in the logs: `docker logs fieldstation42`.
+- An existing config folder is left alone, and API security stays off until you add `api_key` to `confs/main_config.json` yourself.
+
+To opt out, remove `api_key` from `confs/main_config.json`. See [docs/API_SECURITY.md](../docs/API_SECURITY.md).
+
 When there is a change to fieldstation42, you will likely need to rerun the build command to get the changes in your container.
 
 The "catalog", "confs", and "runtime" folders are all mounted so that their data will persist across runs of this container.

@@ -119,6 +119,17 @@ if [ -n "$failed_packages" ]; then
 fi
 
 echo ""
+echo -e "${INFO} Checking API security..."
+
+# runs before the folders are created - a missing runtime db is part of how it spots a new install
+# docker images set this up when the container starts instead, since confs/ is mounted then
+if [ -n "$FS42_SKIP_API_KEY_SETUP" ] || [ -f /.dockerenv ]; then
+  echo -e "${INFO} Skipping API key setup here - it runs when the container starts"
+else
+  $python -m fs42.api_key_setup
+fi
+
+echo ""
 echo -e "${INFO} Creating folders..."
 
 if [ -d runtime ]; then
@@ -180,6 +191,7 @@ echo -e "${GREEN}✓ Installation is complete!${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "${INFO} You can find example configurations in ${CYAN}confs/examples${NC}"
+echo -e "${INFO} API security settings (api_key) are in ${CYAN}confs/main_config.json${NC} - see ${CYAN}docs/API_SECURITY.md${NC}"
 echo -e "${INFO} Visit the wiki for details ${CYAN}https://github.com/shane-mason/FieldStation42/wiki${NC}"
 echo ""
 echo -e "${INFO} To set up FieldStation42 as auto-starting systemd services:"

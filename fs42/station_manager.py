@@ -94,6 +94,12 @@ class StationManager(object):
     def local_server_url(self):
         return f"http://127.0.0.1:{self.server_conf.get('server_port', 4242)}"
 
+    def api_key(self):
+        key = self.server_conf.get("api_key")
+        if isinstance(key, str) and key.strip():
+            return key.strip()
+        return None
+
     def station_by_name(self, name):
         if name in self._name_index:
             return self._name_index[name]
@@ -166,6 +172,7 @@ class StationManager(object):
                     "parental_controls_pin",
                     "parental_controls_theme",
                     "custom_holidays",
+                    "api_key",
                 ]
 
                 for key in to_check:

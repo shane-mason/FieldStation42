@@ -110,6 +110,10 @@ async def serve_json(path: str):
     if os.path.splitext(resolved)[1].lower() != '.json':
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported file type")
 
+    # holds the api key and other secrets
+    if resolved == os.path.realpath(os.path.join(PROJECT_ROOT, 'confs', 'main_config.json')):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="main_config.json is not served")
+
     return FileResponse(resolved, media_type="application/json")
 
 

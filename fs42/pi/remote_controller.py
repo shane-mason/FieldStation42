@@ -22,6 +22,25 @@ FS42_HOST = os.getenv('FS42_HOST', '127.0.0.1')
 FS42_PORT = os.getenv('FS42_PORT', '4242')
 FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
 
+
+def load_api_key():
+    if os.getenv('FS42_API_KEY'):
+        return os.getenv('FS42_API_KEY')
+    main_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'confs', 'main_config.json')
+    try:
+        with open(main_config) as f:
+            key = json.load(f).get('api_key')
+            return key.strip() if isinstance(key, str) and key.strip() else None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+FS42_API_KEY = load_api_key()
+
+api = requests.Session()
+if FS42_API_KEY:
+    api.headers['X-API-Key'] = FS42_API_KEY
+
 # Debounce Configuration - Time in seconds to wait between repeated button presses
 DEBOUNCE_TIME = 0.25  # 250ms default debounce time
 
@@ -157,7 +176,7 @@ def send_channel_change():
             try:
                 channel_number = int(channel_input)
                 print(f"Sending channel change to {channel_number}")
-                response = requests.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
+                response = api.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
                 if response.ok:
                     print(f"Changed to channel {channel_number}")
                     # Update channel tracking - only update last_channel if we know the current channel
@@ -178,7 +197,7 @@ def send_channel_change():
 
 def send_parental_digit_if_active(number):
     try:
-        status_response = requests.get(f'{FS42_BASE_URL}/player/status', timeout=2)
+        status_response = api.get(f'{FS42_BASE_URL}/player/status', timeout=2)
         if not status_response.ok:
             return False
 
@@ -186,7 +205,7 @@ def send_parental_digit_if_active(number):
         if not status.get("awaiting_pin"):
             return False
 
-        response = requests.post(
+        response = api.post(
             f'{FS42_BASE_URL}/player/parental/digit/{number}',
             timeout=2
         )
@@ -238,7 +257,7 @@ def show_guide_pressed():
 
     global current_channel, last_channel
     try:
-        response = requests.post(f'{FS42_BASE_URL}/player/channels/guide')
+        response = api.post(f'{FS42_BASE_URL}/player/channels/guide')
         if response.ok:
             print("Guide displayed")
             if current_channel is not None:
@@ -256,7 +275,7 @@ def volume_up_pressed():
         return  # Debounced - ignore this press
 
     try:
-        response = requests.get(f'{FS42_BASE_URL}/player/volume/up')
+        response = api.get(f'{FS42_BASE_URL}/player/volume/up')
         if response.ok:
             data = response.json()
             print(f"Volume up: {data.get('volume', 'success')}")
@@ -272,7 +291,7 @@ def volume_down_pressed():
         return  # Debounced - ignore this press
 
     try:
-        response = requests.get(f'{FS42_BASE_URL}/player/volume/down')
+        response = api.get(f'{FS42_BASE_URL}/player/volume/down')
         if response.ok:
             data = response.json()
             print(f"Volume down: {data.get('volume', 'success')}")
@@ -288,7 +307,7 @@ def mute_pressed():
         return  # Debounced - ignore this press
 
     try:
-        response = requests.get(f'{FS42_BASE_URL}/player/volume/mute')
+        response = api.get(f'{FS42_BASE_URL}/player/volume/mute')
         if response.ok:
             data = response.json()
             print(f"Mute toggled: {data.get('volume', 'success')}")
@@ -307,7 +326,7 @@ def nav_key_pressed(function_name, key_name):
     try:
         channel = current_channel
         if channel is None:
-            status_response = requests.get(f'{FS42_BASE_URL}/player/status', timeout=2)
+            status_response = api.get(f'{FS42_BASE_URL}/player/status', timeout=2)
             if status_response.ok:
                 channel = status_response.json().get('channel_number')
                 current_channel = channel
@@ -315,7 +334,7 @@ def nav_key_pressed(function_name, key_name):
             print(f"Nav key {key_name} skipped: current channel unknown")
             return
 
-        response = requests.post(f'{FS42_BASE_URL}/ppv/{channel}/key/{key_name}', timeout=2)
+        response = api.post(f'{FS42_BASE_URL}/ppv/{channel}/key/{key_name}', timeout=2)
         if response.ok:
             print(f"Nav key {key_name} sent to channel {channel}")
         else:
@@ -331,7 +350,7 @@ def channel_up_pressed():
 
     global current_channel, last_channel
     try:
-        response = requests.get(f'{FS42_BASE_URL}/player/channels/up')
+        response = api.get(f'{FS42_BASE_URL}/player/channels/up')
         if response.ok:
             print("Channel up success")
             # Poll status to wait for channel change (max 1 second)
@@ -342,7 +361,7 @@ def channel_up_pressed():
 
                 for attempt in range(max_attempts):
                     time.sleep(0.05)
-                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    status_response = api.get(f'{FS42_BASE_URL}/player/status')
                     if status_response.ok:
                         status = status_response.json()
                         new_channel = status.get('channel_number')
@@ -375,7 +394,7 @@ def channel_down_pressed():
 
     global current_channel, last_channel
     try:
-        response = requests.get(f'{FS42_BASE_URL}/player/channels/down')
+        response = api.get(f'{FS42_BASE_URL}/player/channels/down')
         if response.ok:
             print("Channel down success")
             # Poll status to wait for channel change (max 1 second)
@@ -386,7 +405,7 @@ def channel_down_pressed():
 
                 for attempt in range(max_attempts):
                     time.sleep(0.05)
-                    status_response = requests.get(f'{FS42_BASE_URL}/player/status')
+                    status_response = api.get(f'{FS42_BASE_URL}/player/status')
                     if status_response.ok:
                         status = status_response.json()
                         new_channel = status.get('channel_number')
@@ -421,7 +440,7 @@ def last_channel_pressed():
     if last_channel is not None:
         try:
             print(f"Switching to last channel: {last_channel}")
-            response = requests.get(f'{FS42_BASE_URL}/player/channels/{last_channel}')
+            response = api.get(f'{FS42_BASE_URL}/player/channels/{last_channel}')
             if response.ok:
                 print(f"Switched to last channel {last_channel}")
                 # Swap current and last channel
@@ -442,7 +461,7 @@ def end_pressed():
         return  # Debounced - ignore this press
 
     try:
-        response = requests.get(f'{FS42_BASE_URL}/player/commands/stop')
+        response = api.get(f'{FS42_BASE_URL}/player/commands/stop')
         if response.ok:
             print("Player stopped")
         else:
@@ -866,6 +885,7 @@ Environment variables:
   FS42_INPUT_DEVICE         Device specification (same format as -d)
   FS42_HOST                 Server host (default: 127.0.0.1)
   FS42_PORT                 Server port (default: 4242)
+  FS42_API_KEY              API key (default: api_key from confs/main_config.json)
         """
     )
     parser.add_argument(
@@ -962,7 +982,7 @@ def mpv_command_pressed(action):
     endpoint = action.replace("_", "-")
 
     try:
-        response = requests.post(
+        response = api.post(
             f'{FS42_BASE_URL}/player/mpv/{endpoint}',
             timeout=2
         )
