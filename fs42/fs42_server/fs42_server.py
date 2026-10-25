@@ -141,7 +141,8 @@ def _mount_static():
 
 class PlayerStatusFilter(logging.Filter):
     def filter(self, record):
-        return ('/player/status' not in record.getMessage())
+        message = record.getMessage()
+        return '/player/status' not in message and '/manage/status' not in message
 
 
 def _serve():

@@ -133,7 +133,8 @@ def _fake_systemctl(active="", enabled="", standby_installed=True):
     return calls, fake_run
 
 
-ACTIVE = "fs42.service loaded active running FS42\nfs42-osd.service loaded active running OSD\n"
+ACTIVE = ("fs42.service loaded active running FS42\nfs42-osd.service loaded active running OSD\n"
+          "fs42-remote-controller.service loaded active running Remote\n")
 
 
 def test_stop_goes_to_standby_when_installed(monkeypatch):
@@ -154,6 +155,7 @@ def test_stop_without_standby_stops_units(monkeypatch):
         result = manage.stop(_request())
     assert result["status"] == "stopping"
     assert calls[-1][-3:] == ["stop", "fs42.service", "fs42-osd.service"]
+    assert manage.REMOTE_UNIT not in calls[-1]
 
 
 def test_stop_in_standby_is_refused(monkeypatch):
@@ -188,7 +190,7 @@ def test_start_when_running_is_refused(monkeypatch):
     assert e.value.status_code == 409
 
 
-def test_standby_unit_conflicts_with_every_fs42_unit():
+def test_standby_unit_stops_every_fs42_unit_but_the_remote():
     import glob
     template = os.path.join(manage.PROJECT_ROOT, "install", "systemd", "fs42-standby.service.template")
     text = open(template).read()
@@ -196,8 +198,10 @@ def test_standby_unit_conflicts_with_every_fs42_unit():
     units = [os.path.basename(t)[:-len(".template")]
              for t in glob.glob(os.path.join(manage.PROJECT_ROOT, "install", "systemd", "*.service.template"))]
     conflicts = next(line for line in text.splitlines() if line.startswith("Conflicts="))
+    # the remote stays up so its power button can start FieldStation42 again
+    assert manage.REMOTE_UNIT not in conflicts
     for unit in units:
-        if unit != manage.STANDBY_UNIT:
+        if unit not in (manage.STANDBY_UNIT, manage.REMOTE_UNIT):
             assert unit in conflicts
 
 

@@ -294,6 +294,7 @@
 
         // the server process is replaced, so wait for one with a new start time
         function waitForServer(before, panel) {
+            actionInProgress = true;
             const deadline = Date.now() + 3 * 60 * 1000;
             const poll = async () => {
                 try {
@@ -307,12 +308,54 @@
                     }
                 } catch (e) { }
                 if (Date.now() > deadline) {
+                    actionInProgress = false;
                     showResult(panel, '<p class="manage-bad">FieldStation42 hasn\'t come back after 3 minutes. Check <code>journalctl --user -u fs42</code> on the box.</p>');
                     return;
                 }
                 setTimeout(poll, 2000);
             };
             setTimeout(poll, 3000);
+        }
+
+        // notice changes made elsewhere - the remote's power button, or another browser
+        const WATCH_INTERVAL_MS = 10000;
+        let actionInProgress = false;
+        let unreachable = false;
+
+        async function watchStatus() {
+            if (document.visibilityState !== 'visible' || actionInProgress || !manageStatus) return;
+            let s = null;
+            try {
+                const response = await fetch('/manage/status', { signal: AbortSignal.timeout(5000) });
+                if (response.ok) s = await response.json();
+            } catch (e) { }
+
+            if (!s) {
+                showUnreachable();
+                return;
+            }
+            if (s.started_at !== manageStatus.started_at) {
+                location.reload();
+                return;
+            }
+            if (unreachable) {
+                unreachable = false;
+                renderManage();
+            }
+        }
+
+        function showUnreachable() {
+            if (unreachable) return;
+            unreachable = true;
+            const el = document.getElementById('manage-server');
+            el.querySelectorAll('button').forEach(b => b.disabled = true);
+            el.insertAdjacentHTML('afterbegin',
+                '<p class="manage-bad"><strong>FieldStation42 isn\'t responding.</strong> This page will update when it\'s back.</p>');
+        }
+
+        function startWatching() {
+            setInterval(watchStatus, WATCH_INTERVAL_MS);
+            document.addEventListener('visibilitychange', watchStatus);
         }
 
         async function stopServices() {
@@ -455,7 +498,8 @@
             // Initialize auto-scroll checkbox
             initAutoScrollCheckbox();
 
-            loadManageStatus();
+            await loadManageStatus();
+            startWatching();
         });
     </script>
 </head>
