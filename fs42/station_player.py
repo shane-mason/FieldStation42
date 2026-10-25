@@ -703,7 +703,9 @@ class StationPlayer:
         self._l.info(f"Play and wait on file {file_path}")
         self._close_now_playing()
         self.mpv.vf = ""
-        self.mpv.af = ""
+        if self._active_afx:
+            self.mpv.command("af", "remove", self._active_afx)
+            self._active_afx = None
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
