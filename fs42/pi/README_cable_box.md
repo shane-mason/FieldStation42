@@ -70,6 +70,14 @@ Both sections are optional. A section you include replaces that section's defaul
 
 If the file can't be read or isn't valid JSON, the cable box prints an error and falls back to the default pinout. An invalid GPIO number stops the cable box at startup with an error.
 
+## 🌐 Server Connection
+
+Channel changes go through the FieldStation42 server API (`/player/channels/...`), so the player must be running. By default the cable box connects to `127.0.0.1` on the `server_port` from `confs/main_config.json` (4242 if unset) and sends the `api_key` from the same file if one is set. Environment variables override these:
+
+- `FS42_HOST` — server host (default `127.0.0.1`)
+- `FS42_PORT` — server port (default `server_port`, or 4242)
+- `FS42_API_KEY` — API key (default `api_key`)
+
 ## ⚙️ Other Settings
 
 These come from `confs/main_config.json`:

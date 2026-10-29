@@ -5,6 +5,8 @@ import os
 import sys
 import subprocess
 
+import requests
+
 # Uses adafruit circuitpython via Blink - install blinka first:
 # https://learn.adafruit.com/circuitpython-on-raspberrypi-linux/installing-circuitpython-on-raspberry-pi
 # pip3 install adafruit-circuitpython-matrixkeypad
@@ -58,8 +60,7 @@ def channel_label(num):
 
 
 class CableBox:
-    def __init__(self, channel_socket="runtime/channel.socket", status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
-        self.channel_socket = channel_socket
+    def __init__(self, status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
         self.status_socket = status_socket
         self.press_socket = press_socket
 
@@ -84,6 +85,7 @@ class CableBox:
 
         self.show_time = True
         self.time_format = "%H:%M"
+        config = {}
         try:
             with open("confs/main_config.json") as fp:
                 config = json.load(fp)
@@ -92,9 +94,15 @@ class CableBox:
         except Exception:
             pass
 
+        host = os.getenv("FS42_HOST", "127.0.0.1")
+        port = os.getenv("FS42_PORT", config.get("server_port", 4242))
+        self.base_url = f"http://{host}:{port}"
+        api_key = os.getenv("FS42_API_KEY") or config.get("api_key")
+        self.api = requests.Session()
+        if isinstance(api_key, str) and api_key.strip():
+            self.api.headers["X-API-Key"] = api_key.strip()
+
     def send_command(self, command, channel=-1):
-        as_obj = {"command": command, "channel": channel}
-        as_str = json.dumps(as_obj)
         if command == "direct" and channel == 99:
             # then we want to shut the player down
             os.system("pkill -SIGINT -f field_player.py")
@@ -111,9 +119,14 @@ class CableBox:
             # self.tm.show(f"{temp}*")
             self.temp_mode = True
         else:
-            _l.info(f"Sending command: {as_str}")
-            with open(self.channel_socket, "w") as fp:
-                fp.write(as_str)
+            target = channel if command == "direct" else command
+            _l.info(f"Sending channel command: {target}")
+            try:
+                response = self.api.get(f"{self.base_url}/player/channels/{target}", timeout=2)
+                if not response.ok:
+                    _l.warning(f"Channel command {target} failed: {response.status_code} {response.text}")
+            except requests.RequestException as e:
+                _l.warning(f"Channel command {target} failed: {e}")
 
     def check_status(self):
         new_stat = None
