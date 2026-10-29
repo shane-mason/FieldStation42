@@ -18,14 +18,22 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
+from cable_box_input import ChannelEntry, Debounced, LongPress, MultiPress
+
 _l = logging.getLogger("CABLEBOX")
 
-# All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad" and/or "display"
+# All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad", "display" and/or "power_button"
 PINOUT_FILE = "runtime/cable_box.json"
 DEFAULT_PINOUT = {
     "keypad": {"cols": [26, 20, 21], "rows": [5, 6, 13, 19]},
     "display": {"clk": 17, "dio": 18},
+    # GPIO 3 is the pin that wakes a halted Pi
+    "power_button": {"pin": 3},
 }
+
+TICK = 0.02
+POLL_INTERVAL = 0.1
+REFRESH_INTERVAL = 1.0
 
 
 def load_pinout():
@@ -35,7 +43,7 @@ def load_pinout():
         try:
             with open(PINOUT_FILE) as fp:
                 overrides = json.load(fp)
-            for section in ("keypad", "display"):
+            for section in ("keypad", "display", "power_button"):
                 if section in overrides:
                     pinout[section] = overrides[section]
         except Exception as e:
@@ -77,6 +85,19 @@ class CableBox:
         keys = (("1", "2", "3"), ("4", "5", "6"), ("7", "8", "9"), ("down", "0", "up"))
 
         self.keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
+
+        self.power_button = digitalio.DigitalInOut(getattr(board, f"D{pinout['power_button']['pin']}"))
+        self.power_button.direction = digitalio.Direction.INPUT
+        self.power_button.pull = digitalio.Pull.UP
+
+        self.power_debounce = Debounced(False)
+        self.key_debounce = Debounced(None)
+        self.press_actions = {4: self.show_temperature}
+        self.multi_press = MultiPress(self.on_power_presses)
+        self.long_press = LongPress(self.on_power_hold)
+        self.entry = ChannelEntry(self.on_step, self.on_digits, self.on_direct)
+
+        self.channel_num = 0
         self.last_stat = ""
 
         # mode to display and update temp
@@ -164,95 +185,101 @@ class CableBox:
             return pressed[0]
         return None
 
-    def event_loop(self):
-        last_pressed = ""
-        in_selection = False
-        last_selection_tick = -1
-        channel_num = 0
-        tick_count = 0
-        while True:
-            key_pressed = self.read_keys()
+    def key_touched(self, key):
+        _l.info(f"Key pressed: {key}")
+        self.temp_mode = False
+        self.last_button_time = time.monotonic()
+        self.tm.show("    ")
 
-            if key_pressed:
-                self.temp_mode = False
+    def on_step(self, direction):
+        self.key_touched(direction)
+        if direction == "up":
+            self.send_command("up")
+            self.channel_num += 1
+            self.tm.show("----")
+        elif self.channel_num > 0:
+            self.send_command("down")
+            self.channel_num -= 1
+            self.tm.show("----")
+
+    def on_digits(self, number):
+        self.key_touched(number)
+        self.tm.show(channel_label(number))
+
+    def on_direct(self, channel):
+        _l.info(f"Applying selection {channel}")
+        self.tm.show(channel_label(channel))
+        self.channel_num = channel
+        self.send_command("direct", channel)
+
+    def show_temperature(self):
+        self.last_button_time = time.monotonic()
+        self.temp_mode = True
+
+    def on_power_presses(self, count):
+        _l.info(f"Power button pressed {count} times")
+        action = self.press_actions.get(count)
+        if action:
+            action()
+
+    def on_power_hold(self):
+        _l.info("Power button held")
+
+    def poll_player(self):
+        if not self.entry.active:
+            remote_digits = self.check_press()
+            if remote_digits:
                 self.last_button_time = time.monotonic()
-                self.tm.show("    ")
-                last_selection_tick = time.monotonic()
-                in_selection = True
+                self.tm.show(channel_label(int(remote_digits)))
 
-                as_num = None
-                _l.info(f"Key pressed: {key_pressed}")
-
-                if key_pressed in ("up", "down"):
-                    last_pressed = ""
-
-                if key_pressed == "up":
-                    self.send_command("up")
-                    channel_num += 1
-                    self.tm.show("----")
-                    in_selection = False
-                elif key_pressed == "down":
-                    if channel_num > 0:
-                        self.send_command("down")
-                        channel_num -= 1
-                        self.tm.show("----")
-                    in_selection = False
-                else:
-                    last_pressed += key_pressed
-                    as_num = int(last_pressed)
-                    self.tm.show(channel_label(as_num))
-
-                time.sleep(0.3)
-
-            # see if we need to reset selection or apply it
-            if in_selection:
-                tick_diff = time.monotonic() - last_selection_tick
-                if tick_diff > 1.5 or len(last_pressed) >= 3:
-                    _l.info(f"Applying selection {as_num}")
-                    self.tm.show(channel_label(as_num))
-                    last_selection_tick = -1
-                    in_selection = False
-                    last_pressed = ""
-                    channel_num = as_num
-                    self.send_command("direct", channel_num)
-
-            time.sleep(0.1)
-
-            if not in_selection:
-                remote_digits = self.check_press()
-                if remote_digits:
+        new_stat = self.check_status()
+        if new_stat:
+            self.temp_mode = False
+            try:
+                new_channel_num = int(new_stat["channel_number"])
+                if new_channel_num != self.channel_num:
                     self.last_button_time = time.monotonic()
-                    self.tm.show(channel_label(int(remote_digits)))
-
-            new_stat = self.check_status()
-            if new_stat:
-                self.temp_mode = False
-                try:
-                    new_channel_num = int(new_stat["channel_number"])
-                    if new_channel_num != channel_num:
-                        self.last_button_time = time.monotonic()
-                        channel_num = new_channel_num
-                    if channel_num >= 0:
-                        self.tm.show(channel_label(channel_num))
-                        _l.info(f"Set channel: {channel_num}")
-                    else:
-                        self.tm.show("FS42")
-                except:
-                    self.tm.show("FS42")
-
-            elapsed_since_press = time.monotonic() - self.last_button_time
-            if self.show_time and elapsed_since_press > 15 and not in_selection and (tick_count % 10) == 0:
-                formatted = time.strftime(self.time_format, time.localtime())
-                if ":" in formatted:
-                    h, m = formatted.split(":", 1)
-                    self.tm.numbers(int(h), int(m))
+                    self.channel_num = new_channel_num
+                if self.channel_num >= 0:
+                    self.tm.show(channel_label(self.channel_num))
+                    _l.info(f"Set channel: {self.channel_num}")
                 else:
-                    self.tm.show(formatted)
-            elif self.temp_mode and (tick_count % 10) == 0:
-                temp = get_temperature()
-                self.tm.show(f"{temp}*")
+                    self.tm.show("FS42")
+            except:
+                self.tm.show("FS42")
 
-            tick_count += 1
+    def refresh_display(self, now):
+        if self.show_time and now - self.last_button_time > 15 and not self.entry.active:
+            formatted = time.strftime(self.time_format, time.localtime())
+            if ":" in formatted:
+                h, m = formatted.split(":", 1)
+                self.tm.numbers(int(h), int(m))
+            else:
+                self.tm.show(formatted)
+        elif self.temp_mode:
+            temp = get_temperature()
+            self.tm.show(f"{temp}*")
+
+    def event_loop(self):
+        last_poll = 0
+        last_refresh = 0
+        while True:
+            now = time.monotonic()
+
+            power_down = self.power_debounce.update(not self.power_button.value)
+            self.multi_press.tick(power_down, now)
+            self.long_press.tick(power_down, now)
+            self.entry.tick(self.key_debounce.update(self.read_keys()), now)
+
+            if now - last_poll >= POLL_INTERVAL:
+                last_poll = now
+                self.poll_player()
+
+            if now - last_refresh >= REFRESH_INTERVAL:
+                last_refresh = now
+                self.refresh_display(now)
+
+            time.sleep(TICK)
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)

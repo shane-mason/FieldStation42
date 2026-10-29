@@ -2,6 +2,8 @@
 
 `cable_box.py` drives a physical cable box built on a Raspberry Pi: a 3x4 matrix keypad for channel entry and a TM1637 4-digit display for the channel number and clock.
 
+For building the box and full wiring instructions, see the [cable-box repository](https://github.com/shane-mason/cable-box), including the [Raspberry Pi 4 wiring guide](https://github.com/shane-mason/cable-box/blob/main/docs/pi4_readme.md).
+
 ## 📦 Dependencies
 
 ```bash
@@ -42,6 +44,7 @@ With no config file, the cable box uses these pins (BCM GPIO numbers):
 | Keypad R1–R4   | 5, 6, 13, 19            |
 | Display CLK    | 17                      |
 | Display DIO    | 18                      |
+| Power button   | 3                       |
 
 ### Custom pinout: `runtime/cable_box.json`
 
@@ -54,13 +57,14 @@ If your build is wired differently, create `runtime/cable_box.json` with your pi
 }
 ```
 
-The example above is the Raspberry Pi 4 cable box wiring.
+The example above is the Raspberry Pi 5 cable box wiring.
 
 - `keypad.cols` — exactly 3 pins, in order C1, C2, C3
 - `keypad.rows` — exactly 4 pins, in order R1, R2, R3, R4
 - `display.clk` / `display.dio` — the TM1637 clock and data pins
+- `power_button.pin` — a momentary button between this pin and ground. GPIO 3 is the default because pressing a button on GPIO 3 also starts a halted Pi.
 
-Both sections are optional. A section you include replaces that section's defaults entirely, so give all of its pins. For example, to change only the display:
+Every section is optional. A section you include replaces that section's defaults entirely, so give all of its pins. For example, to change only the display:
 
 ```json
 {
