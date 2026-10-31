@@ -410,6 +410,48 @@
           "type": "string",
           "description": "Multi-logo configuration identifier"
         },
+        "show_streamart": {
+          "type": "boolean",
+          "description": "Whether to display stream artwork on screen"
+        },
+        "streamart_width": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Stream artwork width as a fraction of the screen width"
+        },
+        "streamart_height": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Stream artwork height as a fraction of the screen height"
+        },
+        "streamart_halign": {
+          "type": "string",
+          "enum": ["LEFT", "CENTER", "RIGHT"],
+          "description": "Horizontal alignment of stream artwork"
+        },
+        "streamart_valign": {
+          "type": "string",
+          "enum": ["TOP", "CENTER", "BOTTOM"],
+          "description": "Vertical alignment of stream artwork"
+        },
+        "streamart_x_margin": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Horizontal margin for stream artwork as a fraction of screen width"
+        },
+        "streamart_y_margin": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Vertical margin for stream artwork as a fraction of screen height"
+        },
+        "streamart_alpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Opacity of stream artwork, from transparent (0) to opaque (1)"
+        },
         "fallback_tag": {
           "type": "string",
           "description": "Tag/folder to use when no content is found for scheduled slot. Useful for content that only plays when all other content is filtered out."
@@ -441,26 +483,169 @@
           "enum": ["created", "edited"],
           "description": "Set by the web station editor. 'created' stations were made from a template in the UI and open in the visual editor; 'edited' stations started outside the UI and were later saved with visual changes. Absent means hand-written. Remove it to stop the editor treating the station as UI-managed."
         },
-        "streams": {
-          "type": "array",
-          "description": "Stream configurations for streaming networks",
-          "items": {
-            "type": "object",
-            "required": ["url", "duration", "title"],
-            "properties": {
-              "url": {
-                "type": "string",
-                "format": "uri"
-              },
-              "duration": {
-                "type": "integer"
-              },
-              "title": {
-                "type": "string"
-              }
-            }
-          }
-        }
+		"streams": {
+		  "type": "array",
+		  "description": "Stream configurations for streaming networks",
+		  "items": {
+			"type": "object",
+			"required": ["url", "duration", "title"],
+			"properties": {
+			  "url": {
+				"type": "string",
+				"format": "uri"
+			  },
+			  "duration": {
+				"type": "integer"
+			  },
+			  "title": {
+				"type": "string"
+			  },
+			  "metadata_type": {
+				"type": "string",
+				"enum": ["json", "icy"],
+				"description": "Metadata retrieval method. ICY is selected only when this is set to icy; otherwise JSON retrieval is used."
+			  },
+			  "metadata_url": {
+				"type": "string",
+				"format": "uri",
+				"description": "URL of the JSON metadata endpoint."
+			  },
+			  "metadata_config": {
+				"type": "object",
+				"properties": {
+				  "interval": {
+					"type": "number",
+					"exclusiveMinimum": 0,
+					"description": "Seconds between metadata polls. Defaults to 15."
+				  },
+				  "timeout": {
+					"type": "number",
+					"exclusiveMinimum": 0,
+					"description": "HTTP request timeout in seconds. Defaults to 8 for JSON metadata requests."
+				  },
+				  "max_blocks": {
+					"type": "integer",
+					"minimum": 1,
+					"description": "Maximum ICY metadata blocks to inspect per request. Defaults to 30."
+				  },
+				  "params": {
+					"type": "object",
+					"description": "Query parameters appended to the JSON metadata URL.",
+					"additionalProperties": {
+					  "type": ["string", "number", "integer", "boolean", "array"]
+					}
+				  },
+				  "headers": {
+					"type": "object",
+					"description": "Additional HTTP headers for JSON metadata requests.",
+					"additionalProperties": {
+					  "type": "string"
+					}
+				  },
+				  "records_key": {
+					"type": "string",
+					"description": "Dot-separated path to the record or list of records. Use $ for the entire response. Defaults to $."
+				  },
+				  "select": {
+					"type": "object",
+					"properties": {
+					  "mode": {
+						"type": "string",
+						"enum": ["first", "last", "first_matching"],
+						"default": "first",
+						"description": "Select the first record, last record, or first record matching the required paths."
+					  },
+					  "require_any": {
+						"type": "array",
+						"items": {
+						  "type": "string"
+						},
+						"description": "For first_matching, select a record when at least one listed path contains a usable value."
+					  }
+					},
+					"additionalProperties": false
+				  },
+				  "fields": {
+					"type": "object",
+					"description": "Maps normalized output field names to source paths, in priority order.",
+					"properties": {
+					  "follow_up": {
+						"type": "object",
+						"required": ["url_path"],
+						"properties": {
+						  "url_path": {
+							"oneOf": [
+							  {
+								"type": "string"
+							  },
+							  {
+								"type": "array",
+								"items": {
+								  "type": "string"
+								},
+								"minItems": 1
+							  }
+							],
+							"description": "Path or ordered fallback paths for the follow-up URL."
+						  }
+						},
+						"additionalProperties": {
+						  "oneOf": [
+							{
+							  "type": "string"
+							},
+							{
+							  "type": "array",
+							  "items": {
+								"type": "string"
+							  },
+							  "minItems": 1
+							}
+						  ]
+						},
+						"description": "Optional follow-up endpoint field mappings. Additional keys name the output fields and map to paths in the follow-up response."
+					  }
+					},
+					"additionalProperties": {
+					  "oneOf": [
+						{
+						  "type": "string"
+						},
+						{
+						  "type": "array",
+						  "items": {
+							"type": "string"
+						  },
+						  "minItems": 1
+						}
+					  ]
+					}
+				  }
+				},
+				"patternProperties": {
+				  "^(?!(?:interval|timeout|max_blocks|params|headers|records_key|select|fields)$)[A-Za-z][A-Za-z0-9_]*$": {
+					"type": "object",
+					"required": ["source", "pattern"],
+					"properties": {
+					  "source": {
+						"type": "string",
+						"description": "Raw ICY metadata field to parse, such as StreamTitle."
+					  },
+					  "pattern": {
+						"type": "string",
+						"description": "Regular expression with named capture groups."
+					  }
+					},
+					"additionalProperties": false,
+					"description": "Named ICY parsing rule. Named regex groups are exposed as virtual fields, such as track.artist and track.song."
+				  }
+				},
+				"additionalProperties": false
+			  }
+			},
+			"additionalProperties": true
+		  }
+		}
       }
     }
   },
