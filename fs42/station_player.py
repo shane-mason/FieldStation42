@@ -54,6 +54,7 @@ def update_status_socket(
     content_type=None,
     awaiting_pin=False,
     pin_digits_entered=0,
+    metadata=None,
 ):
     status_obj = {
         "status": status,
@@ -71,6 +72,22 @@ def update_status_socket(
         status_obj["file_path"] = file_path
     if content_type is not None:
         status_obj["content_type"] = content_type
+    if metadata:
+        status_obj.update({
+            key: value
+            for key, value in metadata.items()
+            if key != "title"
+        })
+        rating = status_obj.get("content_rating", "")
+        if rating:
+            # Keep the first rating if multiple are provided.
+            rating = rating.split("/", 1)[0].strip()
+
+            # Remove the country prefix, e.g. "US:PG" -> "PG",
+            if ":" in rating:
+                rating = rating.split(":", 1)[1].strip()
+
+            status_obj["content_rating"] = rating
     status_socket = StationManager().server_conf["status_socket"]
     as_str = json.dumps(status_obj)
     with open(status_socket, "w") as fp:
@@ -450,6 +467,10 @@ class StationPlayer:
         lines = NFOAgent.overlay_lines(meta)
         return NFOData(lines) if lines else None
 
+    def _read_playback_metadata(self, file_path):
+        from fs42.metadata_io import MetadataIO
+        return MetadataIO.read(file_path) or {}
+
     def _show_now_playing(self, file_path):
         # show the Now Playing overlay for an audio file
         import time
@@ -542,6 +563,15 @@ class StationPlayer:
                         if file_duration
                         else "n/a"
                     )
+                    metadata = {}
+                    if media_type == "video":
+                        try:
+                            metadata = self._read_playback_metadata(file_path)
+                        except Exception as e:
+                            self._l.warning(
+                                f"Could not read playback metadata: {e}"
+                            )
+
                     update_status_socket(
                         "playing",
                         self.station_config["network_name"],
@@ -551,6 +581,7 @@ class StationPlayer:
                         duration=duration,
                         file_path=file_path,
                         content_type=content_type,
+                        metadata=metadata,
                     )
                           
                 else:
