@@ -295,11 +295,14 @@ class ScheduleFrame(tk.Frame):
             scrollregion=(0, 0, self.canvas_h, self.conf.width),
             borderwidth=0,
             highlightthickness=0,
+            yscrollincrement=1,
         )
         self.canvas.place(x=0, y=self.conf.sched_h)
 
         # Initialize scroll speed (1.0 = normal speed, 0 = no scrolling)
         self.scroll_speed = self.conf.scroll_speed
+        self.scroll_pps = 0.01 * self.canvas_h * self.scroll_speed
+        self.scroll_accum = 0.0
 
         self.scroll_frame = tk.Frame(self.canvas, width=self.conf.width, height=self.canvas_h, bg=self.conf.bottom_bg)
 
@@ -361,11 +364,14 @@ class ScheduleFrame(tk.Frame):
             self.start_pause()
             return
 
-        # Continue scrolling up (moving view down in content)
-        self.canvas.yview_moveto(top + 0.001)
+        # Tk can only scroll whole pixels, so carry the fractional remainder between ticks
+        delay = max(16, round(1000 / self.scroll_pps))
+        self.scroll_accum += self.scroll_pps * delay / 1000
+        step = int(self.scroll_accum)
+        if step:
+            self.canvas.yview_scroll(step, "units")
+            self.scroll_accum -= step
 
-        # Calculate delay based on scroll speed (higher speed = shorter delay)
-        delay = int(100 / self.scroll_speed) if self.scroll_speed > 0 else 100
         self.after(delay, self.scroll_canvas_view)
 
     def start_pause(self):
@@ -388,6 +394,7 @@ class ScheduleFrame(tk.Frame):
             self.start_time = datetime.datetime.now()
 
         self.canvas.yview_moveto(0.0)
+        self.scroll_accum = 0.0
         self.footer_overlay.lower(self.canvas)
         self.after(100, self.scroll_canvas_view)
 
