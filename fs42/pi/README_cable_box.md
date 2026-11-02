@@ -63,6 +63,7 @@ The example above is the Raspberry Pi 5 cable box wiring.
 - `keypad.rows` — exactly 4 pins, in order R1, R2, R3, R4
 - `display.clk` / `display.dio` — the TM1637 clock and data pins
 - `power_button.pin` — a momentary button between this pin and ground. GPIO 3 is the default because pressing a button on GPIO 3 also starts a halted Pi.
+- `led.pin` — optional status LED (through a resistor to ground). It flashes on each keypad press and stays lit while the power button is held down. There's no default, so the LED is off unless this section is present.
 
 Every section is optional. A section you include replaces that section's defaults entirely, so give all of its pins. For example, to change only the display:
 

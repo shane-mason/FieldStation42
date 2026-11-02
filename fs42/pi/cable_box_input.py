@@ -98,3 +98,15 @@ class ChannelEntry:
             self.digits += key
             self.typed_at = now
             self.on_digits(int(self.digits))
+
+
+class Blink:
+    def __init__(self, duration=0.1):
+        self.duration = duration
+        self.until = 0
+
+    def flash(self, now):
+        self.until = now + self.duration
+
+    def lit(self, now):
+        return now < self.until

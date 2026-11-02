@@ -18,17 +18,18 @@ import board
 # pip3 install raspberrypi-tm1637
 import tm1637
 
-from cable_box_input import ChannelEntry, Debounced, LongPress, MultiPress
+from cable_box_input import Blink, ChannelEntry, Debounced, LongPress, MultiPress
 
 _l = logging.getLogger("CABLEBOX")
 
-# All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad", "display" and/or "power_button"
+# All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad", "display", "power_button" and/or "led"
 PINOUT_FILE = "runtime/cable_box.json"
 DEFAULT_PINOUT = {
     "keypad": {"cols": [26, 20, 21], "rows": [5, 6, 13, 19]},
     "display": {"clk": 17, "dio": 18},
     # GPIO 3 is the pin that wakes a halted Pi
     "power_button": {"pin": 3},
+    # "led" has no default: GPIO 21 on the Pi 4 build is keypad C3 in the default wiring
 }
 
 TICK = 0.02
@@ -43,7 +44,7 @@ def load_pinout():
         try:
             with open(PINOUT_FILE) as fp:
                 overrides = json.load(fp)
-            for section in ("keypad", "display", "power_button"):
+            for section in ("keypad", "display", "power_button", "led"):
                 if section in overrides:
                     pinout[section] = overrides[section]
         except Exception as e:
@@ -89,6 +90,14 @@ class CableBox:
         self.power_button = digitalio.DigitalInOut(getattr(board, f"D{pinout['power_button']['pin']}"))
         self.power_button.direction = digitalio.Direction.INPUT
         self.power_button.pull = digitalio.Pull.UP
+
+        self.led = None
+        if "led" in pinout:
+            self.led = digitalio.DigitalInOut(getattr(board, f"D{pinout['led']['pin']}"))
+            self.led.direction = digitalio.Direction.OUTPUT
+            self.led.value = False
+        self.led_lit = False
+        self.blink = Blink()
 
         self.power_debounce = Debounced(False)
         self.key_debounce = Debounced(None)
@@ -190,6 +199,7 @@ class CableBox:
         self.temp_mode = False
         self.last_button_time = time.monotonic()
         self.tm.show("    ")
+        self.blink.flash(time.monotonic())
 
     def on_step(self, direction):
         self.key_touched(direction)
@@ -269,6 +279,10 @@ class CableBox:
             power_down = self.power_debounce.update(not self.power_button.value)
             self.multi_press.tick(power_down, now)
             self.long_press.tick(power_down, now)
+            if self.led:
+                lit = power_down or self.blink.lit(now)
+                if lit != self.led_lit:
+                    self.led.value = self.led_lit = lit
             self.entry.tick(self.key_debounce.update(self.read_keys()), now)
 
             if now - last_poll >= POLL_INTERVAL:

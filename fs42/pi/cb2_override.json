@@ -1,0 +1,6 @@
+{
+  "keypad": { "cols": [13, 5, 26], "rows": [6, 20, 16, 19] },
+  "display": { "clk": 11, "dio": 9 },
+  "power_button": { "pin": 3 },
+  "led": { "pin": 21 }
+}
