@@ -638,3 +638,4 @@ python3 validate_configs.py
 - `fs42/config_processor.py` - Configuration preprocessing logic
 - `fs42/slot_reader.py` - Schedule slot reading logic
 - `fs42/station_manager.py` - Station loading and initialization
+- `docs/STREAM_STUBS_README.md` - Playing catalog entries from URLs with `.strm` stubs

@@ -14,6 +14,7 @@ from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.autobump_agent import AutoBumpAgent
+from fs42 import stream_stub
 
 # Try to import web_render_runner, but handle gracefully if PySide6 (with QtWebEngine)
 # isn't available -- web rendering is an optional feature.
@@ -590,9 +591,30 @@ class StationPlayer:
                 self._apply_vfx(datetime.datetime.now())
 
                 # self.mpv.vf = "lavfi=[]"
-                self._l.info(f"playing {file_path}")
+
+                # .strm stubs point at a URL (or another file) and can trim, crop and pick an audio track
+                play_target = file_path
+                stub_aid = "auto"
+                self.mpv.video_crop = ""
+                self.mpv.aid = "auto"
+                if stream_stub.is_stub(file_path):
+                    try:
+                        stub = stream_stub.read_stub(file_path)
+                    except (OSError, UnicodeDecodeError) as e:
+                        self._l.error(f"Could not read stream stub {file_path}: {e}")
+                        return False
+                    if not stub["target"]:
+                        self._l.error(f"Stream stub has no URL or path on its first line: {file_path}")
+                        return False
+                    play_target = stub["target"]
+                    stub_aid = stub["aid"]
+                    offset_seconds = (offset_seconds or 0) + stub["start"]
+                    if stub["crop"]:
+                        self.mpv.video_crop = stub["crop"]
+
+                self._l.info(f"playing {play_target}")
                 self.mpv.command("playlist-clear")
-                self.mpv.play(file_path)
+                self.mpv.play(play_target)
                 
 
                 timeout_seconds = StationManager().server_conf.get("video_seek_timeout", 10)
@@ -601,6 +623,8 @@ class StationPlayer:
                 while True:
                     try:
                         if self.mpv.time_pos is not None:
+                            if stub_aid != "auto":
+                                self.mpv.aid = stub_aid
                             break
                         if time.time() - start_time > timeout_seconds:
                             self._l.error(f"Timeout waiting for playback to start on {file_path}")
