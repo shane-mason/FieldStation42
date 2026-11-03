@@ -185,6 +185,8 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 | `width` | integer | Window width (pixels) (Guide only) |
 | `height` | integer | Window height (pixels) (Guide only)|
 | `window_decorations` | boolean | Show window decorations (Guide only)|
+| `stream_down_message` | string | Message shown when a stream or `.strm` stub cannot be played (default: `TECHNICAL DIFFICULTIES`) |
+| `stream_loudnorm` | boolean or object | Level the volume of `.strm` stubs and streams with a live `loudnorm` filter (default: off). Object keys `i`, `lra`, `tp` override the targets. See [STREAM_STUBS_README.md](STREAM_STUBS_README.md#volume-leveling) |
 
 ### Video Effects
 
@@ -638,3 +640,4 @@ python3 validate_configs.py
 - `fs42/config_processor.py` - Configuration preprocessing logic
 - `fs42/slot_reader.py` - Schedule slot reading logic
 - `fs42/station_manager.py` - Station loading and initialization
+- `docs/STREAM_STUBS_README.md` - Playing catalog entries from URLs with `.strm` stubs
