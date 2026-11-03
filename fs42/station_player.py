@@ -14,6 +14,7 @@ from python_mpv_jsonipc import MPV
 
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.autobump_agent import AutoBumpAgent
+from fs42 import stream_stub
 
 # Try to import web_render_runner, but handle gracefully if PySide6 (with QtWebEngine)
 # isn't available -- web rendering is an optional feature.
@@ -590,9 +591,30 @@ class StationPlayer:
                 self._apply_vfx(datetime.datetime.now())
 
                 # self.mpv.vf = "lavfi=[]"
-                self._l.info(f"playing {file_path}")
+
+                # .strm stubs point at a URL (or another file) and can trim, crop and pick an audio track
+                play_target = file_path
+                stub_aid = "auto"
+                self.mpv.video_crop = ""
+                self.mpv.aid = "auto"
+                if stream_stub.is_stub(file_path):
+                    try:
+                        stub = stream_stub.read_stub(file_path)
+                    except (OSError, UnicodeDecodeError) as e:
+                        self._l.error(f"Could not read stream stub {file_path}: {e}")
+                        return False
+                    if not stub["target"]:
+                        self._l.error(f"Stream stub has no URL or path on its first line: {file_path}")
+                        return False
+                    play_target = stub["target"]
+                    stub_aid = stub["aid"]
+                    offset_seconds = (offset_seconds or 0) + stub["start"]
+                    if stub["crop"]:
+                        self.mpv.video_crop = stub["crop"]
+
+                self._l.info(f"playing {play_target}")
                 self.mpv.command("playlist-clear")
-                self.mpv.play(file_path)
+                self.mpv.play(play_target)
                 
 
                 timeout_seconds = StationManager().server_conf.get("video_seek_timeout", 10)
@@ -601,11 +623,14 @@ class StationPlayer:
                 while True:
                     try:
                         if self.mpv.time_pos is not None:
+                            if stub_aid != "auto":
+                                self.mpv.aid = stub_aid
                             break
                         if time.time() - start_time > timeout_seconds:
                             self._l.error(f"Timeout waiting for playback to start on {file_path}")
                             return False
-                        if is_stream:
+                        if is_stream or stream_stub.is_stub(file_path):
+                            # a network load can take a while; keep the remote responsive
                             response = self.input_check_fn()
                             if (
                                 response
@@ -1073,10 +1098,13 @@ class StationPlayer:
                     response = self._pending_response
                     self._pending_response = None
                     return response
+                # streams and stubs can fail for reasons outside the player (server down, no network),
+                # so they get the "technical difficulties" fallback instead of ending the block
+                can_fail_over = is_stream or stream_stub.is_stub(entry.path)
                 stream_is_down = False
                 last_osd_refresh = 0.0
                 if not worked:
-                    if is_stream:
+                    if can_fail_over:
                         self._l.warning(f"Stream unavailable, activating fallback: {entry.path}")
                         stream_is_down = True
                         last_osd_refresh = time.time()
@@ -1133,7 +1161,7 @@ class StationPlayer:
                             fade_active = True
 
                         # Detect stream drop mid-playback and show fallback
-                        if is_stream and not stream_is_down:
+                        if can_fail_over and not stream_is_down:
                             try:
                                 if self.mpv.time_pos is None:
                                     self._l.warning(f"Stream dropped mid-playback: {entry.path}")
@@ -1142,7 +1170,7 @@ class StationPlayer:
                                     self._show_stream_down()
                             except Exception:
                                 pass
-                        elif is_stream and stream_is_down:
+                        elif can_fail_over and stream_is_down:
                             _now = time.time()
                             if _now - last_osd_refresh >= 8.0:
                                 try:

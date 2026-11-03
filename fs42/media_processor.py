@@ -35,6 +35,7 @@ except ImportError:
 
 from fs42.fluid_objects import FileRepoEntry
 from fs42 import timings
+from fs42 import stream_stub
 
 try:
     try:
@@ -57,7 +58,7 @@ from fs42.catalog_entry import CatalogEntry
 
 class MediaProcessor:
     # Define media type extensions
-    VIDEO_FORMATS = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v", "webm", "wmv"]
+    VIDEO_FORMATS = ["mp4", "mpg", "mpeg", "avi", "mov", "mkv", "ts", "m4v", "webm", "wmv", "strm"]
     AUDIO_FORMATS = ["mp3", "m4a", "flac", "wav", "aac", "ogg", "opus", "wma"]
 
     # For backward compatibility, default to all formats
@@ -223,6 +224,15 @@ class MediaProcessor:
     def _get_duration(file_name) -> tuple:
         """Returns (duration, error_hint). duration is -1 on failure; error_hint is a human-readable cause or None."""
         _l = logging.getLogger("MEDIA")
+        if stream_stub.is_stub(file_name):
+            # a stub names its own length; probing the URL would mean a network round trip per file
+            try:
+                duration = stream_stub.read_stub(file_name)["duration"]
+            except (OSError, UnicodeDecodeError) as e:
+                return -1, f"could not read stream stub: {e}"
+            if duration is None:
+                return -1, "stream stub has no #duration= line"
+            return duration, None
         try:
             probed = ffmpeg.probe(file_name)
 
