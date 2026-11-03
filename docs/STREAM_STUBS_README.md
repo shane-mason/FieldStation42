@@ -73,6 +73,21 @@ Stub files are read as UTF-8. Both Unix and Windows line endings work.
   no bars.
 * **Audio track:** `ffprobe -show_streams "<url>"` lists the tracks.
 
+## When a stream will not play
+
+Streams depend on a server you do not control. If a stub's URL does not start
+within `video_seek_timeout` seconds (the same server setting local files use,
+default 10), or the stream stops part-way through, FieldStation42 does not skip
+the entry or stop the channel. It shows an on-screen message for the rest of
+that entry's time, then moves on to the next entry on schedule, so the rest of
+the day is unaffected.
+
+* The message defaults to `TECHNICAL DIFFICULTIES`. Change it per station with
+  `stream_down_message` in the station config.
+* The remote stays responsive while a stream is loading, so you can change
+  channels without waiting for the timeout.
+* The same fallback is used for entries on `streaming` networks.
+
 ## Notes and limits
 
 * Seeking into a stream (joining a show part-way through its slot) needs the
@@ -84,8 +99,12 @@ Stub files are read as UTF-8. Both Unix and Windows line endings work.
 ## Testing
 
 ```
-python3 -m pytest test/test_stream_stub.py
+python3 -m pytest test/test_stream_stub.py test/test_stream_fallback.py
 ```
 
 To try a stub by hand, copy `docs/examples/example.strm` into a tag folder,
 point it at a real file, rebuild the catalog, and tune to the channel.
+
+To see the fallback, point a stub at a URL that does not exist (for example
+`https://example.invalid/ep.mp4`) and tune to the channel: the message appears
+after the timeout and the channel carries on at the next entry.

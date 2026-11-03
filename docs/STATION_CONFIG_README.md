@@ -185,6 +185,7 @@ If no `fallback_tag` is specified and content is not found, the scheduler will g
 | `width` | integer | Window width (pixels) (Guide only) |
 | `height` | integer | Window height (pixels) (Guide only)|
 | `window_decorations` | boolean | Show window decorations (Guide only)|
+| `stream_down_message` | string | Message shown when a stream or `.strm` stub cannot be played (default: `TECHNICAL DIFFICULTIES`) |
 
 ### Video Effects
 

@@ -629,7 +629,8 @@ class StationPlayer:
                         if time.time() - start_time > timeout_seconds:
                             self._l.error(f"Timeout waiting for playback to start on {file_path}")
                             return False
-                        if is_stream:
+                        if is_stream or stream_stub.is_stub(file_path):
+                            # a network load can take a while; keep the remote responsive
                             response = self.input_check_fn()
                             if (
                                 response
@@ -1097,10 +1098,13 @@ class StationPlayer:
                     response = self._pending_response
                     self._pending_response = None
                     return response
+                # streams and stubs can fail for reasons outside the player (server down, no network),
+                # so they get the "technical difficulties" fallback instead of ending the block
+                can_fail_over = is_stream or stream_stub.is_stub(entry.path)
                 stream_is_down = False
                 last_osd_refresh = 0.0
                 if not worked:
-                    if is_stream:
+                    if can_fail_over:
                         self._l.warning(f"Stream unavailable, activating fallback: {entry.path}")
                         stream_is_down = True
                         last_osd_refresh = time.time()
@@ -1157,7 +1161,7 @@ class StationPlayer:
                             fade_active = True
 
                         # Detect stream drop mid-playback and show fallback
-                        if is_stream and not stream_is_down:
+                        if can_fail_over and not stream_is_down:
                             try:
                                 if self.mpv.time_pos is None:
                                     self._l.warning(f"Stream dropped mid-playback: {entry.path}")
@@ -1166,7 +1170,7 @@ class StationPlayer:
                                     self._show_stream_down()
                             except Exception:
                                 pass
-                        elif is_stream and stream_is_down:
+                        elif can_fail_over and stream_is_down:
                             _now = time.time()
                             if _now - last_osd_refresh >= 8.0:
                                 try:
