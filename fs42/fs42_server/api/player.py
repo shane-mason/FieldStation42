@@ -12,6 +12,7 @@ VOLUME_SOCKET = "runtime/volume.socket"
 
 # Percentage the volume changes by on each volume up/down request.
 VOLUME_STEP = 2
+AMIXER = ["amixer", "-M"]
 
 
 def connected_command_queue(request: Request):
@@ -362,7 +363,7 @@ async def _volume_amixer(action: str):
         if action == "up":
             # Check current volume before increasing
             get_status = subprocess.run(
-                ["amixer", "sget", mixer],
+                [*AMIXER, "sget", mixer],
                 capture_output=True, text=True, check=True
             )
             current_vol_match = re.search(r'\[(\d+)%\]', get_status.stdout)
@@ -373,19 +374,19 @@ async def _volume_amixer(action: str):
                 return {"action": action, "method": "amixer", "status": "capped", "message": "Volume already at maximum (100%)", "volume": "100%"}
             elif current_vol > 100 - VOLUME_STEP:
                 # Set to exactly 100% if we're close
-                cmd = ["amixer", "sset", mixer, "100%"]
+                cmd = [*AMIXER, "sset", mixer, "100%"]
                 message = "Volume set to maximum (100%)"
             else:
-                cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%+"]
+                cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%+"]
                 message = f"Volume increased by {VOLUME_STEP}%"
         elif action == "down":
-            cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%-"]
+            cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%-"]
             message = f"Volume decreased by {VOLUME_STEP}%"
         elif action == "mute":
             # For mute, we need to check current state and toggle
             # First get current mute status
             get_status = subprocess.run(
-                ["amixer", "sget", mixer],
+                [*AMIXER, "sget", mixer],
                 capture_output=True, text=True, check=True
             )
             # Check if currently muted - look for [off] in output
@@ -393,7 +394,7 @@ async def _volume_amixer(action: str):
 
             # Toggle: if muted, unmute; if unmuted, mute
             mute_action = "unmute" if is_muted else "mute"
-            cmd = ["amixer", "sset", mixer, mute_action]
+            cmd = [*AMIXER, "sset", mixer, mute_action]
             message = f"Mute {'off' if is_muted else 'on'}"
         else:
             raise ValueError(f"Invalid action: {action}")
@@ -410,7 +411,7 @@ async def _volume_amixer(action: str):
             if action == "up":
                 # Check current volume before increasing
                 get_status = subprocess.run(
-                    ["amixer", "sget", mixer],
+                    [*AMIXER, "sget", mixer],
                     capture_output=True, text=True, check=True
                 )
                 current_vol_match = re.search(r'\[(\d+)%\]', get_status.stdout)
@@ -421,23 +422,23 @@ async def _volume_amixer(action: str):
                     return {"action": action, "method": "amixer", "status": "capped", "message": "Volume already at maximum (100%)", "volume": "100%"}
                 elif current_vol > 100 - VOLUME_STEP:
                     # Set to exactly 100% if we're close
-                    cmd = ["amixer", "sset", mixer, "100%"]
+                    cmd = [*AMIXER, "sset", mixer, "100%"]
                     message = "Volume set to maximum (100%)"
                 else:
-                    cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%+"]
+                    cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%+"]
                     message = f"Volume increased by {VOLUME_STEP}%"
             elif action == "down":
-                cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%-"]
+                cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%-"]
                 message = f"Volume decreased by {VOLUME_STEP}%"
             elif action == "mute":
                 # For mute with PCM, check current state and toggle
                 get_status = subprocess.run(
-                    ["amixer", "sget", mixer],
+                    [*AMIXER, "sget", mixer],
                     capture_output=True, text=True, check=True
                 )
                 is_muted = "[off]" in get_status.stdout
                 mute_action = "unmute" if is_muted else "mute"
-                cmd = ["amixer", "sset", mixer, mute_action]
+                cmd = [*AMIXER, "sset", mixer, mute_action]
                 message = f"Mute {'off' if is_muted else 'on'}"
 
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
