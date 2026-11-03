@@ -15,6 +15,7 @@ from python_mpv_jsonipc import MPV
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.autobump_agent import AutoBumpAgent
 from fs42 import stream_stub
+from fs42 import audio_level
 
 # Try to import web_render_runner, but handle gracefully if PySide6 (with QtWebEngine)
 # isn't available -- web rendering is an optional feature.
@@ -612,6 +613,9 @@ class StationPlayer:
                     if stub["crop"]:
                         self.mpv.video_crop = stub["crop"]
 
+                # level streamed audio when the station asks for it; local files are left alone
+                self._set_stream_leveling(is_stream or stream_stub.is_stub(file_path))
+
                 self._l.info(f"playing {play_target}")
                 self.mpv.command("playlist-clear")
                 self.mpv.play(play_target)
@@ -724,8 +728,27 @@ class StationPlayer:
             f"playback may be starting from the wrong position"
         )
 
+    def _set_stream_leveling(self, enabled):
+        """Add or remove the live loudnorm filter (only the one filter, other audio filters are untouched)."""
+        try:
+            self.mpv.command("af", "remove", f"@{audio_level.LEVEL_LABEL}")
+        except Exception:
+            pass  # not present
+        if not enabled or not self.station_config:
+            return
+        af = audio_level.loudnorm_af(self.station_config.get("stream_loudnorm"))
+        if not af:
+            if self.station_config.get("stream_loudnorm"):
+                self._l.warning("Ignoring invalid stream_loudnorm setting")
+            return
+        try:
+            self.mpv.command("af", "add", af)
+        except Exception as e:
+            self._l.warning(f"Could not add volume leveling: {e}")
+
     def play_and_wait(self, file_path):
         self._l.info(f"Play and wait on file {file_path}")
+        self._set_stream_leveling(False)
         self._close_now_playing()
         self.mpv.vf = ""
         if self._active_afx:
@@ -759,6 +782,7 @@ class StationPlayer:
                 return response
 
     def play_file_list(self, file_list):
+        self._set_stream_leveling(False)
 
         try:
             # Filter out any files that don't exist
