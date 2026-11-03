@@ -542,7 +542,7 @@ class StreamAgent:
                 if path.is_file() or path.is_symlink():
                     path.unlink()
             except OSError as exc:
-                self.logger.warning(
+                LOG.warning(
                     "Failed to remove stale artwork %s: %s", path, exc
                 )
 
@@ -563,12 +563,13 @@ class StreamAgent:
 
     def _update(self):
         status = self._read_status()
-        print(f"DEBUG playback status: {self._read_status()}")
+        LOG.debug(f"Playback status: {self._read_status()}")
         match = find_active_stream(status, self.station_manager.stations)
-        print(f"DEBUG match: {match}")
+        LOG.debug(f"Match: {match}")
         if match is None:
-            self._clear()
-            self._active_key = None
+            if self._active_key is not None:
+                self._clear()
+                self._active_key = None
             return
 
         station, stream = match
@@ -598,14 +599,14 @@ class StreamAgent:
             return
 
         self._last_poll = now
-        print(f"DEBUG metadata_type: {stream.get('metadata_type')}")
+        LOG.debug(f"Metadata_type: {stream.get('metadata_type')}")
         try:
             if stream.get("metadata_type") == "icy":
                 metadata = fetch_icy_metadata(stream["url"], stream.get("metadata_config", {}),)
             else:
                 metadata = fetch_metadata(stream)
-            print(f"DEBUG stream_config: {stream}")
-            print(f"DEBUG fetched metadata: {metadata}")
+            LOG.debug(f"Stream_config: {stream}")
+            LOG.debug(f"Fetched metadata: {metadata}")
         except Exception as exc:
             LOG.warning(
                 "Metadata fetch failed for %s: %s",
@@ -630,6 +631,8 @@ class StreamAgent:
 
         if usable(artwork_url):
             artwork_url = str(artwork_url)
+        else:
+            artwork_url = None
 
         # Keep the existing file if the artwork URL hasn't changed.
         if artwork_url != self._artwork_url:

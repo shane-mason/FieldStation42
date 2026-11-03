@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 from PySide6.QtGui import QPainter, QPixmap
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt
 
 from fs42.station_manager import StationManager
 from fs42.osd.content_classifier import ContentType, classify_current_content
@@ -25,17 +25,16 @@ class StreamArtworkDisplayConfig(BaseModel):
 
 class StreamArtworkDisplay:
     def __init__(self, config: StreamArtworkDisplayConfig):
-        Path("/tmp/stream_artwork_init_test.txt").write_text(
-            f"StreamArtworkDisplay initialized: {__file__}\n"
-        )
         
         self.config = config
         self.artwork_path = None
         self.pixmap = QPixmap()
+        self.needs_scaling = True
         self.station_manager = StationManager()
         self.current_channel_info = {}
         self.channel_config = {}
         self.current_content_type = ContentType.UNKNOWN
+        self._socket_mtimes = {}
         self.check_status()
     def check_status(self):
         try:
@@ -49,13 +48,37 @@ class StreamArtworkDisplay:
         except (OSError, json.JSONDecodeError, ValueError):
             self.artwork_path = None
             self.pixmap = QPixmap()
+            self.needs_scaling = True
+            return
+    def check_status(self):
+        socket_path = Path(SOCKET_FILE)
+        if not socket_path.is_absolute():
+            socket_path = project_root / socket_path
+
+        status_path = project_root / "runtime/play_status.socket"
+
+        try:
+            mtimes = {
+                str(socket_path): socket_path.stat().st_mtime_ns,
+                str(status_path): status_path.stat().st_mtime_ns,
+            }
+        except OSError:
+            mtimes = {}
+            
+
+        if mtimes == self._socket_mtimes:
             return
 
+        self._socket_mtimes = mtimes
         try:
             with (project_root / "runtime/play_status.socket").open("r") as f:
                 status = json.load(f)
+            with socket_path.open("r", encoding="utf-8") as f:
+                metadata = json.load(f)
         except (OSError, json.JSONDecodeError, ValueError):
-            
+            self.artwork_path = None
+            self.pixmap = QPixmap()
+            self.needs_scaling = True
             return
 
         self.current_channel_info = status
@@ -74,6 +97,7 @@ class StreamArtworkDisplay:
         if not artwork:
             self.artwork_path = None
             self.pixmap = QPixmap()
+            self.needs_scaling = True
             return
 
         artwork_path = Path(artwork)
@@ -87,8 +111,8 @@ class StreamArtworkDisplay:
 
         self.artwork_path = str(artwork_path)
         pixmap = QPixmap(self.artwork_path)
-
         self.pixmap = pixmap if not pixmap.isNull() else QPixmap()
+        self.needs_scaling = True
 
     def update(self, dt):
         self.check_status()
@@ -151,15 +175,19 @@ class StreamArtworkDisplay:
         )
 
         # Fit the artwork inside the configured area without distorting it.
-        target = QRectF(x, y, w, h)
         if w <= 0 or h <= 0:
             return
-        scaled = self.pixmap.scaled(
-            int(w),
-            int(h),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
+
+        if self.needs_scaling:
+            self.pixmap = self.pixmap.scaled(
+                int(w),
+                int(h),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.needs_scaling = False
+
+        scaled = self.pixmap
 
         draw_x = x + (w - scaled.width()) / 2
         draw_y = y + (h - scaled.height()) / 2
