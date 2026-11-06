@@ -14,6 +14,7 @@ class ContentType:
     WEB = "web"
     MUSIC = "music"
     UNKNOWN = "unknown"
+    STREAM = "stream"
 
 
 class ContentClassifier:

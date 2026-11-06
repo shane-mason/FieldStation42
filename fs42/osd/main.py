@@ -15,6 +15,9 @@ from PySide6.QtCore import Qt, QElapsedTimer, QTimer
 
 from fs42.osd.osd_layout import HAlignment, VAlignment, frac_to_margin_px, frac_to_size_px, resolve_top_left
 from fs42.osd.logo_display import LogoDisplay, LogoDisplayConfig
+from fs42.osd.rating_display import RatingDisplay, RatingDisplayConfig
+from fs42.stream_agent import StreamAgent
+from fs42.osd.stream_artwork_display import StreamArtworkDisplay, StreamArtworkDisplayConfig
 
 SOCKET_FILE = "runtime/play_status.socket"
 VOLUME_SOCKET_FILE = "runtime/volume.socket"
@@ -251,6 +254,14 @@ def load_objects() -> list:
                     del obj["type"]
                     config = LogoDisplayConfig.model_validate(obj)
                     objects.append(LogoDisplay(config))
+                elif obj["type"] == "RatingDisplay":
+                    del obj["type"]
+                    config = RatingDisplayConfig.model_validate(obj)
+                    objects.append(RatingDisplay(config))
+                elif obj["type"] == "StreamArtworkDisplay":
+                    del obj["type"]
+                    config = StreamArtworkDisplayConfig.model_validate(obj)
+                    objects.append(StreamArtworkDisplay(config))
                 elif obj["type"] == "HybridDisplay":
                     del obj["type"]
                     config_status = StatusDisplayConfig.model_validate(obj)
@@ -341,6 +352,11 @@ class OsdWindow(QWidget):
 def main():
     app = QApplication(sys.argv)
     objects = load_objects()
+    
+    stream_agent = StreamAgent()
+    stream_agent.start()
+    app.aboutToQuit.connect(stream_agent.stop)
+    
     window = OsdWindow(objects)
     window.show()
     sys.exit(app.exec())
