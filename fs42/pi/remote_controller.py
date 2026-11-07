@@ -64,9 +64,11 @@ DEFAULT_KEY_MAPPINGS = {
     'volume_down': 'left',       # Decrease volume
     'channel_up': 'up',          # Next channel
     'channel_down': 'down',      # Previous channel
-    'navigation_up': 'pageup',   # Next item on web channels (PPV)
-    'navigation_down': 'pagedown', # Previous item on web channels (PPV)
-    'confirm': 'enter',          # Select item on web channels (PPV)
+    'navigation_up': 'pageup',   # Up / next item on web channels (guide, PPV)
+    'navigation_down': 'pagedown', # Down / previous item on web channels (guide, PPV)
+    'navigation_left': 'leftbrace',  # [ - Left on web channels (guide)
+    'navigation_right': 'rightbrace', # ] - Right on web channels (guide)
+    'confirm': 'enter',          # Select item on web channels (guide, PPV)
     'last_channel': 'backspace', # Switch to last channel
     'mute': 'm',                 # Mute/unmute volume
     'toggle_subtitles': 'v',      # Toggle subtitle visibility in mpv
@@ -318,25 +320,14 @@ def mute_pressed():
 
 
 def nav_key_pressed(function_name, key_name):
-    """Forward a navigation key to the web channel (PPV) through the server"""
+    """Forward a navigation key to the web channel (PPV, interactive guide) through the server"""
     if not should_allow_press(function_name):
         return
 
-    global current_channel
     try:
-        channel = current_channel
-        if channel is None:
-            status_response = api.get(f'{FS42_BASE_URL}/player/status', timeout=2)
-            if status_response.ok:
-                channel = status_response.json().get('channel_number')
-                current_channel = channel
-        if channel is None:
-            print(f"Nav key {key_name} skipped: current channel unknown")
-            return
-
-        response = api.post(f'{FS42_BASE_URL}/ppv/{channel}/key/{key_name}', timeout=2)
+        response = api.post(f'{FS42_BASE_URL}/player/web/key/{key_name}', timeout=2)
         if response.ok:
-            print(f"Nav key {key_name} sent to channel {channel}")
+            print(f"Nav key {key_name} sent")
         else:
             print(f"Nav key {key_name} failed")
     except Exception as e:
@@ -651,6 +642,10 @@ def handle_key_name(key_name):
                 nav_key_pressed('navigation_up', 'PageUp')
             elif function_name == 'navigation_down':
                 nav_key_pressed('navigation_down', 'PageDown')
+            elif function_name == 'navigation_left':
+                nav_key_pressed('navigation_left', 'NavLeft')
+            elif function_name == 'navigation_right':
+                nav_key_pressed('navigation_right', 'NavRight')
             elif function_name == 'confirm':
                 nav_key_pressed('confirm', 'Enter')
             elif function_name == 'last_channel':

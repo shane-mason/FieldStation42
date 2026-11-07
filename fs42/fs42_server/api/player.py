@@ -229,6 +229,19 @@ async def show_guide(request:Request):
     command_queue.put({"command": "guide"})
     return {"status" : "ok"}
 
+
+WEB_KEYS = {"PageUp", "PageDown", "Enter", "NavLeft", "NavRight"}
+
+
+@router.post("/web/key/{key_name}")
+async def send_web_key(key_name: str, request: Request):
+    """Send a navigation key to the web channel that is currently playing."""
+    if key_name not in WEB_KEYS:
+        raise HTTPException(status_code=400, detail=f"Key must be one of: {sorted(WEB_KEYS)}")
+    command_queue = connected_command_queue(request)
+    command_queue.put({"command": "web_key", "key": key_name})
+    return {"success": True, "key": key_name}
+
 @router.get("/commands/stop")
 @router.post("/commands/stop")
 async def player_stop(request: Request):

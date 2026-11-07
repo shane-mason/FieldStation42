@@ -46,6 +46,11 @@
   --program-current-border: #9999ff;
   --program-current-color: #ffff00;
 
+  /* interactive mode selection; set --program-selected-animation: none to stop the pulse */
+  --program-selected-bg: #ffff00;
+  --program-selected-color: #000066;
+  --program-selected-animation: selected-pulse 1.6s ease-in-out infinite;
+
   --scroll-pause: 4s;
   --scroll-speed: 0.8;
   --music-volume: 0.4;
@@ -214,7 +219,7 @@ body {
   color: var(--text-panel-color, #f0f0f0);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   align-items: center;
   text-align: center;
   padding: 1em var(--h-padding, 1em);
@@ -232,6 +237,7 @@ body {
   font-weight: bold;
   transition: opacity 0.4s ease;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 #text-message-body {
@@ -244,7 +250,10 @@ body {
   line-height: 1.5;
   transition: opacity 0.4s ease;
   overflow: hidden;
+  min-height: 0;
   white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
 }
 
 #grid-wrapper {
@@ -443,3 +452,24 @@ body {
     );
 }
 
+/* ===== INTERACTIVE ===== */
+
+#grid-listings.navigating #grid-scroll-strip {
+  transition: transform 0.15s ease-out;
+}
+
+.grid-program-block.selected {
+  z-index: 1;
+  background-color: var(--program-selected-bg) !important;
+  animation: var(--program-selected-animation);
+}
+
+@keyframes selected-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(0.82); }
+}
+
+.grid-program-block.selected .program-title,
+.grid-program-block.selected .program-desc {
+  color: var(--program-selected-color);
+}

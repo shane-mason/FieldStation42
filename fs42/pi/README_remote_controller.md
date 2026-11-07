@@ -23,6 +23,9 @@ Control your FieldStation42 server with any IR remote using Flirc USB or customi
    - **Channel Up** → Map to `Up Arrow` key
    - **Channel Down** → Map to `Down Arrow` key
    - **Power/Stop** → Map to `End` key
+   - **Page Up / Page Down** → Map to `Page Up` / `Page Down` (move up/down in the interactive guide and PPV)
+   - **Left / Right** (often the rewind/fast-forward buttons) → Map to `[` / `]` (move left/right in the interactive guide)
+   - **OK/Select** → Map to `Enter` key
 
 4. **Plug Flirc** into your Raspberry Pi and you're done!
 
@@ -84,6 +87,8 @@ KEY_MAPPINGS = {
 - **Function keys**: `f1` through `f12`
 - **Arrows**: `up`, `down`, `left`, `right`
 - **Navigation**: `home`, `end`, `pageup`, `pagedown`, `insert`, `delete`
+- **Punctuation**: `leftbrace` (`[`), `rightbrace` (`]`), `comma`, `dot`, `minus`, `equal`
+- Any other Linux key name works too: it's the `KEY_` name in lowercase without the prefix (run `sudo evtest` to see them)
 - **Common**: `space`, `enter`, `tab`, `backspace`, `esc`
 - **Modifiers**: `leftshift`, `rightshift`, `leftctrl`, `rightctrl`, `leftalt`, `rightalt`
 
@@ -146,7 +151,14 @@ FS42_HOST=192.168.1.100 FS42_INPUT_DEVICE=1 sudo python3 remote_controller.py
 | **Channel Up** | `Up Arrow` | Next channel |
 | **Channel Down** | `Down Arrow` | Previous channel |
 | **Power/Stop** | `End` | Stop the player |
+| **Navigation Up** (`navigation_up`) | `Page Up` | Move up in the interactive guide / next item in PPV |
+| **Navigation Down** (`navigation_down`) | `Page Down` | Move down in the interactive guide / previous item in PPV |
+| **Navigation Left** (`navigation_left`) | `[` | Move left in the interactive guide (stops at the current time) |
+| **Navigation Right** (`navigation_right`) | `]` | Move right in the interactive guide (up to 24 hours ahead) |
+| **Confirm** (`confirm`) | `Enter` | Tune to the highlighted channel in the guide / play in PPV |
 | **Exit** | `Esc` | Exit remote controller |
+
+The navigation keys only do something on web channels that listen for them: the interactive guide and PPV. They're sent to the server as `POST /player/web/key/{PageUp|PageDown|NavLeft|NavRight|Enter}`.
 
 ### Channel Selection
 - Press **1** → Wait 1 second → Switch to channel 1

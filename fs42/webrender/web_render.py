@@ -188,7 +188,7 @@ class WebRenderApp(QApplication):
             # Handle key injection commands
             if isinstance(msg, str) and msg.startswith("key:"):
                 key_name = msg[4:]
-                if key_name not in {"PageUp", "PageDown", "Enter"}:
+                if key_name not in {"PageUp", "PageDown", "Enter", "NavLeft", "NavRight"}:
                     print(f"WebRender: rejected disallowed key '{key_name}'")
                     return
                 js = f"""

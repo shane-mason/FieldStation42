@@ -194,7 +194,7 @@ class PPVViewer {
 
     setupKeyboardNavigation() {
         document.addEventListener('keydown', (e) => {
-            // Only react to keys injected via /ppv/{channel}/key (remote controller or web remote)
+            // Only react to keys injected via /player/web/key (remote controller or web remote)
             if (e.isTrusted) return;
             switch (e.key) {
                 case 'PageUp':

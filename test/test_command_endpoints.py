@@ -24,6 +24,7 @@ CALLS = {
     "guide": lambda req: player.show_guide(req),
     "stop": lambda req: player.player_stop(req),
     "ticker": lambda req: player.show_ticker(req),
+    "web key": lambda req: player.send_web_key("NavRight", req),
     "ppv key": lambda req: ppv.send_key(70, "Enter", req),
     "ppv play_file": lambda req: ppv.play_file(70, ppv.PlayFileRequest(file_path=__file__), req),
 }
@@ -35,6 +36,22 @@ def test_disconnected_player_is_503(name):
         with pytest.raises(HTTPException) as err:
             asyncio.run(CALLS[name](_request(None)))
     assert err.value.status_code == 503
+
+
+@pytest.mark.parametrize("key", sorted(player.WEB_KEYS))
+def test_web_key_is_forwarded(key):
+    queue = MagicMock()
+    asyncio.run(player.send_web_key(key, _request(queue)))
+    queue.put.assert_called_once_with({"command": "web_key", "key": key})
+
+
+@pytest.mark.parametrize("key", ["ArrowLeft", "Escape", "a"])
+def test_web_key_rejects_unknown_keys(key):
+    queue = MagicMock()
+    with pytest.raises(HTTPException) as err:
+        asyncio.run(player.send_web_key(key, _request(queue)))
+    assert err.value.status_code == 400
+    queue.put.assert_not_called()
 
 
 @pytest.mark.parametrize("name", CALLS)

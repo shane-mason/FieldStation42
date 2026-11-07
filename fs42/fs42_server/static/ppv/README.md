@@ -41,7 +41,7 @@ For testing, you can access at `http://localhost:4242/static/ppv/ppv.html?channe
 
 ## Controls
 
-PPV ignores the keyboard directly. Keys arrive through `POST /ppv/{channel}/key/{PageUp|PageDown|Enter}`, sent by the remote controller (`navigation_up`, `navigation_down`, `confirm` in `fs42/pi/remote_controller.py`) or the web remote's nav pad.
+PPV ignores the keyboard directly. Keys arrive through `POST /player/web/key/{PageUp|PageDown|Enter}` (the older `POST /ppv/{channel}/key/{key}` still works), sent by the remote controller (`navigation_up`, `navigation_down`, `confirm` in `fs42/pi/remote_controller.py`) or the web remote's nav pad.
 
 - **navigation_up / navigation_down** (PageUp / PageDown) - Navigate movies
 - **confirm** (Enter) - Play selected movie

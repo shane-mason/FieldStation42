@@ -11,6 +11,11 @@ const VIDEOS = params.get('videos') !== 'false';
 const MESSAGES_PATH = params.get('messages');
 const LOOP = params.get('loop') !== '0';
 let RANDOM_START = params.get('random_start') === '1';
+const INTERACTIVE = params.get('interactive') === '1';
+const AUTOSCROLL = params.get('autoscroll') !== '0';
+const MAX_HOURS = parseFloat(params.get('max_hours')) || 24;
+const IDLE_MS = (parseFloat(params.get('idle')) || 30) * 1000;
+const SLOT_MS = 30 * 60 * 1000;
 
 let stations = [];
 
@@ -23,6 +28,16 @@ let pauseUntil = 0;
 let gridAnimFrame = null;
 let gridScrollY = 0;
 let gridPauseUntil = 0;
+let gridRebuildTimer = null;
+let currentSlots = null;
+
+// interactive navigation state
+let navigating = false;
+let timeOffset = 0;
+let selRow = 0;
+let selFocusMs = 0;
+let idleTimer = null;
+let keyChain = Promise.resolve();
 
 // music
 let musicPlaylist = [];
@@ -37,6 +52,7 @@ let bgVideoPlayer = null;
 // text carousel
 let messages = [];
 let messageCarouselTimer = null;
+let messageFadeTimer = null;
 
 
 function loadTheme(name) {
@@ -86,14 +102,18 @@ function getScrollSpeed() {
   return (!isNaN(val) && val > 0) ? val : 1.1;
 }
 
-function computeSlotTimes() {
+function currentHalfHour() {
   const now = new Date();
-  const base = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(),
     now.getHours(), Math.floor(now.getMinutes() / 30) * 30, 0, 0);
+}
+
+function computeSlotTimes(offsetSlots = 0) {
+  const base = currentHalfHour().getTime() + offsetSlots * SLOT_MS;
   const slots = [];
   for (let i = 0; i < SLOT_COUNT; i++) {
-    const start = new Date(base.getTime() + i * 30 * 60 * 1000);
-    slots.push({ start, end: new Date(start.getTime() + 30 * 60 * 1000) });
+    const start = new Date(base + i * SLOT_MS);
+    slots.push({ start, end: new Date(start.getTime() + SLOT_MS) });
   }
   return slots;
 }
@@ -119,22 +139,31 @@ function mockFetchStations() {
   });
 }
 
+let mockSchedules = null;
+
 function mockFetchAllSchedules(slots) {
-  const schedules = {};
-  const slotMs = 30 * 60 * 1000;
+  const end = slots[slots.length - 1].end.getTime();
+  if (mockSchedules && mockSchedules.end >= end) return mockSchedules.data;
+
+  const data = {};
+  const horizon = Math.max(end, currentHalfHour().getTime() + (MAX_HOURS + 2) * 3600 * 1000);
   for (const station of stations) {
     const blocks = [];
-    let t = slots[0].start.getTime();
-    const end = slots[slots.length - 1].end.getTime();
-    while (t < end) {
-      const duration = (Math.floor(Math.random() * 3) + 1) * slotMs;
+    let t = currentHalfHour().getTime() - SLOT_MS;
+    let episode = 1;
+    while (t < horizon) {
+      const duration = (Math.floor(Math.random() * 3) + 1) * SLOT_MS;
       const title = MOCK_SHOWS[Math.floor(Math.random() * MOCK_SHOWS.length)];
-      blocks.push({ start_time: new Date(t).toISOString(), end_time: new Date(t + duration).toISOString(), title });
+      const meta = Math.random() < 0.6
+        ? { type: 'episode', title: 'Episode ' + episode++, plot: 'A mock plot for ' + title + '. Things happen, and then other things happen.' }
+        : { type: 'movie', plot: 'A mock description of ' + title + '.' };
+      blocks.push({ start_time: new Date(t).toISOString(), end_time: new Date(t + duration).toISOString(), title, meta });
       t += duration;
     }
-    schedules[station.network_name] = blocks;
+    data[station.network_name] = blocks;
   }
-  return schedules;
+  mockSchedules = { end: horizon, data };
+  return data;
 }
 
 async function fetchStations() {
@@ -354,6 +383,9 @@ function createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now) {
   const el = document.createElement('div');
   el.className = 'grid-program-block';
   if (bStart <= now && bEnd > now) el.classList.add('current');
+  el._block = block;
+  el._start = bStart.getTime();
+  el._end = bEnd.getTime();
 
   el.style.left = leftPct + '%';
   el.style.width = `calc(${widthPct}% - 2px)`;
@@ -414,21 +446,26 @@ function buildGridStrip(slots, schedules) {
 
     const blocks = schedules[station.network_name] || [];
 
-    if (!station.has_schedule || !blocks.length) {
+    if (station.has_schedule) {
+      for (const block of blocks) {
+        const blockEl = createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now);
+        if (blockEl) programsDiv.appendChild(blockEl);
+      }
+    }
+
+    if (!programsDiv.children.length) {
       const noInfo = document.createElement('div');
       noInfo.className = 'grid-program-block';
       noInfo.style.left = '0';
       noInfo.style.width = '100%';
+      noInfo._block = null;
+      noInfo._start = guideStartMs;
+      noInfo._end = guideEndMs;
       const t = document.createElement('span');
       t.className = 'program-title';
       t.textContent = station.network_long_name || offairText;
       noInfo.appendChild(t);
       programsDiv.appendChild(noInfo);
-    } else {
-      for (const block of blocks) {
-        const blockEl = createGridProgramBlock(block, guideStartMs, guideEndMs, totalMs, now);
-        if (blockEl) programsDiv.appendChild(blockEl);
-      }
     }
 
     row.appendChild(programsDiv);
@@ -439,18 +476,33 @@ function buildGridStrip(slots, schedules) {
 }
 
 async function buildGrid() {
-  const slots = computeSlotTimes();
-  updateGridHeader(slots);
+  const slots = computeSlotTimes(timeOffset);
   const schedules = MOCK ? mockFetchAllSchedules(slots) : await fetchAllSchedules(slots, USE_META);
+  updateGridHeader(slots);
   const gridListings = document.getElementById('grid-listings');
   gridListings.innerHTML = '';
   gridListings.appendChild(buildGridStrip(slots, schedules));
+  currentSlots = slots;
+}
+
+function scheduleGridRebuild(delayMs) {
+  clearTimeout(gridRebuildTimer);
+  gridRebuildTimer = setTimeout(async function () {
+    if (navigating) return;
+    await buildGrid();
+    startGridScrolling();
+  }, delayMs);
 }
 
 function startGridScrolling() {
   if (gridAnimFrame) {
     cancelAnimationFrame(gridAnimFrame);
     gridAnimFrame = null;
+  }
+  if (navigating) return;
+  if (!AUTOSCROLL) {
+    setGridScroll(0);
+    return;
   }
 
   const listings = document.getElementById('grid-listings');
@@ -489,6 +541,7 @@ function startGridScrolling() {
   let lastTime = null;
 
   function tick(now) {
+    if (navigating) return;
     if (now < gridPauseUntil) {
       gridAnimFrame = requestAnimationFrame(tick);
       return;
@@ -505,7 +558,7 @@ function startGridScrolling() {
           cancelAnimationFrame(gridAnimFrame);
           gridAnimFrame = null;
         }
-        buildGrid().then(startGridScrolling);
+        buildGrid().then(function () { if (!navigating) startGridScrolling(); });
         return;
       }
 
@@ -517,7 +570,7 @@ function startGridScrolling() {
       const maxScroll = strip.offsetHeight - listings.clientHeight;
 
       if (maxScroll <= 0) {
-        setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
+        scheduleGridRebuild(pauseMs);
         return;
       }
 
@@ -527,7 +580,7 @@ function startGridScrolling() {
       if (gridScrollY >= maxScroll) {
         strip.style.transform = `translateY(-${maxScroll}px)`;
         lastTime = null;
-        setTimeout(async function () { await buildGrid(); startGridScrolling(); }, pauseMs);
+        scheduleGridRebuild(pauseMs);
         return;
       }
 
@@ -556,11 +609,264 @@ async function initGridMode() {
   if (MOCK) mockFetchStations(); else await fetchStations();
   await buildGrid();
   startGridScrolling();
+  if (INTERACTIVE) setupInteractive();
+  if (INTERACTIVE || !AUTOSCROLL) setInterval(refreshIfSlotChanged, 30 * 1000);
 
   await mediaLoaded;
   setupMusic();
   setupVideo();
   startTextCarousel();
+}
+
+
+// ===== INTERACTIVE GRID =====
+
+function setGridScroll(y) {
+  const listings = document.getElementById('grid-listings');
+  const strip = document.getElementById('grid-scroll-strip');
+  if (!listings || !strip) return;
+  const maxScroll = Math.max(0, strip.offsetHeight - listings.clientHeight);
+  gridScrollY = Math.min(Math.max(0, y), maxScroll);
+  strip.style.transform = `translateY(-${gridScrollY}px)`;
+}
+
+function gridRows() {
+  const strip = document.getElementById('grid-scroll-strip');
+  return strip ? Array.from(strip.children) : [];
+}
+
+function rowCells(rowIdx) {
+  const row = gridRows()[rowIdx];
+  if (!row) return [];
+  return Array.from(row.querySelectorAll('.grid-program-block')).sort((a, b) => a._start - b._start);
+}
+
+function cellAt(rowIdx, t) {
+  const cells = rowCells(rowIdx);
+  return cells.find(c => c._start <= t && c._end > t)
+    || cells.find(c => c._start >= t)
+    || cells[cells.length - 1]
+    || null;
+}
+
+function windowBounds() {
+  return {
+    start: currentSlots[0].start.getTime(),
+    end: currentSlots[currentSlots.length - 1].end.getTime(),
+  };
+}
+
+function selectedCell() {
+  return document.querySelector('#grid-scroll-strip .grid-program-block.selected');
+}
+
+function selectCell(rowIdx, cell) {
+  const prev = selectedCell();
+  if (prev) prev.classList.remove('selected');
+  selRow = rowIdx;
+  if (!cell) return;
+  cell.classList.add('selected');
+  ensureRowVisible(rowIdx);
+  showProgramInfo(stations[rowIdx], cell);
+}
+
+function ensureRowVisible(rowIdx) {
+  const row = gridRows()[rowIdx];
+  const listings = document.getElementById('grid-listings');
+  if (!row || !listings) return;
+  const top = row.offsetTop;
+  const bottom = top + row.offsetHeight;
+  if (top < gridScrollY) setGridScroll(top);
+  else if (bottom > gridScrollY + listings.clientHeight) setGridScroll(bottom - listings.clientHeight);
+  else setGridScroll(gridScrollY);
+}
+
+function showProgramInfo(station, cell) {
+  const titleEl = document.getElementById('text-message-title');
+  const bodyEl = document.getElementById('text-message-body');
+  if (!titleEl || !bodyEl) return;
+
+  const block = cell._block;
+  const channelLine = (station.channel_number || '?') + ' ' + station.network_name;
+  const lines = [];
+
+  if (block) {
+    titleEl.textContent = block.title || 'Untitled';
+    lines.push(channelLine + '  ·  ' + formatTime12(new Date(cell._start)) + ' – ' + formatTime12(new Date(cell._end)));
+    const meta = USE_META && block.meta;
+    if (meta && meta.type === 'episode' && meta.title) lines.push(meta.title);
+    if (meta && meta.plot) lines.push(meta.plot);
+  } else {
+    titleEl.textContent = station.network_long_name || station.network_name;
+    lines.push(channelLine);
+  }
+
+  bodyEl.textContent = lines.join('\n');
+  clampToFit(bodyEl);
+  titleEl.style.opacity = '1';
+  bodyEl.style.opacity = '1';
+}
+
+function topVisibleRow() {
+  const rows = gridRows();
+  const idx = rows.findIndex(r => r.offsetTop >= gridScrollY - 1);
+  return idx === -1 ? Math.max(0, rows.length - 1) : idx;
+}
+
+function takeControl() {
+  navigating = true;
+  clearTimeout(gridRebuildTimer);
+  if (gridAnimFrame) {
+    cancelAnimationFrame(gridAnimFrame);
+    gridAnimFrame = null;
+  }
+  clearTimeout(messageCarouselTimer);
+  clearTimeout(messageFadeTimer);
+
+  const strip = document.getElementById('grid-scroll-strip');
+  const clone = document.getElementById('grid-scroll-strip-clone');
+  if (clone) {
+    if (strip && strip.offsetHeight) gridScrollY = gridScrollY % strip.offsetHeight;
+    clone.remove();
+  }
+  document.getElementById('grid-listings').classList.add('navigating');
+
+  const row = topVisibleRow();
+  setGridScroll(gridRows()[row] ? gridRows()[row].offsetTop : 0);
+  const cell = cellAt(row, Date.now());
+  selFocusMs = cell ? Math.max(cell._start, windowBounds().start) : windowBounds().start;
+  selectCell(row, cell);
+}
+
+function releaseControl() {
+  navigating = false;
+  const prev = selectedCell();
+  if (prev) prev.classList.remove('selected');
+  document.getElementById('grid-listings').classList.remove('navigating');
+  timeOffset = 0;
+  buildGrid().then(function () {
+    if (navigating) return;
+    startGridScrolling();
+    startTextCarousel();
+  });
+}
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  if (!AUTOSCROLL) return;
+  idleTimer = setTimeout(function () {
+    keyChain = keyChain.then(releaseControl);
+  }, IDLE_MS);
+}
+
+async function shiftWindow(delta) {
+  const next = Math.min(Math.max(0, timeOffset + delta), Math.round(MAX_HOURS * 2));
+  if (next === timeOffset) return false;
+  timeOffset = next;
+  await buildGrid();
+  return true;
+}
+
+function moveRow(delta) {
+  const target = selRow + delta;
+  if (target < 0 || target >= stations.length) return;
+  selectCell(target, cellAt(target, selFocusMs));
+}
+
+async function moveRight() {
+  const cur = selectedCell();
+  if (!cur) return;
+  const win = windowBounds();
+  const cells = rowCells(selRow);
+  const next = cells[cells.indexOf(cur) + 1];
+
+  if (next && next._start < win.end) {
+    selFocusMs = next._start;
+    selectCell(selRow, next);
+    return;
+  }
+
+  const curStart = cur._start;
+  const target = next ? next._start : cur._end;
+  if (!await shiftWindow(1)) return;
+  const nwin = windowBounds();
+  selectAfterShift(target < nwin.end ? target : curStart);
+}
+
+async function moveLeft() {
+  const cur = selectedCell();
+  if (!cur) return;
+  const win = windowBounds();
+  const cells = rowCells(selRow);
+  const prev = cells[cells.indexOf(cur) - 1];
+
+  if (cur._start >= win.start && prev && prev._end > win.start) {
+    selFocusMs = Math.max(prev._start, win.start);
+    selectCell(selRow, prev);
+    return;
+  }
+
+  const target = cur._start < win.start ? cur._start : cur._start - 1;
+  if (!await shiftWindow(-1)) return;
+  selectAfterShift(target);
+}
+
+function selectAfterShift(t) {
+  const start = windowBounds().start;
+  const cell = cellAt(selRow, Math.max(t, start));
+  selFocusMs = cell ? Math.max(cell._start, start) : start;
+  selectCell(selRow, cell);
+}
+
+async function tuneSelected() {
+  const station = stations[selRow];
+  if (!station) return;
+  if (MOCK) {
+    console.log('mock: would tune to channel', station.channel_number);
+    return;
+  }
+  try {
+    await window.fs42Api.get('player/channels/' + station.channel_number);
+  } catch (e) {
+    console.error('tune failed', e);
+  }
+}
+
+async function handleNavKey(key) {
+  if (!navigating) {
+    takeControl();
+    resetIdleTimer();
+    return;
+  }
+  resetIdleTimer();
+  switch (key) {
+    case 'PageUp': moveRow(-1); break;
+    case 'PageDown': moveRow(1); break;
+    case 'NavLeft': await moveLeft(); break;
+    case 'NavRight': await moveRight(); break;
+    case 'Enter': await tuneSelected(); break;
+  }
+}
+
+async function refreshIfSlotChanged() {
+  if (!currentSlots) return;
+  if (!navigating && AUTOSCROLL) return;
+  if (computeSlotTimes(timeOffset)[0].start.getTime() === currentSlots[0].start.getTime()) return;
+  keyChain = keyChain.then(async function () {
+    await buildGrid();
+    if (navigating) selectCell(selRow, cellAt(selRow, Math.max(selFocusMs, windowBounds().start)));
+    else setGridScroll(gridScrollY);
+  });
+}
+
+function setupInteractive() {
+  const keys = new Set(['PageUp', 'PageDown', 'NavLeft', 'NavRight', 'Enter']);
+  document.addEventListener('keydown', function (e) {
+    // only keys injected through /player/web/key (remote_controller.py or the web remote)
+    if (e.isTrusted || !keys.has(e.key)) return;
+    e.preventDefault();
+    keyChain = keyChain.then(() => handleNavKey(e.key)).catch(err => console.error(err));
+  });
 }
 
 
@@ -700,6 +1006,13 @@ async function loadMessages() {
   }
 }
 
+function clampToFit(el) {
+  el.style.webkitLineClamp = '';
+  if (el.scrollHeight <= el.clientHeight) return;
+  const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+  el.style.webkitLineClamp = String(Math.max(1, Math.floor(el.clientHeight / lineHeight)));
+}
+
 function showNextMessage(index) {
   const titleEl = document.getElementById('text-message-title');
   const bodyEl = document.getElementById('text-message-body');
@@ -710,9 +1023,10 @@ function showNextMessage(index) {
   titleEl.style.opacity = '0';
   bodyEl.style.opacity = '0';
 
-  setTimeout(function () {
+  messageFadeTimer = setTimeout(function () {
     titleEl.innerHTML = msg.title || '';
     bodyEl.textContent = msg.body || '';
+    clampToFit(bodyEl);
     titleEl.style.opacity = '1';
     bodyEl.style.opacity = '1';
   }, 400);
