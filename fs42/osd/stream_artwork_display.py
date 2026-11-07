@@ -25,7 +25,6 @@ class StreamArtworkDisplayConfig(BaseModel):
 
 class StreamArtworkDisplay:
     def __init__(self, config: StreamArtworkDisplayConfig):
-        
         self.config = config
         self.artwork_path = None
         self.pixmap = QPixmap()
@@ -36,20 +35,7 @@ class StreamArtworkDisplay:
         self.current_content_type = ContentType.UNKNOWN
         self._socket_mtimes = {}
         self.check_status()
-    def check_status(self):
-        try:
-            socket_path = Path(SOCKET_FILE)
-            if not socket_path.is_absolute():
-                socket_path = project_root / socket_path
 
-            with socket_path.open("r", encoding="utf-8") as f:
-                metadata = json.load(f)
-
-        except (OSError, json.JSONDecodeError, ValueError):
-            self.artwork_path = None
-            self.pixmap = QPixmap()
-            self.needs_scaling = True
-            return
     def check_status(self):
         socket_path = Path(SOCKET_FILE)
         if not socket_path.is_absolute():

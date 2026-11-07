@@ -73,21 +73,13 @@ def update_status_socket(
     if content_type is not None:
         status_obj["content_type"] = content_type
     if metadata:
-        status_obj.update({
-            key: value
-            for key, value in metadata.items()
-            if key != "title"
-        })
-        rating = status_obj.get("content_rating", "")
-        if rating:
-            # Keep the first rating if multiple are provided.
-            rating = rating.split("/", 1)[0].strip()
+        from fs42.nfo_agent import NFOAgent
 
-            # Remove the country prefix, e.g. "US:PG" -> "PG",
-            if ":" in rating:
-                rating = rating.split(":", 1)[1].strip()
-
-            status_obj["content_rating"] = rating
+        # Metadata never overrides the player's own fields.
+        for key, value in metadata.items():
+            status_obj.setdefault(key, value)
+        if "content_rating" in metadata:
+            status_obj["content_rating"] = NFOAgent.normalize_content_rating(metadata["content_rating"])
     status_socket = StationManager().server_conf["status_socket"]
     as_str = json.dumps(status_obj)
     with open(status_socket, "w") as fp:
@@ -564,7 +556,7 @@ class StationPlayer:
                         else "n/a"
                     )
                     metadata = {}
-                    if media_type == "video":
+                    if media_type == "video" and not is_stream:
                         try:
                             metadata = self._read_playback_metadata(file_path)
                         except Exception as e:

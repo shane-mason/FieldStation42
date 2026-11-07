@@ -1,3 +1,4 @@
+import os
 import pytest
 from fs42.nfo_agent import NFOAgent
 
@@ -45,8 +46,40 @@ class TestParseNfoString:
             "title": "The Thing",
             "year": "1982",
             "plot": "A shape-shifting alien.",
-            "genre": "Horror",
+            "genre": ["Horror"],
         }
+
+    def test_movie_repeated_fields_are_lists(self):
+        content = """<movie>
+          <title>Alien</title>
+          <genre>Horror</genre>
+          <genre>Sci-Fi</genre>
+          <director>Ridley Scott</director>
+          <actor><name>Sigourney Weaver</name><role>Ripley</role></actor>
+          <actor><name>Tom Skerritt</name></actor>
+          <actor><role>Jones</role></actor>
+          <premiered>1979-05-25</premiered>
+          <tagline>In space no one can hear you scream.</tagline>
+        </movie>"""
+        meta = NFOAgent.parse_nfo_string(content)
+        assert meta["genre"] == ["Horror", "Sci-Fi"]
+        assert meta["director"] == ["Ridley Scott"]
+        assert meta["actors"] == ["Sigourney Weaver", "Tom Skerritt"]
+        assert meta["premiere_date"] == "1979-05-25"
+        assert meta["year"] == "1979"
+        assert meta["tagline"] == "In space no one can hear you scream."
+
+    def test_content_rating_prefers_certification(self):
+        content = "<movie><title>X</title><certification>US:R</certification><mpaa>Rated R</mpaa></movie>"
+        assert NFOAgent.parse_nfo_string(content)["content_rating"] == "US:R"
+
+    def test_content_rating_falls_back_to_mpaa(self):
+        content = "<movie><title>X</title><mpaa>US:PG / US:Rated PG</mpaa></movie>"
+        assert NFOAgent.parse_nfo_string(content)["content_rating"] == "US:PG / US:Rated PG"
+
+    def test_episode_content_rating(self):
+        content = "<episodedetails><title>X</title><mpaa>TV-14</mpaa></episodedetails>"
+        assert NFOAgent.parse_nfo_string(content)["content_rating"] == "TV-14"
 
     def test_movie_plot_falls_back_to_outline(self):
         content = "<movie><title>X</title><outline>short</outline></movie>"
@@ -81,7 +114,7 @@ class TestParseNfoString:
     def test_unknown_tag_generic_fallback(self):
         content = "<artist><title>Blind Melon</title><genre>Rock</genre></artist>"
         meta = NFOAgent.parse_nfo_string(content)
-        assert meta == {"type": "artist", "title": "Blind Melon", "genre": "Rock"}
+        assert meta == {"type": "artist", "title": "Blind Melon", "genre": ["Rock"]}
 
     def test_unknown_tag_without_title_is_none(self):
         content = "<artist><formed>1990</formed></artist>"
@@ -172,3 +205,87 @@ class TestDisplayFields:
 
     def test_none_is_none(self):
         assert NFOAgent.display_fields(None) is None
+
+
+class TestReadMetadataFromDisk:
+
+    def _write(self, path, content):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def test_episode_inherits_rating_from_tvshow_nfo(self, tmp_path):
+        show = tmp_path / "Lost"
+        self._write(show / "tvshow.nfo", "<tvshow><title>Lost</title><mpaa>TV-14</mpaa></tvshow>")
+        self._write(show / "Season 4" / "s04e05.nfo", "<episodedetails><title>The Constant</title></episodedetails>")
+
+        meta = NFOAgent.read_metadata_from_disk(str(show / "Season 4" / "s04e05.mkv"))
+        assert meta["content_rating"] == "TV-14"
+        assert meta["show_title"] == "Lost"
+
+    def test_episode_rating_wins_over_tvshow_nfo(self, tmp_path):
+        self._write(tmp_path / "tvshow.nfo", "<tvshow><title>Lost</title><mpaa>TV-14</mpaa></tvshow>")
+        self._write(
+            tmp_path / "ep.nfo",
+            "<episodedetails><title>X</title><showtitle>Lost Again</showtitle><mpaa>TV-PG</mpaa></episodedetails>",
+        )
+
+        meta = NFOAgent.read_metadata_from_disk(str(tmp_path / "ep.mkv"))
+        assert meta["content_rating"] == "TV-PG"
+        assert meta["show_title"] == "Lost Again"
+
+    def test_movie_does_not_read_tvshow_nfo(self, tmp_path):
+        self._write(tmp_path / "tvshow.nfo", "<tvshow><title>Lost</title><mpaa>TV-14</mpaa></tvshow>")
+        self._write(tmp_path / "film.nfo", "<movie><title>X</title></movie>")
+
+        meta = NFOAgent.read_metadata_from_disk(str(tmp_path / "film.mkv"))
+        assert "content_rating" not in meta
+
+    def test_episode_directly_in_show_folder(self, tmp_path):
+        self._write(tmp_path / "tvshow.nfo", "<tvshow><title>Lost</title><mpaa>TV-14</mpaa></tvshow>")
+        self._write(tmp_path / "ep.nfo", "<episodedetails><title>X</title></episodedetails>")
+
+        meta = NFOAgent.read_metadata_from_disk(str(tmp_path / "ep.mkv"))
+        assert meta["content_rating"] == "TV-14"
+
+    def test_episode_in_disc_folder(self, tmp_path):
+        show = tmp_path / "Lost"
+        self._write(show / "tvshow.nfo", "<tvshow><title>Lost</title><mpaa>TV-14</mpaa></tvshow>")
+        self._write(show / "Season 1" / "Disc 1" / "ep.nfo", "<episodedetails><title>X</title></episodedetails>")
+
+        meta = NFOAgent.read_metadata_from_disk(str(show / "Season 1" / "Disc 1" / "ep.mkv"))
+        assert meta["content_rating"] == "TV-14"
+
+    def test_tvshow_nfo_more_than_two_levels_up_is_ignored(self, tmp_path):
+        self._write(tmp_path / "tvshow.nfo", "<tvshow><title>Other Show</title><mpaa>TV-MA</mpaa></tvshow>")
+        self._write(tmp_path / "Lost" / "Season 4" / "Disc 1" / "ep.nfo", "<episodedetails><title>X</title></episodedetails>")
+
+        meta = NFOAgent.read_metadata_from_disk(str(tmp_path / "Lost" / "Season 4" / "Disc 1" / "ep.mkv"))
+        assert "content_rating" not in meta
+        assert "show_title" not in meta
+
+    def test_edited_tvshow_nfo_is_reread(self, tmp_path):
+        tvshow = tmp_path / "tvshow.nfo"
+        self._write(tvshow, "<tvshow><title>Lost</title><mpaa>TV-14</mpaa></tvshow>")
+        self._write(tmp_path / "ep.nfo", "<episodedetails><title>X</title></episodedetails>")
+        assert NFOAgent.read_metadata_from_disk(str(tmp_path / "ep.mkv"))["content_rating"] == "TV-14"
+
+        self._write(tvshow, "<tvshow><title>Lost</title><mpaa>TV-PG</mpaa></tvshow>")
+        stat = tvshow.stat()
+        os.utime(tvshow, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+        assert NFOAgent.read_metadata_from_disk(str(tmp_path / "ep.mkv"))["content_rating"] == "TV-PG"
+
+
+class TestNormalizeContentRating:
+
+    @pytest.mark.parametrize("raw, expected", [
+        ("US:PG / US:Rated PG", "PG"),
+        ("US:TV-14", "TV-14"),
+        ("Rated PG-13", "PG-13"),
+        ("US:Rated R", "R"),
+        ("TV-MA", "TV-MA"),
+        ("  gb:15 ", "15"),
+        ("", ""),
+        (None, ""),
+    ])
+    def test_normalize(self, raw, expected):
+        assert NFOAgent.normalize_content_rating(raw) == expected

@@ -1,5 +1,4 @@
 import json
-import re
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -44,15 +43,10 @@ class RatingDisplay:
         self.check_status()
 
     def normalize_rating(self, value):
+        # The player already normalizes the rating; uppercase to match image filenames.
         if not value:
             return None
-
-        # Examples:
-        # "US:PG / US:Rated PG" -> "PG"
-        # "US:TV-14" -> "TV-14"
-        value = str(value).strip().split("/")[0].strip()
-        value = re.sub(r"^[A-Z]{2}:", "", value, flags=re.IGNORECASE)
-        return value.strip().upper() or None
+        return str(value).strip().upper() or None
 
     def load_rating_image(self, rating):
         self.pixmap = QPixmap()
