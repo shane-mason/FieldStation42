@@ -480,8 +480,10 @@ async function buildGrid() {
   const schedules = MOCK ? mockFetchAllSchedules(slots) : await fetchAllSchedules(slots, USE_META);
   updateGridHeader(slots);
   const gridListings = document.getElementById('grid-listings');
+  const strip = buildGridStrip(slots, schedules);
+  if (navigating) strip.style.transform = `translateY(-${gridScrollY}px)`;
   gridListings.innerHTML = '';
-  gridListings.appendChild(buildGridStrip(slots, schedules));
+  gridListings.appendChild(strip);
   currentSlots = slots;
 }
 
