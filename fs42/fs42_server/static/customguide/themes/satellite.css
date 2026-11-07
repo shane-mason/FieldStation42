@@ -1,0 +1,119 @@
+:root {
+
+  --layout-mode: "grid";
+  --music-autoload: false;
+
+  --header-position: bottom;
+  --channel-position: before;
+  --continued-indicator: " ›";
+  --offair-text: "No Info";
+  --header-text: "FS42 Guide";
+
+  /* core — deep satellite blue */
+  --bg-color: #1b5a96;
+  --text-color: #ffffff;
+  --header-bg: #0d2a52;
+  --header-text-color: #ffffff;
+
+  /* grid chrome */
+  --time-heading-color: #ffffff;
+  --channel-number-color: #d6e4f0;
+  --channel-name-color: #d6e4f0;
+  --show-title-color: #ffffff;
+  --row-divider-color: transparent;
+
+  /* top panel — pale info bar, video on the right */
+  --top-panel-height: 40%;
+  --video-side: right;
+  --video-width: auto;
+  --video-aspect-ratio: 16/9;
+  --video-panel-bg: transparent;
+  --text-panel-bg: transparent;
+  --text-panel-color: #0f3a6b;
+  --text-panel-title-color: #08254d;
+  --text-carousel-speed: 10;
+
+  /* grid header — flat navy strip */
+  --grid-header-bg: #0d2a52;
+  --time-slot-bg: transparent;
+  --time-slot-radius: 0;
+
+  /* channel column — number and call sign on one line */
+  --grid-channel-bg: #12355f;
+  --grid-channel-width: 6.5em;
+  --channel-pill-radius: 0;
+  --channel-pill-margin-v: 0px;
+  --channel-pill-margin-h: 0px;
+  --channel-block-border: #2d5a8a;
+  --channel-block-shadow: #0a2140;
+
+  /* grid rows */
+  --grid-row-height: 2.6em;
+  --grid-row-odd-bg: #12355f;
+  --grid-row-even-bg: #12355f;
+
+  /* program blocks — flat navy cells with thin edges */
+  --program-block-radius: 0;
+  --program-block-bg: #0f3563;
+  --program-block-border: #2d5a8a;
+  --program-block-even-bg: #0f3563;
+  --program-block-even-border: #2d5a8a;
+  --program-block-shadow: #0a2140;
+  --program-current-bg: #0f3563;
+  --program-current-border: #2d5a8a;
+  --program-current-color: #ffffff;
+
+  /* selection — amber bar */
+  --program-selected-bg: #f0a818;
+  --program-selected-color: #10213a;
+  --program-selected-animation: none;
+
+  /* type */
+  --font-family: 'Arial', 'Helvetica Neue', sans-serif;
+  --font-size: 1.3rem;
+  --h-padding: 1.5%;
+  --v-padding: 1.5%;
+
+  /* scroll */
+  --scroll-pause: 4s;
+  --scroll-speed: 0.8;
+
+  /* audio */
+  --music-volume: 0.4;
+
+}
+
+body {
+  background: linear-gradient(180deg, #2a78b8 0%, #1b5a96 45%, #0f3f73 100%);
+}
+
+.grid-channel {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.4em;
+}
+
+.grid-channel .channel-number {
+  font-weight: normal;
+  min-width: 0;
+  text-align: left;
+}
+
+#top-panel {
+  background: linear-gradient(180deg, #d6e8f7 0%, #a9cbea 55%, #7fadd8 100%);
+}
+
+#text-panel {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.grid-channel .channel-name {
+  font-size: 1em;
+  text-align: left;
+  width: auto;
+}
+
+.grid-time-slot {
+  font-weight: normal;
+}
