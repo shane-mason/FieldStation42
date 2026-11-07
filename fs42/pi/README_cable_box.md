@@ -44,7 +44,6 @@ With no config file, the cable box uses these pins (BCM GPIO numbers):
 | Keypad R1–R4   | 5, 6, 13, 19            |
 | Display CLK    | 17                      |
 | Display DIO    | 18                      |
-| Power button   | 3                       |
 
 ### Custom pinout: `runtime/cable_box.json`
 
@@ -62,7 +61,7 @@ The example above is the Raspberry Pi 5 cable box wiring.
 - `keypad.cols` — exactly 3 pins, in order C1, C2, C3
 - `keypad.rows` — exactly 4 pins, in order R1, R2, R3, R4
 - `display.clk` / `display.dio` — the TM1637 clock and data pins
-- `power_button.pin` — a momentary button between this pin and ground. GPIO 3 is the default because pressing a button on GPIO 3 also starts a halted Pi.
+- `power_button.pin` — optional momentary button between this pin and ground. There's no default, so the button is off unless this section is present. Use GPIO 3 if you want the button to also start a halted Pi.
 - `led.pin` — optional status LED (through a resistor to ground). It flashes on each keypad press and stays lit while the power button is held down. There's no default, so the LED is off unless this section is present.
 
 Every section is optional. A section you include replaces that section's defaults entirely, so give all of its pins. For example, to change only the display:

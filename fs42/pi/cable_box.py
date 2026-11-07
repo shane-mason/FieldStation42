@@ -27,9 +27,7 @@ PINOUT_FILE = "runtime/cable_box.json"
 DEFAULT_PINOUT = {
     "keypad": {"cols": [26, 20, 21], "rows": [5, 6, 13, 19]},
     "display": {"clk": 17, "dio": 18},
-    # GPIO 3 is the pin that wakes a halted Pi
-    "power_button": {"pin": 3},
-    # "led" has no default: GPIO 21 on the Pi 4 build is keypad C3 in the default wiring
+    # "power_button" and "led" are opt-in: the original cable box has neither wired
 }
 
 TICK = 0.02
@@ -87,9 +85,11 @@ class CableBox:
 
         self.keypad = adafruit_matrixkeypad.Matrix_Keypad(row_pins, column_pins, keys)
 
-        self.power_button = digitalio.DigitalInOut(getattr(board, f"D{pinout['power_button']['pin']}"))
-        self.power_button.direction = digitalio.Direction.INPUT
-        self.power_button.pull = digitalio.Pull.UP
+        self.power_button = None
+        if "power_button" in pinout:
+            self.power_button = digitalio.DigitalInOut(getattr(board, f"D{pinout['power_button']['pin']}"))
+            self.power_button.direction = digitalio.Direction.INPUT
+            self.power_button.pull = digitalio.Pull.UP
 
         self.led = None
         if "led" in pinout:
@@ -276,9 +276,11 @@ class CableBox:
         while True:
             now = time.monotonic()
 
-            power_down = self.power_debounce.update(not self.power_button.value)
-            self.multi_press.tick(power_down, now)
-            self.long_press.tick(power_down, now)
+            power_down = False
+            if self.power_button:
+                power_down = self.power_debounce.update(not self.power_button.value)
+                self.multi_press.tick(power_down, now)
+                self.long_press.tick(power_down, now)
             if self.led:
                 lit = power_down or self.blink.lit(now)
                 if lit != self.led_lit:
