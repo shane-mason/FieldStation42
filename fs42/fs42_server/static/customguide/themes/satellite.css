@@ -96,6 +96,7 @@ body {
 .grid-channel .channel-number {
   font-weight: normal;
   min-width: 0;
+  flex-shrink: 0;
   text-align: left;
 }
 
@@ -112,6 +113,7 @@ body {
   font-size: 1em;
   text-align: left;
   width: auto;
+  min-width: 0;
 }
 
 .grid-time-slot {
