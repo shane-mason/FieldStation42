@@ -23,8 +23,8 @@ Control your FieldStation42 server with any IR remote using Flirc USB or customi
    - **Channel Up** → Map to `Up Arrow` key
    - **Channel Down** → Map to `Down Arrow` key
    - **Power/Stop** → Map to `End` key
-   - **Page Up / Page Down** → Map to `Page Up` / `Page Down` (move up/down in the interactive guide and PPV)
-   - **Left / Right** (often the rewind/fast-forward buttons) → Map to `[` / `]` (move left/right in the interactive guide)
+   - **Direction pad Up / Down** → Map to `Page Up` / `Page Down` (move up/down in the interactive guide and PPV)
+   - **Direction pad Left / Right** → Map to `[` / `]` (move left/right in the interactive guide)
    - **OK/Select** → Map to `Enter` key
 
 4. **Plug Flirc** into your Raspberry Pi and you're done!
