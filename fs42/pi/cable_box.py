@@ -1,8 +1,8 @@
 import json
 import logging
+import math
 import time
 import os
-import sys
 import subprocess
 
 import requests
@@ -29,6 +29,9 @@ DEFAULT_PINOUT = {
     "display": {"clk": 17, "dio": 18},
     # "power_button" and "led" are opt-in: the original cable box has neither wired
 }
+
+# the cable box must survive a stop so it can start things again; the remote's power button does the same
+KEEP_RUNNING = {"fs42-cable-box.service", "fs42-remote-controller.service", "fs42-standby.service"}
 
 TICK = 0.02
 POLL_INTERVAL = 0.1
@@ -60,6 +63,16 @@ def get_temperature():
     f = round((c * 1.8) + 32)
     return f
     # return c
+
+
+def fs42_units(*args):
+    try:
+        result = subprocess.run(["systemctl", "--user", *args, "fs42*", "--plain", "--no-legend"],
+                                capture_output=True, text=True, timeout=5)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+    names = [line.split()[0] for line in result.stdout.splitlines() if line.split()]
+    return [name for name in names if name.endswith(".service") and name not in KEEP_RUNNING]
 
 
 def channel_label(num):
@@ -101,7 +114,13 @@ class CableBox:
 
         self.power_debounce = Debounced(False)
         self.key_debounce = Debounced(None)
-        self.press_actions = {4: self.show_temperature}
+        self.press_actions = {
+            2: self.start_services,
+            3: self.restart_services,
+            4: self.stop_services,
+            5: self.show_temperature,
+        }
+        self.power_text = None
         self.multi_press = MultiPress(self.on_power_presses)
         self.long_press = LongPress(self.on_power_hold)
         self.entry = ChannelEntry(self.on_step, self.on_digits, self.on_direct)
@@ -134,15 +153,9 @@ class CableBox:
 
     def send_command(self, command, channel=-1):
         if command == "direct" and channel == 99:
-            # then we want to shut the player down
-            os.system("pkill -SIGINT -f field_player.py")
-            sys.exit(0)
+            self.stop_services()
         elif command == "direct" and channel == 98:
-            # then we want to shutdown and halt the system
-            os.system("pkill -9 -f field_player.py")
-            os.system("killall mpv")
-            os.system("sudo halt")
-            sys.exit(-1)
+            self.halt()
 
         elif command == "direct" and channel == 97:
             # temp = get_temperature()
@@ -157,6 +170,42 @@ class CableBox:
                     _l.warning(f"Channel command {target} failed: {response.status_code} {response.text}")
             except requests.RequestException as e:
                 _l.warning(f"Channel command {target} failed: {e}")
+
+    def halt(self):
+        result = subprocess.run(["systemctl", "poweroff"], capture_output=True, text=True)
+        if result.returncode != 0:
+            _l.error(f"Halt failed: {result.stderr.strip()}")
+            return False
+        self.tm.show(" OFF")
+        return True
+
+    def control_services(self, action, units, label):
+        if not units:
+            _l.warning(f"No fs42 services to {action}")
+            self.show_channel()
+            return
+        _l.info(f"Services {action}: {' '.join(units)}")
+        self.tm.show(label)
+        result = subprocess.run(["systemctl", "--user", "--no-block", action, *units], capture_output=True, text=True)
+        if result.returncode != 0:
+            _l.error(f"Services {action} failed: {result.stderr.strip()}")
+
+    def start_services(self):
+        if "fs42.service" in fs42_units("list-units", "--state=active"):
+            _l.info("FieldStation42 is already running")
+            self.show_channel()
+            return
+        units = fs42_units("list-unit-files", "--state=enabled") or ["fs42.service"]
+        self.control_services("start", units, " On ")
+
+    def restart_services(self):
+        self.control_services("restart", fs42_units("list-units", "--state=active"), "rSt ")
+
+    def stop_services(self):
+        self.control_services("stop", fs42_units("list-units", "--state=active"), "StOP")
+
+    def show_channel(self):
+        self.tm.show(channel_label(self.channel_num) if self.channel_num >= 0 else "FS42")
 
     def check_status(self):
         new_stat = None
@@ -225,15 +274,42 @@ class CableBox:
     def show_temperature(self):
         self.last_button_time = time.monotonic()
         self.temp_mode = True
+        self.tm.show(f"{get_temperature()}*")
 
     def on_power_presses(self, count):
         _l.info(f"Power button pressed {count} times")
+        self.power_text = None
         action = self.press_actions.get(count)
         if action:
             action()
+        else:
+            self.show_channel()
 
     def on_power_hold(self):
-        _l.info("Power button held")
+        _l.info("Power button held, halting")
+        self.power_text = None
+        if not self.halt():
+            self.show_channel()
+
+    def power_feedback(self, down, now):
+        if self.multi_press.held:
+            remaining = math.ceil(self.long_press.hold - (now - self.long_press.down_at))
+            return f"OFF{remaining}" if remaining > 0 else None
+        presses = self.multi_press.count + (1 if down else 0)
+        return f"P  {presses}" if presses else None
+
+    def update_power_display(self, down, now):
+        text = self.power_feedback(down, now)
+        if text == self.power_text:
+            return
+        if text:
+            self.temp_mode = False
+            self.last_button_time = now
+            self.tm.show(text)
+        else:
+            # released a hold early: put the channel back
+            self.show_channel()
+        self.power_text = text
 
     def poll_player(self):
         if not self.entry.active:
@@ -281,6 +357,7 @@ class CableBox:
                 power_down = self.power_debounce.update(not self.power_button.value)
                 self.multi_press.tick(power_down, now)
                 self.long_press.tick(power_down, now)
+                self.update_power_display(power_down, now)
             if self.led:
                 lit = power_down or self.blink.lit(now)
                 if lit != self.led_lit:
