@@ -554,7 +554,7 @@ class ShowCatalog:
         else:
             return None
 
-    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None, meta_hints=None, min_duration=None, max_duration=None):
+    def find_candidate(self, tag, seconds, when, exclusion_index=None, proposed_start=None, meta_hints=None, min_duration=None, max_duration=None, candidate_filter=None):
         """Find the best candidate for a given tag and duration.
 
         exclusion_index: optional dict of {realpath: [(start, end), ...]} built from
@@ -594,6 +594,8 @@ class ShowCatalog:
                             for w_start, w_end in exclusion_index[candidate.realpath]
                         ):
                             continue
+                    if candidate_filter and not candidate_filter(candidate):
+                        continue
                     matches.append(candidate)
             #random.shuffle(matches)
             if not len(matches):
