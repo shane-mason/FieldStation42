@@ -530,13 +530,13 @@ class StationPlayer:
         self.mpv.vf = self.reception.filter()
 
     def update_reception(self):
-        if not self.reception.is_perfect():
-            self.reception.improve()
-            # did that get us below threshhold?
-            if self.reception.is_perfect():
-                self.mpv.vf = ""
-            else:
-                self.mpv.vf = self.reception.filter()
+        if self.reception.is_perfect():
+            return
+        self.reception.improve()
+        try:
+            self.mpv.vf = "" if self.reception.is_perfect() else self.reception.filter()
+        except TimeoutError:
+            self._l.warning("mpv did not respond to reception filter update")
 
     def play_file(self, file_path, file_duration=None, offset_seconds=None, is_stream=False, title="Unknown", content_type=None, media_type=None):
         try:
@@ -1135,7 +1135,10 @@ class StationPlayer:
                             self.update_reception()
                         else:
                             if self.scrambler:
-                                self.mpv.vf = self.scrambler.update_filter()
+                                try:
+                                    self.mpv.vf = self.scrambler.update_filter()
+                                except TimeoutError:
+                                    self._l.warning("mpv did not respond to scrambler filter update")
 
                         # Calculate time remaining based on wall clock
                         time_remaining = (target_end_time - datetime.datetime.now()).total_seconds()

@@ -23,6 +23,25 @@ python3 fs42/pi/cable_box.py
 
 Type up to three digits for channels 0–999. After one or two digits the cable box waits 1.5 seconds and then tunes; a third digit tunes right away. The display shows the channel number right-aligned and zero-padded to two digits (`  05`, `  12`, ` 178`).
 
+### Special channels
+
+- `97` — show the CPU temperature
+- `98` — power off the Pi
+- `99` — stop FieldStation42's services (the cable box and remote controller keep running)
+
+## 🔘 Power Button
+
+Only active when `runtime/cable_box.json` has a `power_button` section (see below). Press it quickly (each press under a second, less than a second apart). The display counts presses as you go (`P  1`, `P  2`, ...), and the action runs a second after the last press:
+
+| Presses | Action | Display |
+| ------- | ------ | ------- |
+| 2 | Start FieldStation42's services, if they're stopped | ` On ` |
+| 3 | Restart FieldStation42's services | `rSt ` |
+| 4 | Stop FieldStation42's services | `StOP` |
+| 5 | Show the CPU temperature | temperature |
+
+Hold the button to power off the Pi. After one second the display counts down from `OFF4` to `OFF1`, and at five seconds it shows ` OFF` and powers off. Let go before then to cancel. Starting, stopping and restarting never touch the cable box or remote controller services, so the button can always start FieldStation42 again. Powering off uses `systemctl poweroff`, which needs no sudo.
+
 ## 🔌 Pinout
 
 The keypad layout is:
