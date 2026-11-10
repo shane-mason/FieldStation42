@@ -93,9 +93,11 @@ The `network_type` property determines how the station operates:
 | Property | Type | Description |
 |----------|------|-------------|
 | `content_dir` | string | Directory containing video content files |
-| `bump_dir` | string | Directory containing bump/interstitial videos |
+| `bump_dir` | string | Directory containing bump/interstitial videos. Optional for stations with commercials |
 | `commercial_dir` | string | Directory containing commercial videos |
 | `runtime_dir` | string | Directory for runtime data (schedules, catalogs) |
+
+For stations with commercials, `bump_dir` can be omitted. Their breaks then play commercials without automatically selected bump clips, and explicit `start_bump` and `end_bump` settings still play when configured. Commercial-free stations with `schedule_increment` set to `0` have no breaks and need no bump media. Other commercial-free breaks need bump media from `bump_dir`, unless `autobump` with `fill_break` selects an autobump fill for that break.
 
 ### Media Files
 
