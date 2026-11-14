@@ -27,6 +27,33 @@ class PlayPoint:
         return f"PlayPoint: title={self.block_title} index={self.index} offet={self.offset} plan_len={len(self.plan)}"
 
 
+def build_stream_point(station_conf):
+    block_plan = []
+    for stream in station_conf["streams"]:
+        bpe = BlockPlanEntry(stream["url"], 0, stream["duration"], is_stream=True, content_type="stream", media_type=stream.get("media_type", "video"))
+        block_plan.append(bpe)
+    return PlayPoint(0, 0, block_plan)
+
+
+def play_point_in_block(_block: LiquidBlock, when, station_conf):
+    found_index = 0
+    current_mark = _block.start_time
+    for entry in _block.plan:
+        next_mark = current_mark + datetime.timedelta(seconds=entry.duration)
+        if next_mark > when:
+            diff = when - current_mark
+            return PlayPoint(found_index, diff.total_seconds(), _block.plan, _block.title)
+        current_mark = next_mark
+        found_index += 1
+
+    # the plan ran out before the block did - cover the gap with be right back media if the station has it
+    gap = (_block.end_time - when).total_seconds()
+    brb = station_conf.get("be_right_back_media")
+    if brb and gap > 0:
+        return PlayPoint(0, 0, [BlockPlanEntry(brb, 0, gap, content_type="bump")], _block.title)
+    return None
+
+
 class LiquidManager(object):
     __we_are_all_one = {}
     _initialized = False
@@ -165,45 +192,13 @@ class LiquidManager(object):
                     # this is it, no need to keep going
                     return _block
 
-    def _build_stream_point(self, station_conf, when):
-        # get the station conf
-
-        # get an entry
-        conf_streams = station_conf["streams"]
-        block_plan = []
-        for stream in conf_streams:
-            bpe = BlockPlanEntry(stream["url"], 0, stream["duration"], is_stream=True, content_type="stream", media_type=stream.get("media_type", "video"))
-            block_plan.append(bpe)
-
-        pp = PlayPoint(0, 0, block_plan)
-        return pp
-
     def get_play_point(self, network_name, when):
         station_conf = StationManager().station_by_name(network_name)
         if station_conf["network_type"] == "streaming":
-            return self._build_stream_point(station_conf, when)
+            return build_stream_point(station_conf)
 
-        # get the block and get plan
         _block: LiquidBlock = self.get_programming_block(network_name, when)
-
-        # find index in block plan
-        found_index = 0
-        current_mark = _block.start_time
-        for entry in _block.plan:
-            next_mark = current_mark + datetime.timedelta(seconds=entry.duration)
-            if next_mark > when:
-                # then this is the index - calc offset
-                diff = when - current_mark
-                return PlayPoint(found_index, diff.total_seconds(), _block.plan, _block.title)
-            current_mark = next_mark
-            found_index += 1
-
-        # the plan ran out before the block did - cover the gap with be right back media if the station has it
-        gap = (_block.end_time - when).total_seconds()
-        brb = station_conf.get("be_right_back_media")
-        if brb and gap > 0:
-            return PlayPoint(0, 0, [BlockPlanEntry(brb, 0, gap, content_type="bump")], _block.title)
-        return None
+        return play_point_in_block(_block, when, station_conf)
 
     def print_schedule(self, network_name, go_deep=False):
         for _block in self.schedules[network_name]:

@@ -127,6 +127,43 @@ class LiquidIO:
 
             return liquid_blocks
 
+    def get_liquid_block_at(self, station_name: str, when: datetime) -> LiquidBlock | None:
+        ts = when.isoformat(sep=" ")
+        with self._get_connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM liquid_blocks WHERE station = ? AND start_time <= ? AND end_time >= ? "
+                "ORDER BY start_time DESC LIMIT 1",
+                (station_name, ts, ts),
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        content_json = json.loads(row[9]) if row[9] else None
+        content_ids = []
+        if content_json:
+            content_ids = content_json if isinstance(content_json, list) else [content_json]
+        content_cache = CatalogAPI.get_entries_by_ids(content_ids) if content_ids else {}
+        return LiquidIO._build_block_from_row(row, content_cache)
+
+    def get_liquid_extents(self, station_name: str) -> tuple[datetime | None, datetime | None]:
+        with self._get_connection() as connection:
+            start, end = connection.execute(
+                "SELECT MIN(start_time), MAX(end_time) FROM liquid_blocks WHERE station = ?",
+                (station_name,),
+            ).fetchone()
+        if start is None:
+            return (None, None)
+        return (datetime.fromisoformat(start), datetime.fromisoformat(end))
+
+    def prune_liquid_blocks(self, ended_before: datetime) -> int:
+        with self._get_connection() as connection:
+            cursor = connection.execute(
+                "DELETE FROM liquid_blocks WHERE end_time < ?",
+                (ended_before.isoformat(sep=" "),),
+            )
+            return cursor.rowcount
+
     def query_all_liquid_blocks(self, start: str, end: str) -> dict[str, list[LiquidBlock]]:
 
         with self._get_connection() as connection:

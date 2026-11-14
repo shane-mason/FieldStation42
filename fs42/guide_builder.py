@@ -5,7 +5,7 @@ import datetime
 
 sys.path.append(os.getcwd())
 from fs42.station_manager import StationManager
-from fs42.liquid_manager import LiquidManager, ScheduleNotFound, ScheduleQueryNotInBounds
+from fs42.play_point_query import PlayPointQuery
 from fs42.liquid_blocks import LiquidBlock
 from fs42.title_parser import TitleParser
 from fs42.metadata_io import MetadataIO
@@ -38,7 +38,8 @@ class PreviewBlock:
 
 class ScheduleQuery:
     @staticmethod
-    def query_slot(network_name, when, normalize):
+    def query_slot(network_name, when, normalize, schedule=None):
+        schedule = schedule or PlayPointQuery()
         start_marker = when
         current_marker = start_marker
         next_marker = start_marker
@@ -47,7 +48,7 @@ class ScheduleQuery:
         keep_going = True
 
         while keep_going:
-            programming_block: LiquidBlock = LiquidManager().get_programming_block(network_name, current_marker)
+            programming_block: LiquidBlock = schedule.get_programming_block(network_name, current_marker)
 
             total_duration = programming_block.playback_duration()
             remaining_duration = datetime.timedelta(seconds=total_duration)
@@ -106,6 +107,8 @@ class GuideBuilder:
             past_half = False
             start_time = now.replace(minute=0, second=1, microsecond=0)
 
+        schedule = PlayPointQuery()
+
         # each statio is a row
         for station in StationManager().stations:
             if station["hidden"]:
@@ -116,7 +119,7 @@ class GuideBuilder:
                 entries = [placeholder]
             else:
                 try:
-                    entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize)
+                    entries = ScheduleQuery.query_slot(station["network_name"], start_time, normalize, schedule)
                 except Exception:
                     # Create a single block that spans the entire 1.5 hour viewing window (5400 seconds)
                     placeholder = PreviewBlock("No programming data available", width=5400)
