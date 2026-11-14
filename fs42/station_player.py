@@ -15,18 +15,6 @@ from python_mpv_jsonipc import MPV
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.autobump_agent import AutoBumpAgent
 
-# Try to import web_render_runner, but handle gracefully if PySide6 (with QtWebEngine)
-# isn't available -- web rendering is an optional feature.
-try:
-    from fs42.webrender.web_render import web_render_runner
-    WEB_RENDER_AVAILABLE = True
-except ImportError as e:
-    logging.getLogger("station_player").info(
-        "Web rendering disabled (PySide6 QtWebEngine not available): %s", e
-    )
-    WEB_RENDER_AVAILABLE = False
-    web_render_runner = None
-
 from fs42.reception import (
     ReceptionStatus,
     HLScrambledVideoFilter,
@@ -934,8 +922,11 @@ class StationPlayer:
             self._l.error(f"Failed to stop player - might not be running")
 
     def show_web(self, web_config, blocking=True):
-        if not WEB_RENDER_AVAILABLE:
-            self._l.error("Web rendering not available - PySide6 not installed")
+        # imported here because PySide6 is slow to load and only web channels need it
+        try:
+            from fs42.webrender.web_render import web_render_runner
+        except ImportError as e:
+            self._l.error(f"Web rendering not available - PySide6 QtWebEngine not installed: {e}")
             msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
             return PlayerOutcome(PlayerState.EXIT_COMMAND, msg)
 

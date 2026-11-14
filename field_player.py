@@ -30,11 +30,6 @@ logging.basicConfig(
 )
 
 
-try:
-    from fs42.overlay.ticker import run_ticker
-except ModuleNotFoundError:
-    logging.getLogger("FieldPlayer").warning("Error importing ticker - using the ticker will cause an error.")
-
 STATE_SHELVE = "runtime/player_state.bin"
 api_commands_queue: multiprocessing.Queue = None
 
@@ -68,7 +63,13 @@ def input_check():
                     header = q_message.get("header", None)
                     style = q_message.get("style", None)
                     iterations = q_message.get("iterations", None)
-                    run_ticker(message, header, style, iterations)
+                    try:
+                        # imported here because PySide6 is slow to load
+                        from fs42.overlay.ticker import run_ticker
+                    except ModuleNotFoundError:
+                        logging.getLogger("FieldPlayer").warning("Error importing ticker - is PySide6 installed?")
+                    else:
+                        run_ticker(message, header, style, iterations)
                 case "play_file":
                     file_path = q_message.get("file_path", None)
                     return PlayerOutcome(PlayerState.PLAY_FILE, file_path)

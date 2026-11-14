@@ -17,20 +17,6 @@ from fs42.autobump_agent import AutoBumpAgent
 from fs42.slot_reader import SlotReader
 
 
-
-try:
-    try:
-        # try to import from version > 2.0
-        from moviepy import VideoFileClip
-    except ImportError:
-        # fall back to import from version 1.0
-        from moviepy.editor import VideoFileClip  # type: ignore
-except ImportError:
-    # moviepy not installed at all - it's only used as a fallback duration
-    # probe when ffmpeg.probe() can't determine a file's duration
-    VideoFileClip = None
-
-
 FF_USE_FLUID_FILE_CACHE = True
 FF_USE_CATAGLOG_DB = True
 
@@ -74,15 +60,9 @@ class ShowCatalog:
         if duration > 0.0:
             return duration
 
-        if VideoFileClip is not None:
-            try:
-                video_clip = VideoFileClip(path)
-                duration = video_clip.duration
-                video_clip.close()
-                if duration and duration > 0.0:
-                    return duration
-            except Exception:
-                pass
+        duration = MediaProcessor.moviepy_duration(path)
+        if duration > 0.0:
+            return duration
 
         hint = f" ({error_hint})" if error_hint else ""
         raise RuntimeError(f"Could not determine duration for required video file: {path}{hint}")
