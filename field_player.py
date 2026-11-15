@@ -4,6 +4,7 @@ import argparse
 import time
 import datetime
 import json
+import os
 import shelve
 import signal
 import logging
@@ -30,8 +31,46 @@ logging.basicConfig(
 )
 
 
-STATE_SHELVE = "runtime/player_state.bin"
+STATE_FILE = "runtime/player_state.json"
+# pre-JSON state file - read once to migrate, then left in place so a git rollback still works
+LEGACY_STATE_SHELVE = "runtime/player_state.bin"
 api_commands_queue: multiprocessing.Queue = None
+
+
+def _read_legacy_channel_index():
+    _l = logging.getLogger("PlayerState")
+    try:
+        with shelve.open(LEGACY_STATE_SHELVE, flag="r") as s:
+            channel_index = s.get("channel_index", 0)
+        _l.info(f"Migrated saved channel from {LEGACY_STATE_SHELVE} to {STATE_FILE}")
+        return channel_index
+    except Exception as e:
+        _l.warning(f"Could not read old player state {LEGACY_STATE_SHELVE} ({e}) - starting on the first channel")
+        return 0
+
+
+def load_channel_index():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE) as f:
+                channel_index = json.load(f).get("channel_index", 0)
+        except Exception as e:
+            logging.getLogger("PlayerState").warning(f"Could not read {STATE_FILE} ({e}) - starting on the first channel")
+            channel_index = 0
+    elif os.path.exists(LEGACY_STATE_SHELVE):
+        channel_index = _read_legacy_channel_index()
+        save_channel_index(channel_index)
+    else:
+        channel_index = 0
+    return channel_index if isinstance(channel_index, int) else 0
+
+
+def save_channel_index(channel_index):
+    tmp_path = STATE_FILE + ".tmp"
+    with open(tmp_path, "w") as f:
+        json.dump({"channel_index": channel_index}, f)
+    os.replace(tmp_path, STATE_FILE)
+
 
 def input_check():
     if api_commands_queue:
@@ -144,8 +183,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     if not start_channel_config:
         use_saved = StationManager().server_conf.get("recall_last_channel", True)
         if use_saved:
-            with shelve.open(STATE_SHELVE) as s:
-                channel_index = s.get("channel_index", 0)
+            channel_index = load_channel_index()
     else:
         channel_index = manager.index_from_channel(start_channel_config)
         if not channel_index:
@@ -295,8 +333,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                     found = not station_cache[channel_index]["hidden"]
 
             # save the player state
-            with shelve.open(STATE_SHELVE) as s:
-                s["channel_index"] = channel_index
+            save_channel_index(channel_index)
             channel_conf = station_cache[channel_index]
             player.station_config = channel_conf
 
