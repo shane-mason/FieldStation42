@@ -10,6 +10,7 @@ FIRST_PLAY_FALLBACK = 60
 CHECK_INTERVAL = 60 * 60
 PRUNE_AGE = datetime.timedelta(hours=48)
 REQUESTED_MAX_DAYS = 3
+BUILD_LOCK_TIMEOUT = 15 * 60
 
 TRIGGER_DELTAS = {
     "day": datetime.timedelta(days=1),
@@ -174,21 +175,33 @@ class ScheduleAgentWorker:
         return StationManager().station_by_name(network_name)
 
     def build_until_now(self, station):
+        from fs42.build_lock import station_build_lock
         from fs42.liquid_api import LiquidAPI
         from fs42.liquid_schedule import LiquidSchedule
 
-        schedule = LiquidSchedule(station)
-        target = datetime.datetime.now() + datetime.timedelta(hours=1)
-        for _ in range(REQUESTED_MAX_DAYS):
-            schedule.add_days(1)
-            (_, end) = LiquidAPI.get_extents(station)
-            if end is not None and end > target:
-                return
+        with station_build_lock(station["network_name"], timeout=BUILD_LOCK_TIMEOUT):
+            schedule = None
+            target = datetime.datetime.now() + datetime.timedelta(hours=1)
+            for _ in range(REQUESTED_MAX_DAYS):
+                (_, end) = LiquidAPI.get_extents(station)
+                if end is not None and end > target:
+                    if schedule is None:
+                        self._l.info(f"{station['network_name']} was built by another build while we waited")
+                    return
+                schedule = schedule or LiquidSchedule(station)
+                schedule.add_days(1)
 
     def build_amount(self, station, amount):
+        from fs42.build_lock import station_build_lock
+        from fs42.liquid_api import LiquidAPI
         from fs42.liquid_schedule import LiquidSchedule
 
-        LiquidSchedule(station).add_amount(amount)
+        with station_build_lock(station["network_name"], timeout=BUILD_LOCK_TIMEOUT):
+            (_, end) = LiquidAPI.get_extents(station)
+            if end is not None and end >= datetime.datetime.now() + self._trigger_delta:
+                self._l.info(f"{station['network_name']} was topped up by another build while we waited")
+                return
+            LiquidSchedule(station).add_amount(amount)
 
     def stations_needing_topup(self):
         from fs42.liquid_api import LiquidAPI

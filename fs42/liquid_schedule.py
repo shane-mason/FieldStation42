@@ -18,6 +18,7 @@ from fs42.marathon_agent import MarathonAgent
 from fs42.path_query import PathQuery
 from fs42.station_manager import StationManager
 from fs42.liquid_io import LiquidIO
+from fs42.build_lock import station_build_lock
 from fs42.autobump_agent import AutoBumpAgent
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
@@ -72,11 +73,8 @@ class LiquidSchedule:
         self._blocks = LiquidAPI.get_blocks(self.conf)
 
     def _end_time(self):
-        # get the lastest time in the schedule
-        if len(self._blocks) > 0:
-            return self._blocks[-1].end_time
-        else:
-            return None
+        # read from the database - another build may have added to it since self._blocks was loaded
+        return LiquidAPI.get_extents(self.conf)[1]
 
     def _flood(self, start_time, end_target):
         # flood the schedule - this is used for loop channels
@@ -538,6 +536,13 @@ class LiquidSchedule:
         self._load_blocks()
 
     def _increment(self, how_much):
+        with station_build_lock(self.conf["network_name"]) as waited:
+            if waited:
+                # the other build may have been a catalog rebuild
+                self.catalog = ShowCatalog(self.conf)
+            self._extend(how_much)
+
+    def _extend(self, how_much):
         # add time to the existing schedule
         # firsst, get the current end-of-schedule
         current_end = self._end_time()

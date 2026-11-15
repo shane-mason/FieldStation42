@@ -8,6 +8,7 @@ from pathlib import Path
 
 from fs42.catalog_entry import CatalogEntry, MatchingContentNotFound, NoFillerContentFound
 from fs42.catalog_api import CatalogAPI
+from fs42.build_lock import station_build_lock
 from fs42.hint_agent import HintAgent
 from fs42.timings import MIN_5, DAYS
 from fs42.liquid_blocks import ReelBlock
@@ -83,10 +84,11 @@ class ShowCatalog:
         self.min_gap = 3
         self.skip_chapter_scan = skip_chapter_scan
         if rebuild_catalog:
-            if force:
-                self._l.info("Rebuilding catalog with force flag - will delete existing catalog")
-                CatalogAPI.delete_catalog(self.config)
-            self.build_catalog()
+            with station_build_lock(self.config["network_name"]):
+                if force:
+                    self._l.info("Rebuilding catalog with force flag - will delete existing catalog")
+                    CatalogAPI.delete_catalog(self.config)
+                self.build_catalog()
         elif load:
             self.load_catalog()
 

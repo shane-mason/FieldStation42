@@ -6,6 +6,7 @@ from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
 from fs42.catalog import ShowCatalog
 from fs42.sequence_api import SequenceAPI
 from fs42.liquid_api import LiquidAPI
+from fs42.build_lock import station_build_lock
 
 
 class ScheduleQueryNotInBounds(Exception):
@@ -83,25 +84,27 @@ class LiquidManager(object):
     def reset_all_schedules(self):
         for station_config in self.station_configs:
             if station_config["_has_schedule"]:
-                logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
-                self.reset_sequences(station_config)
-                LiquidAPI.delete_blocks(station_config)
+                self._delete_schedule(station_config)
         self.reload_schedules()
 
     def reset_schedule(self, station_config):
-        
         if station_config["_has_schedule"]:
+            self._delete_schedule(station_config)
+        self.reload_schedules()
+
+    def _delete_schedule(self, station_config):
+        with station_build_lock(station_config["network_name"]):
             logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
             self.reset_sequences(station_config)
             LiquidAPI.delete_blocks(station_config)
-        self.reload_schedules()
 
     def reset_sequences(self, station_config):
         logging.getLogger("liquid").info(f"Resetting sequences for {station_config['network_name']}")
         # get the catalog
         catalog = ShowCatalog(station_config)
 
-        _blocks: list[LiquidBlock] = self.schedules.get(station_config["network_name"], [])
+        # from the database, not self.schedules - this process may not have seen other processes' builds
+        _blocks: list[LiquidBlock] = LiquidAPI.get_blocks(station_config) or []
 
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
