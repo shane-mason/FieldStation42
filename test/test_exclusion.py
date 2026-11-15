@@ -672,7 +672,7 @@ class TestFillGracefulDegradation(unittest.TestCase):
              )):
             MockPQ.match_any_from_base.return_value = None
             with self.assertLogs("test-fill", level="WARNING") as log_ctx:
-                block, next_mark = sched._fill(self._slot(), "comedy", T20,
+                block, next_mark, _ = sched._fill(self._slot(), "comedy", T20,
                                                exclusion_index=exclusion_index)
 
         self.assertIsNotNone(block)

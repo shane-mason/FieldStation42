@@ -65,6 +65,7 @@ class LiquidSchedule:
                 quantum = 5 * 60
             else:
                 quantum = math.ceil(quantum / (5 * 60)) * (5 * 60)
+        quantum = min(quantum, multiple)
 
         if required <= multiple / 2:
             target = quantum * math.ceil(required / quantum)
@@ -625,6 +626,8 @@ class LiquidSchedule:
                         break
 
                     sequence_entry = None
+                    seq_name = None
+                    min_duration_floor = 0.9 * new_block.content.duration
 
                     # Sequences must use their next episode only.
 
@@ -635,7 +638,7 @@ class LiquidSchedule:
                             fill_tag_index
                         )
 
-                        sequence_entry, next_child = SequenceAPI.peek_next_in_sequence(
+                        sequence_entry = SequenceAPI.peek_next_in_sequence(
                             self.conf,
                             seq_name,
                             fill_tag_str
@@ -643,6 +646,8 @@ class LiquidSchedule:
 
                         if sequence_entry is None:
                             break
+
+                        min_duration_floor = None
 
                     try:
                         extra_block, extra_next_mark, _ = self._fill(
@@ -654,7 +659,7 @@ class LiquidSchedule:
                             first_in_slot=False,
                             max_allocation=remaining,
                             sequence_entry=sequence_entry,
-                            min_duration_floor=new_block.content.duration
+                            min_duration_floor=min_duration_floor
                         )
 
                     except (MatchingContentNotFound, ClipShowKickBack):
@@ -670,26 +675,7 @@ class LiquidSchedule:
                     # Only advance the sequence after confirming that its
                     # next episode fits and will be scheduled.
                     if sequence_entry is not None:
-
-                        advanced_entry = SequenceAPI.get_next_in_sequence(
-                            self.conf,
-                            self._get_sequence_name(
-                                fill_slot_config,
-                                fill_tag_index
-                            ),
-                            fill_tag_str,
-                            next_child=next_child
-                        )
-
-                        if (
-                            advanced_entry is None
-                            or advanced_entry.fpath != sequence_entry.fpath
-                        ):
-                            self._l.info(
-                                f"[{self.conf['network_name']}] Sequence changed "
-                                f"while filling increment for tag={fill_tag_str}"
-                            )
-                            break
+                        SequenceAPI.get_next_in_sequence(self.conf, seq_name, fill_tag_str)
 
                     block_batch.append(extra_block)
 

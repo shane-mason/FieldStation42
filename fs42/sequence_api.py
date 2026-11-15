@@ -47,53 +47,19 @@ class SequenceAPI:
 
     @staticmethod
     def peek_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
-        # Return the next sequence entry without advancing its position, 
-        _l = logging.getLogger("SEQUENCE")
-        sio = SequenceIO()
-        seq = SequenceAPI.get_sequence(
-            station_config,
-            sequence_name,
-            tag_path
-        )
+        # next entry without advancing; None at the end so a wrap or child switch waits for the next increment
+        seq = SequenceAPI.get_sequence(station_config, sequence_name, tag_path)
 
         if not seq or not SequenceAPI._normalize_sequence_position(seq):
-            return None, None
+            return None
 
         if seq.current_index < seq.end_index:
-            return seq.episodes[seq.current_index], None
+            return seq.episodes[seq.current_index]
 
-        # Sequence has ended. Check whether it has child sequences.
-        _l.info(f"{sequence_name}:{seq.tag_path} is at the end, checking for child sequences")
-        children = sio.get_child_sequences(
-            station_config["network_name"],
-            sequence_name,
-            tag_path
-        )
-
-        if children:
-            next_child = SequenceAPI._choose_next_child_sequence(
-                station_config,
-                sequence_name,
-                tag_path,
-                seq.tag_path
-            )
-
-            next_seq = sio.get_sequence(
-                station_config["network_name"],
-                sequence_name,
-                next_child
-            )
-            _l.info(f"New child sequence found: {next_child}. Checking for fit...")
-            if not next_seq or not SequenceAPI._normalize_sequence_position(next_seq):
-                return None, None
-
-            return next_seq.episodes[next_seq.start_index], next_child
-
-        # Ordinary sequence: preview its first entry again.
-        return seq.episodes[seq.start_index], None
+        return None
 
     @staticmethod
-    def get_next_in_sequence(station_config, sequence_name, tag_path, next_child=None) -> SequenceEntry:
+    def get_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()
         root_tag_path = tag_path
@@ -139,13 +105,12 @@ class SequenceAPI:
             
             if children:
 
-                if next_child is None:
-                    next_child = SequenceAPI._choose_next_child_sequence(
-                        station_config,
-                        sequence_name,
-                        parent_tag,
-                        seq.tag_path
-                    )
+                next_child = SequenceAPI._choose_next_child_sequence(
+                    station_config,
+                    sequence_name,
+                    parent_tag,
+                    seq.tag_path
+                )
 
                 _l.info(
                     f"Switching sequence from "
