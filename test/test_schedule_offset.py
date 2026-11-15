@@ -6,8 +6,6 @@ from unittest.mock import MagicMock
 import pytest
 
 sys.modules.setdefault("ffmpeg", MagicMock())
-sys.modules.setdefault("moviepy", MagicMock())
-sys.modules.setdefault("moviepy.editor", MagicMock())
 
 from fs42 import liquid_schedule  # noqa: E402
 from fs42.liquid_schedule import LiquidSchedule  # noqa: E402

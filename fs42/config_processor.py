@@ -75,7 +75,7 @@ class ConfigProcessor:
 
         for part in parts:
             try:
-                datetime.strptime(part, "%B %d")
+                datetime.strptime(f"{datetime.now().year} {part}", "%Y %B %d")
             except ValueError:
                 raise ConfigurationError(
                     f"Invalid date '{part}' in {section} key '{date_key}'. "

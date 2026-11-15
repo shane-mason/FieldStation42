@@ -50,7 +50,10 @@ echo ""
 echo -e "${INFO} Finding python installation..."
 python=python3
 
-if type "python3" > /dev/null; then
+if [ -n "$FS42_PYTHON" ]; then
+    echo -e "${CHECK} FS42_PYTHON is set - using that"
+    python=$FS42_PYTHON
+elif type "python3" > /dev/null; then
     echo -e "${CHECK} Found python3 - using that"
     python=python3
 elif type "python" > /dev/null; then

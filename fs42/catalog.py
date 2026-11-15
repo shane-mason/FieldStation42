@@ -61,10 +61,6 @@ class ShowCatalog:
         if duration > 0.0:
             return duration
 
-        duration = MediaProcessor.moviepy_duration(path)
-        if duration > 0.0:
-            return duration
-
         hint = f" ({error_hint})" if error_hint else ""
         raise RuntimeError(f"Could not determine duration for required video file: {path}{hint}")
 

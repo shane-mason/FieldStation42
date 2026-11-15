@@ -6,8 +6,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 sys.modules.setdefault("ffmpeg", MagicMock())
-sys.modules.setdefault("moviepy", MagicMock())
-sys.modules.setdefault("moviepy.editor", MagicMock())
 
 from fs42.catalog import ShowCatalog  # noqa: E402
 

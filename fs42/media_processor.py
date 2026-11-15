@@ -148,10 +148,6 @@ class MediaProcessor:
                 # then do the processing
                 duration, error_hint = MediaProcessor._get_duration(fname)
 
-            # it might not support streams, so check with moviepy (if available)
-            if duration <= 0.0:
-                duration = MediaProcessor.moviepy_duration(fname)
-            # see if both returned 0
             if duration <= 0.0:
                 if error_hint:
                     _l.warning(f"Skipping {fname}: {error_hint}")
@@ -203,24 +199,6 @@ class MediaProcessor:
                     _l.warning(f"and {len(failed) - count_printed} more...")
 
         return show_clip_list
-
-    @staticmethod
-    def moviepy_duration(file_name) -> float:
-        # fallback probe for files ffprobe can't size - imported here because moviepy is slow to load
-        try:
-            try:
-                from moviepy import VideoFileClip
-            except ImportError:
-                from moviepy.editor import VideoFileClip  # type: ignore
-        except ImportError:
-            return 0.0
-        try:
-            video_clip = VideoFileClip(file_name)
-            duration = video_clip.duration
-            video_clip.close()
-            return duration or 0.0
-        except Exception:
-            return 0.0
 
     @staticmethod
     def _get_duration(file_name) -> tuple:
