@@ -242,10 +242,7 @@ def run_now_playing_app(file_path, db_path):
 
 def run_now_playing(file_path, db_path):
     """Start the now playing overlay in a separate process"""
-    def now_playing_process():
-        run_now_playing_app(file_path, db_path)
-
-    process = multiprocessing.Process(target=now_playing_process)
+    process = multiprocessing.Process(target=run_now_playing_app, args=(file_path, db_path))
     process.start()
     return process
 
