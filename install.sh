@@ -193,7 +193,7 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${GREEN}✓ Installation is complete!${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════${NC}"
 echo ""
-echo -e "${INFO} You can find example configurations in ${CYAN}confs/examples${NC}"
+echo -e "${INFO} You can find example configurations in ${CYAN}docs/examples${NC}"
 echo -e "${INFO} API security settings (api_key) are in ${CYAN}confs/main_config.json${NC} - see ${CYAN}docs/API_SECURITY.md${NC}"
 echo -e "${INFO} Visit the site for details ${CYAN}https://fieldstation42.com${NC}"
 echo ""

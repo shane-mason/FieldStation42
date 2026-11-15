@@ -173,7 +173,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             "Check to make sure you have valid json configurations in the confs dir"
         )
         logger.error(
-            "The confs/examples folder contains working examples that you can build off of - just move one into confs/"
+            "The docs/examples folder contains working examples that you can build off of - just copy one into confs/"
         )
         return
 

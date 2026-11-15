@@ -18,6 +18,7 @@ osd/osd.json
 fs42/guide_render/static/90s.html
 .idea/
 *confs/
+/confs
 # C extensions
 *.so
 
