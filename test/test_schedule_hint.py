@@ -149,6 +149,18 @@ class TestRangeHint:
         assert not hint.hint(datetime.fromisoformat('2040-04-15'))
         assert not hint.hint(datetime.fromisoformat('1976-04-15'))
 
+    def test_range_includes_whole_end_day(self):
+        hint = RangeHint("October 15 - October 31")
+        assert hint.hint(datetime.fromisoformat('2024-10-31 23:59:59'))
+        assert hint.hint(datetime.fromisoformat('2024-10-15 00:00:00'))
+        assert not hint.hint(datetime.fromisoformat('2024-11-01 00:00:00'))
+        assert not hint.hint(datetime.fromisoformat('2024-10-14 23:59:59'))
+
+    def test_range_cross_year_includes_whole_end_day(self):
+        hint = RangeHint("December 1 - January 31")
+        assert hint.hint(datetime.fromisoformat('2025-01-31 23:30:00'))
+        assert not hint.hint(datetime.fromisoformat('2025-02-01 00:00:00'))
+
     def test_test_pattern(self):
         assert RangeHint.test_pattern("December 1 - December 25")
         assert RangeHint.test_pattern("November  11 - December  15")

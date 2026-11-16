@@ -304,32 +304,13 @@ class RangeHint:
         return a
 
     def hint(self, when):
-        # lets put stuff in the current years context first
-
-        test_start = self.start_date
-        test_end = self.end_date
-
-        # this will only consider month and day, since the years are the same
-        if self.start_date > self.end_date:
-            # Crosses year boundary: something like Nov 15 - Jan 15
-            if test_start.replace(year=when.year) <= when:
-                # scenario 1: we are past the start date, like Nov 20
-                test_start = test_start.replace(year=when.year)
-                test_end = test_end.replace(year=when.year + 1)
-            else:
-                # scenario 2: we are before the start date - like Jan 15
-                test_start = test_start.replace(year=when.year - 1)
-                test_end = test_end.replace(year=when.year)
-        else:
-            # the simple case - they are both in the current year
-
-            test_start = test_start.replace(year=when.year)
-            test_end = test_end.replace(year=when.year)
-
-        if test_start <= when and test_end >= when:
-            return True
-        else:
-            return False
+        today = (when.month, when.day)
+        start = (self.start_date.month, self.start_date.day)
+        end = (self.end_date.month, self.end_date.day)
+        if start <= end:
+            return start <= today <= end
+        # crosses the year boundary, like Nov 15 - Jan 15
+        return today >= start or today <= end
 
     def __str__(self):
         return "range_hint"
