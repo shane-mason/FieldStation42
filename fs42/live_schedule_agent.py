@@ -1,130 +1,230 @@
-import multiprocessing
 import datetime
 import logging
+import multiprocessing
+import signal
+import time
+from queue import Empty
 
+REQUEST_COOLDOWN = 10 * 60
+FIRST_PLAY_FALLBACK = 60
+CHECK_INTERVAL = 60 * 60
+PRUNE_AGE = datetime.timedelta(hours=48)
+REQUESTED_MAX_DAYS = 3
+BUILD_LOCK_TIMEOUT = 15 * 60
 
-def _worker_build_schedules(lock, stations_to_build, amount_to_add):
-    _l = logging.getLogger("ScheduleAgent.Worker")
-    _l.info(f"Worker started - building {amount_to_add} for {len(stations_to_build)} station(s)")
-
-    # import here to avoid issues with multiprocessing and module state
-    from fs42.liquid_schedule import LiquidSchedule
-
-    for station_conf in stations_to_build:
-        name = station_conf["network_name"]
-        try:
-            _l.info(f"Building {amount_to_add} of schedule for {name}")
-            with lock:
-                schedule = LiquidSchedule(station_conf)
-                schedule.add_amount(amount_to_add)
-            _l.info(f"Finished building schedule for {name}")
-        except Exception as e:
-            _l.error(f"Failed to build schedule for {name}: {e}")
-
-    _l.info("Worker finished")
+TRIGGER_DELTAS = {
+    "day": datetime.timedelta(days=1),
+    "week": datetime.timedelta(weeks=1),
+    "month": datetime.timedelta(days=30),
+}
 
 
 class LiveScheduleAgent:
-    # map config strings to timedeltas for the trigger threshold
-    _trigger_deltas = {
-        "day": datetime.timedelta(days=1),
-        "week": datetime.timedelta(weeks=1),
-        "month": datetime.timedelta(days=30),
-    }
+    """Player side handle for the schedule agent process. Every call is fire and forget."""
 
-    def __init__(self, schedule_agent_conf, lock):
-        self._l = logging.getLogger("ScheduleAgent")
-        self._lock = lock
-        self._amount_to_add = schedule_agent_conf["amount_to_add"]
-        self._trigger_at = schedule_agent_conf["trigger_add_at"]
-        self._trigger_delta = self._trigger_deltas[self._trigger_at]
-        self._worker = None
-        self._last_check = None
-        self._check_interval = datetime.timedelta(hours=1)
-        self._l.info(
-            f"Live schedule agent initialized: "
-            f"trigger_at={self._trigger_at}, amount_to_add={self._amount_to_add}"
+    def __init__(self, schedule_agent_conf=None):
+        self._queue = multiprocessing.Queue()
+        self._first_play_sent = False
+        self._process = multiprocessing.Process(
+            target=run_schedule_agent,
+            args=(self._queue, schedule_agent_conf),
+            daemon=True,
         )
+        self._process.start()
 
-    def get_lock(self):
-        return self._lock
+    def request_build(self, network_name):
+        self._queue.put(("build", network_name, time.monotonic()))
 
-    def _needs_check(self):
-        now = datetime.datetime.now()
-        if self._last_check is None:
-            self._last_check = now
-            return True
-        if now - self._last_check >= self._check_interval:
-            self._last_check = now
-            return True
-        return False
+    def first_play(self):
+        if not self._first_play_sent:
+            self._first_play_sent = True
+            self._queue.put(("first_play",))
 
-    def _find_stations_needing_schedules(self):
-        from fs42.liquid_manager import LiquidManager
+    def stop(self):
+        self._queue.put(("stop",))
+
+
+def run_schedule_agent(queue, schedule_agent_conf):
+    # the player owns shutdown - it terminates this process on exit
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    ScheduleAgentWorker(schedule_agent_conf).run(queue)
+
+
+class ScheduleAgentWorker:
+
+    def __init__(self, schedule_agent_conf=None, clock=time.monotonic):
+        self._l = logging.getLogger("ScheduleAgent")
+        self._clock = clock
+        self._topup_amount = None
+        self._trigger_at = None
+        self._trigger_delta = None
+        if schedule_agent_conf:
+            self._topup_amount = schedule_agent_conf["amount_to_add"]
+            self._trigger_at = schedule_agent_conf["trigger_add_at"]
+            self._trigger_delta = TRIGGER_DELTAS[self._trigger_at]
+        self._started = clock()
+        self._first_play = False
+        self._last_check = None
+        self._requested = []
+        self._topups = []
+        self._last_build = {}
+        self._warned = set()
+        self._stopped = False
+
+    def run(self, queue):
+        if self._topup_amount:
+            self._l.info(f"Schedule agent started - top-ups add a {self._topup_amount} when a schedule is within a {self._trigger_at} of ending")
+        else:
+            self._l.info("Schedule agent started - top-ups not configured, schedules are only built when a channel runs out")
+        while not self._stopped:
+            self._drain(queue)
+            if self._stopped:
+                break
+            if self.has_work():
+                self.step()
+            else:
+                try:
+                    self.handle_message(queue.get(timeout=1))
+                except Empty:
+                    pass
+        self._l.info("Schedule agent stopped")
+
+    def _drain(self, queue):
+        while True:
+            try:
+                self.handle_message(queue.get_nowait())
+            except Empty:
+                return
+
+    def handle_message(self, message):
+        match message[0]:
+            case "build":
+                self._request(message[1], message[2])
+            case "first_play":
+                self._first_play = True
+            case "stop":
+                self._stopped = True
+
+    def _request(self, network_name, sent_at):
+        if network_name in self._requested:
+            return
+        finished = self._last_build.get(network_name)
+        if finished is not None:
+            if sent_at < finished:
+                # sent while that build was still running
+                return
+            if self._clock() - finished < REQUEST_COOLDOWN:
+                if network_name not in self._warned:
+                    self._warned.add(network_name)
+                    self._l.error(
+                        f"Built a schedule for {network_name} but it still has nothing to play - "
+                        f"will try again in {REQUEST_COOLDOWN // 60} minutes"
+                    )
+                return
+        self._requested.append(network_name)
+
+    def _topups_unlocked(self):
+        return self._first_play or self._clock() - self._started >= FIRST_PLAY_FALLBACK
+
+    def _check_due(self):
+        if not self._topups_unlocked():
+            return False
+        return self._last_check is None or self._clock() - self._last_check >= CHECK_INTERVAL
+
+    def has_work(self):
+        return bool(self._requested or self._topups or self._check_due())
+
+    def step(self):
+        if self._requested:
+            self._build_requested(self._requested.pop(0))
+        elif self._topups:
+            self._build_topup(self._topups.pop(0))
+        elif self._check_due():
+            self._last_check = self._clock()
+            self.prune()
+            if self._topup_amount:
+                self._topups = self.stations_needing_topup()
+
+    def _build_requested(self, network_name):
+        station = self.lookup_station(network_name)
+        if not station or not station.get("_has_schedule", False):
+            return
+        self.prune()
+        self._l.info(f"Building schedule for {network_name} - requested by the player")
+        try:
+            self.build_until_now(station)
+            self._l.info(f"Finished building schedule for {network_name}")
+        except Exception as e:
+            self._l.error(f"Failed to build schedule for {network_name}: {e}")
+        finally:
+            self._last_build[network_name] = self._clock()
+            self._warned.discard(network_name)
+
+    def _build_topup(self, station):
+        network_name = station["network_name"]
+        self._l.info(f"Topping up schedule for {network_name} by a {self._topup_amount}")
+        try:
+            self.build_amount(station, self._topup_amount)
+            self._l.info(f"Finished topping up schedule for {network_name}")
+        except Exception as e:
+            self._l.error(f"Failed to top up schedule for {network_name}: {e}")
+
+    def lookup_station(self, network_name):
         from fs42.station_manager import StationManager
 
-        liquid = LiquidManager()
-        now = datetime.datetime.now()
-        threshold = now + self._trigger_delta
-        needs_build = []
+        return StationManager().station_by_name(network_name)
 
+    def build_until_now(self, station):
+        from fs42.build_lock import station_build_lock
+        from fs42.liquid_api import LiquidAPI
+        from fs42.liquid_schedule import LiquidSchedule
+
+        with station_build_lock(station["network_name"], timeout=BUILD_LOCK_TIMEOUT):
+            schedule = None
+            target = datetime.datetime.now() + datetime.timedelta(hours=1)
+            for _ in range(REQUESTED_MAX_DAYS):
+                (_, end) = LiquidAPI.get_extents(station)
+                if end is not None and end > target:
+                    if schedule is None:
+                        self._l.info(f"{station['network_name']} was built by another build while we waited")
+                    return
+                schedule = schedule or LiquidSchedule(station)
+                schedule.add_days(1)
+
+    def build_amount(self, station, amount):
+        from fs42.build_lock import station_build_lock
+        from fs42.liquid_api import LiquidAPI
+        from fs42.liquid_schedule import LiquidSchedule
+
+        with station_build_lock(station["network_name"], timeout=BUILD_LOCK_TIMEOUT):
+            (_, end) = LiquidAPI.get_extents(station)
+            if end is not None and end >= datetime.datetime.now() + self._trigger_delta:
+                self._l.info(f"{station['network_name']} was topped up by another build while we waited")
+                return
+            LiquidSchedule(station).add_amount(amount)
+
+    def stations_needing_topup(self):
+        from fs42.liquid_api import LiquidAPI
+        from fs42.station_manager import StationManager
+
+        threshold = datetime.datetime.now() + self._trigger_delta
+        needs_build = []
         for station in StationManager().stations:
             if not station.get("_has_schedule", False):
                 continue
-            name = station["network_name"]
-            try:
-                (start, end) = liquid.get_extents(name)
-                if end is None or end < threshold:
-                    self._l.info(
-                        f"{name} schedule ends at {end}, threshold is {threshold} - needs build"
-                    )
-                    needs_build.append(station)
-            except ValueError:
-                continue
-
+            (_, end) = LiquidAPI.get_extents(station)
+            if end is None or end < threshold:
+                self._l.info(f"{station['network_name']} schedule ends at {end}, threshold is {threshold} - needs top-up")
+                needs_build.append(station)
         return needs_build
 
-    def _worker_finished(self):
-        if self._worker is None:
-            return False
-        if self._worker.is_alive():
-            return False
+    def prune(self):
+        from fs42.liquid_api import LiquidAPI
 
-        exitcode = self._worker.exitcode
-        if exitcode != 0:
-            self._l.warning(f"Schedule build worker exited with code {exitcode}")
-        else:
-            self._l.info("Schedule build worker completed successfully")
-
-        self._worker = None
-        return True
-
-    def tick(self):
-        # first, check if a previous worker finished
-        if self._worker_finished():
-            from fs42.liquid_manager import LiquidManager
-
-            self._l.info("Reloading schedules after background build")
-            LiquidManager().reload_schedules()
-            return True
-
-        # don't spawn a new worker if one is running
-        if self._worker is not None:
-            return False
-
-        # only check periodically
-        if not self._needs_check():
-            return False
-
-        stations = self._find_stations_needing_schedules()
-        if not stations:
-            return False
-
-        self._l.info(f"Spawning worker to build schedules for {len(stations)} station(s)")
-        self._worker = multiprocessing.Process(
-            target=_worker_build_schedules,
-            args=(self._lock, stations, self._amount_to_add),
-            daemon=True,
-        )
-        self._worker.start()
-        return False
+        cutoff = datetime.datetime.now() - PRUNE_AGE
+        try:
+            removed = LiquidAPI.prune_blocks(cutoff)
+            if removed:
+                self._l.info(f"Pruned {removed} schedule block(s) that ended before {cutoff}")
+        except Exception as e:
+            self._l.error(f"Failed to prune old schedule blocks: {e}")

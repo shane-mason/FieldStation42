@@ -15,18 +15,6 @@ from python_mpv_jsonipc import MPV
 from fs42.guide_tk import guide_channel_runner, GuideCommands
 from fs42.autobump_agent import AutoBumpAgent
 
-# Try to import web_render_runner, but handle gracefully if PySide6 (with QtWebEngine)
-# isn't available -- web rendering is an optional feature.
-try:
-    from fs42.webrender.web_render import web_render_runner
-    WEB_RENDER_AVAILABLE = True
-except ImportError as e:
-    logging.getLogger("station_player").info(
-        "Web rendering disabled (PySide6 QtWebEngine not available): %s", e
-    )
-    WEB_RENDER_AVAILABLE = False
-    web_render_runner = None
-
 from fs42.reception import (
     ReceptionStatus,
     HLScrambledVideoFilter,
@@ -34,9 +22,8 @@ from fs42.reception import (
     ColorInvertedScrambledVideoFilter,
     ChunkyScrambledVideoFilter,
 )
-from fs42.liquid_manager import LiquidManager, PlayPoint, ScheduleNotFound, ScheduleQueryNotInBounds
-
-from fs42.liquid_schedule import LiquidSchedule
+from fs42.liquid_manager import PlayPoint, ScheduleNotFound
+from fs42.play_point_query import PlayPointQuery, SchedulePastEnd, ScheduleBeforeStart
 from fs42.station_manager import StationManager
 from fs42.slot_reader import SlotReader
 
@@ -94,6 +81,7 @@ class PlayerState(Enum):
     EXIT_COMMAND = 5
     PLAY_FILE = 6
     PARENTAL_CONTROLS = 7
+    NO_SCHEDULE = 8
 
 
 class PlayerOutcome:
@@ -219,15 +207,10 @@ class StationPlayer:
         self.parental_unlocked_network = None
         self.scrambler = None
         self.now_playing_process = None
-        self.schedule_lock = None
+        self.schedule = PlayPointQuery()
+        self.on_play_point = None
         self._active_afx = None
         self._pending_response = None
-
-    def load_up(self):
-        start_time = time.perf_counter()
-        liquid = LiquidManager()
-        liquid_init_time = time.perf_counter() - start_time
-        self._l.info(f"LiquidManager() initialization took {liquid_init_time:.3f} seconds")
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
@@ -939,8 +922,11 @@ class StationPlayer:
             self._l.error(f"Failed to stop player - might not be running")
 
     def show_web(self, web_config, blocking=True):
-        if not WEB_RENDER_AVAILABLE:
-            self._l.error("Web rendering not available - PySide6 not installed")
+        # imported here because PySide6 is slow to load and only web channels need it
+        try:
+            from fs42.webrender.web_render import web_render_runner
+        except ImportError as e:
+            self._l.error(f"Web rendering not available - PySide6 QtWebEngine not installed: {e}")
             msg = "Web rendering requires PySide6 to be installed and configured. Please check documentation."
             return PlayerOutcome(PlayerState.EXIT_COMMAND, msg)
 
@@ -1025,43 +1011,29 @@ class StationPlayer:
                     return response
         return PlayerOutcome(PlayerState.SUCCESS)
 
-    def schedule_panic(self, network_name):
-        self._l.critical("*********************Schedule Panic*********************")
-        self._l.critical(f"Schedule not found for {network_name} - attempting to generate a one-day extention")
-        if self.schedule_lock:
-            self.schedule_lock.acquire()
-        try:
-            schedule = LiquidSchedule(StationManager().station_by_name(network_name))
-            schedule.add_days(1)
-            self._l.warning(f"Schedule extended for {network_name} - reloading schedules now")
-            LiquidManager().reload_schedules()
-        except Exception as e:
-            self._l.error(f"Schedule panic failed for {network_name}: {e}")
-        finally:
-            if self.schedule_lock:
-                self.schedule_lock.release()
-
     def play_slot(self, network_name, when):
-        liquid = LiquidManager()
-
         if self._parental_controls_required(network_name):
             if self.parental_unlocked_network != network_name:
                 return PlayerOutcome(PlayerState.PARENTAL_CONTROLS, network_name)
 
         try:
-            play_point = liquid.get_play_point(network_name, when)
+            play_point = self.schedule.get_play_point(network_name, when)
             self._current_playing = play_point
-        except (ScheduleNotFound, ScheduleQueryNotInBounds):
-            self.schedule_panic(network_name)
-            self._l.warning(f"Schedules reloaded - retrying play for: {network_name}")
-            # fail so we can return and try again
+        except (ScheduleNotFound, SchedulePastEnd) as e:
+            self._l.debug(f"No schedule to play for {network_name}: {e}")
+            return PlayerOutcome(PlayerState.NO_SCHEDULE, network_name)
+        except ScheduleBeforeStart as e:
+            self._l.error(f"Can't play {network_name}, building more schedule won't help: {e}")
             return PlayerOutcome(PlayerState.FAILED)
-        
+
         if play_point is None:
             self.current_playing_file_path = None
             self.current_playing_block_title = None
             return PlayerOutcome(PlayerState.FAILED)
-        
+
+        if self.on_play_point:
+            self.on_play_point()
+
         return self._play_from_point(play_point)
 
     def _play_from_point(self, play_point: PlayPoint):

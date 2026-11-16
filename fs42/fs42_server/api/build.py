@@ -7,6 +7,7 @@ from fs42.catalog_api import CatalogAPI
 from fs42.liquid_manager import LiquidManager
 from fs42.liquid_schedule import LiquidSchedule
 from fs42.catalog import ShowCatalog
+from fs42.build_lock import station_build_lock
 
 router = APIRouter(prefix="/build", tags=["build"])
 
@@ -40,17 +41,19 @@ async def rebuild_catalog(network_name: str, request: Request):
                 to_rebuild = [StationManager().station_by_name(network_name)]
 
             for station in to_rebuild:
-                if station["_has_schedule"]:
-                    with rebuild_tasks_lock:
-                        rebuild_tasks[task_id]["log"] += f"Deleting schedule for {station['network_name']}\n"
+                # hold the station's build lock so no schedule build can start between the delete and the rebuild
+                with station_build_lock(station["network_name"]):
+                    if station["_has_schedule"]:
+                        with rebuild_tasks_lock:
+                            rebuild_tasks[task_id]["log"] += f"Deleting schedule for {station['network_name']}\n"
                         LiquidManager().reset_schedule(station)
-                    with rebuild_tasks_lock:
-                        rebuild_tasks[task_id]["log"] += f"Deleted schedule {station['network_name']} - rebuilding catalog now.\n"
-                if station["_has_catalog"]:
-                    CatalogAPI.delete_catalog(station)
-                    ShowCatalog(station, rebuild_catalog=True)
-                    with rebuild_tasks_lock:
-                        rebuild_tasks[task_id]["log"] += f"Rebuilt catalog for {station['network_name']}\n"
+                        with rebuild_tasks_lock:
+                            rebuild_tasks[task_id]["log"] += f"Deleted schedule {station['network_name']} - rebuilding catalog now.\n"
+                    if station["_has_catalog"]:
+                        CatalogAPI.delete_catalog(station)
+                        ShowCatalog(station, rebuild_catalog=True)
+                        with rebuild_tasks_lock:
+                            rebuild_tasks[task_id]["log"] += f"Rebuilt catalog for {station['network_name']}\n"
 
             with rebuild_tasks_lock:
                 rebuild_tasks[task_id]["status"] = "done"

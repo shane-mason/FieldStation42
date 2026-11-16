@@ -37,16 +37,6 @@ from fs42.fluid_objects import FileRepoEntry
 from fs42 import timings
 
 try:
-    try:
-        # try to import from version > 2.0
-        from moviepy import VideoFileClip
-    except ImportError:
-        # fall back to import from version 1.0
-        from moviepy.editor import VideoFileClip  # type: ignore
-except ImportError:
-    VideoFileClip = None
-
-try:
     import mutagen
 except ImportError:
     mutagen = None
@@ -158,15 +148,6 @@ class MediaProcessor:
                 # then do the processing
                 duration, error_hint = MediaProcessor._get_duration(fname)
 
-            # it might not support streams, so check with moviepy (if available)
-            if duration <= 0.0 and VideoFileClip is not None:
-                try:
-                    video_clip = VideoFileClip(fname)
-                    duration = video_clip.duration
-                    video_clip.close()
-                except Exception:
-                    pass
-            # see if both returned 0
             if duration <= 0.0:
                 if error_hint:
                     _l.warning(f"Skipping {fname}: {error_hint}")

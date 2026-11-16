@@ -286,8 +286,9 @@ class RangeHint:
     @staticmethod
     def _scrape_dates(m):
         # this WILL throw a value error if not valid date ranges
-        start = datetime.strptime(f"{m.group(1).capitalize()} {m.group(2):0>2}", "%B %d")
-        end = datetime.strptime(f"{m.group(3).capitalize()} {m.group(4):0>2}", "%B %d")
+        year = datetime.now().year
+        start = datetime.strptime(f"{year} {m.group(1).capitalize()} {m.group(2):0>2}", "%Y %B %d")
+        end = datetime.strptime(f"{year} {m.group(3).capitalize()} {m.group(4):0>2}", "%Y %B %d")
         return (start, end)
 
     @staticmethod

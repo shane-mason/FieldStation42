@@ -633,7 +633,7 @@ python3 validate_configs.py
 
 ## See Also
 
-- `confs/examples/` - Example configuration files
+- `docs/examples/` - Example configuration files
 - `station_config_schema.json` - JSON Schema for validation
 - `fs42/config_processor.py` - Configuration preprocessing logic
 - `fs42/slot_reader.py` - Schedule slot reading logic

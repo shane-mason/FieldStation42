@@ -16,10 +16,6 @@ _ffmpeg_stub = MagicMock()
 _ffmpeg_stub.probe = MagicMock()
 sys.modules.setdefault("ffmpeg", _ffmpeg_stub)
 
-_moviepy_stub = MagicMock()
-sys.modules.setdefault("moviepy", _moviepy_stub)
-sys.modules.setdefault("moviepy.editor", _moviepy_stub)
-
 # ---------------------------------------------------------------------------
 # Safe to import fs42 now
 # ---------------------------------------------------------------------------

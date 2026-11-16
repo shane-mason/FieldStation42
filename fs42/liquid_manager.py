@@ -6,6 +6,7 @@ from fs42.liquid_blocks import LiquidBlock, BlockPlanEntry
 from fs42.catalog import ShowCatalog
 from fs42.sequence_api import SequenceAPI
 from fs42.liquid_api import LiquidAPI
+from fs42.build_lock import station_build_lock
 
 
 class ScheduleQueryNotInBounds(Exception):
@@ -25,6 +26,33 @@ class PlayPoint:
 
     def __str__(self):
         return f"PlayPoint: title={self.block_title} index={self.index} offet={self.offset} plan_len={len(self.plan)}"
+
+
+def build_stream_point(station_conf):
+    block_plan = []
+    for stream in station_conf["streams"]:
+        bpe = BlockPlanEntry(stream["url"], 0, stream["duration"], is_stream=True, content_type="stream", media_type=stream.get("media_type", "video"))
+        block_plan.append(bpe)
+    return PlayPoint(0, 0, block_plan)
+
+
+def play_point_in_block(_block: LiquidBlock, when, station_conf):
+    found_index = 0
+    current_mark = _block.start_time
+    for entry in _block.plan:
+        next_mark = current_mark + datetime.timedelta(seconds=entry.duration)
+        if next_mark > when:
+            diff = when - current_mark
+            return PlayPoint(found_index, diff.total_seconds(), _block.plan, _block.title)
+        current_mark = next_mark
+        found_index += 1
+
+    # the plan ran out before the block did - cover the gap with be right back media if the station has it
+    gap = (_block.end_time - when).total_seconds()
+    brb = station_conf.get("be_right_back_media")
+    if brb and gap > 0:
+        return PlayPoint(0, 0, [BlockPlanEntry(brb, 0, gap, content_type="bump")], _block.title)
+    return None
 
 
 class LiquidManager(object):
@@ -56,25 +84,27 @@ class LiquidManager(object):
     def reset_all_schedules(self):
         for station_config in self.station_configs:
             if station_config["_has_schedule"]:
-                logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
-                self.reset_sequences(station_config)
-                LiquidAPI.delete_blocks(station_config)
+                self._delete_schedule(station_config)
         self.reload_schedules()
 
     def reset_schedule(self, station_config):
-        
         if station_config["_has_schedule"]:
+            self._delete_schedule(station_config)
+        self.reload_schedules()
+
+    def _delete_schedule(self, station_config):
+        with station_build_lock(station_config["network_name"]):
             logging.getLogger("liquid").info(f"Deleting schedules for {station_config['network_name']}")
             self.reset_sequences(station_config)
             LiquidAPI.delete_blocks(station_config)
-        self.reload_schedules()
 
     def reset_sequences(self, station_config):
         logging.getLogger("liquid").info(f"Resetting sequences for {station_config['network_name']}")
         # get the catalog
         catalog = ShowCatalog(station_config)
 
-        _blocks: list[LiquidBlock] = self.schedules.get(station_config["network_name"], [])
+        # from the database, not self.schedules - this process may not have seen other processes' builds
+        _blocks: list[LiquidBlock] = LiquidAPI.get_blocks(station_config) or []
 
         now = datetime.datetime.now()
         today = datetime.datetime(now.year, now.month, now.day)
@@ -165,45 +195,13 @@ class LiquidManager(object):
                     # this is it, no need to keep going
                     return _block
 
-    def _build_stream_point(self, station_conf, when):
-        # get the station conf
-
-        # get an entry
-        conf_streams = station_conf["streams"]
-        block_plan = []
-        for stream in conf_streams:
-            bpe = BlockPlanEntry(stream["url"], 0, stream["duration"], is_stream=True, content_type="stream", media_type=stream.get("media_type", "video"))
-            block_plan.append(bpe)
-
-        pp = PlayPoint(0, 0, block_plan)
-        return pp
-
     def get_play_point(self, network_name, when):
         station_conf = StationManager().station_by_name(network_name)
         if station_conf["network_type"] == "streaming":
-            return self._build_stream_point(station_conf, when)
+            return build_stream_point(station_conf)
 
-        # get the block and get plan
         _block: LiquidBlock = self.get_programming_block(network_name, when)
-
-        # find index in block plan
-        found_index = 0
-        current_mark = _block.start_time
-        for entry in _block.plan:
-            next_mark = current_mark + datetime.timedelta(seconds=entry.duration)
-            if next_mark > when:
-                # then this is the index - calc offset
-                diff = when - current_mark
-                return PlayPoint(found_index, diff.total_seconds(), _block.plan, _block.title)
-            current_mark = next_mark
-            found_index += 1
-
-        # the plan ran out before the block did - cover the gap with be right back media if the station has it
-        gap = (_block.end_time - when).total_seconds()
-        brb = station_conf.get("be_right_back_media")
-        if brb and gap > 0:
-            return PlayPoint(0, 0, [BlockPlanEntry(brb, 0, gap, content_type="bump")], _block.title)
-        return None
+        return play_point_in_block(_block, when, station_conf)
 
     def print_schedule(self, network_name, go_deep=False):
         for _block in self.schedules[network_name]:

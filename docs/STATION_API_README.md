@@ -17,7 +17,7 @@ pip install jsonschema
 
 Or use the project installer to pick up all dependencies:
 ```bash
-pip install -r install/requirements.txt
+pip install -r install/requirements.in
 ```
 
 ## Base URL

@@ -1,17 +1,24 @@
+import contextlib
 import datetime
 import sys
 from unittest.mock import MagicMock
 
-sys.modules.setdefault("ffmpeg", MagicMock())
-sys.modules.setdefault("moviepy", MagicMock())
-sys.modules.setdefault("moviepy.editor", MagicMock())
+import pytest
 
+sys.modules.setdefault("ffmpeg", MagicMock())
+
+from fs42 import liquid_schedule  # noqa: E402
 from fs42.liquid_schedule import LiquidSchedule  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def no_build_lock(monkeypatch):
+    monkeypatch.setattr(liquid_schedule, "station_build_lock", lambda *a, **k: contextlib.nullcontext(False))
 
 
 def _schedule(offset, existing_end):
     schedule = LiquidSchedule.__new__(LiquidSchedule)
-    schedule.conf = {"network_type": "standard", "schedule_offset": offset}
+    schedule.conf = {"network_name": "Offset", "network_type": "standard", "schedule_offset": offset}
     schedule._end_time = lambda: existing_end
     schedule.built = []
     schedule._fluid = lambda start, end: schedule.built.append((start, end))

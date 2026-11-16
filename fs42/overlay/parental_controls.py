@@ -200,10 +200,9 @@ def run_parental_controls_app(network_name, queue, theme_name="classic"):
 
 
 def run_parental_controls(network_name, queue, theme_name="classic"):
-    def parental_controls_process():
-        run_parental_controls_app(network_name, queue, theme_name)
-
-    process = multiprocessing.Process(target=parental_controls_process)
+    process = multiprocessing.Process(
+        target=run_parental_controls_app, args=(network_name, queue, theme_name)
+    )
     process.start()
     return process
 

@@ -5,8 +5,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 sys.modules.setdefault("ffmpeg", MagicMock())
-sys.modules.setdefault("moviepy", MagicMock())
-sys.modules.setdefault("moviepy.editor", MagicMock())
 
 from fs42.catalog import ShowCatalog  # noqa: E402
 from fs42.catalog_entry import MatchingContentNotFound  # noqa: E402

@@ -50,7 +50,10 @@ echo ""
 echo -e "${INFO} Finding python installation..."
 python=python3
 
-if type "python3" > /dev/null; then
+if [ -n "$FS42_PYTHON" ]; then
+    echo -e "${CHECK} FS42_PYTHON is set - using that"
+    python=$FS42_PYTHON
+elif type "python3" > /dev/null; then
     echo -e "${CHECK} Found python3 - using that"
     python=python3
 elif type "python" > /dev/null; then
@@ -190,7 +193,7 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${GREEN}✓ Installation is complete!${NC}"
 echo -e "${CYAN}════════════════════════════════════════════════${NC}"
 echo ""
-echo -e "${INFO} You can find example configurations in ${CYAN}confs/examples${NC}"
+echo -e "${INFO} You can find example configurations in ${CYAN}docs/examples${NC}"
 echo -e "${INFO} API security settings (api_key) are in ${CYAN}confs/main_config.json${NC} - see ${CYAN}docs/API_SECURITY.md${NC}"
 echo -e "${INFO} Visit the site for details ${CYAN}https://fieldstation42.com${NC}"
 echo ""

@@ -4,11 +4,11 @@ import argparse
 import time
 import datetime
 import json
+import os
 import shelve
 import signal
 import logging
 
-from fs42.liquid_manager import LiquidManager
 from fs42.station_manager import StationManager, StationConfigError
 from fs42.timings import MIN_1, DAYS
 from fs42.station_player import (
@@ -31,13 +31,46 @@ logging.basicConfig(
 )
 
 
-try:
-    from fs42.overlay.ticker import run_ticker
-except ModuleNotFoundError:
-    logging.getLogger("FieldPlayer").warning("Error importing ticker - using the ticker will cause an error.")
-
-STATE_SHELVE = "runtime/player_state.bin"
+STATE_FILE = "runtime/player_state.json"
+# pre-JSON state file - read once to migrate, then left in place so a git rollback still works
+LEGACY_STATE_SHELVE = "runtime/player_state.bin"
 api_commands_queue: multiprocessing.Queue = None
+
+
+def _read_legacy_channel_index():
+    _l = logging.getLogger("PlayerState")
+    try:
+        with shelve.open(LEGACY_STATE_SHELVE, flag="r") as s:
+            channel_index = s.get("channel_index", 0)
+        _l.info(f"Migrated saved channel from {LEGACY_STATE_SHELVE} to {STATE_FILE}")
+        return channel_index
+    except Exception as e:
+        _l.warning(f"Could not read old player state {LEGACY_STATE_SHELVE} ({e}) - starting on the first channel")
+        return 0
+
+
+def load_channel_index():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE) as f:
+                channel_index = json.load(f).get("channel_index", 0)
+        except Exception as e:
+            logging.getLogger("PlayerState").warning(f"Could not read {STATE_FILE} ({e}) - starting on the first channel")
+            channel_index = 0
+    elif os.path.exists(LEGACY_STATE_SHELVE):
+        channel_index = _read_legacy_channel_index()
+        save_channel_index(channel_index)
+    else:
+        channel_index = 0
+    return channel_index if isinstance(channel_index, int) else 0
+
+
+def save_channel_index(channel_index):
+    tmp_path = STATE_FILE + ".tmp"
+    with open(tmp_path, "w") as f:
+        json.dump({"channel_index": channel_index}, f)
+    os.replace(tmp_path, STATE_FILE)
+
 
 def input_check():
     if api_commands_queue:
@@ -55,7 +88,8 @@ def input_check():
                 case "exit":
                     return PlayerOutcome(PlayerState.EXIT_COMMAND)
                 case "reload_data":
-                    LiquidManager().reload_schedules()
+                    # the player reads schedules straight from the database, so there is nothing to reload
+                    pass
                 case "guide":
                     try:
                         c_number = StationManager().guide_config["channel_number"]
@@ -68,7 +102,13 @@ def input_check():
                     header = q_message.get("header", None)
                     style = q_message.get("style", None)
                     iterations = q_message.get("iterations", None)
-                    run_ticker(message, header, style, iterations)
+                    try:
+                        # imported here because PySide6 is slow to load
+                        from fs42.overlay.ticker import run_ticker
+                    except ModuleNotFoundError:
+                        logging.getLogger("FieldPlayer").warning("Error importing ticker - is PySide6 installed?")
+                    else:
+                        run_ticker(message, header, style, iterations)
                 case "play_file":
                     file_path = q_message.get("file_path", None)
                     return PlayerOutcome(PlayerState.PLAY_FILE, file_path)
@@ -97,20 +137,27 @@ def input_check():
 
 
 
-def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=None):
+def standby_image_for(channel_conf):
+    return channel_conf.get(
+        "standby_image", StationManager().server_conf.get("standby_image", "runtime/standby.png")
+    )
+
+
+def wait_for_input(seconds):
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        new_state = input_check()
+        if new_state is not None:
+            return new_state
+        time.sleep(0.05)
+    return None
+
+
+def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
     manager = StationManager()
     reception = ReceptionStatus()
     logger = logging.getLogger("MainLoop")
     logger.info("Starting main loop")
-
-    # set up the live schedule agent if configured
-    schedule_agent = None
-    agent_conf = manager.server_conf.get("schedule_agent")
-    if agent_conf and schedule_lock:
-        schedule_agent = LiveScheduleAgent(agent_conf, schedule_lock)
-        logger.info("Live schedule agent is active")
-    else:
-        logger.info("Live schedule agent is not configured")
 
     channel_socket = StationManager().server_conf["channel_socket"]
 
@@ -126,7 +173,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
             "Check to make sure you have valid json configurations in the confs dir"
         )
         logger.error(
-            "The confs/examples folder contains working examples that you can build off of - just move one into confs/"
+            "The docs/examples folder contains working examples that you can build off of - just copy one into confs/"
         )
         return
 
@@ -136,8 +183,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
     if not start_channel_config:
         use_saved = StationManager().server_conf.get("recall_last_channel", True)
         if use_saved:
-            with shelve.open(STATE_SHELVE) as s:
-                channel_index = s.get("channel_index", 0)
+            channel_index = load_channel_index()
     else:
         channel_index = manager.index_from_channel(start_channel_config)
         if not channel_index:
@@ -149,15 +195,14 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
         logger.warning("Saved channel index %d is out of range, resetting to 0", channel_index)
         channel_index = 0
 
+    schedule_agent = LiveScheduleAgent(manager.server_conf.get("schedule_agent"))
+
     player = StationPlayer(manager.stations[channel_index], input_check)
-    if schedule_lock:
-        player.schedule_lock = schedule_lock
+    player.on_play_point = schedule_agent.first_play
     stand_by = StationManager().server_conf.get("standby_image", "runtime/standby.png")
     reception.degrade()
     player.update_filters()
     player.play_file(stand_by)
-
-    player.load_up()
 
     def signal_handler(sig, frame):
         logger.critical("Received sig-int signal, attempting to exit gracefully...")
@@ -181,12 +226,13 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
     player_state = None
     skip_play = False
     stuck_timer = 0
+    waiting_for_schedule = None
 
     while True:
-        if schedule_agent:
-            schedule_agent.tick()
-
         logger.info(f"Playing station: {channel_conf['network_name']}")
+
+        if channel_conf["network_type"] in manager.no_schedule:
+            schedule_agent.first_play()
 
         if channel_conf["network_type"] == "guide" and not skip_play:
             logger.info("Starting the guide channel")
@@ -217,6 +263,9 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
 
         # reset skip
         skip_play = False
+
+        if player_state.status != PlayerState.NO_SCHEDULE:
+            waiting_for_schedule = None
 
         if player_state.status == PlayerState.CHANNEL_CHANGE:
             stuck_timer = 0
@@ -284,8 +333,7 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
                     found = not station_cache[channel_index]["hidden"]
 
             # save the player state
-            with shelve.open(STATE_SHELVE) as s:
-                s["channel_index"] = channel_index
+            save_channel_index(channel_index)
             channel_conf = station_cache[channel_index]
             player.station_config = channel_conf
 
@@ -303,13 +351,27 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None, schedule_lock=N
             skip_play = True
             player_state = player.play_and_wait(player_state.payload)
 
+        elif player_state.status == PlayerState.NO_SCHEDULE:
+            stuck_timer = 0
+            network_name = channel_conf["network_name"]
+            if waiting_for_schedule != network_name:
+                waiting_for_schedule = network_name
+                logger.warning(f"Nothing scheduled on {network_name} - waiting for the schedule agent to build it")
+                player.play_file(standby_image_for(channel_conf))
+                update_status_socket("stuck", network_name, channel_conf["channel_number"], "Building schedule")
+            schedule_agent.request_build(network_name)
+
+            new_state = wait_for_input(1)
+            if new_state is not None:
+                player_state = new_state
+                skip_play = True
+
         elif player_state.status == PlayerState.FAILED:
             stuck_timer += 1
 
             # only put it up once after 2 seconds of being stuck
             if stuck_timer == 2:
-                stand_by = channel_conf.get("standby_image", StationManager().server_conf.get("standby_image", "runtime/standby.png"))
-                player.play_file(stand_by)
+                player.play_file(standby_image_for(channel_conf))
             current_title_on_stuck = player.get_current_path()
             update_status_socket(
                 "stuck",
@@ -406,10 +468,8 @@ if __name__ == "__main__":
         api_commands_queue = None
         api_proc = None
 
-    schedule_lock = multiprocessing.Lock()
-
     try:
-        main_loop(trans_fn, shutdown_queue=shutdown_queue, api_proc=api_proc, schedule_lock=schedule_lock)
+        main_loop(trans_fn, shutdown_queue=shutdown_queue, api_proc=api_proc)
     except StationConfigError as e:
         logging.getLogger("FieldPlayer").error(str(e))
         raise SystemExit(-1)

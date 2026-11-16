@@ -46,6 +46,19 @@ class SequenceAPI:
         return seq
 
     @staticmethod
+    def peek_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
+        # next entry without advancing; None at the end so a wrap or child switch waits for the next increment
+        seq = SequenceAPI.get_sequence(station_config, sequence_name, tag_path)
+
+        if not seq or not SequenceAPI._normalize_sequence_position(seq):
+            return None
+
+        if seq.current_index < seq.end_index:
+            return seq.episodes[seq.current_index]
+
+        return None
+
+    @staticmethod
     def get_next_in_sequence(station_config, sequence_name, tag_path) -> SequenceEntry:
         _l = logging.getLogger("SEQUENCE")
         sio = SequenceIO()

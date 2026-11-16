@@ -15,10 +15,6 @@ _ffmpeg_stub = MagicMock()
 _ffmpeg_stub.probe = MagicMock()
 sys.modules.setdefault("ffmpeg", _ffmpeg_stub)
 
-_moviepy_stub = MagicMock()
-sys.modules.setdefault("moviepy", _moviepy_stub)
-sys.modules.setdefault("moviepy.editor", _moviepy_stub)
-
 from fs42.liquid_schedule import LiquidSchedule  # noqa: E402
 
 MOVIE = 5390.518467  # Catwoman (2004) - just under 90 minutes

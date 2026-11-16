@@ -49,12 +49,12 @@ class SlotReader:
             parts = [part.strip() for part in date_key.split(" - ")]
 
             if len(parts) == 1:
-                parsed = datetime.strptime(parts[0], "%B %d")
+                parsed = datetime.strptime(f"{when.year} {parts[0]}", "%Y %B %d")
                 return parsed.month == when.month and parsed.day == when.day
 
             if len(parts) == 2:
-                start = datetime.strptime(parts[0], "%B %d")
-                end = datetime.strptime(parts[1], "%B %d")
+                start = datetime.strptime(f"{when.year} {parts[0]}", "%Y %B %d")
+                end = datetime.strptime(f"{when.year} {parts[1]}", "%Y %B %d")
 
                 current_md = (when.month, when.day)
                 start_md = (start.month, start.day)
