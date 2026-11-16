@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Request, HTTPException
 import json
+import os
 import subprocess
 import shutil
 import re
 import platform
 from fs42.station_manager import StationManager
+from fs42.fs42_server.api.media import PROJECT_ROOT
 
 router = APIRouter(prefix="/player", tags=["player"])
 
@@ -306,6 +308,22 @@ async def show_ticker(request: Request):
         "iterations": data.get("iterations", 2)
     })
     return {"status": "success"}
+
+
+@router.post("/break-in")
+async def break_in(request: Request):
+    """Interrupt programming with a video, then return to the schedule."""
+    command_queue = connected_command_queue(request)
+    data = await request.json()
+    file_path = (data.get("file_path") or "").strip()
+    if not file_path:
+        raise HTTPException(status_code=400, detail="file_path is required.")
+    resolved = os.path.normpath(os.path.join(PROJECT_ROOT, file_path))
+    if not os.path.isfile(resolved):
+        raise HTTPException(status_code=404, detail=f"File not found: {resolved}")
+    command_queue.put({"command": "break_in", "file_path": resolved})
+    return {"status": "success", "file_path": resolved}
+
 
 @router.get("/volume/up")
 @router.post("/volume/up")

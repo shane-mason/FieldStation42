@@ -82,6 +82,7 @@ class PlayerState(Enum):
     PLAY_FILE = 6
     PARENTAL_CONTROLS = 7
     NO_SCHEDULE = 8
+    BREAK_IN = 9
 
 
 class PlayerOutcome:
@@ -737,6 +738,55 @@ class StationPlayer:
                     self._l.debug(f"Ignoring non-interrupting command during playback: {response.payload}")
                     continue
                 self._close_now_playing()
+                return response
+
+    def play_break_in(self, file_path):
+        self._l.info(f"Break-in with file {file_path}")
+        self._close_now_playing()
+        self.mpv.vf = ""
+        if self._active_afx:
+            self.mpv.command("af", "remove", self._active_afx)
+            self._active_afx = None
+        self.mpv.command("playlist-clear")
+        self.mpv.loop_playlist = "no"
+        self.mpv.loop_file = "no"
+        self.mpv.command("loadfile", file_path, "replace")
+        self.current_playing_file_path = file_path
+
+        if self.station_config:
+            update_status_socket(
+                "playing",
+                self.station_config["network_name"],
+                self.station_config["channel_number"],
+                "Break-In",
+                file_path=file_path,
+            )
+
+        timeout_seconds = StationManager().server_conf.get("video_seek_timeout", 10)
+        start_deadline = time.time() + timeout_seconds
+        started = False
+
+        while True:
+            time.sleep(0.05)
+            try:
+                if not started:
+                    started = self.mpv.time_pos is not None
+                elif self.mpv.idle_active:
+                    self._l.info("Break-in finished, returning to programming")
+                    return PlayerOutcome(PlayerState.SUCCESS)
+            except Exception as e:
+                self._l.debug(f"mpv property read failed during break-in: {e}")
+            if not started and time.time() > start_deadline:
+                self._l.error(f"Timeout waiting for break-in to start on {file_path}")
+                return PlayerOutcome(PlayerState.SUCCESS)
+
+            response = self.input_check_fn()
+            if response:
+                if self.handle_runtime_command_outcome(response):
+                    continue
+                if self.is_non_interrupting(response):
+                    self._l.debug(f"Ignoring non-interrupting command during break-in: {response.payload}")
+                    continue
                 return response
 
     def play_file_list(self, file_list):

@@ -112,6 +112,8 @@ def input_check():
                 case "play_file":
                     file_path = q_message.get("file_path", None)
                     return PlayerOutcome(PlayerState.PLAY_FILE, file_path)
+                case "break_in":
+                    return PlayerOutcome(PlayerState.BREAK_IN, q_message.get("file_path"))
                 case "web_key":
                     key = q_message.get("key", "")
                     return PlayerOutcome(PlayerState.SUCCESS, f"web_key:{key}")
@@ -350,6 +352,10 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
             print("Got playfile!", player_state.payload )
             skip_play = True
             player_state = player.play_and_wait(player_state.payload)
+
+        elif player_state.status == PlayerState.BREAK_IN:
+            skip_play = True
+            player_state = player.play_break_in(player_state.payload)
 
         elif player_state.status == PlayerState.NO_SCHEDULE:
             stuck_timer = 0
