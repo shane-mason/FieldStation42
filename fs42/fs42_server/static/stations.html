@@ -178,6 +178,13 @@
                 const draftBadge = station._draft
                     ? '<span class="station-card-draft">draft &bull; not on air</span>'
                     : '';
+                const lockIcon = station.parental_controls
+                    ? `<span class="station-card-lock" title="PIN protected" aria-label="PIN protected">
+                           <svg viewBox="0 0 24 24" width="0.8em" height="0.8em" fill="currentColor" aria-hidden="true">
+                               <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3H9z"/>
+                           </svg>
+                       </span>`
+                    : '';
                 const draftReason = station._draft
                     ? `<div class="station-card-draft-reason">${escapeHtml(station._draft_reason || 'Configuration could not be loaded')}</div>`
                     : '';
@@ -186,7 +193,7 @@
                     <div class="station-card">
                         <div class="station-card-header">
                             <div class="station-card-title-row">
-                                <h3 class="station-card-name">${name}</h3>
+                                <h3 class="station-card-name">${name}${lockIcon}</h3>
                                 <span class="station-card-channel">#${channel}</span>
                             </div>
                             <div class="station-card-meta">
@@ -296,13 +303,10 @@
                 // Fetch the existing station
                 const data = await window.fs42Api.get(`stations/${encodeURIComponent(networkName)}`);
                 const config = data.station_config;
+                const conf = config.station_conf;
 
-                // Create a copy with modified name and channel
-                const newName = generateDuplicateName(config.network_name);
-                const newChannel = await findNextAvailableChannel();
-
-                config.network_name = newName;
-                config.channel_number = newChannel;
+                conf.network_name = generateCopyName(conf.network_name);
+                conf.channel_number = await findNextAvailableChannel();
 
                 // Store in sessionStorage and navigate to editor
                 sessionStorage.setItem('newStationTemplate', JSON.stringify(config));
@@ -311,6 +315,16 @@
             } catch (error) {
                 alert(`Error duplicating station: ${error.message}`);
             }
+        }
+
+        function generateCopyName(originalName) {
+            const base = `${originalName}-Copy`;
+            let name = base;
+            let num = 2;
+            while (allStations.some(s => s.network_name === name)) {
+                name = `${base} ${num++}`;
+            }
+            return name;
         }
 
         function generateDuplicateName(originalName) {

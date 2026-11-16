@@ -47,6 +47,13 @@
     flex: 1;
 }
 
+.station-card-lock {
+    display: inline-block;
+    margin-left: 0.4em;
+    color: #e0b84a;
+    vertical-align: baseline;
+}
+
 .station-card-channel {
     font-size: 1.1em;
     font-weight: 500;
