@@ -1,6 +1,8 @@
+import asyncio
 import json
 import os
 import subprocess
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -307,3 +309,92 @@ def test_not_a_repo(tmp_path, monkeypatch):
     monkeypatch.setattr(manage, "PROJECT_ROOT", str(tmp_path))
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
     assert manage._git_status() == {"is_repo": False}
+
+
+def _config_request(body):
+    async def json():
+        return body
+    return SimpleNamespace(client=SimpleNamespace(host="10.0.0.5"), json=json)
+
+
+@pytest.fixture
+def config_dir(tmp_path, monkeypatch, key_on):
+    monkeypatch.setattr(manage, "PROJECT_ROOT", str(tmp_path))
+    (tmp_path / "confs").mkdir()
+    path = tmp_path / "confs" / "main_config.json"
+    path.write_text(json.dumps({"api_key": KEY, "start_chanel": 3}))
+    return path
+
+
+def _route(path, method):
+    return next(r for r in manage.router.routes if r.path == path and method in r.methods)
+
+
+@pytest.mark.parametrize("method", ["GET", "PUT"])
+def test_config_routes_require_admin(method):
+    deps = [d.call for d in _route("/manage/config", method).dependant.dependencies]
+    assert auth.require_admin in deps
+
+
+def test_get_config_lists_unknown_keys(config_dir):
+    result = manage.get_config()
+    assert result["config"] == {"api_key": KEY, "start_chanel": 3}
+    assert result["unknown"] == [{"key": "start_chanel", "suggestion": "start_channel"}]
+    assert "start_channel" in result["schema"]["properties"]
+
+
+def test_put_config_rejects_invalid_and_leaves_file(config_dir, monkeypatch):
+    before = config_dir.read_text()
+    handoff = MagicMock()
+    monkeypatch.setattr(manage, "_handoff", handoff)
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(manage.put_config(_config_request({"config": {"api_key": KEY, "server_port": 0}})))
+    assert e.value.status_code == 400
+    assert "server_port" in e.value.detail
+    assert config_dir.read_text() == before
+    handoff.assert_not_called()
+
+
+def test_put_config_refuses_to_drop_the_key(config_dir):
+    with pytest.raises(HTTPException) as e:
+        asyncio.run(manage.put_config(_config_request({"config": {"start_channel": 3}})))
+    assert e.value.status_code == 400
+
+
+def test_put_config_writes_backs_up_and_restarts(config_dir, monkeypatch):
+    before = config_dir.read_text()
+    monkeypatch.setenv("INVOCATION_ID", "abc")
+    monkeypatch.setattr(manage, "_active_units", lambda: ["fs42.service"])
+    handoff = MagicMock()
+    monkeypatch.setattr(manage, "_handoff", handoff)
+    conf = {"api_key": KEY, "start_chanel": 3, "start_channel": 5}
+
+    result = asyncio.run(manage.put_config(_config_request({"config": conf})))
+
+    assert json.loads(result.body) == {"status": "restarting", "units": ["fs42.service"]}
+    assert json.loads(config_dir.read_text()) == conf
+    assert (config_dir.parent / "main_config.json.bak").read_text() == before
+    handoff.assert_called_once_with("restart", ["fs42.service"])
+    assert "set-cookie" not in result.headers
+
+
+def test_put_config_without_systemd_only_saves(config_dir, monkeypatch):
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
+    handoff = MagicMock()
+    monkeypatch.setattr(manage, "_handoff", handoff)
+
+    result = asyncio.run(manage.put_config(_config_request({"config": {"api_key": "a-brand-new-key"}})))
+
+    assert result["status"] == "saved" and result["restart"] is False
+    assert json.loads(config_dir.read_text()) == {"api_key": "a-brand-new-key"}
+    handoff.assert_not_called()
+
+
+def test_put_config_key_change_sets_new_cookie(config_dir, monkeypatch):
+    monkeypatch.setenv("INVOCATION_ID", "abc")
+    monkeypatch.setattr(manage, "_active_units", lambda: ["fs42.service"])
+    monkeypatch.setattr(manage, "_handoff", MagicMock())
+
+    result = asyncio.run(manage.put_config(_config_request({"config": {"api_key": "a-brand-new-key"}})))
+
+    assert auth.session_token("a-brand-new-key") in result.headers["set-cookie"]

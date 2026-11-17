@@ -42,6 +42,8 @@
 
         .manage-reason { font-size: 0.9em; font-style: italic; }
 
+        .onair-row { display: grid; grid-template-columns: 1fr 6em; gap: 0.75em; }
+
         .manage-facts {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -278,7 +280,7 @@
                 el.innerHTML = `
                     <div class="manage-panel manage-panel-wide">
                         <h3>API key required</h3>
-                        <p>Restarting, stopping and updating FieldStation42 from here only works when an
+                        <p>Restarting, stopping, updating and editing settings from here only works when an
                         <code>api_key</code> is set in <code>confs/main_config.json</code>.
                         See <code>docs/API_SECURITY.md</code>.</p>
                     </div>`;
@@ -293,6 +295,13 @@
                 disabledReason: s.update_blocker ? escapeHtml(s.update_blocker) : null,
             });
 
+            const settingsPanel = renderPanel({
+                id: 'settings',
+                title: 'System Configuration',
+                text: 'Start channel, clock formats, parental controls, scheduling, the API key and the rest of <code>main_config.json</code>.',
+                button: '<a class="pure-button" href="/static/settings.html">Edit Configuration</a>',
+            });
+
             if (s.standby) {
                 el.innerHTML = `
                     <div class="manage-panels">
@@ -304,6 +313,7 @@
                             button: '<button class="pure-button pure-button-primary" onclick="startServices()">Start FieldStation42</button>',
                         })}
                         ${updatePanel}
+                        ${settingsPanel}
                     </div>`;
                 return;
             }
@@ -334,6 +344,7 @@
                         button: `<button class="pure-button ${stopClass}" onclick="stopServices()">Stop FieldStation42</button>`,
                     })}
                     ${updatePanel}
+                    ${settingsPanel}
                 </div>`;
         }
 
@@ -520,12 +531,12 @@
                             <form id="ticker-form" class="pure-form pure-form-stacked" onsubmit="sendTicker(event)">
                                 <label for="ticker-message">Message</label>
                                 <input id="ticker-message" type="text" class="pure-input-1" placeholder="Enter ticker message..." required>
-                                <div class="pure-g">
-                                    <div class="pure-u-1-2" style="padding-right:0.5em;">
+                                <div class="onair-row">
+                                    <div>
                                         <label for="ticker-header">Header</label>
                                         <input id="ticker-header" type="text" class="pure-input-1" value="FS42" placeholder="Header">
                                     </div>
-                                    <div class="pure-u-1-2">
+                                    <div>
                                         <label for="ticker-iterations">Count</label>
                                         <input id="ticker-iterations" type="number" class="pure-input-1" value="2" min="1" max="10">
                                     </div>
@@ -560,7 +571,8 @@
                 </div>
 
                 <div class="pure-u-1 manage-section">
-                    <h2>Application Settings</h2>
+                    <h2>Browser Settings</h2>
+                    <p>These are saved in this browser only.</p>
                     <div class="manage-panels">
                         <div class="manage-panel">
                             <h3>Theme</h3>

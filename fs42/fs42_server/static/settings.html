@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Configuration - FieldStation42</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <link rel="stylesheet" href="/static/station_ui.css">
+    <style>
+        .st-intro { max-width: 52em; line-height: 1.5; opacity: 0.85; }
+        .st-table { width: 100%; border-collapse: collapse; margin-bottom: 0.5em; }
+        .st-table th { text-align: left; padding: 0 0.5em 0.25em 0; }
+        .st-table td { padding: 0 0.5em 0.4em 0; vertical-align: middle; }
+        .st-table td:last-child { width: 1%; white-space: nowrap; }
+        .st-table .st-hour { width: 5em; }
+        .st-table .st-group { width: 5em; }
+        .st-unknown { border-color: #9e6a03; }
+        .st-unknown-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em 1em; margin-bottom: 0.5em; }
+        .st-key-row { display: flex; gap: 0.5em; align-items: center; }
+        .st-key-row .pure-button { white-space: nowrap; }
+        .st-color { display: flex; gap: 0.5em; align-items: center; }
+        .st-color input[type="color"] { width: 3em; height: 2em; padding: 0; border: 1px solid #30363d; background: none; }
+        .st-savebar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5em;
+            margin-top: 1em;
+        }
+        .st-status { flex: 1 1 20em; }
+        .st-error { color: #f85149; }
+        .st-ok { color: #7fd18b; }
+    </style>
+    <script>
+        const DEFAULT_DAY_PARTS = {
+            morning: { start_hour: 6, end_hour: 10 },
+            daytime: { start_hour: 10, end_hour: 18 },
+            prime: { start_hour: 18, end_hour: 23 },
+            late: { start_hour: 23, end_hour: 2 },
+            overnight: { start_hour: 2, end_hour: 6 },
+        };
+        const OVERLAY_DEFAULTS = {
+            overlay_type: 'normal',
+            overlay_effect: 'outline',
+            overlay_offset_px: 2,
+            overlay_font_path: '',
+            overlay_text_color: [255, 255, 255, 255],
+            overlay_shadow_color: [0, 0, 0, 255],
+            overlay_title_size: 30,
+            overlay_body_size: 20,
+            overlay_title_weight: 'bold',
+            overlay_body_weight: 'normal',
+            overlay_fade_duration_ms: 600,
+        };
+
+        let conf = {};
+        let schema = { properties: {} };
+        let unknown = [];
+        let startedAt = null;
+        let dirty = false;
+        const openDetails = new Set();
+
+        function el(tag, props = {}, ...children) {
+            const node = document.createElement(tag);
+            for (const [key, value] of Object.entries(props)) {
+                if (value === undefined || value === null) continue;
+                if (key === 'class') node.className = value;
+                else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+                else if (key === 'role' || key.startsWith('data-') || key.startsWith('aria-')) node.setAttribute(key, value);
+                else node[key] = value;
+            }
+            for (const child of children.flat()) {
+                if (child === null || child === undefined || child === false) continue;
+                node.append(child instanceof Node ? child : String(child));
+            }
+            return node;
+        }
+
+        function helpTip(text) {
+            if (!text) return null;
+            return el('span', {
+                class: 'sv-help',
+                tabIndex: 0,
+                role: 'button',
+                'aria-label': 'Help',
+                onclick: (e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.focus(); },
+                onmouseenter: (e) => placeHelp(e.currentTarget),
+                onfocus: (e) => placeHelp(e.currentTarget),
+            }, '?', el('span', { class: 'sv-help-text', role: 'tooltip' }, el('span', { class: 'sv-help-para' }, text)));
+        }
+
+        function placeHelp(icon) {
+            const tipWidth = Math.min(352, window.innerWidth * 0.8);
+            icon.classList.toggle('sv-help-flip', icon.getBoundingClientRect().left + tipWidth > window.innerWidth - 16);
+        }
+
+        function describe(key) {
+            return (schema.properties[key] || {}).description;
+        }
+
+        function changed() {
+            dirty = true;
+            setStatus('');
+        }
+
+        function setOrDelete(target, key, value) {
+            if (value === undefined || value === null || value === '' || Number.isNaN(value)) delete target[key];
+            else target[key] = value;
+            changed();
+        }
+
+        function field(label, key, input) {
+            return el('label', { class: 'sv-field' },
+                el('span', { class: 'sv-label' }, label, helpTip(describe(key))),
+                input);
+        }
+
+        function textInput(target, key, props = {}) {
+            return el('input', {
+                class: 'sv-input',
+                type: props.type || 'text',
+                value: target[key] ?? '',
+                oninput: (e) => {
+                    const raw = e.target.value;
+                    const value = props.type === 'number' ? (raw.trim() === '' ? undefined : Number(raw)) : raw.trim();
+                    setOrDelete(target, key, value);
+                },
+                ...props,
+            });
+        }
+
+        function checkbox(target, key, label, defaultValue) {
+            return el('label', { class: 'sv-check' },
+                el('input', {
+                    type: 'checkbox',
+                    checked: target[key] ?? defaultValue,
+                    onchange: (e) => { target[key] = e.target.checked; changed(); },
+                }),
+                label, helpTip(describe(key)));
+        }
+
+        function select(target, key, options, defaultValue) {
+            const current = target[key] ?? defaultValue;
+            return el('select', {
+                class: 'sv-input',
+                onchange: (e) => { target[key] = e.target.value; changed(); },
+            }, options.map(([value, text]) => el('option', { value, selected: value === current }, text)));
+        }
+
+        function section(title, help, ...children) {
+            return el('div', { class: 'sv-section' },
+                el('h3', { class: 'sv-section-title' }, title, helpTip(help)),
+                children);
+        }
+
+        function collapsible(id, title, ...children) {
+            return el('details', {
+                class: 'sv-section',
+                open: openDetails.has(id),
+                ontoggle: (e) => e.target.open ? openDetails.add(id) : openDetails.delete(id),
+            }, el('summary', { class: 'sv-section-title', style: 'cursor:pointer;' }, title), children);
+        }
+
+        // rows of a keyed object (day parts, holidays) are edited as a list so names can change freely
+        function objectRows(key, columns, blank) {
+            const rows = Object.entries(conf[key] || {}).map(([name, value]) => ({ name, value }));
+            const body = el('tbody');
+
+            const write = () => {
+                const out = {};
+                for (const row of rows) {
+                    if (row.name.trim()) out[row.name.trim()] = row.value;
+                }
+                setOrDelete(conf, key, Object.keys(out).length ? out : undefined);
+            };
+
+            const draw = () => {
+                body.replaceChildren(...rows.map((row, i) => el('tr', {},
+                    el('td', {}, el('input', {
+                        class: 'sv-input', value: row.name, placeholder: 'name', required: true,
+                        oninput: (e) => { row.name = e.target.value; write(); },
+                    })),
+                    columns.map((col) => el('td', {}, col.input(row, write))),
+                    el('td', {}, el('button', {
+                        type: 'button', class: 'pure-button sv-tiny sv-danger', textContent: 'Remove',
+                        onclick: () => { rows.splice(i, 1); write(); draw(); },
+                    })))));
+            };
+            draw();
+
+            return el('div', {},
+                el('table', { class: 'st-table' },
+                    el('thead', {}, el('tr', {}, el('th', { class: 'sv-label' }, 'Name'),
+                        columns.map((col) => el('th', { class: 'sv-label' }, col.label)), el('th'))),
+                    body),
+                el('button', {
+                    type: 'button', class: 'pure-button sv-small', textContent: 'Add',
+                    onclick: () => { rows.push({ name: '', value: blank() }); draw(); },
+                }));
+        }
+
+        function hourInput(row, prop, write) {
+            return el('input', {
+                class: 'sv-input st-hour', type: 'number', min: 0, max: 23, step: 1, required: true,
+                value: row.value[prop] ?? '',
+                oninput: (e) => { row.value[prop] = e.target.value === '' ? null : Number(e.target.value); write(); },
+            });
+        }
+
+        function renderUnknown() {
+            if (!unknown.length) return null;
+            return el('div', { class: 'sv-section st-unknown' },
+                el('h3', { class: 'sv-section-title' }, 'Unrecognized settings'),
+                el('p', { class: 'sv-hint' }, 'These are in main_config.json but FieldStation42 doesn\'t use them - often a typo. They are kept unless you rename or remove them.'),
+                unknown.map((item) => {
+                    const taken = item.suggestion && item.suggestion in conf;
+                    return el('div', { class: 'st-unknown-row' },
+                        el('code', {}, item.key),
+                        el('span', { class: 'sv-hint' },
+                            'isn\'t a setting FieldStation42 uses.',
+                            item.suggestion ? [' Did you mean ', el('code', {}, item.suggestion), '?'] : null),
+                        item.suggestion ? el('button', {
+                            type: 'button', class: 'pure-button sv-small',
+                            textContent: `Rename to ${item.suggestion}`,
+                            disabled: taken,
+                            title: taken ? `${item.suggestion} is already set` : '',
+                            onclick: () => {
+                                conf[item.suggestion] = conf[item.key];
+                                delete conf[item.key];
+                                unknown = unknown.filter((u) => u !== item);
+                                changed();
+                                render();
+                            },
+                        }) : null,
+                        el('button', {
+                            type: 'button', class: 'pure-button sv-small sv-danger', textContent: 'Remove',
+                            onclick: () => {
+                                delete conf[item.key];
+                                unknown = unknown.filter((u) => u !== item);
+                                changed();
+                                render();
+                            },
+                        }));
+                }));
+        }
+
+        function renderStartup() {
+            return section('Startup', null,
+                el('div', { class: 'sv-grid' },
+                    field('Start channel', 'start_channel', textInput(conf, 'start_channel', { type: 'number', step: 1, placeholder: 'none' })),
+                    field('Standby image', 'standby_image', textInput(conf, 'standby_image', { placeholder: 'runtime/standby.png' }))),
+                el('div', { class: 'sv-row' }, checkbox(conf, 'recall_last_channel', 'Recall last channel', true)));
+        }
+
+        function renderClock() {
+            return section('Clock & Display', null,
+                el('div', { class: 'sv-grid' },
+                    field('Time format', 'time_format', textInput(conf, 'time_format', { placeholder: '%H:%M' })),
+                    field('Date and time format', 'date_time_format', textInput(conf, 'date_time_format', { placeholder: '%Y-%m-%dT%H:%M:%S' }))),
+                el('div', { class: 'sv-row' }, checkbox(conf, 'show_cable_box_time', 'Show the clock on the cable box', true)));
+        }
+
+        function renderParental() {
+            return section('Parental Controls', null,
+                el('div', { class: 'sv-grid' },
+                    field('PIN', 'parental_controls_pin', textInput(conf, 'parental_controls_pin', {
+                        placeholder: 'off', inputMode: 'numeric', maxLength: 4, pattern: '[0-9]{4}', title: 'Exactly four digits',
+                    })),
+                    field('Prompt style', 'parental_controls_theme', select(conf, 'parental_controls_theme',
+                        [['minimal', 'Minimal'], ['classic', 'Classic'], ['modern', 'Modern']], 'minimal'))),
+                el('p', { class: 'sv-hint' }, 'Leave the PIN empty to turn parental controls off. Lock individual stations in the station editor.'));
+        }
+
+        function renderScheduling() {
+            const periods = [['day', 'Day'], ['week', 'Week'], ['month', 'Month']];
+            const agentOn = !!conf.schedule_agent;
+            const agent = el('div', {},
+                el('div', { class: 'sv-row', style: 'margin-top:0;' }, el('label', { class: 'sv-check' },
+                    el('input', {
+                        type: 'checkbox', checked: agentOn,
+                        onchange: (e) => {
+                            if (e.target.checked) conf.schedule_agent = { trigger_add_at: 'day', amount_to_add: 'week' };
+                            else delete conf.schedule_agent;
+                            changed();
+                            render();
+                        },
+                    }),
+                    'Extend schedules automatically', helpTip(describe('schedule_agent')))),
+                agentOn ? el('div', { class: 'sv-grid', style: 'margin-top:0.75em;' },
+                    el('label', { class: 'sv-field' }, el('span', { class: 'sv-label' }, 'Extend when less than a'),
+                        select(conf.schedule_agent, 'trigger_add_at', periods, 'day')),
+                    el('label', { class: 'sv-field' }, el('span', { class: 'sv-label' }, 'Extend by a'),
+                        select(conf.schedule_agent, 'amount_to_add', periods, 'week'))) : null);
+
+            const dayParts = conf.day_parts
+                ? el('div', {},
+                    objectRows('day_parts', [
+                        { label: 'Start hour', input: (row, write) => hourInput(row, 'start_hour', write) },
+                        { label: 'End hour', input: (row, write) => hourInput(row, 'end_hour', write) },
+                    ], () => ({ start_hour: 0, end_hour: 0 })),
+                    el('button', {
+                        type: 'button', class: 'pure-button sv-small', style: 'margin-left:0.5em;', textContent: 'Use built-in day parts',
+                        onclick: () => { delete conf.day_parts; changed(); render(); },
+                    }))
+                : el('div', {},
+                    el('p', { class: 'sv-hint' }, 'Using the built-in day parts: morning 6-10, daytime 10-18, prime 18-23, late 23-2, overnight 2-6.'),
+                    el('button', {
+                        type: 'button', class: 'pure-button sv-small', textContent: 'Customize',
+                        onclick: () => { conf.day_parts = structuredClone(DEFAULT_DAY_PARTS); changed(); render(); },
+                    }));
+
+            const holidays = objectRows('custom_holidays', [{
+                label: 'Date',
+                input: (row, write) => el('input', {
+                    class: 'sv-input', value: row.value, placeholder: 'December 25', required: true,
+                    oninput: (e) => { row.value = e.target.value.trim(); write(); },
+                }),
+            }], () => '');
+
+            return section('Scheduling', null,
+                agent,
+                el('div', { class: 'sv-label', style: 'margin-top:1.25em;' }, 'Day parts', helpTip(describe('day_parts'))),
+                dayParts,
+                el('div', { class: 'sv-label', style: 'margin-top:1.25em;' }, 'Custom holidays', helpTip(describe('custom_holidays'))),
+                holidays);
+        }
+
+        function renderTitles() {
+            const patterns = conf.title_patterns ? conf.title_patterns.map((p) => ({ ...p })) : [];
+            const body = el('tbody');
+            const write = () => setOrDelete(conf, 'title_patterns', patterns.length ? patterns.map((p) => {
+                const out = { pattern: p.pattern, group: p.group };
+                if (p.description) out.description = p.description;
+                return out;
+            }) : undefined);
+            const draw = () => {
+                body.parentNode && (body.parentNode.style.display = patterns.length ? '' : 'none');
+                body.replaceChildren(...patterns.map((p, i) => el('tr', {},
+                el('td', {}, el('input', { class: 'sv-input', value: p.pattern ?? '', placeholder: '^(.+?)_REMASTER_\\d{4}.*$', required: true,
+                    oninput: (e) => { p.pattern = e.target.value; write(); } })),
+                el('td', {}, el('input', { class: 'sv-input st-group', type: 'number', min: 0, step: 1, value: p.group ?? 1, required: true,
+                    oninput: (e) => { p.group = e.target.value === '' ? null : Number(e.target.value); write(); } })),
+                el('td', {}, el('input', { class: 'sv-input', value: p.description ?? '', placeholder: 'optional',
+                    oninput: (e) => { p.description = e.target.value.trim(); write(); } })),
+                el('td', {}, el('button', { type: 'button', class: 'pure-button sv-tiny sv-danger', textContent: 'Remove',
+                    onclick: () => { patterns.splice(i, 1); write(); draw(); } })))));
+            };
+
+            const table = el('table', { class: 'st-table' },
+                el('thead', {}, el('tr', {}, ['Pattern', 'Group', 'Description'].map((h) => el('th', { class: 'sv-label' }, h)), el('th'))),
+                body);
+            draw();
+
+            return section('Titles & Metadata', null,
+                el('div', { class: 'sv-row', style: 'margin-top:0;' }, checkbox(conf, 'normalize_titles', 'Clean up titles from filenames', true)),
+                el('div', { class: 'sv-grid', style: 'margin-top:0.75em;' },
+                    field('TMDB API key', 'tmdb_api_key', textInput(conf, 'tmdb_api_key', { placeholder: 'none' }))),
+                el('div', { class: 'sv-label', style: 'margin-top:1.25em;' }, 'Title patterns', helpTip(describe('title_patterns'))),
+                table,
+                el('button', { type: 'button', class: 'pure-button sv-small', textContent: 'Add pattern',
+                    onclick: () => { patterns.push({ pattern: '', group: 1 }); write(); draw(); } }));
+        }
+
+        function generateKey() {
+            const bytes = crypto.getRandomValues(new Uint8Array(16));
+            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function renderSecurity() {
+            const input = textInput(conf, 'api_key', { type: 'password', required: true, autocomplete: 'off', pattern: '.*\\S.*', title: 'The API key can\'t be blank' });
+            return section('Security', null,
+                el('label', { class: 'sv-field' },
+                    el('span', { class: 'sv-label' }, 'API key', helpTip(describe('api_key'))),
+                    el('span', { class: 'st-key-row' },
+                        input,
+                        el('button', { type: 'button', class: 'pure-button sv-small', textContent: 'Show',
+                            onclick: (e) => {
+                                const hidden = input.type === 'password';
+                                input.type = hidden ? 'text' : 'password';
+                                e.target.textContent = hidden ? 'Hide' : 'Show';
+                            } }),
+                        el('button', { type: 'button', class: 'pure-button sv-small', textContent: 'Generate',
+                            onclick: () => { input.value = generateKey(); input.type = 'text'; input.dispatchEvent(new Event('input')); } }))),
+                el('p', { class: 'sv-hint' }, 'After a new key is saved, this browser stays signed in. Other browsers have to sign in again, and scripts need the new key. The remote control and cable box pick it up when they restart.'),
+                el('p', { class: 'sv-hint' }, 'To turn API security off, remove api_key from confs/main_config.json by hand.'));
+        }
+
+        function rgbHex(rgba) {
+            return '#' + rgba.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, '0')).join('');
+        }
+
+        function colorInput(overlay, key) {
+            const current = overlay[key] || OVERLAY_DEFAULTS[key];
+            const update = () => {
+                const hex = picker.value;
+                const rgba = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+                rgba.push(alpha.value === '' ? 255 : Number(alpha.value));
+                overlay[key] = rgba;
+                writeOverlay(overlay);
+            };
+            const picker = el('input', { type: 'color', value: rgbHex(current), oninput: update });
+            const alpha = el('input', { class: 'sv-input sv-input-inline', type: 'number', min: 0, max: 255, step: 1, value: current[3] ?? 255, style: 'width:5em;', title: 'Opacity, 0-255', oninput: update });
+            return el('span', { class: 'st-color' }, picker, el('span', { class: 'sv-hint' }, 'opacity'), alpha);
+        }
+
+        function writeOverlay(overlay) {
+            setOrDelete(conf, 'overlay_conf', Object.keys(overlay).length ? overlay : undefined);
+        }
+
+        function renderOverlay() {
+            const overlay = conf.overlay_conf ? { ...conf.overlay_conf } : {};
+            const ofield = (label, input) => el('label', { class: 'sv-field' }, el('span', { class: 'sv-label' }, label), input);
+            const otext = (key, props = {}) => el('input', {
+                class: 'sv-input', type: props.type || 'text', value: overlay[key] ?? '', placeholder: String(OVERLAY_DEFAULTS[key] || 'default'),
+                oninput: (e) => {
+                    const raw = e.target.value.trim();
+                    if (raw === '') delete overlay[key];
+                    else overlay[key] = props.type === 'number' ? Number(raw) : raw;
+                    writeOverlay(overlay);
+                },
+                ...props,
+            });
+            const oselect = (key, options) => el('select', {
+                class: 'sv-input',
+                onchange: (e) => { overlay[key] = e.target.value; writeOverlay(overlay); },
+            }, options.map((v) => el('option', { value: v, selected: v === (overlay[key] ?? OVERLAY_DEFAULTS[key]) }, v)));
+
+            return collapsible('overlay', 'Now-Playing Overlay',
+                el('p', { class: 'sv-hint' }, describe('overlay_conf')),
+                el('div', { class: 'sv-grid' },
+                    ofield('Style', oselect('overlay_type', ['normal', 'minimal'])),
+                    ofield('Text effect', oselect('overlay_effect', ['outline', 'drop_shadow'])),
+                    ofield('Effect offset (px)', otext('overlay_offset_px', { type: 'number', min: 0, step: 1 })),
+                    ofield('Font file', otext('overlay_font_path', { placeholder: 'system default' })),
+                    ofield('Title size', otext('overlay_title_size', { type: 'number', min: 1, step: 1 })),
+                    ofield('Body size', otext('overlay_body_size', { type: 'number', min: 1, step: 1 })),
+                    ofield('Title weight', oselect('overlay_title_weight', ['bold', 'normal'])),
+                    ofield('Body weight', oselect('overlay_body_weight', ['normal', 'bold'])),
+                    ofield('Fade (ms)', otext('overlay_fade_duration_ms', { type: 'number', min: 0, step: 1 })),
+                    ofield('Text color', colorInput(overlay, 'overlay_text_color')),
+                    ofield('Effect color', colorInput(overlay, 'overlay_shadow_color'))));
+        }
+
+        function renderAdvanced() {
+            return collapsible('advanced', 'Advanced',
+                el('div', { class: 'sv-note' }, 'Most installs never need these. A wrong port or path can stop FieldStation42 from starting - if that happens, fix confs/main_config.json by hand (the previous version is saved as main_config.json.bak).'),
+                el('div', { class: 'sv-grid' },
+                    field('Server address', 'server_host', textInput(conf, 'server_host', { placeholder: '0.0.0.0' })),
+                    field('Server port', 'server_port', textInput(conf, 'server_port', { type: 'number', min: 1, max: 65535, step: 1, placeholder: '4242' })),
+                    field('Channel socket', 'channel_socket', textInput(conf, 'channel_socket', { placeholder: 'runtime/channel.socket' })),
+                    field('Status socket', 'status_socket', textInput(conf, 'status_socket', { placeholder: 'runtime/play_status.socket' })),
+                    field('Database', 'db_path', textInput(conf, 'db_path', { placeholder: 'runtime/fs42_fluid.db' })),
+                    field('Video start timeout (seconds)', 'video_seek_timeout', textInput(conf, 'video_seek_timeout', { type: 'number', min: 1, step: 1, placeholder: '10' }))),
+                el('div', { class: 'sv-row' },
+                    checkbox(conf, 'start_mpv', 'Start mpv with the player', true),
+                    checkbox(conf, 'follow_static_symlinks', 'Follow symlinks in static folders', false)));
+        }
+
+        function render() {
+            const form = document.getElementById('settings-form');
+            form.replaceChildren(
+                renderUnknown(),
+                renderStartup(),
+                renderClock(),
+                renderParental(),
+                renderScheduling(),
+                renderTitles(),
+                renderSecurity(),
+                renderOverlay(),
+                renderAdvanced(),
+            );
+            form.querySelectorAll('input[type="text"], input[type="password"], input:not([type])').forEach((input) => input.setAttribute('autocomplete', 'off'));
+        }
+
+        function setStatus(text, kind) {
+            const status = document.getElementById('settings-status');
+            status.textContent = text;
+            status.className = 'st-status' + (kind ? ` st-${kind}` : '');
+        }
+
+        async function save() {
+            const form = document.getElementById('settings-form');
+            const invalid = form.querySelector(':invalid');
+            if (invalid) {
+                const details = invalid.closest('details');
+                if (details) details.open = true;
+                invalid.reportValidity();
+                return;
+            }
+            if (!confirm('Saving restarts FieldStation42 - playback stops for a few seconds. Save now?')) return;
+
+            const button = document.getElementById('settings-save');
+            button.disabled = true;
+            setStatus('Saving…');
+            let result;
+            try {
+                result = await window.fs42Api.put('manage/config', { config: conf });
+            } catch (error) {
+                button.disabled = false;
+                setStatus(error.detail || error.message, 'error');
+                return;
+            }
+            dirty = false;
+            if (result.status === 'restarting') {
+                setStatus('Saved. Restarting… this page reloads when FieldStation42 is back.', 'ok');
+                waitForServer();
+            } else {
+                button.disabled = false;
+                setStatus(`Saved. ${result.reason || ''} Restart FieldStation42 to apply the changes.`, 'ok');
+            }
+        }
+
+        function waitForServer() {
+            const deadline = Date.now() + 3 * 60 * 1000;
+            const poll = async () => {
+                try {
+                    const response = await fetch('/manage/status');
+                    if (response.ok) {
+                        const s = await response.json();
+                        if (s.started_at && s.started_at !== startedAt) {
+                            location.reload();
+                            return;
+                        }
+                    }
+                } catch (e) { }
+                if (Date.now() > deadline) {
+                    setStatus('FieldStation42 hasn\'t come back after 3 minutes. Check journalctl --user -u fs42 on the box - the previous settings are in confs/main_config.json.bak.', 'error');
+                    return;
+                }
+                setTimeout(poll, 2000);
+            };
+            setTimeout(poll, 3000);
+        }
+
+        async function load() {
+            const root = document.getElementById('settings-root');
+            const [configResponse, statusResponse] = await Promise.all([fetch('/manage/config'), fetch('/manage/status')]);
+            if (!configResponse.ok) {
+                let detail = `HTTP ${configResponse.status}`;
+                try { detail = (await configResponse.json()).detail || detail; } catch (e) { }
+                if (configResponse.status === 403) {
+                    detail = 'Editing settings here only works when an api_key is set in confs/main_config.json. See docs/API_SECURITY.md.';
+                }
+                root.replaceChildren(el('div', { class: 'sv-note' }, detail));
+                return;
+            }
+            const data = await configResponse.json();
+            conf = data.config;
+            schema = data.schema;
+            unknown = data.unknown;
+            if (statusResponse.ok) startedAt = (await statusResponse.json()).started_at;
+            document.getElementById('settings-savebar').style.display = '';
+            render();
+        }
+
+        window.addEventListener('beforeunload', (e) => {
+            if (dirty) e.preventDefault();
+        });
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            window.fs42Common.initTheme();
+            const content = `
+                <p class="st-intro">These settings apply to the whole box and are stored in <code>confs/main_config.json</code>.
+                Leave a field empty to use the built-in default. Saving restarts FieldStation42.
+                Every option is described in the <a href="https://fieldstation42.com/docs/reference/main-config/" target="_blank" rel="noopener">Main Configuration Reference</a>.</p>
+                <div id="settings-root" class="sv-root">
+                    <form id="settings-form" onsubmit="event.preventDefault(); save();"><p>Loading…</p></form>
+                </div>
+                <div id="settings-savebar" class="st-savebar" style="display:none;">
+                    <button id="settings-save" type="button" class="pure-button pure-button-primary" onclick="save()">Save and Restart</button>
+                    <a class="pure-button" href="/static/manage.html">Back to Manage</a>
+                    <span id="settings-status" class="st-status"></span>
+                </div>`;
+            document.body.innerHTML = await window.fs42Common.createPageLayout('System Configuration', content);
+            await load();
+        });
+    </script>
+</head>
+
+<body>
+    <script src="/static/fs42_client.js"></script>
+    <script src="/static/common.js"></script>
+</body>
+
+</html>

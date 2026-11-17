@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import shutil
 import subprocess
 import time
 
@@ -7,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from fs42.station_manager import StationManager
+from fs42.station_io import StationIO
 from fs42.fs42_server import auth
 from fs42.fs42_server.api.player import connected_command_queue
 
@@ -179,6 +182,63 @@ def start(request: Request):
     _l.warning(f"manage: start {' '.join(units)} requested from {auth.client_ip(request)}")
     _handoff("start", units)
     return {"status": "starting", "units": units}
+
+
+def _main_config_path():
+    return os.path.join(PROJECT_ROOT, "confs", "main_config.json")
+
+
+def _read_main_config():
+    path = _main_config_path()
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
+@router.get("/config", dependencies=[Depends(auth.require_admin)])
+def get_config():
+    io = StationIO()
+    try:
+        conf = _read_main_config()
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=f"main_config.json isn't valid JSON - fix it by hand first: {e}")
+    return {"config": conf, "schema": io.load_main_config_schema(), "unknown": io.unknown_main_config_keys(conf)}
+
+
+@router.put("/config", dependencies=[Depends(auth.require_admin)])
+async def put_config(request: Request):
+    body = await request.json()
+    conf = body.get("config") if isinstance(body, dict) else None
+    if not isinstance(conf, dict):
+        raise HTTPException(status_code=400, detail='Send the settings as {"config": {...}}.')
+    if "api_key" not in conf:
+        raise HTTPException(status_code=400, detail="api_key can't be removed here. To turn off API security, edit main_config.json by hand.")
+    ok, message = StationIO().validate_main_config(conf)
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+
+    path = _main_config_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path):
+        shutil.copyfile(path, path + ".bak")
+    with open(path, "w") as f:
+        json.dump(conf, f, indent=4)
+        f.write("\n")
+    _l.warning(f"manage: main_config.json saved from {auth.client_ip(request)}")
+
+    units = _active_units() if _under_systemd() else []
+    if not units:
+        reason = ("No active fs42 services found." if _under_systemd()
+                  else "FieldStation42 isn't running as a systemd service, so it can't restart itself.")
+        return {"status": "saved", "restart": False, "reason": reason}
+
+    _handoff("restart", units)
+    response = JSONResponse({"status": "restarting", "units": units})
+    new_key = conf["api_key"].strip() if "api_key" in conf else None
+    if new_key and new_key != StationManager().api_key():
+        auth.set_session_cookie(response, new_key)
+    return response
 
 
 @router.post("/update/check", dependencies=[Depends(auth.require_admin)])

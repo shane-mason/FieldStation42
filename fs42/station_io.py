@@ -12,6 +12,14 @@ from fs42 import schedule_hint
 from fs42 import timings
 
 
+MAIN_CONFIG_SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main_config_schema.json")
+
+MAIN_CONFIG_PATTERN_MESSAGES = {
+    "api_key": "can't be blank",
+    "parental_controls_pin": "must be exactly four digits",
+}
+
+
 class StationIO:
     """
     StationIO handles all file I/O operations for station configurations.
@@ -403,6 +411,57 @@ class StationIO:
         if errors:
             return False, errors
         return True, []
+
+    def load_main_config_schema(self):
+        with open(MAIN_CONFIG_SCHEMA_PATH) as f:
+            return json.load(f)
+
+    def unknown_main_config_keys(self, conf):
+        import difflib
+
+        if not isinstance(conf, dict):
+            return []
+        known = list(self.load_main_config_schema()["properties"])
+        unknown = []
+        for key in conf:
+            if key not in known:
+                matches = difflib.get_close_matches(key, known, n=1)
+                unknown.append({"key": key, "suggestion": matches[0] if matches else None})
+        return unknown
+
+    def validate_main_config(self, conf):
+        import jsonschema
+        from fs42.station_manager import DEFAULT_DAY_PARTS
+
+        validator = jsonschema.Draft7Validator(self.load_main_config_schema())
+        errors = sorted(validator.iter_errors(conf), key=lambda e: [str(p) for p in e.path])
+        if errors:
+            error = errors[0]
+            path = ".".join(str(p) for p in error.path)
+            message = error.message
+            if error.validator in ("pattern", "minLength") and path in MAIN_CONFIG_PATTERN_MESSAGES:
+                message = MAIN_CONFIG_PATTERN_MESSAGES[path]
+            return False, f"{path}: {message}" if path else message
+
+        for i, pattern_config in enumerate(conf.get("title_patterns", [])):
+            try:
+                re.compile(pattern_config["pattern"])
+            except re.error as e:
+                return False, f"title_patterns.{i}.pattern: not a valid regular expression ({e})"
+
+        holidays = conf.get("custom_holidays", {})
+        for name, date in holidays.items():
+            if not (schedule_hint.CustomHolidayHint.fixed_pattern.match(date)
+                    or schedule_hint.CustomHolidayHint.ordinal_pattern.match(date)):
+                return False, (f"custom_holidays.{name}: '{date}' isn't a date FieldStation42 understands. "
+                               "Use a month and day like 'December 25' or a rule like '4th thursday november'.")
+
+        try:
+            schedule_hint.validate_custom_holiday_names(holidays, conf.get("day_parts", DEFAULT_DAY_PARTS).keys())
+        except ValueError as e:
+            return False, f"custom_holidays: {e}"
+
+        return True, None
 
     def save_station_config(self, network_name, config_data, is_update=False):
 

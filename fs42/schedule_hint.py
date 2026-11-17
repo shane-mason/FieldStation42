@@ -365,3 +365,22 @@ def hint_klass_matcher(to_test: str, klasses=MARATHON_HINT_KLASSES):
         if klass.test_pattern(to_test):
             return klass
     return None
+
+
+def validate_custom_holiday_names(holiday_names, day_part_names):
+    # a holiday name is matched against folder names and marathon hints as a
+    # bare string, so one that also reads as a built-in hint either stacks with
+    # it (folders apply every match) or loses to it (marathons take the first).
+    # both fail quietly, so reject the name instead.
+    others = [klass for klass in MARATHON_HINT_KLASSES if klass is not CustomHolidayHint] + [BumpHint]
+    day_part_names = set(day_part_names)
+
+    for name in holiday_names:
+        conflict = hint_klass_matcher(name, klasses=others)
+        conflict_name = conflict.__name__ if conflict else ("DayPartHint" if name in day_part_names else None)
+        if conflict_name:
+            raise ValueError(
+                f"Custom holiday name '{name}' collides with the {conflict_name} "
+                "hint type. Pick a name that isn't a month, quarter, weekday, "
+                "day part, week number, date range, or bump position."
+            )
