@@ -191,15 +191,15 @@ class FlircRemote(BaseRemote):
     def get_key_name_from_code(self, key_code):
         name = ecodes.KEY.get(key_code)
 
-        # print(f"Key code: {key_code}")
+        self._logger.debug(f"Key code: {key_code}")
 
         if name is None:
-            # print("Unknown key")
+            self._logger.debug(f"Unknown key")
             return str(key_code)
 
         # evdev can return multiple names for the same key code
         if isinstance(name, (tuple, list)):
-            print(f"Key aliases: {name}")
+            self._logger.debug(f"Key aliases: {name}")
 
             # Filter for meaningful key name
             preferred = [
@@ -213,7 +213,7 @@ class FlircRemote(BaseRemote):
             else:
                 name = name[0]
 
-        print(f"Key name: {name}")
+        self._logger.debug(f"Key name: {name}")
 
         return name.removeprefix("KEY_").lower()
 
@@ -223,7 +223,7 @@ class FlircRemote(BaseRemote):
             key_code = event.code
 
             # Number keys (1-9, 0) - always handled the same way
-            if key_code >= ecodes.KEY_1 and key_code <= ecodes.KEY_9:
+            if ecodes.KEY_1 <= key_code <= ecodes.KEY_9:
                 number = key_code - ecodes.KEY_1 + 1
                 self.button_callback(ButtonNames.NUMBER_PREFIX + str(number))
                 return True
@@ -239,10 +239,10 @@ class FlircRemote(BaseRemote):
             else:
                 key_name = self.get_key_name_from_code(key_code)
             if not key_name:
-                print(f"DEBUG: Unknown key code: {key_code}")
+                self._logger.debug(f"Unknown key code: {key_code}")
                 return True
 
-            print(f"DEBUG: Key pressed: {key_name} (code: {key_code})")
+            self._logger.debug(f"Key pressed: {key_name} (code: {key_code})")
             return self.button_callback(key_name)
 
         return True
@@ -274,14 +274,14 @@ class FlircRemoteAllDevices(FlircRemote):
                         device.grab()
                         devices[device_path] = device
 
-                        print(f"Listening to device: {device.name} ({device.path})")
+                        self._logger.debug(f"Listening to device: {device.name} ({device.path})")
 
                     except (OSError, PermissionError):
                         # Device may have disconnected between glob() and InputDevice()
                         continue
 
                 if not devices or len(devices) == 0:
-                    print("No keyboard/remote devices found. Waiting...")
+                    self._logger.debug("No keyboard/remote devices found. Waiting...")
                     time.sleep(5)
                     continue
 
@@ -300,7 +300,7 @@ class FlircRemoteAllDevices(FlircRemote):
                                     return
 
                         except FileNotFoundError:
-                            print(f"Input device missing: {device.name}")
+                            self._logger.warning(f"Input device missing: {device.name}")
 
                             try:
                                 device.ungrab()
@@ -311,7 +311,7 @@ class FlircRemoteAllDevices(FlircRemote):
 
                         except OSError as e:
                             if e.errno == 19 or e.errno == 2:
-                                print(f"Input device disconnected: {device.name}")
+                                self._logger.info(f"Input device disconnected: {device.name}")
 
                                 try:
                                     device.ungrab()
@@ -442,14 +442,24 @@ class _FieldStationApi:
         self.api = requests.Session()
         if self.FS42_API_KEY:
             self.api.headers['X-API-Key'] = self.FS42_API_KEY
+        self._logger = logging.getLogger('remote_control_api')
 
     def goto_channel(self, dest) -> bool:
         return self._try_api_call(
             f'{self.FS42_BASE_URL}/player/channels/{dest}', "get",
             f"change_channel: {dest}")
 
-    def get_status(self):
-        status = self.api.get(f'{self.FS42_BASE_URL}/player/status')
+    def get_status(self) -> Dict | None:
+        try:
+            response = self.api.get(f'{self.FS42_BASE_URL}/player/status')
+            if response.ok:
+                self._logger.debug(f"get_status succeeded.")
+                return response.json()
+            else:
+                self._logger.debug(f"get_status command failed: ({response.status_code})")
+        except Exception as e:
+            self._logger.debug(f"API command error for get_status: {e}")
+        return None
 
     def power(self, start_or_stop) -> bool:
         return self._try_api_call(
@@ -463,14 +473,14 @@ class _FieldStationApi:
 
     def show_guide(self) -> bool:
         return self._try_api_call(
-                    f'{self.FS42_BASE_URL}/player/channels/guide', "post",
-                    f"show_guide")
+            f'{self.FS42_BASE_URL}/player/channels/guide', "post",
+            f"show_guide")
 
     def post_parental_pin(self, number) -> bool:
         return self._try_api_call(
-                    f'{self.FS42_BASE_URL}/player/parental/digit/{number}', "post",
-                    f"parental_pin: {number}",
-                    timeout=2)
+            f'{self.FS42_BASE_URL}/player/parental/digit/{number}', "post",
+            f"parental_pin: {number}",
+            timeout=2)
 
     def mpv_command_pressed(self, action) -> bool:
         """Send a non-interrupting mpv runtime command to FS42."""
@@ -479,7 +489,6 @@ class _FieldStationApi:
             f'{self.FS42_BASE_URL}/player/mpv/{endpoint}', "post",
             f"mpv: {action}",
             timeout=2)
-
 
     def navigate(self, direction) -> bool:
         return self._try_api_call(
@@ -490,17 +499,17 @@ class _FieldStationApi:
     def _try_api_call(self, url: str, method: str, action_name: str, timeout=None) -> bool:
         try:
             response = self.api.request(method,
-                url,
-                timeout=timeout,
-            )
+                                        url,
+                                        timeout=timeout,
+                                        )
 
             if response.ok:
-                print(f"API command sent: {action_name}")
+                self._logger.debug(f"API command sent: {action_name}")
                 return True
             else:
-                print(f"API command failed: {action_name} ({response.status_code})")
+                self._logger.debug(f"API command failed: {action_name} ({response.status_code})")
         except Exception as e:
-            print(f"API command error for {action_name}: {e}")
+            self._logger.debug(f"API command error for {action_name}: {e}")
         return False
 
 
@@ -534,6 +543,9 @@ class _NumberTimer:
             self.on_complete()
         self._timeout = None
 
+    def wait_for_status(self):
+        time.sleep(0.05)
+
 
 class RemoteControl:
     def __init__(self, remote: BaseRemote, fsapi: _FieldStationApi, timer: _NumberTimer):
@@ -551,22 +563,13 @@ class RemoteControl:
 
     def send_parental_digit_if_active(self, number):
         try:
-            status_response = self.api.get_status()
-            if not status_response.ok:
+            status = self.api.get_status()
+            if not status:
                 return False
-
-            status = status_response.json()
             if not status.get("awaiting_pin"):
                 return False
 
-            response = self.api.post_parental_pin(number)
-
-            if response.ok:
-                self._logger.debug(f"Parental controls PIN digit entered: {number}")
-                return True
-
-            self._logger.warning(f"Parental controls digit failed: {response.status_code}")
-            return False
+            return self.api.post_parental_pin(number)
         except Exception as ex:
             self._logger.error(f"Parental controls digit error: {ex}")
             return False
@@ -586,33 +589,11 @@ class RemoteControl:
 
     def nav_key_pressed(self, key_name) -> bool:
         """Forward a navigation key to the web channel (PPV, interactive guide) through the server"""
-        try:
-            response = self.api.navigate(key_name)
-            if response.ok:
-                self._logger.debug(f"Nav key {key_name} sent")
-                return True
-            else:
-                self._logger.warning(f"Nav key {key_name} failed")
-        except Exception as e:
-            self._logger.error(f"Nav key {key_name} error: {e}")
-        return False
+        return self.api.navigate(key_name)
 
     def show_guide(self) -> bool:
         """Handle home key press"""
-
-        try:
-            response = self.api.show_guide()
-            if response.ok:
-                self._logger.debug(f"Guide displayed")
-                if self.current_channel is not None:
-                    self.last_channel = self.current_channel
-                    self._logger.debug(f"Stored last_channel: {self.last_channel} before guide")
-                return True
-            else:
-                self._logger.warning(f"Guide command failed")
-        except Exception as e:
-            self._logger.error(f"Guide error: {e}")
-        return False
+        return self.api.show_guide()
 
     def change_channel(self, dest) -> bool:
         try:
@@ -622,8 +603,8 @@ class RemoteControl:
                 else:
                     return False
             response = self.api.goto_channel(dest)
-            if response.ok:
-                self._logger.debug(f"Channel changed success: {dest}")
+            if response:
+                # self._logger.debug(f"Channel changed success: {dest}")
                 # Poll status to wait for channel change (max 1 second)
                 try:
                     old_channel = self.current_channel
@@ -631,12 +612,10 @@ class RemoteControl:
                     max_attempts = 20  # 20 attempts * 0.05s = 1 second max
 
                     for attempt in range(max_attempts):
-                        time.sleep(0.05)
-                        status_response = self.api.get_status()
-                        if status_response.ok:
-                            status = status_response.json()
+                        self._timer.wait_for_status()
+                        status = self.api.get_status()
+                        if status:
                             new_channel = status.get('channel_number')
-
                             # If channel changed or we have a channel number, we're done
                             if new_channel != old_channel:
                                 break
@@ -668,12 +647,8 @@ class RemoteControl:
 
     def handle_power(self, on_off) -> bool:
         if on_off == "toggle":
-            return False  # I'll get to it
-        response = self.api.power(on_off)
-        if not response.ok:
-            self._logger.warning(f"Power change failed: {response.text}")
-            return False
-        return True
+            return False  # TODO I'll get to it
+        return self.api.power(on_off)
 
     POWER_HANDLING = {ButtonNames.POWER_DOWN: "stop",
                       ButtonNames.POWER_UP: "start",
@@ -697,7 +672,7 @@ class RemoteControl:
         if button_name in self.POWER_HANDLING:
             return self.handle_power(self.POWER_HANDLING[button_name])
         if button_name in self.VOLUME:
-            return self.api.volume(self.VOLUME[button_name]).ok
+            return self.api.volume(self.VOLUME[button_name])
         if button_name in self.CHANNEL_CHANGING:
             return self.change_channel(self.CHANNEL_CHANGING[button_name])
         if button_name in self.NAVIGATION:
