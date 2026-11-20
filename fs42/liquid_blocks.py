@@ -310,41 +310,40 @@ class LiquidOffAirBlock(LiquidBlock):
             self.plan.append(BlockPlanEntry(_content.path, 0, duration, content_type=_content.content_type, media_type=_content.media_type))
 
 
+def loop_clips(content, shuffle=False):
+    """Endless stream of loop content, shared across blocks so each one continues where the last left off."""
+    clips = [c for c in content if c.duration and c.duration > 0]
+    if not clips:
+        raise ValueError("Loop channel has no content with a duration")
+    if shuffle:
+        random.shuffle(clips)
+    while True:
+        yield from clips
+        if shuffle:
+            random.shuffle(clips)
+
+
 class LiquidLoopBlock(LiquidBlock):
-    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, shuffle=False):
+    def __init__(self, content, start_time, end_time, title=None, break_strategy="standard", break_info=None, clips=None):
         super().__init__(content, start_time, end_time, title, break_strategy, break_info)
-        self.shuffle = shuffle
+        self.clips = clips
 
     def __str__(self):
         return f"{self.start_time.strftime('%m/%d %H:%M')} - {self.end_time.strftime('%H:%M')} - {self.title} - LOOP"
 
     def make_plan(self, catalog):
+        # whole clips only: the last one may run past end_time, which then moves to where it actually ends
         if not self.content:
             raise ValueError("LiquidLoopBlock requires content")
+        if self.clips is None:
+            self.clips = loop_clips(self.content)
         entries = []
-        keep_going = True
-        current_mark: datetime.datetime = self.start_time
-        next_mark: datetime.datetime = None
-        current_index = 0
-        random.shuffle(self.content)
-        while keep_going:
-            clip = self.content[current_index]
-            next_mark = current_mark + datetime.timedelta(seconds=clip.duration)
-            duration = clip.duration
-            if next_mark < self.end_time:
-                current_index += 1
-                if current_index >= len(self.content):
-                    current_index = 0
-                    if self.shuffle:
-                        random.shuffle(self.content)
-
-            else:
-                keep_going = False
-                duration = (self.end_time - current_mark).total_seconds()
-
-            entries.append(BlockPlanEntry(clip.path, 0, duration, content_type=clip.content_type, media_type=clip.media_type))
-
-            current_mark = next_mark
+        current_mark = self.start_time
+        while current_mark < self.end_time:
+            clip = next(self.clips)
+            entries.append(BlockPlanEntry(clip.path, 0, clip.duration, content_type=clip.content_type, media_type=clip.media_type))
+            current_mark += datetime.timedelta(seconds=clip.duration)
+        self.end_time = current_mark
         self.plan = entries
 
 

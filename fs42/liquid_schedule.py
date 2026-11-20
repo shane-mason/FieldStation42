@@ -10,7 +10,7 @@ import math
 from fs42.catalog import ShowCatalog, MatchingContentNotFound
 from fs42.slot_reader import SlotReader
 from fs42 import timings
-from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock, LiquidWebBlock
+from fs42.liquid_blocks import LiquidBlock, LiquidClipBlock, LiquidOffAirBlock, LiquidLoopBlock, LiquidWebBlock, loop_clips
 from fs42.sequence_api import SequenceAPI
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_api import LiquidAPI
@@ -91,25 +91,29 @@ class LiquidSchedule:
 
     def _flood(self, start_time, end_target):
         # flood the schedule - this is used for loop channels
-        diff = end_target - start_time
         content = self.catalog.get_all_by_tag("content")
+        clips = loop_clips(content, self.conf.get("shuffle_loop", False))
         new_blocks = []
-        shuffle = self.conf.get("shuffle_loop", False)
 
         programming_name = (
             self.conf["network_long_name"] if "network_long_name" in self.conf else self.conf["network_name"]
         )
 
-        for i in range(diff.days):
-            current_mark = start_time + datetime.timedelta(days=i)
-            next_mark = start_time + datetime.timedelta(days=i + 1)
-            block = LiquidLoopBlock(content, current_mark, next_mark, programming_name, shuffle=shuffle)
-            new_blocks.append(block)
+        # each block finishes its last clip past its day mark - keeping the marks on the day grid stops that adding up
+        offset = datetime.timedelta(minutes=self.conf.get("schedule_offset", 0))
+        day_mark = (start_time - offset).replace(hour=0, minute=0, second=0, microsecond=0) + offset
+        end_mark = day_mark + datetime.timedelta(days=(end_target - day_mark).days)
 
-        self._l.info(f"Building plans for {len(new_blocks)} new schedule blocks")
-        for block in new_blocks:
+        block_start = start_time
+        while block_start < end_mark:
+            while day_mark <= block_start:
+                day_mark += datetime.timedelta(days=1)
+            block = LiquidLoopBlock(content, block_start, min(day_mark, end_mark), programming_name, clips=clips)
             block.make_plan(self.catalog)
+            new_blocks.append(block)
+            block_start = block.end_time
 
+        self._l.info(f"Built plans for {len(new_blocks)} new schedule blocks")
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
