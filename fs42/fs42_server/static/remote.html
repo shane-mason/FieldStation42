@@ -13,6 +13,39 @@
 			href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css"
 		/>
 		<link rel="stylesheet" id="theme-css" href="/static/themes/default.css" />
+		<style>
+			.remote-header .restart-btn {
+				background: linear-gradient(145deg, #168a35, #0c6424);
+				color: #eaffec;
+			}
+			.remote-header .restart-btn:hover {
+				background: linear-gradient(145deg, #20a344, #11772d);
+			}
+			#playback-controls {
+				display: grid !important;
+				grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+				grid-auto-flow: column;
+				width: 100%;
+				max-width: 280px;
+			}
+			#playback-controls > .remote-btn {
+				box-sizing: border-box;
+				width: min(48px, 100%);
+				min-width: 0;
+				height: 48px;
+				min-height: 0;
+				justify-self: center;
+			}
+			@media (max-width: 360px) {
+				#playback-controls {
+					gap: 4px;
+				}
+				#playback-controls > .remote-btn {
+					width: min(42px, 100%);
+					height: 42px;
+				}
+			}
+		</style>
 	</head>
 
 	<body>
@@ -26,8 +59,16 @@
 		</script>
 		<div class="remote-container">
 			<div class="remote-header">
+				<button class="remote-btn power-btn" data-key="services_shutdown">
+					⏻<br />POWER OFF
+				</button>
 				<div class="remote-brand">FieldStation42</div>
-				<button class="remote-btn power-btn" data-key="power">STOP</button>
+				<button
+					class="remote-btn power-btn restart-btn"
+					data-key="services_restart"
+				>
+					RESTART
+				</button>
 			</div>
 
 			<div class="remote-screen" id="remote-display">Ready</div>
@@ -79,12 +120,12 @@
 			<div
 				class="button-grid playback-section"
 				id="playback-controls"
-				hidden
 				aria-label="PPV playback controls"
 			>
 				<button
 					class="remote-btn function-btn"
 					data-key="playback_prev"
+					disabled
 					aria-label="Rewind"
 					title="Rewind"
 				>
@@ -94,6 +135,7 @@
 					class="remote-btn function-btn playback-toggle-btn"
 					id="playback-toggle"
 					data-key="playback_toggle"
+					disabled
 					aria-label="PLAY / PAUSE"
 				>
 					<span aria-hidden="true">▶︎ / ❚❚</span>
@@ -101,6 +143,7 @@
 				<button
 					class="remote-btn function-btn"
 					data-key="playback_stop"
+					disabled
 					aria-label="Stop"
 				>
 					⏹
@@ -108,6 +151,7 @@
 				<button
 					class="remote-btn function-btn"
 					data-key="playback_next"
+					disabled
 					aria-label="Fast Forward"
 					title="Fast Forward"
 				>
@@ -344,7 +388,7 @@
 						updatePlaybackToggle(status);
 						updateNowPlayingFromStatus(status);
 					} else if (infoMode === 'system') {
-						playbackControls.hidden = true;
+						setPlaybackControlsEnabled(false);
 						const info = await window.fs42Api.get('player/info');
 						console.log('System info response:', info);
 						updateSystemInfo(info);
@@ -398,14 +442,21 @@
 				}
 			}
 
+			function setPlaybackControlsEnabled(enabled) {
+				playbackControls.querySelectorAll('button').forEach((button) => {
+					button.disabled = !enabled;
+				});
+			}
+
 			async function updatePlaybackControlVisibility(status) {
 				const channelNumber = Number(status.channel_number);
 				if (status.status !== 'playing' || !Number.isInteger(channelNumber)) {
-					playbackControls.hidden = true;
+					setPlaybackControlsEnabled(false);
 					return;
 				}
 
 				if (!stationPpvCache.has(channelNumber)) {
+					setPlaybackControlsEnabled(false);
 					try {
 						const response = await window.fs42Api.get('stations');
 						const stationEntry = (response.stations || []).find((entry) => {
@@ -433,7 +484,7 @@
 					}
 				}
 
-				playbackControls.hidden = !stationPpvCache.get(channelNumber);
+				setPlaybackControlsEnabled(stationPpvCache.get(channelNumber) === true);
 			}
 
 			function updatePlaybackToggle(status) {
@@ -464,7 +515,7 @@
 					!Number.isInteger(channelNumber) ||
 					stationPpvCache.get(channelNumber) !== true
 				) {
-					playbackControls.hidden = true;
+					setPlaybackControlsEnabled(false);
 					return;
 				}
 
@@ -484,6 +535,61 @@
 				} catch (error) {
 					console.error(`PPV ${action} failed:`, error);
 					display.textContent = 'ERROR';
+				}
+			}
+
+			async function startOrRestartServices() {
+				const buttons = document.querySelectorAll(
+					'[data-key="services_restart"]',
+				);
+				buttons.forEach((button) => {
+					button.disabled = true;
+				});
+				try {
+					const result = await window.fs42Api.post('manage/restart', {});
+					display.textContent =
+						result.status === 'starting'
+							? 'STARTING SERVICES'
+							: 'RESTARTING SERVICES';
+					waitForServerAndReload();
+				} catch (error) {
+					console.error('Service start/restart failed:', error);
+					display.textContent =
+						error.detail || error.message || 'SERVICE ERROR';
+					buttons.forEach((button) => {
+						button.disabled = false;
+					});
+				}
+			}
+
+			function waitForServerAndReload() {
+				const deadline = Date.now() + 120000;
+				const checkServer = async () => {
+					if (Date.now() >= deadline) {
+						window.location.reload();
+						return;
+					}
+					try {
+						await window.fs42Api.get('manage/status');
+						window.location.reload();
+					} catch {
+						setTimeout(checkServer, 2000);
+					}
+				};
+				setTimeout(checkServer, 8000);
+			}
+
+			async function shutdownSystem() {
+				const button = document.querySelector('[data-key="services_shutdown"]');
+				button.disabled = true;
+				display.textContent = 'SHUTTING DOWN';
+				try {
+					await window.fs42Api.post('manage/shutdown', {});
+					display.textContent = 'SHUTTING DOWN';
+				} catch (error) {
+					console.error('System shutdown failed:', error);
+					display.textContent = error.message || 'SHUTDOWN ERROR';
+					button.disabled = false;
 				}
 			}
 
@@ -595,15 +701,11 @@
 
 			async function handleRemoteCommand(key) {
 				switch (key) {
-					case 'power':
-						try {
-							await window.fs42Api.get('player/commands/stop');
-							display.textContent = 'STOPPING';
-							console.log('Player stop command sent');
-						} catch (error) {
-							console.error('Power/stop command failed:', error);
-							display.textContent = 'ERROR';
-						}
+					case 'services_shutdown':
+						await shutdownSystem();
+						break;
+					case 'services_restart':
+						await startOrRestartServices();
 						break;
 					case '0':
 					case '1':
@@ -762,7 +864,7 @@
 				}
 
 				// Reset display after 2 seconds for non-persistent states
-				if (!['power', 'mute'].includes(key)) {
+				if (!['services_shutdown', 'services_restart', 'mute'].includes(key)) {
 					setTimeout(() => {
 						if (display.textContent !== 'OFF') {
 							display.textContent = muted ? 'MUTED' : idleDisplayText();

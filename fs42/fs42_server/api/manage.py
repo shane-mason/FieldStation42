@@ -86,6 +86,12 @@ def _boot_units():
     return units or ["fs42.service"]
 
 
+def _restart_units():
+    # Include enabled services that have fallen inactive as well as services
+    # that are active even if they were started manually.
+    return sorted((set(_active_units()) | set(_boot_units())) - {STANDBY_UNIT})
+
+
 def _standby_available():
     return bool(_unit_names("list-unit-files", STANDBY_UNIT))
 
@@ -121,7 +127,7 @@ def _update_blocker(git):
 def _handoff(action, units):
     # the server lives in fs42.service's cgroup, so a direct systemctl call would be killed mid-way
     subprocess.run(
-        ["systemd-run", "--user", "--collect", "--on-active=2", "systemctl", "--user", action, *units],
+        ["systemd-run", "--user", "--collect", "--on-active=5", "systemctl", "--user", action, *units],
         capture_output=True, text=True, timeout=10, check=True,
     )
 
@@ -144,13 +150,19 @@ def status():
     }
 
 
-@router.post("/restart", dependencies=[Depends(auth.require_admin)])
+@router.post("/restart")
 def restart(request: Request):
     if not _under_systemd():
         raise HTTPException(status_code=409, detail="FieldStation42 isn't running as a systemd service, so it can't restart itself.")
-    units = _active_units()
+    if _in_standby():
+        units = _boot_units()
+        _l.warning(f"manage: start from standby requested from {auth.client_ip(request)}")
+        _handoff("start", units)
+        return {"status": "starting", "units": units}
+
+    units = _restart_units()
     if not units:
-        raise HTTPException(status_code=409, detail="No active fs42 services found.")
+        raise HTTPException(status_code=409, detail="No active or enabled fs42 services found.")
     _l.warning(f"manage: restart {' '.join(units)} requested from {auth.client_ip(request)}")
     _handoff("restart", units)
     return {"status": "restarting", "units": units}
@@ -174,7 +186,7 @@ def stop(request: Request):
     return {"status": "stopping", "units": []}
 
 
-@router.post("/start", dependencies=[Depends(auth.require_admin)])
+@router.post("/start")
 def start(request: Request):
     if not _in_standby():
         raise HTTPException(status_code=409, detail="FieldStation42 is already running.")
@@ -182,6 +194,43 @@ def start(request: Request):
     _l.warning(f"manage: start {' '.join(units)} requested from {auth.client_ip(request)}")
     _handoff("start", units)
     return {"status": "starting", "units": units}
+
+
+@router.post("/shutdown")
+def shutdown(request: Request):
+    sudo = shutil.which("sudo")
+    shutdown_command = shutil.which("shutdown")
+    if not sudo or not shutdown_command:
+        raise HTTPException(status_code=503, detail="sudo or shutdown command is unavailable.")
+
+    permission = subprocess.run(
+        [sudo, "-n", "-l", "--", shutdown_command, "now"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if permission.returncode != 0:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Configure passwordless sudo for {shutdown_command} now in /etc/sudoers.d/fieldstation42-power.",
+        )
+
+    # The web server runs in the same user session as FieldStation42. Schedule
+    # the command a few seconds later so the HTTP response can reach the remote.
+    try:
+        subprocess.run(
+            [
+                "systemd-run", "--user", "--collect", "--on-active=5s",
+                sudo, "-n", shutdown_command, "now",
+            ],
+            capture_output=True, text=True, timeout=10, check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.strip() or "Could not schedule the system shutdown."
+        raise HTTPException(status_code=503, detail=detail)
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        raise HTTPException(status_code=503, detail=f"Could not schedule the system shutdown: {exc}")
+
+    _l.warning(f"manage: shutdown requested from {auth.client_ip(request)}")
+    return {"status": "shutting down"}
 
 
 def _main_config_path():
