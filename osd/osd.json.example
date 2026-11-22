@@ -2,10 +2,10 @@
 	{
 		"halign": "LEFT",
 		"valign": "TOP",
-		"font_size": 40,
+		"font_size": 30,
 		"text_color": [0, 255, 0, 200],
 		"display_time": 5.0,
-		"format_text": "{channel_number} - {network_name}",
+		"format_text": "  {channel_number} - {network_name}",
 		"type": "StatusDisplay"
 	},
 	{

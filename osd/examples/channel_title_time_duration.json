@@ -5,7 +5,7 @@
 		"font_size": 60,
 		"text_color": [0, 255, 0, 200],
 		"format_text": "{channel_number} - {network_name}",
-		"x_margin" : 0,
+		"x_margin": 0,
 		"y_margin": 0
 	},
 	{
@@ -14,9 +14,8 @@
 		"font_size": 60,
 		"text_color": [0, 255, 0, 200],
 		"format_text": "{title}",
-		"x_margin" : 0,
+		"x_margin": 0,
 		"y_margin": 0.02
-
 	},
 	{
 		"halign": "RIGHT",
@@ -24,8 +23,8 @@
 		"font_size": 60,
 		"text_color": [0, 255, 0, 200],
 		"format_text": "{timestamp}",
-    "x_margin" : 0,
-    "y_margin": 0
+		"x_margin": 0,
+		"y_margin": 0
 	},
 	{
 		"halign": "RIGHT",
@@ -33,8 +32,7 @@
 		"font_size": 60,
 		"text_color": [0, 255, 0, 200],
 		"format_text": "{duration}",
-		"x_margin" : 0,
+		"x_margin": 0,
 		"y_margin": 0.02
-
 	}
 ]
