@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>PPV File List</title>
+		<link rel="stylesheet" href="ppv_list.css" />
+		<script src="../fs42_client.js"></script>
+	</head>
+	<body>
+		<main class="page">
+			<header class="channel-header">
+				<h1 id="channel-title">PPV</h1>
+			</header>
+			<section class="list-panel" aria-label="Video files">
+				<header>
+					<div id="counter">Loading files…</div>
+				</header>
+				<div id="file-list" role="listbox" aria-label="Select a video"></div>
+			</section>
+			<section class="details" aria-live="polite">
+				<img id="poster" alt="Selected movie poster" />
+				<div id="info"></div>
+				<div id="description"></div>
+				<div class="help">
+					PAGE UP &nbsp; Previous file<br />PAGE DOWN &nbsp; Next file<br />OK /
+					ENTER &nbsp; Play selected file
+				</div>
+			</section>
+		</main>
+		<div id="message" role="status">Loading PPV files…</div>
+    <audio id="bgMusicPlayer" preload="auto" style="display: none;">
+        Your browser does not support the audio element.
+    </audio>
+
+		<script>
+			(() => {
+				const params = new URLSearchParams(window.location.search);
+				const channelNumber = Number.parseInt(params.get('channel'), 10);
+				const resolution = params.get('resolution');
+            const musicPath = params.get('music');
+            const randomMusic = params.get('random_music') !== 'false';
+				const page = document.querySelector('.page');
+				if (resolution === '480i' || resolution === '1080i')
+					page.classList.add('crt');
+				if (resolution === '1080i') page.classList.add('resolution-1080i');
+				const list = document.getElementById('file-list');
+				const counter = document.getElementById('counter');
+				const channelTitle = document.getElementById('channel-title');
+				const poster = document.getElementById('poster');
+				const info = document.getElementById('info');
+				const description = document.getElementById('description');
+				const message = document.getElementById('message');
+            const bgMusicPlayer = document.getElementById('bgMusicPlayer');
+				let contents = [];
+				let selectedIndex = 0;
+				let selecting = false;
+            let musicPlaylist = [];
+            let currentMusicIndex = 0;
+
+            function randomOtherIndex(playlist, current) {
+                if (playlist.length <= 1) return 0;
+                let next;
+                do { next = Math.floor(Math.random() * playlist.length); } while (next === current);
+                return next;
+            }
+
+            async function loadMusicPlaylist() {
+                try {
+                    if (musicPath) {
+                        const response = await fetch(`/media/list?path=${encodeURIComponent(musicPath)}&type=audio`);
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const data = await response.json();
+                        musicPlaylist = data.files || [];
+                    } else {
+                        const response = await fetch('music_playlist.json');
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const data = await response.json();
+                        musicPlaylist = data.music_files || [];
+                    }
+                    console.log('Loaded music playlist:', musicPlaylist);
+                } catch (error) {
+                    console.warn('Failed to load music playlist:', error);
+                    musicPlaylist = [];
+                }
+            }
+
+            function playMusicTrack(index) {
+                if (!musicPlaylist.length) return;
+                if (index < 0 || index >= musicPlaylist.length) index = 0;
+                currentMusicIndex = index;
+                bgMusicPlayer.src = musicPlaylist[index];
+                bgMusicPlayer.play().then(() => {
+                    console.log('Playing background music:', musicPlaylist[index]);
+                }).catch(error => {
+                    console.warn('Background music autoplay failed:', error);
+                });
+            }
+
+            function playNextTrack() {
+                if (!musicPlaylist.length) return;
+                if (randomMusic) {
+                    playMusicTrack(randomOtherIndex(musicPlaylist, currentMusicIndex));
+                } else {
+                    playMusicTrack((currentMusicIndex + 1) % musicPlaylist.length);
+                }
+            }
+
+            function setupBackgroundMusic() {
+                if (!musicPlaylist.length) {
+                    console.log('No background music available');
+                    return;
+                }
+                bgMusicPlayer.volume = 0.3;
+                playMusicTrack(randomMusic ? Math.floor(Math.random() * musicPlaylist.length) : 0);
+                bgMusicPlayer.addEventListener('ended', playNextTrack);
+                bgMusicPlayer.addEventListener('error', () => {
+                    console.warn('Error loading music track:', musicPlaylist[currentMusicIndex]);
+                    playNextTrack();
+                });
+            }
+
+				function showMessage(text, isError = false) {
+					message.textContent = text;
+					message.classList.toggle('error', isError);
+					message.hidden = false;
+				}
+
+				function hideMessage() {
+					message.hidden = true;
+				}
+
+				function renderSelection() {
+					const rows = list.querySelectorAll('.file');
+					rows.forEach((row, index) => {
+						const selected = index === selectedIndex;
+						row.classList.toggle('selected', selected);
+						row.setAttribute('aria-selected', String(selected));
+					});
+
+					const item = contents[selectedIndex];
+					if (!item) return;
+					const metadata = item.nfo || {};
+					poster.classList.remove('visible');
+					poster.removeAttribute('src');
+					if (item.has_image && item.image_url) {
+						poster.onload = () => poster.classList.add('visible');
+						poster.onerror = () => poster.classList.remove('visible');
+						poster.src = item.image_url;
+					}
+					info.textContent = metadata.info || '';
+					description.textContent = metadata.description || '';
+					counter.textContent = `${selectedIndex + 1} / ${contents.length}`;
+					rows[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+				}
+
+				function moveSelection(step) {
+					if (!contents.length || selecting) return;
+					selectedIndex =
+						(selectedIndex + step + contents.length) % contents.length;
+					renderSelection();
+				}
+
+				async function playSelection() {
+					const item = contents[selectedIndex];
+					if (!item || selecting) return;
+					selecting = true;
+					showMessage(`Starting ${item.nfo?.title || item.filename}…`);
+					try {
+						await window.fs42Api.post(`ppv/${channelNumber}/play_file`, {
+							file_path: item.video_path,
+						});
+					} catch (error) {
+						const detail = error.detail || error.message || 'Unknown error';
+						showMessage(`Could not play file: ${detail}`, true);
+						selecting = false;
+					}
+				}
+
+				document.addEventListener('keydown', (event) => {
+					// PPV controls are injected by the player/remote, like ppv.html.
+					if (event.isTrusted) return;
+					switch (event.key) {
+						case 'PageUp':
+							event.preventDefault();
+							moveSelection(-1);
+							break;
+						case 'PageDown':
+							event.preventDefault();
+							moveSelection(1);
+							break;
+						case 'Enter':
+							event.preventDefault();
+							playSelection();
+							break;
+					}
+				});
+
+				async function loadFiles() {
+					if (!Number.isInteger(channelNumber)) {
+						showMessage(
+							'No channel number provided. Add ?channel=XX to the URL.',
+							true,
+						);
+						counter.textContent = 'Channel not specified';
+						return;
+					}
+
+					try {
+						const response = await window.fs42Api.get(`ppv/${channelNumber}`);
+						channelTitle.textContent =
+							response.network_name || `Channel ${channelNumber}`;
+						contents = response.contents || [];
+						list.replaceChildren();
+						if (!contents.length) {
+							counter.textContent = '0 files';
+							list.innerHTML = '<div class="empty">No video files found.</div>';
+							showMessage('No video files found.', true);
+							return;
+						}
+
+						const fragment = document.createDocumentFragment();
+						contents.forEach((item, index) => {
+							const row = document.createElement('div');
+							row.className = 'file';
+							row.setAttribute('role', 'option');
+							row.setAttribute('aria-selected', 'false');
+							row.textContent = item.nfo?.title || item.filename;
+							row.addEventListener('click', () => {
+								selectedIndex = index;
+								renderSelection();
+							});
+							fragment.appendChild(row);
+						});
+						list.appendChild(fragment);
+						hideMessage();
+						renderSelection();
+					} catch (error) {
+						showMessage(
+							`Could not load PPV files: ${error.detail || error.message || 'Unknown error'}`,
+							true,
+						);
+						counter.textContent = 'Unable to load files';
+					}
+				}
+
+            loadFiles();
+            loadMusicPlaylist().then(setupBackgroundMusic);
+			})();
+		</script>
+	</body>
+</html>
