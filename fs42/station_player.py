@@ -73,6 +73,37 @@ def update_status_socket(
         fp.write(as_str)
 
 
+def update_pause_status(paused):
+    """Update only the pause flag without discarding current playback metadata."""
+    status_socket = StationManager().server_conf["status_socket"]
+    try:
+        with open(status_socket, "r") as fp:
+            status_obj = json.load(fp)
+        if status_obj.get("status") != "playing":
+            return
+        status_obj["paused"] = bool(paused)
+        with open(status_socket, "w") as fp:
+            json.dump(status_obj, fp)
+    except (OSError, json.JSONDecodeError) as e:
+        logging.getLogger("FieldPlayer").warning(f"Could not update pause status: {e}")
+
+
+def update_playback_progress(position, duration):
+    """Store MPV progress without replacing the rest of the player status."""
+    status_socket = StationManager().server_conf["status_socket"]
+    try:
+        with open(status_socket, "r") as fp:
+            status_obj = json.load(fp)
+        if status_obj.get("status") != "playing":
+            return
+        status_obj["playback_position"] = max(0.0, float(position))
+        status_obj["playback_duration"] = max(0.0, float(duration))
+        with open(status_socket, "w") as fp:
+            json.dump(status_obj, fp)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+        logging.getLogger("FieldPlayer").debug(f"Could not update playback progress: {e}")
+
+
 class PlayerState(Enum):
     FAILED = 1
     EXITED = 2
@@ -96,6 +127,10 @@ class StationPlayer:
         "toggle_subtitles": ("cycle", "sub-visibility"),
         "cycle_subtitles": ("cycle", "sub"),
         "cycle_audio": ("cycle", "audio"),
+        "ppv_play": ("set_property", "pause", False),
+        "ppv_pause": ("set_property", "pause", True),
+        "ppv_forward": ("seek", 10, "relative"),
+        "ppv_backward": ("seek", -10, "relative"),
     }
 
     scramble_effects = {
@@ -212,9 +247,30 @@ class StationPlayer:
         self.on_play_point = None
         self._active_afx = None
         self._pending_response = None
+        self._next_progress_update = 0.0
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
+
+    def _update_playback_progress(self):
+        now = time.monotonic()
+        if now < self._next_progress_update:
+            return
+        self._next_progress_update = now + 1.0
+        try:
+            position = self.mpv.time_pos
+            duration = self.mpv.duration
+            if position is not None and duration is not None and duration > 0:
+                update_playback_progress(position, duration)
+        except Exception as e:
+            self._l.debug(f"Could not read playback progress: {e}")
+
+    def _clear_ppv_pause(self):
+        """Clear PPV pause state before starting content on a channel."""
+        try:
+            self.mpv.command("set_property", "pause", False)
+        except Exception as e:
+            self._l.debug(f"Could not clear PPV pause state: {e}")
 
     def mpv_runtime_command(self, action):
         """Run a small set of user-facing mpv runtime commands."""
@@ -225,6 +281,8 @@ class StationPlayer:
 
         try:
             self.mpv.command(*mpv_command)
+            if action in {"ppv_pause", "ppv_play"}:
+                update_pause_status(action == "ppv_pause")
             self._l.info(f"Ran mpv runtime command: {action}")
             return True
         except Exception as e:
@@ -598,6 +656,7 @@ class StationPlayer:
 
                 # self.mpv.vf = "lavfi=[]"
                 self._l.info(f"playing {file_path}")
+                self._clear_ppv_pause()
                 self.mpv.command("playlist-clear")
                 self.mpv.play(file_path)
                 
@@ -713,10 +772,22 @@ class StationPlayer:
         if self._active_afx:
             self.mpv.command("af", "remove", self._active_afx)
             self._active_afx = None
+        self._clear_ppv_pause()
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
         self.current_playing_file_path = file_path
+
+        if self.station_config:
+            update_status_socket(
+                "playing",
+                self.station_config["network_name"],
+                self.station_config["channel_number"],
+                title=os.path.basename(file_path),
+                timestamp=StationManager().server_conf.get("date_time_format", "%Y-%m-%dT%H:%M:%S"),
+                file_path=file_path,
+                content_type="feature",
+            )
 
         # show NFO overlay if the file has overlay-eligible cached metadata
         try:
@@ -730,8 +801,16 @@ class StationPlayer:
         # this will keep going until channel change or other interrupt
         while True:
             time.sleep(0.05)
+            self._update_playback_progress()
             response = self.input_check_fn()
             if response:
+                if (
+                    response.status == PlayerState.SUCCESS
+                    and response.payload == "mpv_command:ppv_stop"
+                ):
+                    self.stop_player()
+                    self._close_now_playing()
+                    return PlayerOutcome(PlayerState.SUCCESS)
                 if self.handle_runtime_command_outcome(response):
                     continue
                 if self.is_non_interrupting(response):
@@ -747,6 +826,7 @@ class StationPlayer:
         if self._active_afx:
             self.mpv.command("af", "remove", self._active_afx)
             self._active_afx = None
+        self._clear_ppv_pause()
         self.mpv.command("playlist-clear")
         self.mpv.loop_playlist = "no"
         self.mpv.loop_file = "no"
@@ -768,6 +848,7 @@ class StationPlayer:
 
         while True:
             time.sleep(0.05)
+            self._update_playback_progress()
             try:
                 if not started:
                     started = self.mpv.time_pos is not None
@@ -806,6 +887,7 @@ class StationPlayer:
             # Clear any existing playlist and load the files
             self.current_playing_file_path = "playlist"
 
+            self._clear_ppv_pause()
             self.mpv.command("playlist-clear")
 
             # Load files using loadfile with 'append' flag
@@ -966,6 +1048,7 @@ class StationPlayer:
 
     def stop_player(self):
         try:
+            self._clear_ppv_pause()
             self.mpv.stop()
             self.current_playing_file_path = None
         except Exception:
@@ -1153,6 +1236,7 @@ class StationPlayer:
                     # this is our main event loop
                     keep_waiting = True
                     while keep_waiting:
+                        self._update_playback_progress()
                         if not self.skip_reception_check:
                             self.update_reception()
                         else:

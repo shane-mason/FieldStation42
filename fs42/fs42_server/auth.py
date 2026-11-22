@@ -21,11 +21,34 @@ PUBLIC_PATHS = {
     "/login",
     "/logout",
     "/favicon.ico",
+    "/remote",
     "/static/login.html",
     "/static/login.js",
     "/static/common.js",
+    "/static/fs42_client.js",
+    "/static/remote.html",
+    "/stations",
+    "/player/info",
+    "/player/status",
+    "/player/channels/guide",
+    "/player/parental/clear",
+    "/player/volume/up",
+    "/player/volume/down",
+    "/player/volume/mute",
+    "/player/mpv/cycle-subtitles",
+    "/player/mpv/cycle-audio",
+    "/manage/status",
+    "/manage/restart",
+    "/manage/shutdown",
 }
 PUBLIC_PREFIXES = ("/static/themes/",)
+PUBLIC_ROUTE_PATTERNS = (
+    re.compile(r"/player/channels/(?:[0-9]+|up|down)\Z"),
+    re.compile(r"/player/web/key/[A-Za-z0-9_]+\Z"),
+    re.compile(r"/player/parental/digit/[0-9]\Z"),
+    re.compile(r"/ppv/[0-9]+\Z"),
+    re.compile(r"/ppv/[0-9]+/control/(?:rewind|play|pause|stop|fastForward)\Z"),
+)
 
 _API_KEY_PARAM = re.compile(r"(api_key=)[^&\s\"]*")
 
@@ -55,7 +78,11 @@ def has_valid_session(request: Request, key):
 
 
 def is_public(path):
-    return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
+    return (
+        path in PUBLIC_PATHS
+        or path.startswith(PUBLIC_PREFIXES)
+        or any(pattern.fullmatch(path) for pattern in PUBLIC_ROUTE_PATTERNS)
+    )
 
 
 def wants_html(request: Request):

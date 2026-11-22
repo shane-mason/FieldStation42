@@ -127,6 +127,9 @@ class CableBox:
 
         self.channel_num = 0
         self.last_stat = ""
+        self.last_lcd_state = None
+        self.pause_mode = False
+        self.status_initialized = False
 
         # mode to display and update temp
         self.temp_mode = False
@@ -213,10 +216,17 @@ class CableBox:
             as_str = fp.read()
 
             if as_str != self.last_stat:
-                _l.info(f"Status changed: {as_str}")
                 self.last_stat = as_str
                 try:
                     new_stat = json.loads(as_str)
+                    lcd_state = (
+                        new_stat.get("channel_number"),
+                        bool(new_stat.get("paused", False)),
+                    )
+                    if lcd_state == self.last_lcd_state:
+                        return None
+                    self.last_lcd_state = lcd_state
+                    _l.info(f"LCD channel/pause state changed: {lcd_state}")
                 except:
                     # assume that it was a partial read and try again next time
                     _l.warning(f"Error decoding status: {as_str}")
@@ -320,22 +330,31 @@ class CableBox:
 
         new_stat = self.check_status()
         if new_stat:
-            self.temp_mode = False
             try:
                 new_channel_num = int(new_stat["channel_number"])
-                if new_channel_num != self.channel_num:
+                new_pause_mode = bool(new_stat.get("paused", False))
+                first_status = not self.status_initialized
+                channel_changed = new_channel_num != self.channel_num
+                pause_changed = new_pause_mode != self.pause_mode
+                self.status_initialized = True
+
+                if first_status or channel_changed or pause_changed:
+                    self.temp_mode = False
                     self.last_button_time = time.monotonic()
                     self.channel_num = new_channel_num
-                if self.channel_num >= 0:
-                    self.tm.show(channel_label(self.channel_num))
-                    _l.info(f"Set channel: {self.channel_num}")
-                else:
-                    self.tm.show("FS42")
+                    self.pause_mode = new_pause_mode
+                    if self.pause_mode:
+                        self.tm.show("PAUS")
+                    elif self.channel_num >= 0:
+                        self.tm.show(channel_label(self.channel_num))
+                        _l.info(f"Set channel: {self.channel_num}")
+                    else:
+                        self.tm.show("FS42")
             except:
                 self.tm.show("FS42")
 
     def refresh_display(self, now):
-        if self.show_time and now - self.last_button_time > 15 and not self.entry.active:
+        if self.show_time and now - self.last_button_time > 15 and not self.entry.active and not self.pause_mode:
             formatted = time.strftime(self.time_format, time.localtime())
             if ":" in formatted:
                 h, m = formatted.split(":", 1)

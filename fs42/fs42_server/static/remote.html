@@ -1,608 +1,1140 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Remote Control - FieldStation42</title>
+		<link
+			rel="stylesheet"
+			href="https://unpkg.com/purecss@3.0.0/build/pure-min.css"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css"
+		/>
+		<link rel="stylesheet" id="theme-css" href="/static/themes/default.css" />
+		<style>
+			.restart-overlay {
+				position: fixed;
+				inset: 0;
+				z-index: 10000;
+				display: none;
+				align-items: center;
+				justify-content: center;
+				padding: 20px;
+				background: rgba(0, 0, 0, 0.78);
+			}
+			.restart-overlay.is-visible {
+				display: flex;
+			}
+			.restart-modal {
+				width: min(360px, 100%);
+				padding: 28px 24px;
+				border: 2px solid #4caf50;
+				border-radius: 12px;
+				background: #171717;
+				color: #fff;
+				text-align: center;
+				box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+			}
+			.restart-spinner {
+				width: 38px;
+				height: 38px;
+				margin: 0 auto 18px;
+				border: 4px solid rgba(255, 255, 255, 0.25);
+				border-top-color: #4caf50;
+				border-radius: 50%;
+				animation: restart-spin 0.8s linear infinite;
+			}
+			@keyframes restart-spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			.restart-modal h2 {
+				margin: 0 0 10px;
+				font-size: 20px;
+			}
+			.restart-modal p {
+				margin: 0;
+				color: #ddd;
+			}
+			.remote-header .restart-btn {
+				background: linear-gradient(145deg, #168a35, #0c6424);
+				color: #eaffec;
+			}
+			.remote-header .restart-btn:hover {
+				background: linear-gradient(145deg, #20a344, #11772d);
+			}
+			.pad-toggle-btn {
+				font-size: 30px;
+				font-weight: 700;
+			}
+			#playback-controls {
+				display: grid !important;
+				grid-column: 1 / -1;
+				grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+				grid-auto-flow: column;
+				width: 100%;
+				max-width: 280px;
+				justify-self: center;
+				margin-bottom: 0;
+			}
+			#playback-controls > .remote-btn {
+				box-sizing: border-box;
+				width: min(48px, 100%);
+				min-width: 0;
+				height: 48px;
+				min-height: 0;
+				justify-self: center;
+			}
+			.playback-timeline {
+				box-sizing: border-box;
+				width: min(320px, calc(100% - 32px));
+				margin: 4px auto 14px;
+				padding: 0 8px;
+			}
+			.playback-timeline[hidden] {
+				display: none !important;
+			}
+			.playback-timeline-values {
+				display: grid;
+				grid-template-columns: 1fr auto 1fr;
+				align-items: baseline;
+				margin-top: -8px;
+				margin-bottom: 3px;
+				font-variant-numeric: tabular-nums;
+			}
+			.playback-timeline-values > div:first-child {
+				justify-self: start;
+			}
+			.playback-timeline-values > div:nth-child(2) {
+				justify-self: center;
+			}
+			.playback-timeline-values > div:last-child {
+				justify-self: end;
+			}
+			.playback-timeline-values > div > span {
+				font-size: 11px;
+				line-height: 1;
+			}
+			.playback-timeline-values #timeline-current {
+				color: #8be39a;
+				font-weight: 600;
+			}
+			#playback-timeline-slider {
+				--progress: 0%;
+				box-sizing: border-box;
+				display: block;
+				width: 100%;
+				min-width: 0;
+				max-width: none;
+				height: 18px;
+				margin: 0;
+				padding: 0 !important;
+				appearance: none;
+				-webkit-appearance: none;
+				background: transparent !important;
+				pointer-events: none;
+				opacity: 1;
+				border: 0;
+				border-radius: 0;
+				outline: 0;
+			}
+			#playback-timeline-slider::-webkit-slider-runnable-track {
+				height: 3px;
+				border-radius: 999px;
+				background: linear-gradient(
+					to right,
+					#4caf50 var(--progress),
+					rgba(255, 255, 255, 0.2) var(--progress)
+				);
+			}
+			#playback-timeline-slider::-moz-range-track {
+				height: 3px;
+				border-radius: 999px;
+				background: linear-gradient(
+					to right,
+					#4caf50 var(--progress),
+					rgba(255, 255, 255, 0.2) var(--progress)
+				);
+			}
+			#playback-timeline-slider::-webkit-slider-thumb {
+				width: 2px;
+				height: 13px;
+				appearance: none;
+				-webkit-appearance: none;
+				border: 0;
+				border-radius: 2px;
+				margin-top: -5px;
+				background: #f4fff5;
+				box-shadow: 0 0 4px rgba(76, 175, 80, 0.65);
+			}
+			#playback-timeline-slider::-moz-range-thumb {
+				width: 2px;
+				height: 13px;
+				border: 0;
+				border-radius: 2px;
+				background: #f4fff5;
+				box-shadow: 0 0 4px rgba(76, 175, 80, 0.65);
+			}
+			@media (max-width: 360px) {
+				#playback-controls {
+					gap: 4px;
+				}
+				#playback-controls > .remote-btn {
+					width: min(42px, 100%);
+					height: 42px;
+				}
+			}
+		</style>
+	</head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remote Control - FieldStation42</title>
-    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
-    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/grids-responsive-min.css">
-    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
-</head>
+	<body>
+		<div
+			class="restart-overlay"
+			id="restart-overlay"
+			aria-hidden="true"
+			aria-modal="true"
+			role="dialog"
+			aria-labelledby="restart-modal-title"
+		>
+			<div class="restart-modal">
+				<div class="restart-spinner" aria-hidden="true"></div>
+				<h2 id="restart-modal-title">Restarting fs42.service</h2>
+				<p id="restart-modal-message">Waiting for the Web UI to return…</p>
+			</div>
+		</div>
+		<script src="/static/common.js"></script>
+		<script src="/static/fs42_client.js"></script>
+		<script>
+			// Initialize theme
+			document.addEventListener('DOMContentLoaded', function () {
+				window.fs42Common.initTheme();
+			});
+		</script>
+		<div class="remote-container">
+			<div class="remote-header">
+				<button class="remote-btn power-btn" data-key="services_shutdown">
+					⏻<br />POWER OFF
+				</button>
+				<div class="remote-brand">FieldStation42</div>
+				<button
+					class="remote-btn power-btn restart-btn"
+					data-key="services_restart"
+				>
+					RESTART
+				</button>
+			</div>
 
-<body>
-    <script src="/static/common.js"></script>
-    <script src="/static/fs42_client.js"></script>
-    <script>
-        // Initialize theme
-        document.addEventListener('DOMContentLoaded', function () {
-            window.fs42Common.initTheme();
-        });
-    </script>
-    <div class="remote-container">
-        <div class="remote-header">
-            <div class="remote-brand">FieldStation42</div>
-            <button class="remote-btn power-btn" data-key="power">STOP</button>
-        </div>
-        
-        <div class="remote-screen" id="remote-display">
-            Ready
-        </div>
+			<div class="remote-screen" id="remote-display">Ready</div>
 
-        <!-- Number Pad -->
-        <div class="button-grid number-pad" id="number-pad">
-            <button class="remote-btn number-btn" data-key="1">1</button>
-            <button class="remote-btn number-btn" data-key="2">2</button>
-            <button class="remote-btn number-btn" data-key="3">3</button>
-            <button class="remote-btn number-btn" data-key="4">4</button>
-            <button class="remote-btn number-btn" data-key="5">5</button>
-            <button class="remote-btn number-btn" data-key="6">6</button>
-            <button class="remote-btn number-btn" data-key="7">7</button>
-            <button class="remote-btn number-btn" data-key="8">8</button>
-            <button class="remote-btn number-btn" data-key="9">9</button>
-            <button class="remote-btn number-btn pad-toggle-btn" data-key="pad_toggle">NAV</button>
-            <button class="remote-btn number-btn zero-btn" data-key="0">0</button>
-            <!-- Clears a half-typed channel number, or a half-typed parental PIN. -->
-            <button class="remote-btn number-btn clear-btn" data-key="clear">CLR</button>
-        </div>
+			<!-- Number Pad -->
+			<div class="button-grid number-pad" id="number-pad">
+				<button class="remote-btn number-btn" data-key="1">1</button>
+				<button class="remote-btn number-btn" data-key="2">2</button>
+				<button class="remote-btn number-btn" data-key="3">3</button>
+				<button class="remote-btn number-btn" data-key="4">4</button>
+				<button class="remote-btn number-btn" data-key="5">5</button>
+				<button class="remote-btn number-btn" data-key="6">6</button>
+				<button class="remote-btn number-btn" data-key="7">7</button>
+				<button class="remote-btn number-btn" data-key="8">8</button>
+				<button class="remote-btn number-btn" data-key="9">9</button>
+				<button
+					class="remote-btn number-btn pad-toggle-btn"
+					data-key="pad_toggle"
+				>
+					✥
+				</button>
+				<button class="remote-btn number-btn zero-btn" data-key="0">0</button>
+				<!-- Clears a half-typed channel number, or a half-typed parental PIN. -->
+				<button class="remote-btn number-btn clear-btn" data-key="clear">
+					CLR
+				</button>
+			</div>
 
-        <!-- Nav Pad - swaps in for the number pad to drive web channels (guide, PPV). -->
-        <div class="button-grid nav-pad" id="nav-pad" hidden>
-            <button class="remote-btn nav-btn nav-up" data-key="nav_up">▲</button>
-            <button class="remote-btn nav-btn nav-left" data-key="nav_left">◀</button>
-            <button class="remote-btn nav-btn nav-enter" data-key="nav_enter">OK</button>
-            <button class="remote-btn nav-btn nav-right" data-key="nav_right">▶</button>
-            <button class="remote-btn nav-btn pad-toggle-btn" data-key="pad_toggle">123</button>
-            <button class="remote-btn nav-btn nav-down" data-key="nav_down">▼</button>
-        </div>
+			<!-- Nav Pad - swaps in for the number pad to drive web channels (guide, PPV). -->
+			<div class="button-grid nav-pad" id="nav-pad" hidden>
+				<button class="remote-btn nav-btn nav-up" data-key="nav_up">▲</button>
+				<button class="remote-btn nav-btn nav-left" data-key="nav_left">
+					◀
+				</button>
+				<button class="remote-btn nav-btn nav-enter" data-key="nav_enter">
+					OK
+				</button>
+				<button class="remote-btn nav-btn nav-right" data-key="nav_right">
+					▶
+				</button>
+				<button class="remote-btn nav-btn pad-toggle-btn" data-key="pad_toggle">
+					⋮⋮⋮
+				</button>
+				<button class="remote-btn nav-btn nav-down" data-key="nav_down">
+					▼
+				</button>
+				<div
+					class="button-grid playback-section"
+					id="playback-controls"
+					aria-label="PPV playback controls"
+				>
+					<button
+						class="remote-btn function-btn"
+						data-key="playback_prev"
+						disabled
+						aria-label="Rewind"
+						title="Rewind"
+					>
+						<span>-10 sec<br />◀◀</span>
+					</button>
+					<button
+						class="remote-btn function-btn playback-toggle-btn"
+						id="playback-toggle"
+						data-key="playback_toggle"
+						disabled
+						aria-label="PLAY / PAUSE"
+					>
+						<span aria-hidden="true">▶︎ / ❚❚</span>
+					</button>
+					<button
+						class="remote-btn function-btn"
+						data-key="playback_stop"
+						disabled
+						aria-label="Stop"
+					>
+						⏹
+					</button>
+					<button
+						class="remote-btn function-btn"
+						data-key="playback_next"
+						disabled
+						aria-label="Fast Forward"
+						title="Fast Forward"
+					>
+						<span>+10 sec<br />▶▶</span>
+					</button>
+				</div>
+			</div>
 
-        <!-- Volume and Channel Controls in Vertical Columns -->
-        <div class="button-grid volume-channel-section">
-            <button class="remote-btn volume-btn" data-key="vol_up">VOL +</button>
-            <button class="remote-btn channel-btn" data-key="ch_up">CH ▲</button>
-            <button class="remote-btn volume-btn" data-key="vol_down">VOL -</button>
-            <button class="remote-btn channel-btn" data-key="ch_down">CH ▼</button>
-        </div>
+			<!-- Volume and Channel Controls in Vertical Columns -->
+			<div class="button-grid volume-channel-section">
+				<button class="remote-btn volume-btn" data-key="vol_up">VOL +</button>
+				<button class="remote-btn channel-btn" data-key="ch_up">CH ▲</button>
+				<button class="remote-btn volume-btn" data-key="vol_down">VOL -</button>
+				<button class="remote-btn channel-btn" data-key="ch_down">CH ▼</button>
+			</div>
 
-        <!-- Currently Playing Display -->
-        <div class="now-playing">
-            <div class="now-playing-label">NOW PLAYING</div>
-            <div class="now-playing-network" id="now-playing-network">No network</div>
-            <div class="now-playing-status" id="now-playing-status">Stopped</div>
-            <div class="now-playing-title" id="now-playing-title">No program selected</div>
-        </div>
+			<!-- Currently Playing Display -->
+			<div class="now-playing">
+				<div class="now-playing-label">NOW PLAYING</div>
+				<div class="now-playing-network" id="now-playing-network">
+					No network
+				</div>
+				<div class="now-playing-status" id="now-playing-status">Stopped</div>
+				<div class="now-playing-title" id="now-playing-title">
+					No program selected
+				</div>
+				<div class="playback-timeline" id="playback-timeline" hidden>
+					<input
+						id="playback-timeline-slider"
+						type="range"
+						min="0"
+						max="1"
+						value="0"
+						disabled
+						aria-label="Current video playback position"
+					/>
+					<div class="playback-timeline-values">
+						<div><span id="timeline-start">0:00</span></div>
+						<div><span id="timeline-current">0:00</span></div>
+						<div><span id="timeline-end">0:00</span></div>
+					</div>
+				</div>
+			</div>
 
-        <!-- Function Buttons -->
-        <div class="button-grid function-section">
-            <button class="remote-btn function-btn" data-key="guide">GUIDE</button>
-            <button class="remote-btn function-btn" data-key="exit">EXIT</button>
-            <button class="remote-btn function-btn" data-key="mute">MUTE</button>
-            <button class="remote-btn function-btn" data-key="info">INFO</button>
-            <!-- Cycle MPV tracks without changing channel playback. The player shows
+			<!-- Function Buttons -->
+			<div class="button-grid function-section">
+				<button class="remote-btn function-btn" data-key="guide">GUIDE</button>
+				<button class="remote-btn function-btn" data-key="exit">EXIT</button>
+				<button class="remote-btn function-btn" data-key="mute">MUTE</button>
+				<button class="remote-btn function-btn" data-key="info">INFO</button>
+				<!-- Cycle MPV tracks without changing channel playback. The player shows
                  the selected audio/subtitle track on MPV's on-screen display. -->
-            <button class="remote-btn function-btn" data-key="subtitles">SUBS</button>
-            <button class="remote-btn function-btn" data-key="audio">AUDIO</button>
-        </div>
-    </div>
+				<button class="remote-btn function-btn" data-key="subtitles">
+					SUBS
+				</button>
+				<button class="remote-btn function-btn" data-key="audio">AUDIO</button>
+			</div>
+		</div>
 
-    <script>
-        // Basic remote control functionality
-        const display = document.getElementById('remote-display');
-        const nowPlayingNetwork = document.getElementById('now-playing-network');
-        const nowPlayingStatus = document.getElementById('now-playing-status');
-        const nowPlayingTitle = document.getElementById('now-playing-title');
-        let currentChannel = '001';
-        let volume = 50;
-        let muted = false;
-        let statusPollInterval = null;
-        let channelInput = '';
-        let channelInputTimeout = null;
-        let isInputtingChannel = false;
-        let volumeDisplayTimeout = null;
-        let isShowingVolume = false;
-        let isShowingInfo = false;
-        let infoMode = 'playing'; // 'playing' or 'system'
-        let padMode = 'number'; // 'number' or 'nav'
-        // Mirrors the player status: while a station is locked, digits enter the
-        // PIN instead of changing channel (same rule as fs42/pi/remote_controller.py).
-        let awaitingPin = false;
-        let pinDigitsEntered = 0;
+		<script>
+			// Basic remote control functionality
+			const display = document.getElementById('remote-display');
+			const nowPlayingNetwork = document.getElementById('now-playing-network');
+			const nowPlayingStatus = document.getElementById('now-playing-status');
+			const nowPlayingTitle = document.getElementById('now-playing-title');
+			let currentChannel = '001';
+			let volume = 50;
+			let muted = false;
+			let statusPollInterval = null;
+			let channelInput = '';
+			let channelInputTimeout = null;
+			let isInputtingChannel = false;
+			let volumeDisplayTimeout = null;
+			let isShowingVolume = false;
+			let isShowingInfo = false;
+			let infoMode = 'playing'; // 'playing' or 'system'
+			let padMode = 'number'; // 'number' or 'nav'
+			// Mirrors the player status: while a station is locked, digits enter the
+			// PIN instead of changing channel (same rule as fs42/pi/remote_controller.py).
+			let awaitingPin = false;
+			let pinDigitsEntered = 0;
 
-        const numberPad = document.getElementById('number-pad');
-        const navPad = document.getElementById('nav-pad');
+			const numberPad = document.getElementById('number-pad');
+			const navPad = document.getElementById('nav-pad');
+			const playbackControls = document.getElementById('playback-controls');
+			const stationPpvCache = new Map();
+			let ppvVideoPlaying = false;
+			let ppvVideoPaused = false;
+			let observedPpvVideoPath = null;
 
-        // Sample program data (could be fetched from API later)
-        const programData = {
-            '001': { title: 'Morning News', info: 'Local and world news updates' },
-            '002': { title: 'Classic Movies', info: 'The Maltese Falcon (1941)' },
-            '003': { title: 'Nature Documentary', info: 'Wildlife of the Amazon' },
-            '004': { title: 'Cooking Show', info: 'Italian Pasta Masterclass' },
-            '005': { title: 'Sitcom Reruns', info: 'Comedy Hour Marathon' },
-        };
+			// Sample program data (could be fetched from API later)
+			const programData = {
+				'001': { title: 'Morning News', info: 'Local and world news updates' },
+				'002': { title: 'Classic Movies', info: 'The Maltese Falcon (1941)' },
+				'003': { title: 'Nature Documentary', info: 'Wildlife of the Amazon' },
+				'004': { title: 'Cooking Show', info: 'Italian Pasta Masterclass' },
+				'005': { title: 'Sitcom Reruns', info: 'Comedy Hour Marathon' },
+			};
 
-        function updateNowPlaying(channel) {
-            const program = programData[channel];
-            if (program) {
-                nowPlayingTitle.textContent = program.title;
-                nowPlayingInfo.textContent = program.info;
-            } else {
-                nowPlayingTitle.textContent = `Channel ${channel}`;
-                nowPlayingInfo.textContent = 'Program information unavailable';
-            }
-        }
+			function updateNowPlaying(channel) {
+				const program = programData[channel];
+				if (program) {
+					nowPlayingTitle.textContent = program.title;
+					nowPlayingInfo.textContent = program.info;
+				} else {
+					nowPlayingTitle.textContent = `Channel ${channel}`;
+					nowPlayingInfo.textContent = 'Program information unavailable';
+				}
+			}
 
-        // What the display falls back to whenever nothing transient is showing.
-        function idleDisplayText() {
-            if (awaitingPin) {
-                return pinDigitsEntered > 0 ? '•'.repeat(pinDigitsEntered) : 'ENTER PIN';
-            }
-            return `CH ${currentChannel}`;
-        }
+			// What the display falls back to whenever nothing transient is showing.
+			function idleDisplayText() {
+				if (awaitingPin) {
+					return pinDigitsEntered > 0
+						? '•'.repeat(pinDigitsEntered)
+						: 'ENTER PIN';
+				}
+				return `CH ${currentChannel}`;
+			}
 
-        function updateNowPlayingFromStatus(status) {
-            awaitingPin = !!status.awaiting_pin;
-            pinDigitsEntered = status.pin_digits_entered || 0;
+			function updateNowPlayingFromStatus(status) {
+				awaitingPin = !!status.awaiting_pin;
+				pinDigitsEntered = status.pin_digits_entered || 0;
 
-            if (infoMode === 'playing') {
-                if (status.status === 'playing') {
-                    // Top line: "Playing"
-                    nowPlayingNetwork.textContent = 'Playing';
-                    // Second line: network_name
-                    nowPlayingStatus.textContent = status.network_name || '';
-                    // Third line: title
-                    nowPlayingTitle.textContent = status.title || '';
-                    
-                    // Update channel display and current channel to match actual channel
-                    // BUT only if we're not currently inputting a channel number or showing volume
-                    if (status.channel_number && status.channel_number > 0) {
-                        currentChannel = String(status.channel_number).padStart(3, '0');
-                        if (!isInputtingChannel && !isShowingVolume) {
-                            display.textContent = idleDisplayText();
-                        }
-                    }
-                } else if (status.status === 'stopped') {
-                    nowPlayingNetwork.textContent = 'Stopped';
-                    nowPlayingStatus.textContent = '';
-                    nowPlayingTitle.textContent = '';
-                    if (!isInputtingChannel && !isShowingVolume) {
-                        display.textContent = 'STOPPED';
-                    }
-                } else if (status.status === 'idle') {
-                    // The player hands back from parental controls as 'idle' and
-                    // starts playing a moment later - a transition, not a fault.
-                    nowPlayingNetwork.textContent = 'Ready';
-                    nowPlayingStatus.textContent = status.network_name || '';
-                    nowPlayingTitle.textContent = '';
-                    if (!isInputtingChannel && !isShowingVolume) {
-                        display.textContent = idleDisplayText();
-                    }
-                } else {
-                    nowPlayingNetwork.textContent = status.status || 'Unknown';
-                    nowPlayingStatus.textContent = '';
-                    nowPlayingTitle.textContent = '';
-                    if (!isInputtingChannel && !isShowingVolume) {
-                        display.textContent = 'ERROR';
-                    }
-                }
-            }
-            // If in system info mode, don't update the display from player status
-        }
-        
-        function showVolumeDisplay(volumeText) {
-            console.log('showVolumeDisplay called with:', volumeText);
-            
-            // Clear any existing volume timeout
-            if (volumeDisplayTimeout) {
-                clearTimeout(volumeDisplayTimeout);
-            }
-            
-            // Set volume display mode
-            isShowingVolume = true;
-            display.textContent = volumeText;
-            console.log('Display set to:', display.textContent);
-            
-            // Clear volume display after 3 seconds
-            volumeDisplayTimeout = setTimeout(() => {
-                console.log('Volume display timeout - returning to normal');
-                isShowingVolume = false;
-                volumeDisplayTimeout = null;
-                // Return to normal display (will be updated by next status poll)
-                if (!isInputtingChannel) {
-                    display.textContent = idleDisplayText();
-                }
-            }, 3000);
-        }
-        
-        function toggleInfoMode() {
-            if (infoMode === 'playing') {
-                infoMode = 'system';
-                display.textContent = 'SYSTEM INFO';
-                console.log('Switched to system info mode');
-            } else {
-                infoMode = 'playing';
-                display.textContent = 'NOW PLAYING';
-                console.log('Switched to now playing mode');
-            }
-            
-            // Immediately poll for the new mode
-            pollPlayerStatus();
-        }
-        
-        function updateSystemInfo(info) {
-            // Prioritize: CPU temp, CPU load percent, memory used percent
-            console.log('System info received:', info);
-            
-            // Top line: CPU Temperature  
-            if (info.temperature_c !== undefined) {
-                nowPlayingNetwork.textContent = `CPU ${info.temperature_c}°C (${info.temperature_f}°F)`;
-            } else if (info.temperature_f !== undefined) {
-                nowPlayingNetwork.textContent = `CPU ${info.temperature_f}°F`;
-            } else if (info.temperature === "unavailable") {
-                // WSL/virtualized environment - show system type instead
-                const systemType = info.system?.platform || 'Unknown';
-                const arch = info.system?.architecture || '';
-                nowPlayingNetwork.textContent = `${systemType} ${arch}`.trim();
-            } else {
-                nowPlayingNetwork.textContent = 'CPU Temp N/A';
-            }
-            
-            // Second line: CPU Load
-            if (info.cpu && info.cpu.load_percent !== undefined) {
-                nowPlayingStatus.textContent = `CPU Load ${info.cpu.load_percent}%`;
-            } else if (info.cpu && info.cpu.load_1min !== undefined) {
-                nowPlayingStatus.textContent = `Load ${info.cpu.load_1min}`;
-            } else {
-                nowPlayingStatus.textContent = 'CPU Load N/A';
-            }
-            
-            // Third line: Memory Usage
-            if (info.memory && info.memory.used_percent !== undefined) {
-                nowPlayingTitle.textContent = `Memory ${info.memory.used_percent}% (${info.memory.used_gb}/${info.memory.total_gb}GB)`;
-            } else {
-                nowPlayingTitle.textContent = 'Memory N/A';
-            }
-        }
+				if (infoMode === 'playing') {
+					if (status.status === 'playing') {
+						// Top line: "Playing"
+						nowPlayingNetwork.textContent = 'Playing';
+						// Second line: network_name
+						nowPlayingStatus.textContent = status.network_name || '';
+						// Third line: title
+						nowPlayingTitle.textContent = status.title || '';
 
-        async function pollPlayerStatus() {
-            try {
-                if (infoMode === 'playing') {
-                    const status = await window.fs42Api.get('player/status');
-                    console.log('Player status response:', status);
-                    updateNowPlayingFromStatus(status);
-                } else if (infoMode === 'system') {
-                    const info = await window.fs42Api.get('player/info');
-                    console.log('System info response:', info);
-                    updateSystemInfo(info);
-                }
-            } catch (error) {
-                console.error('Failed to get status/info:', error);
-                if (infoMode === 'playing') {
-                    nowPlayingNetwork.textContent = 'Unknown';
-                    nowPlayingStatus.textContent = '';
-                    nowPlayingTitle.textContent = '';
-                } else {
-                    nowPlayingNetwork.textContent = 'System';
-                    nowPlayingStatus.textContent = 'Error';
-                    nowPlayingTitle.textContent = 'Unable to get info';
-                }
-            }
-        }
+						// Update channel display and current channel to match actual channel
+						// BUT only if we're not currently inputting a channel number or showing volume
+						if (status.channel_number && status.channel_number > 0) {
+							currentChannel = String(status.channel_number).padStart(3, '0');
+							if (!isInputtingChannel && !isShowingVolume) {
+								display.textContent = idleDisplayText();
+							}
+						}
+					} else if (status.status === 'stopped') {
+						nowPlayingNetwork.textContent = 'Stopped';
+						nowPlayingStatus.textContent = '';
+						nowPlayingTitle.textContent = '';
+						if (!isInputtingChannel && !isShowingVolume) {
+							display.textContent = 'STOPPED';
+						}
+					} else if (status.status === 'idle') {
+						// The player hands back from parental controls as 'idle' and
+						// starts playing a moment later - a transition, not a fault.
+						nowPlayingNetwork.textContent = 'Ready';
+						nowPlayingStatus.textContent = status.network_name || '';
+						nowPlayingTitle.textContent = '';
+						if (!isInputtingChannel && !isShowingVolume) {
+							display.textContent = idleDisplayText();
+						}
+					} else {
+						nowPlayingNetwork.textContent = status.status || 'Unknown';
+						nowPlayingStatus.textContent = '';
+						nowPlayingTitle.textContent = '';
+						if (!isInputtingChannel && !isShowingVolume) {
+							display.textContent = 'ERROR';
+						}
+					}
+				}
+				// If in system info mode, don't update the display from player status
+			}
 
-        function startStatusPolling() {
-            if (statusPollInterval) {
-                clearInterval(statusPollInterval);
-            }
-            statusPollInterval = setInterval(pollPlayerStatus, 1000);
-            // Get initial status immediately
-            pollPlayerStatus();
-        }
+			function showVolumeDisplay(volumeText) {
+				console.log('showVolumeDisplay called with:', volumeText);
 
-        function stopStatusPolling() {
-            if (statusPollInterval) {
-                clearInterval(statusPollInterval);
-                statusPollInterval = null;
-            }
-        }
+				// Clear any existing volume timeout
+				if (volumeDisplayTimeout) {
+					clearTimeout(volumeDisplayTimeout);
+				}
 
-        function togglePad() {
-            padMode = padMode === 'number' ? 'nav' : 'number';
-            numberPad.hidden = padMode !== 'number';
-            navPad.hidden = padMode !== 'nav';
-            display.textContent = padMode === 'nav' ? 'NAV PAD' : 'NUMBERS';
-        }
+				// Set volume display mode
+				isShowingVolume = true;
+				display.textContent = volumeText;
+				console.log('Display set to:', display.textContent);
 
-        // Web channels read keystrokes rather than commands, so the nav pad
-        // forwards the keys the guide and ppv.js listen for.
-        async function sendNavKey(keyName, label) {
-            try {
-                await window.fs42Api.post(`player/web/key/${keyName}`);
-                display.textContent = label;
-            } catch (error) {
-                console.error(`Nav key ${keyName} failed:`, error);
-                display.textContent = 'ERROR';
-            }
-        }
+				// Clear volume display after 3 seconds
+				volumeDisplayTimeout = setTimeout(() => {
+					console.log('Volume display timeout - returning to normal');
+					isShowingVolume = false;
+					volumeDisplayTimeout = null;
+					// Return to normal display (will be updated by next status poll)
+					if (!isInputtingChannel) {
+						display.textContent = idleDisplayText();
+					}
+				}, 3000);
+			}
 
-        async function sendParentalDigit(digit) {
-            try {
-                await window.fs42Api.post(`player/parental/digit/${digit}`);
-                // Count it locally so the display reacts at once - the next poll
-                // replaces this with the count the player confirms.
-                pinDigitsEntered += 1;
-                display.textContent = idleDisplayText();
-                console.log('Parental PIN digit sent');
-            } catch (error) {
-                console.error('Parental digit failed:', error);
-                display.textContent = 'ERROR';
-            }
-        }
+			function toggleInfoMode() {
+				if (infoMode === 'playing') {
+					infoMode = 'system';
+					display.textContent = 'SYSTEM INFO';
+					console.log('Switched to system info mode');
+				} else {
+					infoMode = 'playing';
+					display.textContent = 'NOW PLAYING';
+					console.log('Switched to now playing mode');
+				}
 
-        async function handleClear() {
-            if (awaitingPin) {
-                try {
-                    await window.fs42Api.post('player/parental/clear');
-                    pinDigitsEntered = 0;
-                    display.textContent = idleDisplayText();
-                    console.log('Parental PIN cleared');
-                } catch (error) {
-                    console.error('Parental clear failed:', error);
-                    display.textContent = 'ERROR';
-                }
-                return;
-            }
+				// Immediately poll for the new mode
+				pollPlayerStatus();
+			}
 
-            // Not locked, so drop whatever channel number is half-entered.
-            if (channelInputTimeout) {
-                clearTimeout(channelInputTimeout);
-                channelInputTimeout = null;
-            }
-            channelInput = '';
-            isInputtingChannel = false;
-            display.textContent = idleDisplayText();
-        }
+			function updateSystemInfo(info) {
+				// Prioritize: CPU temp, CPU load percent, memory used percent
+				console.log('System info received:', info);
 
-        function handleNumberInput(digit) {
-            // Set input mode
-            isInputtingChannel = true;
-            
-            // Clear any existing timeout
-            if (channelInputTimeout) {
-                clearTimeout(channelInputTimeout);
-                channelInputTimeout = null;
-            }
-            
-            // Add digit to input
-            channelInput += digit;
-            
-            // Display the accumulated input
-            display.textContent = channelInput;
-            
-            // If we have 3 digits, send immediately
-            if (channelInput.length >= 3) {
-                sendChannelChange();
-            } else {
-                // Set timeout for 1 second
-                channelInputTimeout = setTimeout(sendChannelChange, 1000);
-            }
-        }
-        
-        async function sendChannelChange() {
-            if (channelInputTimeout) {
-                clearTimeout(channelInputTimeout);
-                channelInputTimeout = null;
-            }
-            
-            if (channelInput) {
-                try {
-                    const channelNumber = parseInt(channelInput);
-                    console.log(`Sending channel change to ${channelNumber}`);
-                    await window.fs42Api.get(`player/channels/${channelNumber}`);
-                    console.log(`Changed to channel ${channelNumber}`);
-                    // The status polling will update the display with actual channel info
-                } catch (error) {
-                    console.error('Channel change failed:', error);
-                    display.textContent = 'ERROR';
-                    setTimeout(() => {
-                        isInputtingChannel = false;
-                        display.textContent = idleDisplayText();
-                    }, 2000);
-                    return;
-                }
-            }
-            
-            // Clear the input and exit input mode
-            channelInput = '';
-            isInputtingChannel = false;
-        }
+				// Top line: CPU Temperature
+				if (info.temperature_c !== undefined) {
+					nowPlayingNetwork.textContent = `CPU ${info.temperature_c}°C (${info.temperature_f}°F)`;
+				} else if (info.temperature_f !== undefined) {
+					nowPlayingNetwork.textContent = `CPU ${info.temperature_f}°F`;
+				} else if (info.temperature === 'unavailable') {
+					// WSL/virtualized environment - show system type instead
+					const systemType = info.system?.platform || 'Unknown';
+					const arch = info.system?.architecture || '';
+					nowPlayingNetwork.textContent = `${systemType} ${arch}`.trim();
+				} else {
+					nowPlayingNetwork.textContent = 'CPU Temp N/A';
+				}
 
-        // Button press handler
-        document.querySelectorAll('.remote-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const key = this.getAttribute('data-key');
-                handleRemoteCommand(key);
-                
-                // Visual feedback
-                this.style.transform = 'translateY(2px)';
-                setTimeout(() => {
-                    this.style.transform = '';
-                }, 100);
-            });
-        });
+				// Second line: CPU Load
+				if (info.cpu && info.cpu.load_percent !== undefined) {
+					nowPlayingStatus.textContent = `CPU Load ${info.cpu.load_percent}%`;
+				} else if (info.cpu && info.cpu.load_1min !== undefined) {
+					nowPlayingStatus.textContent = `Load ${info.cpu.load_1min}`;
+				} else {
+					nowPlayingStatus.textContent = 'CPU Load N/A';
+				}
 
-        async function handleRemoteCommand(key) {
-            switch(key) {
-                case 'power':
-                    try {
-                        await window.fs42Api.get('player/commands/stop');
-                        display.textContent = 'STOPPING';
-                        console.log('Player stop command sent');
-                    } catch (error) {
-                        console.error('Power/stop command failed:', error);
-                        display.textContent = 'ERROR';
-                    }
-                    break;
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                    if (awaitingPin) {
-                        await sendParentalDigit(key);
-                    } else {
-                        handleNumberInput(key);
-                    }
-                    break;
-                case 'clear':
-                    await handleClear();
-                    break;
-                case 'pad_toggle':
-                    togglePad();
-                    break;
-                case 'nav_up':
-                    await sendNavKey('PageUp', 'UP');
-                    break;
-                case 'nav_down':
-                    await sendNavKey('PageDown', 'DOWN');
-                    break;
-                case 'nav_left':
-                    await sendNavKey('NavLeft', 'LEFT');
-                    break;
-                case 'nav_right':
-                    await sendNavKey('NavRight', 'RIGHT');
-                    break;
-                case 'nav_enter':
-                    await sendNavKey('Enter', 'SELECT');
-                    break;
-                case 'ch_up':
-                    display.textContent = 'CHANNEL UP';
-                    try {
-                        await window.fs42Api.get('player/channels/up');
-                        console.log('Channel up command sent');
-                        // The status polling will update the display with actual channel
-                    } catch (error) {
-                        console.error('Channel up failed:', error);
-                        display.textContent = 'ERROR';
-                        // Return to previous display after 2 seconds
-                        setTimeout(() => {
-                            display.textContent = idleDisplayText();
-                        }, 2000);
-                    }
-                    break;
-                case 'ch_down':
-                    display.textContent = 'CHANNEL DOWN';
-                    try {
-                        await window.fs42Api.get('player/channels/down');
-                        console.log('Channel down command sent');
-                        // The status polling will update the display with actual channel
-                    } catch (error) {
-                        console.error('Channel down failed:', error);
-                        display.textContent = 'ERROR';
-                        // Return to previous display after 2 seconds
-                        setTimeout(() => {
-                            display.textContent = idleDisplayText();
-                        }, 2000);
-                    }
-                    break;
-                case 'vol_up':
-                    try {
-                        const response = await window.fs42Api.get('player/volume/up');
-                        showVolumeDisplay(response.volume || 'VOL +');
-                        console.log('Volume up command sent:', response);
-                    } catch (error) {
-                        console.error('Volume up failed:', error);
-                        showVolumeDisplay('ERROR');
-                    }
-                    break;
-                case 'vol_down':
-                    try {
-                        const response = await window.fs42Api.get('player/volume/down');
-                        showVolumeDisplay(response.volume || 'VOL -');
-                        console.log('Volume down command sent:', response);
-                    } catch (error) {
-                        console.error('Volume down failed:', error);
-                        showVolumeDisplay('ERROR');
-                    }
-                    break;
-                case 'mute':
-                    try {
-                        const response = await window.fs42Api.get('player/volume/mute');
-                        showVolumeDisplay('MUTE');
-                        console.log('Mute toggle command sent:', response);
-                    } catch (error) {
-                        console.error('Mute failed:', error);
-                        showVolumeDisplay('ERROR');
-                    }
-                    break;
-                case 'guide':
-                    try {
-                        await window.fs42Api.post('player/channels/guide');
-                        display.textContent = 'GUIDE';
-                        console.log('Guide command sent');
-                    } catch (error) {
-                        console.error('Guide command failed:', error);
-                        display.textContent = 'ERROR';
-                    }
-                    break;
-                case 'exit':
-                    display.textContent = 'EXIT';
-                    window.location.href = '/';
-                    break;
-                case 'info':
-                    toggleInfoMode();
-                    break;
-                case 'subtitles':
-                    try {
-                        // Queue a non-interrupting MPV command; station_player.py
-                        // cycles the selected subtitle track and displays its label.
-                        await window.fs42Api.post('player/mpv/cycle-subtitles');
-                        display.textContent = 'SUBTITLES';
-                        console.log('Cycle subtitles command sent');
-                    } catch (error) {
-                        console.error('Cycle subtitles failed:', error);
-                        display.textContent = 'ERROR';
-                    }
-                    break;
-                case 'audio':
-                    try {
-                        // Same path as subtitles, but cycling the active audio track.
-                        await window.fs42Api.post('player/mpv/cycle-audio');
-                        display.textContent = 'AUDIO';
-                        console.log('Cycle audio command sent');
-                    } catch (error) {
-                        console.error('Cycle audio failed:', error);
-                        display.textContent = 'ERROR';
-                    }
-                    break;
-                default:
-                    display.textContent = key.toUpperCase();
-            }
+				// Third line: Memory Usage
+				if (info.memory && info.memory.used_percent !== undefined) {
+					nowPlayingTitle.textContent = `Memory ${info.memory.used_percent}% (${info.memory.used_gb}/${info.memory.total_gb}GB)`;
+				} else {
+					nowPlayingTitle.textContent = 'Memory N/A';
+				}
+			}
 
-            // Reset display after 2 seconds for non-persistent states
-            if (!['power', 'mute'].includes(key)) {
-                setTimeout(() => {
-                    if (display.textContent !== 'OFF') {
-                        display.textContent = muted ? 'MUTED' : idleDisplayText();
-                    }
-                }, 2000);
-            }
-        }
+			async function pollPlayerStatus() {
+				try {
+					if (infoMode === 'playing') {
+						const status = await window.fs42Api.get('player/status');
+						console.log('Player status response:', status);
+						await updatePlaybackControlVisibility(status);
+						updatePlaybackToggle(status);
+						updatePlaybackTimeline(status);
+						updateNowPlayingFromStatus(status);
+					} else if (infoMode === 'system') {
+						setPlaybackControlsEnabled(false);
+						const info = await window.fs42Api.get('player/info');
+						console.log('System info response:', info);
+						updateSystemInfo(info);
+					}
+				} catch (error) {
+					console.error('Failed to get status/info:', error);
+					if (infoMode === 'playing') {
+						nowPlayingNetwork.textContent = 'Unknown';
+						nowPlayingStatus.textContent = '';
+						nowPlayingTitle.textContent = '';
+					} else {
+						nowPlayingNetwork.textContent = 'System';
+						nowPlayingStatus.textContent = 'Error';
+						nowPlayingTitle.textContent = 'Unable to get info';
+					}
+				}
+			}
 
-        // Initialize display and start polling
-        display.textContent = idleDisplayText();
-        // Don't show sample data, let the polling populate it
-        nowPlayingNetwork.textContent = 'Loading...';
-        nowPlayingStatus.textContent = '';
-        nowPlayingTitle.textContent = '';
-        startStatusPolling();
+			function startStatusPolling() {
+				if (statusPollInterval) {
+					clearInterval(statusPollInterval);
+				}
+				statusPollInterval = setInterval(pollPlayerStatus, 1000);
+				// Get initial status immediately
+				pollPlayerStatus();
+			}
 
-        // Clean up polling when page is unloaded
-        window.addEventListener('beforeunload', stopStatusPolling);
-    </script>
-</body>
+			function stopStatusPolling() {
+				if (statusPollInterval) {
+					clearInterval(statusPollInterval);
+					statusPollInterval = null;
+				}
+			}
 
+			function togglePad() {
+				padMode = padMode === 'number' ? 'nav' : 'number';
+				numberPad.hidden = padMode !== 'number';
+				navPad.hidden = padMode !== 'nav';
+				display.textContent = padMode === 'nav' ? 'NAV PAD' : 'NUMBERS';
+			}
+
+			// Web channels read keystrokes rather than commands, so the nav pad
+			// forwards the keys the guide and ppv.js listen for.
+			async function sendNavKey(keyName, label) {
+				try {
+					await window.fs42Api.post(`player/web/key/${keyName}`);
+					display.textContent = label;
+				} catch (error) {
+					console.error(`Nav key ${keyName} failed:`, error);
+					display.textContent = 'ERROR';
+				}
+			}
+
+			function setPlaybackControlsEnabled(enabled) {
+				playbackControls.querySelectorAll('button').forEach((button) => {
+					button.disabled = !enabled;
+				});
+			}
+
+			async function updatePlaybackControlVisibility(status) {
+				const channelNumber = Number(status.channel_number);
+				if (status.status !== 'playing' || !Number.isInteger(channelNumber)) {
+					setPlaybackControlsEnabled(false);
+					return;
+				}
+
+				if (!stationPpvCache.has(channelNumber)) {
+					setPlaybackControlsEnabled(false);
+					try {
+						const response = await window.fs42Api.get('stations');
+						const stationEntry = (response.stations || []).find((entry) => {
+							const station = entry.station_conf || entry;
+							return Number(station.channel_number) === channelNumber;
+						});
+						const station = stationEntry
+							? stationEntry.station_conf || stationEntry
+							: null;
+						const webPath = station?.web_url
+							? new URL(
+									station.web_url,
+									window.location.origin,
+								).pathname.replace(/\/$/, '')
+							: '';
+						const isPpv =
+							station?.network_type === 'web' &&
+							!!station.content_dir &&
+							(webPath.endsWith('/static/ppv/ppv.html') ||
+								webPath.endsWith('/static/ppv/ppv_list.html'));
+						stationPpvCache.set(channelNumber, isPpv);
+					} catch (error) {
+						console.error('Could not identify PPV channel:', error);
+						stationPpvCache.set(channelNumber, false);
+					}
+				}
+
+				setPlaybackControlsEnabled(stationPpvCache.get(channelNumber) === true);
+			}
+
+			function updatePlaybackToggle(status) {
+				const isPpv =
+					stationPpvCache.get(Number(status.channel_number)) === true;
+				const filePath = status.file_path || '';
+				const isVideo =
+					isPpv &&
+					status.status === 'playing' &&
+					/\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(filePath);
+
+				if (!isVideo) {
+					ppvVideoPlaying = false;
+					ppvVideoPaused = false;
+					observedPpvVideoPath = null;
+				} else {
+					if (!ppvVideoPlaying || observedPpvVideoPath !== filePath) {
+						ppvVideoPaused = false;
+						observedPpvVideoPath = filePath;
+					}
+					ppvVideoPlaying = true;
+				}
+			}
+
+			function formatPlaybackTime(seconds) {
+				const total = Math.max(0, Math.floor(Number(seconds) || 0));
+				const hours = Math.floor(total / 3600);
+				const minutes = Math.floor((total % 3600) / 60);
+				const remainder = total % 60;
+				return hours > 0
+					? hours +
+							':' +
+							String(minutes).padStart(2, '0') +
+							':' +
+							String(remainder).padStart(2, '0')
+					: minutes + ':' + String(remainder).padStart(2, '0');
+			}
+
+			function updatePlaybackTimeline(status) {
+				const timeline = document.getElementById('playback-timeline');
+				const filePath = status.file_path || '';
+				const duration = Number(status.playback_duration);
+				const position = Number(status.playback_position);
+				const isVideo =
+					status.status === 'playing' &&
+					/\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(filePath);
+
+				if (!isVideo || !Number.isFinite(duration) || duration <= 0) {
+					timeline.hidden = true;
+					return;
+				}
+
+				const current = Math.min(
+					duration,
+					Math.max(0, Number.isFinite(position) ? position : 0),
+				);
+				const slider = document.getElementById('playback-timeline-slider');
+				slider.max = String(duration);
+				slider.value = String(current);
+				const progress = (current / duration) * 100;
+				slider.style.setProperty('--progress', progress + '%');
+				document.getElementById('timeline-start').textContent =
+					formatPlaybackTime(0);
+				document.getElementById('timeline-current').textContent =
+					formatPlaybackTime(current);
+				document.getElementById('timeline-end').textContent =
+					formatPlaybackTime(duration);
+				timeline.hidden = false;
+			}
+
+			async function sendPpvPlaybackControl(action, label) {
+				const channelNumber = Number(currentChannel);
+				if (
+					!Number.isInteger(channelNumber) ||
+					stationPpvCache.get(channelNumber) !== true
+				) {
+					setPlaybackControlsEnabled(false);
+					return;
+				}
+
+				try {
+					const response = await window.fs42Api.post(
+						`ppv/${channelNumber}/control/${action}`,
+					);
+					if (action === 'pause') {
+						ppvVideoPlaying = true;
+						ppvVideoPaused = true;
+					} else if (action === 'play') {
+						ppvVideoPlaying = true;
+						ppvVideoPaused = false;
+						if (response.mode === 'list') observedPpvVideoPath = null;
+					}
+					display.textContent = label;
+				} catch (error) {
+					console.error(`PPV ${action} failed:`, error);
+					display.textContent = 'ERROR';
+				}
+			}
+
+			async function startOrRestartServices() {
+				const buttons = document.querySelectorAll(
+					'[data-key="services_restart"]',
+				);
+				buttons.forEach((button) => {
+					button.disabled = true;
+				});
+				showRestartModal('Sending restart request…');
+				try {
+					const result = await window.fs42Api.post('manage/restart', {});
+					display.textContent =
+						result.status === 'starting'
+							? 'STARTING SERVICES'
+							: 'RESTARTING SERVICES';
+					showRestartModal('Waiting for the Web UI to return…');
+					waitForServerAndReload(result.server_started_at);
+				} catch (error) {
+					console.error('Service start/restart failed:', error);
+					display.textContent =
+						error.detail || error.message || 'SERVICE ERROR';
+					hideRestartModal();
+					buttons.forEach((button) => {
+						button.disabled = false;
+					});
+				}
+			}
+
+			function showRestartModal(message) {
+				document.getElementById('restart-modal-message').textContent = message;
+				const overlay = document.getElementById('restart-overlay');
+				overlay.classList.add('is-visible');
+				overlay.setAttribute('aria-hidden', 'false');
+			}
+
+			function hideRestartModal() {
+				const overlay = document.getElementById('restart-overlay');
+				overlay.classList.remove('is-visible');
+				overlay.setAttribute('aria-hidden', 'true');
+			}
+
+			function waitForServerAndReload(previousStartedAt) {
+				const deadline = Date.now() + 180000;
+				const checkServer = async () => {
+					if (Date.now() >= deadline) {
+						hideRestartModal();
+						display.textContent = 'RESTART NOT CONFIRMED';
+						document
+							.querySelectorAll('[data-key="services_restart"]')
+							.forEach((button) => {
+								button.disabled = false;
+							});
+						return;
+					}
+					try {
+						const status = await window.fs42Api.get('manage/status');
+						if (Number(status.started_at) > Number(previousStartedAt)) {
+							const reloadUrl = new URL('/remote', window.location.origin);
+							reloadUrl.searchParams.set('restart', Date.now().toString());
+							const response = await fetch(reloadUrl, { cache: 'no-store' });
+							if (
+								response.ok &&
+								(await response.text()).includes('id="remote-display"')
+							) {
+								window.location.replace(reloadUrl.toString());
+								return;
+							}
+						}
+					} catch {
+						// The API is expected to be unavailable during its restart.
+					}
+					setTimeout(checkServer, 2000);
+				};
+				setTimeout(checkServer, 8000);
+			}
+
+			async function shutdownSystem() {
+				const button = document.querySelector('[data-key="services_shutdown"]');
+				button.disabled = true;
+				display.textContent = 'SHUTTING DOWN';
+				try {
+					await window.fs42Api.post('manage/shutdown', {});
+					display.textContent = 'SHUTTING DOWN';
+				} catch (error) {
+					console.error('System shutdown failed:', error);
+					display.textContent = error.message || 'SHUTDOWN ERROR';
+					button.disabled = false;
+				}
+			}
+
+			async function sendParentalDigit(digit) {
+				try {
+					await window.fs42Api.post(`player/parental/digit/${digit}`);
+					// Count it locally so the display reacts at once - the next poll
+					// replaces this with the count the player confirms.
+					pinDigitsEntered += 1;
+					display.textContent = idleDisplayText();
+					console.log('Parental PIN digit sent');
+				} catch (error) {
+					console.error('Parental digit failed:', error);
+					display.textContent = 'ERROR';
+				}
+			}
+
+			async function handleClear() {
+				if (awaitingPin) {
+					try {
+						await window.fs42Api.post('player/parental/clear');
+						pinDigitsEntered = 0;
+						display.textContent = idleDisplayText();
+						console.log('Parental PIN cleared');
+					} catch (error) {
+						console.error('Parental clear failed:', error);
+						display.textContent = 'ERROR';
+					}
+					return;
+				}
+
+				// Not locked, so drop whatever channel number is half-entered.
+				if (channelInputTimeout) {
+					clearTimeout(channelInputTimeout);
+					channelInputTimeout = null;
+				}
+				channelInput = '';
+				isInputtingChannel = false;
+				display.textContent = idleDisplayText();
+			}
+
+			function handleNumberInput(digit) {
+				// Set input mode
+				isInputtingChannel = true;
+
+				// Clear any existing timeout
+				if (channelInputTimeout) {
+					clearTimeout(channelInputTimeout);
+					channelInputTimeout = null;
+				}
+
+				// Add digit to input
+				channelInput += digit;
+
+				// Display the accumulated input
+				display.textContent = channelInput;
+
+				// If we have 3 digits, send immediately
+				if (channelInput.length >= 3) {
+					sendChannelChange();
+				} else {
+					// Set timeout for 1 second
+					channelInputTimeout = setTimeout(sendChannelChange, 1000);
+				}
+			}
+
+			async function sendChannelChange() {
+				if (channelInputTimeout) {
+					clearTimeout(channelInputTimeout);
+					channelInputTimeout = null;
+				}
+
+				if (channelInput) {
+					try {
+						const channelNumber = parseInt(channelInput);
+						console.log(`Sending channel change to ${channelNumber}`);
+						await window.fs42Api.get(`player/channels/${channelNumber}`);
+						console.log(`Changed to channel ${channelNumber}`);
+						// The status polling will update the display with actual channel info
+					} catch (error) {
+						console.error('Channel change failed:', error);
+						display.textContent = 'ERROR';
+						setTimeout(() => {
+							isInputtingChannel = false;
+							display.textContent = idleDisplayText();
+						}, 2000);
+						return;
+					}
+				}
+
+				// Clear the input and exit input mode
+				channelInput = '';
+				isInputtingChannel = false;
+			}
+
+			// Button press handler
+			document.querySelectorAll('.remote-btn').forEach((btn) => {
+				btn.addEventListener('click', function () {
+					const key = this.getAttribute('data-key');
+					handleRemoteCommand(key);
+
+					// Visual feedback
+					this.style.transform = 'translateY(2px)';
+					setTimeout(() => {
+						this.style.transform = '';
+					}, 100);
+				});
+			});
+
+			async function handleRemoteCommand(key) {
+				switch (key) {
+					case 'services_shutdown':
+						await shutdownSystem();
+						break;
+					case 'services_restart':
+						await startOrRestartServices();
+						break;
+					case '0':
+					case '1':
+					case '2':
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
+						if (awaitingPin) {
+							await sendParentalDigit(key);
+						} else {
+							handleNumberInput(key);
+						}
+						break;
+					case 'clear':
+						await handleClear();
+						break;
+					case 'pad_toggle':
+						togglePad();
+						break;
+					case 'nav_up':
+						await sendNavKey('PageUp', 'UP');
+						break;
+					case 'nav_down':
+						await sendNavKey('PageDown', 'DOWN');
+						break;
+					case 'nav_left':
+						await sendNavKey('NavLeft', 'LEFT');
+						break;
+					case 'nav_right':
+						await sendNavKey('NavRight', 'RIGHT');
+						break;
+					case 'nav_enter':
+						await sendNavKey('Enter', 'SELECT');
+						break;
+					case 'playback_prev':
+						await sendPpvPlaybackControl('rewind', 'REWIND');
+						break;
+					case 'playback_toggle':
+						await sendPpvPlaybackControl(
+							ppvVideoPlaying && !ppvVideoPaused ? 'pause' : 'play',
+							ppvVideoPlaying && !ppvVideoPaused ? 'PAUSE' : 'PLAY',
+						);
+						break;
+					case 'playback_stop':
+						await sendPpvPlaybackControl('stop', '⏹');
+						break;
+					case 'playback_next':
+						await sendPpvPlaybackControl('fastForward', 'FAST FORWARD');
+						break;
+					case 'ch_up':
+						display.textContent = 'CHANNEL UP';
+						try {
+							await window.fs42Api.get('player/channels/up');
+							console.log('Channel up command sent');
+							// The status polling will update the display with actual channel
+						} catch (error) {
+							console.error('Channel up failed:', error);
+							display.textContent = 'ERROR';
+							// Return to previous display after 2 seconds
+							setTimeout(() => {
+								display.textContent = idleDisplayText();
+							}, 2000);
+						}
+						break;
+					case 'ch_down':
+						display.textContent = 'CHANNEL DOWN';
+						try {
+							await window.fs42Api.get('player/channels/down');
+							console.log('Channel down command sent');
+							// The status polling will update the display with actual channel
+						} catch (error) {
+							console.error('Channel down failed:', error);
+							display.textContent = 'ERROR';
+							// Return to previous display after 2 seconds
+							setTimeout(() => {
+								display.textContent = idleDisplayText();
+							}, 2000);
+						}
+						break;
+					case 'vol_up':
+						try {
+							const response = await window.fs42Api.get('player/volume/up');
+							showVolumeDisplay(response.volume || 'VOL +');
+							console.log('Volume up command sent:', response);
+						} catch (error) {
+							console.error('Volume up failed:', error);
+							showVolumeDisplay('ERROR');
+						}
+						break;
+					case 'vol_down':
+						try {
+							const response = await window.fs42Api.get('player/volume/down');
+							showVolumeDisplay(response.volume || 'VOL -');
+							console.log('Volume down command sent:', response);
+						} catch (error) {
+							console.error('Volume down failed:', error);
+							showVolumeDisplay('ERROR');
+						}
+						break;
+					case 'mute':
+						try {
+							const response = await window.fs42Api.get('player/volume/mute');
+							showVolumeDisplay('MUTE');
+							console.log('Mute toggle command sent:', response);
+						} catch (error) {
+							console.error('Mute failed:', error);
+							showVolumeDisplay('ERROR');
+						}
+						break;
+					case 'guide':
+						try {
+							await window.fs42Api.post('player/channels/guide');
+							display.textContent = 'GUIDE';
+							console.log('Guide command sent');
+						} catch (error) {
+							console.error('Guide command failed:', error);
+							display.textContent = 'ERROR';
+						}
+						break;
+					case 'exit':
+						display.textContent = 'EXIT';
+						window.location.href = '/';
+						break;
+					case 'info':
+						toggleInfoMode();
+						break;
+					case 'subtitles':
+						try {
+							// Queue a non-interrupting MPV command; station_player.py
+							// cycles the selected subtitle track and displays its label.
+							await window.fs42Api.post('player/mpv/cycle-subtitles');
+							display.textContent = 'SUBTITLES';
+							console.log('Cycle subtitles command sent');
+						} catch (error) {
+							console.error('Cycle subtitles failed:', error);
+							display.textContent = 'ERROR';
+						}
+						break;
+					case 'audio':
+						try {
+							// Same path as subtitles, but cycling the active audio track.
+							await window.fs42Api.post('player/mpv/cycle-audio');
+							display.textContent = 'AUDIO';
+							console.log('Cycle audio command sent');
+						} catch (error) {
+							console.error('Cycle audio failed:', error);
+							display.textContent = 'ERROR';
+						}
+						break;
+					default:
+						display.textContent = key.toUpperCase();
+				}
+
+				// Reset display after 2 seconds for non-persistent states
+				if (!['services_shutdown', 'services_restart', 'mute'].includes(key)) {
+					setTimeout(() => {
+						if (display.textContent !== 'OFF') {
+							display.textContent = muted ? 'MUTED' : idleDisplayText();
+						}
+					}, 2000);
+				}
+			}
+
+			// Initialize display and start polling
+			display.textContent = idleDisplayText();
+			// Don't show sample data, let the polling populate it
+			nowPlayingNetwork.textContent = 'Loading...';
+			nowPlayingStatus.textContent = '';
+			nowPlayingTitle.textContent = '';
+			startStatusPolling();
+
+			// Clean up polling when page is unloaded
+			window.addEventListener('beforeunload', stopStatusPolling);
+		</script>
+	</body>
 </html>
