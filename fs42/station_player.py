@@ -73,6 +73,21 @@ def update_status_socket(
         fp.write(as_str)
 
 
+def update_pause_status(paused):
+    """Update only the pause flag without discarding current playback metadata."""
+    status_socket = StationManager().server_conf["status_socket"]
+    try:
+        with open(status_socket, "r") as fp:
+            status_obj = json.load(fp)
+        if status_obj.get("status") != "playing":
+            return
+        status_obj["paused"] = bool(paused)
+        with open(status_socket, "w") as fp:
+            json.dump(status_obj, fp)
+    except (OSError, json.JSONDecodeError) as e:
+        logging.getLogger("FieldPlayer").warning(f"Could not update pause status: {e}")
+
+
 class PlayerState(Enum):
     FAILED = 1
     EXITED = 2
@@ -236,6 +251,8 @@ class StationPlayer:
 
         try:
             self.mpv.command(*mpv_command)
+            if action in {"ppv_pause", "ppv_play"}:
+                update_pause_status(action == "ppv_pause")
             self._l.info(f"Ran mpv runtime command: {action}")
             return True
         except Exception as e:

@@ -127,6 +127,7 @@ class CableBox:
 
         self.channel_num = 0
         self.last_stat = ""
+        self.pause_mode = False
 
         # mode to display and update temp
         self.temp_mode = False
@@ -326,7 +327,10 @@ class CableBox:
                 if new_channel_num != self.channel_num:
                     self.last_button_time = time.monotonic()
                     self.channel_num = new_channel_num
-                if self.channel_num >= 0:
+                self.pause_mode = bool(new_stat.get("paused", False))
+                if self.pause_mode:
+                    self.tm.show("PAUS")
+                elif self.channel_num >= 0:
                     self.tm.show(channel_label(self.channel_num))
                     _l.info(f"Set channel: {self.channel_num}")
                 else:
@@ -335,7 +339,7 @@ class CableBox:
                 self.tm.show("FS42")
 
     def refresh_display(self, now):
-        if self.show_time and now - self.last_button_time > 15 and not self.entry.active:
+        if self.show_time and now - self.last_button_time > 15 and not self.entry.active and not self.pause_mode:
             formatted = time.strftime(self.time_format, time.localtime())
             if ":" in formatted:
                 h, m = formatted.split(":", 1)
