@@ -405,6 +405,29 @@ fieldset {
     margin-bottom: 15px;
 }
 
+.playback-section {
+    grid-template-columns: repeat(4, 1fr);
+    margin-bottom: 15px;
+}
+
+.playback-section .remote-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 4px;
+    font-size: 10px;
+    line-height: 1.05;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.playback-section .playback-toggle-btn {
+    padding: 1px;
+    font-size: 8px;
+    line-height: 0.95;
+}
+
 .now-playing {
     background: #1a1a1a;
     border: 2px inset #333;

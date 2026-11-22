@@ -96,6 +96,10 @@ class StationPlayer:
         "toggle_subtitles": ("cycle", "sub-visibility"),
         "cycle_subtitles": ("cycle", "sub"),
         "cycle_audio": ("cycle", "audio"),
+        "ppv_play": ("set_property", "pause", False),
+        "ppv_pause": ("set_property", "pause", True),
+        "ppv_forward": ("seek", 10, "relative"),
+        "ppv_backward": ("seek", -10, "relative"),
     }
 
     scramble_effects = {
@@ -224,7 +228,17 @@ class StationPlayer:
             return False
 
         try:
-            self.mpv.command(*mpv_command)
+            if action == "ppv_pause":
+                # Render the pause label before freezing video frame updates.
+                self.mpv.command("show-text", "   PAUSED", 1500)
+                self.mpv.command(*mpv_command)
+            elif action == "ppv_play":
+                self.mpv.command(*mpv_command)
+                # Replace the pause label when playback resumes.
+                self.mpv.command("show-text", "", 1)
+                self.mpv.command("set_property", "osd-align-x", "left")
+            else:
+                self.mpv.command(*mpv_command)
             self._l.info(f"Ran mpv runtime command: {action}")
             return True
         except Exception as e:
@@ -718,6 +732,17 @@ class StationPlayer:
         self.mpv.loop_playlist = "inf"
         self.current_playing_file_path = file_path
 
+        if self.station_config:
+            update_status_socket(
+                "playing",
+                self.station_config["network_name"],
+                self.station_config["channel_number"],
+                title=os.path.basename(file_path),
+                timestamp=StationManager().server_conf.get("date_time_format", "%Y-%m-%dT%H:%M:%S"),
+                file_path=file_path,
+                content_type="feature",
+            )
+
         # show NFO overlay if the file has overlay-eligible cached metadata
         try:
             nfo_data = self._nfo_overlay_data(file_path)
@@ -728,10 +753,27 @@ class StationPlayer:
             self._l.warning(f"Could not start NFO overlay: {e}")
 
         # this will keep going until channel change or other interrupt
+        last_pause_osd_refresh = 0.0
         while True:
             time.sleep(0.05)
+            now = time.monotonic()
+            if now - last_pause_osd_refresh >= 1.0:
+                last_pause_osd_refresh = now
+                try:
+                    if self.mpv.pause:
+                        self.mpv.command("show-text", "   PAUSED", 1500)
+                except Exception as e:
+                    self._l.debug(f"Could not refresh PPV pause OSD: {e}")
+
             response = self.input_check_fn()
             if response:
+                if (
+                    response.status == PlayerState.SUCCESS
+                    and response.payload == "mpv_command:ppv_stop"
+                ):
+                    self.stop_player()
+                    self._close_now_playing()
+                    return PlayerOutcome(PlayerState.SUCCESS)
                 if self.handle_runtime_command_outcome(response):
                     continue
                 if self.is_non_interrupting(response):
@@ -966,6 +1008,7 @@ class StationPlayer:
 
     def stop_player(self):
         try:
+            self.mpv.command("set_property", "osd-align-x", "left")
             self.mpv.stop()
             self.current_playing_file_path = None
         except Exception:

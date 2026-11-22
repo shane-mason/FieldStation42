@@ -2,9 +2,11 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
+import json
 import os
 import logging
 import mimetypes
+from urllib.parse import urlparse
 from fs42.station_manager import StationManager
 from fs42.nfo_agent import NFOAgent
 from .tmdb_helper import get_tmdb_helper
@@ -335,3 +337,67 @@ async def play_file(channel_number: int, play_request: PlayFileRequest, request:
 async def send_key(channel_number: int, key_name: str, request: Request):
     """Deprecated alias for POST /player/web/key/{key_name}."""
     return await send_web_key(key_name, request)
+
+
+@router.post("/{channel_number}/control/{action}")
+async def control_ppv(channel_number: int, action: str, request: Request):
+    """Navigate the active PPV list or control its playing video."""
+    if action not in {"rewind", "play", "pause", "stop", "fastForward"}:
+        raise HTTPException(status_code=400, detail="Action must be rewind, play, pause, stop, or fastForward")
+
+    station = StationManager().station_by_channel(channel_number)
+    web_path = urlparse((station or {}).get("web_url", "")).path.rstrip("/")
+    if (
+        not station
+        or station.get("network_type") != "web"
+        or not station.get("content_dir")
+        or not (web_path.endswith("/static/ppv/ppv.html") or web_path.endswith("/static/ppv/ppv_list.html"))
+    ):
+        raise HTTPException(status_code=400, detail=f"Channel {channel_number} is not a PPV channel")
+
+    status_path = StationManager().server_conf.get("status_socket")
+    try:
+        with open(status_path, "r") as status_file:
+            player_status = json.load(status_file)
+        active_channel = int(player_status.get("channel_number"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        active_channel = None
+        player_status = {}
+
+    if player_status.get("status") != "playing" or active_channel != channel_number:
+        raise HTTPException(status_code=409, detail="The PPV channel is not currently playing")
+
+    video_path = player_status.get("file_path")
+    is_video = False
+    if video_path:
+        # Compare normalized paths without resolving symlinks: catalog entries may
+        # point to media outside the catalog through symlinked files/directories.
+        content_dir = os.path.abspath(os.path.normpath(station["content_dir"]))
+        video_path = os.path.abspath(os.path.normpath(video_path))
+        try:
+            is_under_content = os.path.commonpath((content_dir, video_path)) == content_dir
+        except ValueError:
+            is_under_content = False
+        is_video = (
+            is_under_content
+            and os.path.splitext(video_path)[1].lower() in {".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v"}
+        )
+
+    command_queue = connected_command_queue(request)
+    if is_video:
+        mpv_actions = {
+            "rewind": "ppv_backward",
+            "play": "ppv_play",
+            "pause": "ppv_pause",
+            "stop": "ppv_stop",
+            "fastForward": "ppv_forward",
+        }
+        command_queue.put({"command": "mpv_command", "action": mpv_actions[action]})
+        return {"status": "ok", "action": action, "mode": "video"}
+
+    if action in {"pause", "stop"}:
+        raise HTTPException(status_code=409, detail=f"{action.title()} is available while a PPV movie is playing")
+
+    web_keys = {"rewind": "PageUp", "play": "Enter", "fastForward": "PageDown"}
+    command_queue.put({"command": "web_key", "key": web_keys[action]})
+    return {"status": "ok", "action": action, "mode": "list"}
