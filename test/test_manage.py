@@ -378,16 +378,28 @@ def test_put_config_writes_backs_up_and_restarts(config_dir, monkeypatch):
     assert "set-cookie" not in result.headers
 
 
-def test_put_config_without_systemd_only_saves(config_dir, monkeypatch):
+def test_put_config_without_systemd_reloads(config_dir, monkeypatch):
     monkeypatch.delenv("INVOCATION_ID", raising=False)
     handoff = MagicMock()
     monkeypatch.setattr(manage, "_handoff", handoff)
 
     result = asyncio.run(manage.put_config(_config_request({"config": {"api_key": "a-brand-new-key"}})))
 
-    assert result["status"] == "saved" and result["restart"] is False
+    assert json.loads(result.body) == {"status": "reloaded"}
     assert json.loads(config_dir.read_text()) == {"api_key": "a-brand-new-key"}
+    manage.StationManager.return_value.reload.assert_called_once()
+    assert auth.session_token("a-brand-new-key") in result.headers["set-cookie"]
     handoff.assert_not_called()
+
+
+def test_put_config_reload_failure_reports_it(config_dir, monkeypatch):
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
+    manage.StationManager.return_value.reload.side_effect = RuntimeError("bad station")
+
+    result = asyncio.run(manage.put_config(_config_request({"config": {"api_key": KEY}})))
+
+    assert result["status"] == "saved" and "bad station" in result["reason"]
+    assert json.loads(config_dir.read_text()) == {"api_key": KEY}
 
 
 def test_put_config_key_change_sets_new_cookie(config_dir, monkeypatch):

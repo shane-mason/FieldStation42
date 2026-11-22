@@ -93,6 +93,12 @@ class StationManager(object):
                         self.guide_config = station
                         logging.getLogger().info("Setting web channel as guide channel")
 
+    def reload(self):
+        # re-reads main_config.json and every station; settings the server was started with, like its port, need a restart
+        self._initialized = False
+        self.stations = []
+        self.__init__()
+
     def local_server_url(self):
         return f"http://127.0.0.1:{self.server_conf.get('server_port', 4242)}"
 

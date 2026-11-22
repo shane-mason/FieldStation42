@@ -2,6 +2,7 @@ import copy
 from datetime import datetime
 
 from fs42 import timings
+from fs42.slot_reader import SlotReader
 
 
 class ConfigurationError(Exception):
@@ -62,10 +63,22 @@ class ConfigProcessor:
         return slot
 
     @staticmethod
-    def _valid_date_key(date_key, section="date_overrides"):
+    def _is_holiday(date_key):
+        # imported here - station_manager imports this module
+        from fs42.station_manager import StationManager
+
+        if SlotReader.is_date_key(date_key):
+            return False
+        return date_key in StationManager().get_custom_holidays()
+
+    @staticmethod
+    def _valid_date_key(date_key, section="date_overrides", allow_holidays=False):
         # validate that this looks like either "Month Day" or "Month Day - Month Day"
         # raises ConfigurationError with helpful message on failure
         parts = [part.strip() for part in date_key.split(" - ")]
+
+        if allow_holidays and len(parts) == 1 and ConfigProcessor._is_holiday(date_key):
+            return True
 
         if len(parts) not in (1, 2):
             raise ConfigurationError(
@@ -77,9 +90,10 @@ class ConfigProcessor:
             try:
                 datetime.strptime(f"{datetime.now().year} {part}", "%Y %B %d")
             except ValueError:
+                hint = " or the name of a custom holiday in main_config.json" if allow_holidays and len(parts) == 1 else ""
                 raise ConfigurationError(
                     f"Invalid date '{part}' in {section} key '{date_key}'. "
-                    "Ensure the day exists for the given month (e.g., April has 30 days)."
+                    f"Use a month and day that exists (e.g., April has 30 days){hint}."
                 )
 
         return True
@@ -128,7 +142,7 @@ class ConfigProcessor:
 
         for date_key, override_value in overrides.items():
             # validate date key (will raise ConfigurationError if invalid)
-            ConfigProcessor._valid_date_key(date_key)
+            ConfigProcessor._valid_date_key(date_key, allow_holidays=True)
 
             if isinstance(override_value, str):
                 template_key = override_value
@@ -138,7 +152,9 @@ class ConfigProcessor:
                         f"date_overrides entry '{date_key}' for {conf['network_name']} references template '{template_key}', but that template doesn't exist."
                     )
 
-                override_value = copy.deepcopy(conf["day_templates"][template_key])
+                # a template replaces the whole day, so hours it leaves empty are off air
+                override_value = {str(hour): {} for hour in range(24)}
+                override_value.update(copy.deepcopy(conf["day_templates"][template_key]))
 
             elif not isinstance(override_value, dict):
                 raise ConfigurationError(

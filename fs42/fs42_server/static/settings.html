@@ -59,6 +59,7 @@
         let schema = { properties: {} };
         let unknown = [];
         let startedAt = null;
+        let willRestart = true;
         let dirty = false;
         const openDetails = new Set();
 
@@ -489,7 +490,7 @@
                 invalid.reportValidity();
                 return;
             }
-            if (!confirm('Saving restarts FieldStation42 - playback stops for a few seconds. Save now?')) return;
+            if (willRestart && !confirm('Saving restarts FieldStation42 - playback stops for a few seconds. Save now?')) return;
 
             const button = document.getElementById('settings-save');
             button.disabled = true;
@@ -506,6 +507,9 @@
             if (result.status === 'restarting') {
                 setStatus('Saved. Restarting… this page reloads when FieldStation42 is back.', 'ok');
                 waitForServer();
+            } else if (result.status === 'reloaded') {
+                button.disabled = false;
+                setStatus('Saved and applied. Changing the server address or port needs a restart.', 'ok');
             } else {
                 button.disabled = false;
                 setStatus(`Saved. ${result.reason || ''} Restart FieldStation42 to apply the changes.`, 'ok');
@@ -550,7 +554,11 @@
             conf = data.config;
             schema = data.schema;
             unknown = data.unknown;
-            if (statusResponse.ok) startedAt = (await statusResponse.json()).started_at;
+            if (statusResponse.ok) {
+                const status = await statusResponse.json();
+                startedAt = status.started_at;
+                willRestart = (status.units || []).length > 0;
+            }
             document.getElementById('settings-savebar').style.display = '';
             render();
         }

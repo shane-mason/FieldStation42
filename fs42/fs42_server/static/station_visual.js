@@ -3,6 +3,8 @@
     const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const WEEKDAYS = DAYS.slice(0, 5);
     const WEEKEND = DAYS.slice(5);
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     const VISUAL_TYPES = ['standard', 'loop', 'web'];
     const LEADING_KEYS = ['network_name', 'network_long_name', 'channel_number', 'network_type', 'hidden', 'parental_controls', 'visual_editor'];
     const BREAK_STRATEGIES = ['standard', 'center', 'end'];
@@ -104,6 +106,12 @@
             'Hours are listed from 06:00, the start of the broadcast day.',
         ],
         weekly: 'Choose which day template each day of the week uses. One template can be used on any number of days.',
+        dateOverrides: [
+            'Use a different day template on a date, a range of dates, or a custom holiday. Dates repeat every year.',
+            'On those dates the template replaces the whole day: hours it leaves empty are off air. To change just a few hours, duplicate the normal template, edit the copy and use it here.',
+            'Custom holidays, like "4th thursday november", are set in System Configuration.',
+            'If two entries cover the same day, the first one listed wins.',
+        ],
         modeTags: 'When the scheduler is free during this hour, it picks a video from these tags. Videos play to the end, even past the hour.',
         modeContinued: 'Uses the tags of the nearest earlier hour that has tags. Only the tags carry over - bumps, break settings and sequences don\'t.',
         modeOffAir: 'If the scheduler lands in this hour, the station goes off air until the next hour and plays the off-air video. A show still running from an earlier hour plays through first.',
@@ -142,6 +150,8 @@
     let contentFolders = { path: null, folders: undefined };
     let datalistCounter = 0;
     let originalKeyOrder = [];
+    let customHolidays;
+    let holidayRequest = null;
 
     function el(tag, props = {}, ...children) {
         const node = document.createElement(tag);
@@ -167,7 +177,7 @@
     }
 
     function orderStationKeys(conf) {
-        const trailing = ['day_templates', ...DAYS];
+        const trailing = ['day_templates', ...DAYS, 'date_overrides'];
         const position = (k) => {
             const index = originalKeyOrder.indexOf(k);
             return index === -1 ? Infinity : index;
@@ -204,6 +214,7 @@
         conf = stationConfig.station_conf;
         originalKeyOrder = Object.keys(conf);
         notifyChange = onChange;
+        holidayRequest = null;
         if (selectedTemplate && !(conf.day_templates || {})[selectedTemplate]) {
             selectedTemplate = null;
             selectedHour = null;
@@ -441,8 +452,12 @@
 
     function assignedSchedules(stationConf) {
         const templateMap = stationConf.day_templates || {};
+        const overrideTemplates = Object.values(stationConf.date_overrides || {})
+            .filter((value) => typeof value === 'string')
+            .map((name) => templateMap[name]);
         return DAYS
             .map((d) => (typeof stationConf[d] === 'string' ? templateMap[stationConf[d]] : stationConf[d]))
+            .concat(overrideTemplates)
             .filter((schedule) => schedule && typeof schedule === 'object');
     }
 
@@ -720,7 +735,11 @@
             selectedTemplate = names[0];
             selectedHour = null;
         }
-        return [dayTemplatesSection(names), hasInlineDays() ? inlineScheduleSection() : weeklyScheduleSection(names)];
+        return [
+            dayTemplatesSection(names),
+            hasInlineDays() ? inlineScheduleSection() : weeklyScheduleSection(names),
+            dateOverridesSection(names),
+        ];
     }
 
     function dayTemplatesSection(names) {
@@ -782,6 +801,256 @@
                 el('button', { class: 'pure-button sv-small', onclick: () => assignTo(DAYS) }, 'Every day')));
     }
 
+    function parseMonthDay(text) {
+        const match = /^([A-Za-z]+) +(\d{1,2})$/.exec(text.trim());
+        if (!match) return null;
+        const month = MONTHS.findIndex((m) => m.toLowerCase() === match[1].toLowerCase());
+        const day = Number(match[2]);
+        if (month === -1 || day < 1 || day > 31) return null;
+        return { month, day };
+    }
+
+    function formatMonthDay({ month, day }) {
+        return `${MONTHS[month]} ${day}`;
+    }
+
+    function shortMonthDay({ month, day }) {
+        return `${MONTHS[month].slice(0, 3)} ${day}`;
+    }
+
+    function nextMonthDay({ month, day }) {
+        return day < MONTH_DAYS[month] ? { month, day: day + 1 } : { month: (month + 1) % 12, day: 1 };
+    }
+
+    function parseOverrideKey(key) {
+        const parts = key.split(' - ');
+        if (parts.length === 2) {
+            const start = parseMonthDay(parts[0]);
+            const end = parseMonthDay(parts[1]);
+            if (start && end) return { kind: 'range', start, end };
+        }
+        if (parts.length === 1) {
+            const start = parseMonthDay(key);
+            if (start) return { kind: 'date', start };
+        }
+        return { kind: 'holiday', name: key };
+    }
+
+    function holidayMonthDay(name) {
+        const info = customHolidays && customHolidays[name];
+        if (!info || !info.date) return null;
+        const [, month, day] = info.date.split('-').map(Number);
+        return { month: month - 1, day };
+    }
+
+    function shortOverrideLabel(key) {
+        const parsed = parseOverrideKey(key);
+        if (parsed.kind === 'date') return shortMonthDay(parsed.start);
+        if (parsed.kind === 'range') return `${shortMonthDay(parsed.start)}-${shortMonthDay(parsed.end)}`;
+        return parsed.name;
+    }
+
+    function overrideDays(key) {
+        const parsed = parseOverrideKey(key);
+        const id = ({ month, day }) => `${month}-${day}`;
+        if (parsed.kind === 'holiday') {
+            const md = holidayMonthDay(parsed.name);
+            return new Set(md ? [id(md)] : []);
+        }
+        if (parsed.kind === 'date') return new Set([id(parsed.start)]);
+        const days = new Set();
+        let md = parsed.start;
+        for (let i = 0; i < 366; i++) {
+            days.add(id(md));
+            if (md.month === parsed.end.month && md.day >= parsed.end.day) break;
+            md = nextMonthDay(md);
+        }
+        return days;
+    }
+
+    function overridesUsing(name) {
+        const overrides = conf.date_overrides || {};
+        return Object.keys(overrides).filter((key) => overrides[key] === name);
+    }
+
+    function ensureCustomHolidays() {
+        if (holidayRequest) return;
+        holidayRequest = window.fs42Api.get('summary/custom_holidays')
+            .then((data) => { customHolidays = data.custom_holidays || {}; })
+            .catch(() => { customHolidays = null; })
+            .then(redrawUnlessTyping);
+    }
+
+    function replaceOverrideKey(oldKey, newKey) {
+        if (oldKey === newKey) return;
+        if (newKey in conf.date_overrides) {
+            alert(`There's already an override for "${newKey}".`);
+            redraw();
+            return;
+        }
+        renameKey(conf.date_overrides, oldKey, newKey);
+        changed(true);
+    }
+
+    function addOverride() {
+        const overrides = conf.date_overrides || {};
+        const today = new Date();
+        let md = { month: today.getMonth(), day: Math.min(today.getDate(), MONTH_DAYS[today.getMonth()]) };
+        for (let i = 0; i < 365 && formatMonthDay(md) in overrides; i++) md = nextMonthDay(md);
+        if (formatMonthDay(md) in overrides) return;
+        overrides[formatMonthDay(md)] = templates()[selectedTemplate] ? selectedTemplate : Object.keys(templates())[0];
+        conf.date_overrides = overrides;
+        changed(true);
+    }
+
+    function removeOverride(key) {
+        delete conf.date_overrides[key];
+        if (!Object.keys(conf.date_overrides).length) delete conf.date_overrides;
+        changed(true);
+    }
+
+    function setOverrideKind(key, kind) {
+        const parsed = parseOverrideKey(key);
+        const today = new Date();
+        const start = parsed.start || holidayMonthDay(parsed.name)
+            || { month: today.getMonth(), day: Math.min(today.getDate(), MONTH_DAYS[today.getMonth()]) };
+        if (kind === 'date') {
+            replaceOverrideKey(key, formatMonthDay(start));
+        } else if (kind === 'range') {
+            replaceOverrideKey(key, `${formatMonthDay(start)} - ${formatMonthDay(parsed.end || nextMonthDay(start))}`);
+        } else {
+            const free = Object.keys(customHolidays || {}).find((name) => !(name in conf.date_overrides));
+            if (!free) {
+                alert(customHolidays === null
+                    ? 'Couldn\'t load the custom holidays.'
+                    : 'There are no unused custom holidays. Add holidays in System Configuration (Manage, then Edit Configuration).');
+                redraw();
+                return;
+            }
+            replaceOverrideKey(key, free);
+        }
+    }
+
+    function monthDayPicker(md, onPick) {
+        const dayCount = Math.max(MONTH_DAYS[md.month], md.day);
+        const monthSelect = el('select', {
+            class: 'sv-input sv-input-inline',
+            'aria-label': 'Month',
+            onchange: (e) => {
+                const month = Number(e.target.value);
+                onPick({ month, day: Math.min(md.day, MONTH_DAYS[month]) });
+            },
+        }, MONTHS.map((m, i) => el('option', { value: i }, m)));
+        const daySelect = el('select', {
+            class: 'sv-input sv-input-inline',
+            'aria-label': 'Day',
+            onchange: (e) => onPick({ month: md.month, day: Number(e.target.value) }),
+        }, Array.from({ length: dayCount }, (_, i) => el('option', { value: i + 1 }, i + 1)));
+        monthSelect.value = md.month;
+        daySelect.value = md.day;
+        return el('span', { class: 'sv-monthday' }, monthSelect, daySelect);
+    }
+
+    function holidayPicker(key, name) {
+        const names = Object.keys(customHolidays || {});
+        const known = names.includes(name);
+        const select = el('select', {
+            class: 'sv-input sv-input-inline',
+            'aria-label': 'Holiday',
+            onchange: (e) => replaceOverrideKey(key, e.target.value),
+        },
+        names.map((n) => el('option', { value: n }, n)),
+        known ? null : el('option', { value: name }, customHolidays ? `${name} (unknown)` : name));
+        select.value = name;
+        const md = holidayMonthDay(name);
+        return [select, md ? el('span', { class: 'sv-hint' }, `${shortMonthDay(md)} this year`) : null];
+    }
+
+    function overrideRow(key, value, names, clash) {
+        const parsed = parseOverrideKey(key);
+        const warnings = [];
+        if (clash) warnings.push(`Overlaps "${clash}", which is listed first and wins on the days they share.`);
+        if (parsed.kind === 'holiday' && customHolidays && !customHolidays[parsed.name]) {
+            warnings.push(`There's no custom holiday named "${parsed.name}" in System Configuration, so this station won't load.`);
+        }
+        const warningLines = warnings.map((w) => el('div', { class: 'sv-warning-text sv-override-warning' }, w));
+
+        if (typeof value !== 'string') {
+            return el('div', { class: 'sv-override' },
+                el('div', { class: 'sv-override-controls' },
+                    el('span', { class: 'sv-readonly' }, key),
+                    el('span', { class: 'sv-hint' }, 'Custom hours - edit these in the JSON tab.')),
+                warningLines);
+        }
+
+        const kindSelect = el('select', {
+            class: 'sv-input sv-input-inline',
+            'aria-label': 'Kind of date',
+            onchange: (e) => setOverrideKind(key, e.target.value),
+        },
+        el('option', { value: 'date' }, 'Date'),
+        el('option', { value: 'range' }, 'Date range'),
+        el('option', { value: 'holiday' }, 'Holiday'));
+        kindSelect.value = parsed.kind;
+
+        let when;
+        if (parsed.kind === 'date') {
+            when = monthDayPicker(parsed.start, (md) => replaceOverrideKey(key, formatMonthDay(md)));
+        } else if (parsed.kind === 'range') {
+            when = [
+                monthDayPicker(parsed.start, (md) => replaceOverrideKey(key, `${formatMonthDay(md)} - ${formatMonthDay(parsed.end)}`)),
+                el('span', { class: 'sv-hint' }, 'through'),
+                monthDayPicker(parsed.end, (md) => replaceOverrideKey(key, `${formatMonthDay(parsed.start)} - ${formatMonthDay(md)}`)),
+            ];
+        } else {
+            when = holidayPicker(key, parsed.name);
+        }
+
+        const templateSelect = el('select', {
+            class: 'sv-input sv-input-inline',
+            'aria-label': 'Day template',
+            onchange: (e) => {
+                conf.date_overrides[key] = e.target.value;
+                changed(true);
+            },
+        },
+        names.map((n) => el('option', { value: n }, n)),
+        names.includes(value) ? null : el('option', { value }, `${value} (missing)`));
+        templateSelect.value = value;
+
+        return el('div', { class: 'sv-override' },
+            el('div', { class: 'sv-override-controls' },
+                kindSelect, when,
+                el('span', { class: 'sv-hint' }, 'uses'),
+                templateSelect,
+                el('button', { class: 'pure-button sv-small sv-danger', onclick: () => removeOverride(key) }, 'Remove')),
+            warningLines);
+    }
+
+    function dateOverridesSection(names) {
+        if (names.length === 0) {
+            return section('Date overrides', HELP.dateOverrides,
+                el('p', { class: 'sv-hint' }, 'Create a day template above, then use it on dates here.'));
+        }
+        ensureCustomHolidays();
+
+        const overrides = conf.date_overrides || {};
+        const earlier = [];
+        const rows = Object.keys(overrides).map((key) => {
+            const days = overrideDays(key);
+            const clash = earlier.find((other) => [...days].some((d) => other.days.has(d)));
+            earlier.push({ key, days });
+            return overrideRow(key, overrides[key], names, clash ? clash.key : null);
+        });
+
+        return section('Date overrides', HELP.dateOverrides,
+            el('p', { class: 'sv-hint' },
+                'On these dates the template replaces the whole day. Its 00:00 to 05:00 hours play in the early morning of the date, not the night after.'),
+            rows.length ? el('div', { class: 'sv-overrides' }, rows) : null,
+            el('div', { class: 'sv-row' },
+                el('button', { class: 'pure-button sv-small', onclick: addOverride }, 'Add date')));
+    }
+
     function templateList(names) {
         const actions = {
             add() {
@@ -824,7 +1093,10 @@
         return el('div', { class: 'sv-templates' },
             el('ul', { class: 'sv-template-list' },
                 names.map((name) => {
-                    const used = daysUsing(name).map((d) => capitalize(d).slice(0, 3));
+                    const used = [
+                        ...daysUsing(name).map((d) => capitalize(d).slice(0, 3)),
+                        ...overridesUsing(name).map(shortOverrideLabel),
+                    ];
                     return el('li', {
                         class: 'sv-template' + (name === selectedTemplate ? ' sv-selected' : ''),
                         onclick: () => {
@@ -907,9 +1179,14 @@
         const missing = missingFolderTags(slot);
         if (missing.length) warnings.push(`No folder for: ${missing.join(', ')}`);
         if (slot && slot.continued && !tagList(slot).length && !hasTaggedHourAbove(template, hourKey)) {
-            warnings.push(daysUsing(templateName).includes('monday')
-                ? 'Nothing above to continue - this fails to load on Monday.'
-                : 'Nothing above in this template - it continues the previous day\'s last tags.');
+            if (daysUsing(templateName).includes('monday')) {
+                warnings.push('Nothing above to continue - this fails to load on Monday.');
+            } else if (daysUsing(templateName).length) {
+                warnings.push('Nothing above in this template - it continues the previous day\'s last tags.');
+            }
+            if (overridesUsing(templateName).length) {
+                warnings.push('Nothing above to continue - this hour is off air on override dates.');
+            }
         }
         return warnings;
     }

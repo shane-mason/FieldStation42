@@ -220,19 +220,20 @@ class CustomHolidayHint:
     def test_pattern(to_test):
         return to_test in station_manager.StationManager().get_custom_holidays().keys()
 
-    def hint(self, when):
-        year = when.year
+    def date_in(self, year):
         if self.day:
             # a fixed date means that date - no shifting off the weekend
-            calc_date = datetime.strptime(f"{year} {self.month} {self.day}", "%Y %B %d")
+            return datetime.strptime(f"{year} {self.month} {self.day}", "%Y %B %d")
         elif self.weekday_str:
             raw_date = datetime.strptime(f"{year} {self.month} 1", "%Y %B %d")
-            calc_date = self._nth_weekday(raw_date, self.weekday_str, self.n)
+            return self._nth_weekday(raw_date, self.weekday_str, self.n)
         else:
             # left for expansion
             # raise error in case we find ourselves here
             raise ValueError(f"Custom Holiday: {self.holiday_name} configuration read error.")
 
+    def hint(self, when):
+        calc_date = self.date_in(when.year)
         return calc_date.day == when.day and calc_date.month == when.month
     
     def _nth_weekday(self, month, weekday_str, n):

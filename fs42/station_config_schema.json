@@ -174,19 +174,19 @@
         },
         "date_overrides": {
           "type": "object",
-          "description": "Optional exact-date schedule overrides keyed by month/day like 'December 25' or a date range. These take precedence over weekday schedules for matching dates.",
+          "description": "Optional exact-date schedule overrides keyed by month/day like 'December 25', a date range like 'December 24 - January 2', or the name of a custom holiday from main_config.json. These take precedence over weekday schedules for matching dates.",
           "propertyNames": {
-            "pattern": "^[A-Z][a-z]+ [0-3]?[0-9]( - [A-Z][a-z]+ [0-3]?[0-9])?$"
+            "minLength": 1
           },
           "additionalProperties": {
             "oneOf": [
               {
                 "type": "string",
-                "description": "Reference to a day template"
+                "description": "Reference to a day template. It replaces the whole day: hours the template leaves empty are off air."
               },
               {
                 "type": "object",
-                "description": "Exact-date schedule with hour slots",
+                "description": "Exact-date schedule with hour slots. Only the hours listed are replaced; the rest follow the normal schedule.",
                 "additionalProperties": {
                   "$ref": "#/$defs/timeSlotConfig"
                 }

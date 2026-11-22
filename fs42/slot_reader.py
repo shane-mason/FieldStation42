@@ -1,5 +1,6 @@
 from datetime import datetime
 import copy
+import logging
 import random
 import math
 
@@ -72,6 +73,29 @@ class SlotReader:
             return False
 
     @staticmethod
+    def is_date_key(date_key):
+        # "Month Day" or "Month Day - Month Day"; anything else may be a custom holiday name
+        parts = [part.strip() for part in date_key.split(" - ")]
+        if len(parts) not in (1, 2):
+            return False
+        try:
+            for part in parts:
+                datetime.strptime(f"2000 {part}", "%Y %B %d")
+        except ValueError:
+            return False
+        return True
+
+    @staticmethod
+    def _holiday_key_matches(date_key, when: datetime):
+        # imported here - schedule_hint pulls in station_manager, which imports this module
+        from fs42.schedule_hint import CustomHolidayHint
+
+        try:
+            return CustomHolidayHint(date_key).hint(when)
+        except ValueError:
+            return False
+
+    @staticmethod
     def _get_date_override(conf, when: datetime):
         overrides = conf.get("date_overrides", {})
 
@@ -79,7 +103,10 @@ class SlotReader:
             return None
 
         for date_key, override_conf in overrides.items():
-            if SlotReader._date_key_matches(date_key, when):
+            if SlotReader.is_date_key(date_key):
+                if SlotReader._date_key_matches(date_key, when):
+                    return override_conf
+            elif SlotReader._holiday_key_matches(date_key, when):
                 return override_conf
 
         return None
@@ -134,10 +161,10 @@ class SlotReader:
         return response, slot_number
 
     @staticmethod
-    def _smooth_week(source_days, target_days, network_name, where=""):
+    def _smooth_week(source_days, target_days, network_name, where="", days=timings.DAYS, strict=True):
         # smooths tags across slot boundaries for one week-shaped mapping of day -> slots
         last_tag = None
-        for day_index in timings.DAYS:
+        for day_index in days:
             if day_index not in source_days:
                 continue
             for slot_index in timings.OPERATING_HOURS:
@@ -148,10 +175,14 @@ class SlotReader:
                     elif "continued" in source_days[day_index][slot_index]:
                         if source_days[day_index][slot_index]["continued"]:
                             if last_tag is None:
-                                raise ValueError(
+                                message = (
                                     f"'continued' at hour {slot_index} on {day_index} {where}for "
                                     f"'{network_name}' has no preceding tags slot to inherit from"
                                 )
+                                if strict:
+                                    raise ValueError(message)
+                                logging.getLogger("SLOTREADER").warning(f"{message} - it will be off air")
+                                continue
                             target_days[day_index][slot_index]["tags"] = last_tag["tags"]
 
     @staticmethod
@@ -175,6 +206,20 @@ class SlotReader:
                         smoothed["week_overrides"][date_key],
                         network_name,
                         where=f"in week_overrides '{date_key}' ",
+                    )
+
+        # a date override is a single day - "continued" only looks at earlier hours in the same override
+        date_overrides = conf.get("date_overrides", {})
+        if isinstance(date_overrides, dict):
+            for date_key, day_slots in date_overrides.items():
+                if isinstance(day_slots, dict):
+                    SlotReader._smooth_week(
+                        {date_key: day_slots},
+                        {date_key: smoothed["date_overrides"][date_key]},
+                        network_name,
+                        where="in date_overrides ",
+                        days=[date_key],
+                        strict=False,
                     )
 
         return smoothed

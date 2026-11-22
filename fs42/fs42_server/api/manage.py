@@ -227,16 +227,21 @@ async def put_config(request: Request):
         f.write("\n")
     _l.warning(f"manage: main_config.json saved from {auth.client_ip(request)}")
 
+    old_key = StationManager().api_key()
     units = _active_units() if _under_systemd() else []
-    if not units:
-        reason = ("No active fs42 services found." if _under_systemd()
-                  else "FieldStation42 isn't running as a systemd service, so it can't restart itself.")
-        return {"status": "saved", "restart": False, "reason": reason}
+    if units:
+        _handoff("restart", units)
+        response = JSONResponse({"status": "restarting", "units": units})
+    else:
+        try:
+            StationManager().reload()
+        except Exception as e:
+            _l.exception(e)
+            return {"status": "saved", "restart": False, "reason": f"Couldn't reload the configuration: {e}"}
+        response = JSONResponse({"status": "reloaded"})
 
-    _handoff("restart", units)
-    response = JSONResponse({"status": "restarting", "units": units})
     new_key = conf["api_key"].strip() if "api_key" in conf else None
-    if new_key and new_key != StationManager().api_key():
+    if new_key and new_key != old_key:
         auth.set_session_cookie(response, new_key)
     return response
 

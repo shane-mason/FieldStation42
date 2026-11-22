@@ -683,6 +683,33 @@ p.sv-hint {
     margin-top: 0.5em;
 }
 
+.sv-overrides {
+    display: flex;
+    flex-direction: column;
+}
+
+.sv-override {
+    padding: 0.5em 0;
+    border-bottom: 1px solid #21262d;
+}
+
+.sv-override-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.sv-monthday {
+    display: inline-flex;
+    gap: 0.25em;
+}
+
+.sv-override-warning {
+    font-size: 0.85em;
+    margin-top: 0.3em;
+}
+
 .sv-schedule {
     display: flex;
     flex-direction: column;

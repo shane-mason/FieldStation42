@@ -1,7 +1,10 @@
+from datetime import date
+
 from fastapi import APIRouter
 from fs42.station_manager import StationManager
 from fs42.catalog_api import CatalogAPI
 from fs42.liquid_manager import LiquidManager
+from fs42.schedule_hint import CustomHolidayHint
 
 router = APIRouter(prefix="/summary", tags=["summary"])
 
@@ -67,3 +70,16 @@ async def get_catalog_summary():
         summary = {"network_name": station["network_name"], "entry_count": len(catalog_entries)}
         summaries.append(summary)
     return {"catalog_summaries": summaries}
+
+
+@router.get("/custom_holidays")
+def get_custom_holidays():
+    year = date.today().year
+    holidays = {}
+    for name, rule in StationManager().get_custom_holidays().items():
+        try:
+            this_year = CustomHolidayHint(name).date_in(year).date().isoformat()
+        except ValueError:
+            this_year = None
+        holidays[name] = {"rule": rule, "date": this_year}
+    return {"custom_holidays": holidays}

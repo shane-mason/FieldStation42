@@ -6,6 +6,7 @@ This document describes the main configuration file (`confs/main_config.json`) w
 - [Overview](#overview)
 - [Configuration Options](#configuration-options)
 - [Day Parts](#day-parts)
+- [Custom Holidays](#custom-holidays)
 - [Following Symlinks in Static Directories](#following-symlinks-in-static-directories)
 - [Custom Title Patterns](#custom-title-patterns)
 
@@ -44,6 +45,7 @@ The `confs/main_config.json` file is optional. If it doesn't exist, FieldStation
 | `db_path` | string | `"runtime/fs42_fluid.db"` | Path to the SQLite database |
 | `normalize_titles` | boolean | `false` | Enable automatic title normalization from filenames |
 | `title_patterns` | array | `[]` | Custom regex patterns for title parsing (see below) |
+| `custom_holidays` | object | `{}` | Named yearly dates to use in schedules and hints (see below) |
 | `follow_static_symlinks` | boolean | `false` | Serve symlinks that point outside the static directories (see below) |
 | `api_key` | string | none | Requires this key for the web console and API. Not set means no security (see [API_SECURITY.md](API_SECURITY.md)) |
 
@@ -68,6 +70,45 @@ Day parts define time periods used for scheduling purposes. Each day part has a 
 ### Wrapping Midnight
 
 When `end_hour` is less than `start_hour`, the period wraps around midnight. For example, `late` runs from 11 PM to 2 AM.
+
+## Custom Holidays
+
+Custom holidays give a name to a date that comes around every year. Define them once here and use the name in any station.
+
+```json
+{
+  "custom_holidays": {
+    "thanksgiving": "4th thursday november",
+    "christmas": "December 25",
+    "memorial_day": "last monday may",
+    "station_anniversary": "September 30"
+  }
+}
+```
+
+### Date Formats
+
+Each holiday is either:
+
+- **A fixed date**: a full month name and a day, like `"December 25"`. It's always that date, even on a weekend
+- **A weekday rule**: `1st`, `2nd`, `3rd`, `4th` or `last`, then a weekday and a month, like `"4th thursday november"` or `"last monday may"`
+
+Month names must be spelled out in full. Upper or lower case doesn't matter in the date.
+
+### Using Holidays
+
+Use the holiday's name in a station config:
+
+- **Date overrides**: `"date_overrides": {"thanksgiving": "holiday_day"}` uses a day template on that day. In the visual station editor, add a date and choose **Holiday**
+- **Marathon hints**: `"marathon": {"chance": 1.0, "count": 8, "hint": "thanksgiving"}`
+- **Meta hints**: `{"tags": "specials/parades", "custom_holiday": "thanksgiving"}`
+- **Folder names**: a folder named `thanksgiving` in a catalog only plays on that day
+
+### Naming Rules
+
+- Names are matched exactly, including upper and lower case. A folder named `Thanksgiving` doesn't match a holiday named `thanksgiving`
+- A name can't also read as another kind of hint: a month, a quarter like `Q4`, a weekday, a day part, a week number like `week number 20`, a date range or a bump position like `pre`. FieldStation42 won't load a config with a name like that
+- If a date override uses a holiday that isn't defined here, its station won't load. A marathon hint with an unknown name logs a warning, and the marathon runs on its chance alone
 
 ## Following Symlinks in Static Directories
 
