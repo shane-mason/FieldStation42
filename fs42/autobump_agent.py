@@ -2,7 +2,6 @@ import random
 import sys
 import os
 import subprocess
-import datetime
 import calendar
 import logging
 import re
