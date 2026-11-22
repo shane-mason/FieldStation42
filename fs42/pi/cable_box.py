@@ -17,12 +17,14 @@ import board
 # also requires tm1673 library:
 # pip3 install raspberrypi-tm1637
 import tm1637
+import RPi.GPIO as GPIO
 
 from cable_box_input import Blink, ChannelEntry, Debounced, LongPress, MultiPress
 
 _l = logging.getLogger("CABLEBOX")
 
 # All pins are BCM GPIO numbers; runtime/cable_box.json overrides "keypad", "display", "power_button" and/or "led"
+# "led" also takes an optional "brightness" percentage (default 50)
 PINOUT_FILE = "runtime/cable_box.json"
 DEFAULT_PINOUT = {
     "keypad": {"cols": [26, 20, 21], "rows": [5, 6, 13, 19]},
@@ -36,6 +38,8 @@ KEEP_RUNNING = {"fs42-cable-box.service", "fs42-remote-controller.service", "fs4
 TICK = 0.02
 POLL_INTERVAL = 0.1
 REFRESH_INTERVAL = 1.0
+LED_PWM_HZ = 500
+DEFAULT_LED_BRIGHTNESS = 50
 
 
 def load_pinout():
@@ -106,9 +110,12 @@ class CableBox:
 
         self.led = None
         if "led" in pinout:
-            self.led = digitalio.DigitalInOut(getattr(board, f"D{pinout['led']['pin']}"))
-            self.led.direction = digitalio.Direction.OUTPUT
-            self.led.value = False
+            led_pin = pinout["led"]["pin"]
+            self.led_brightness = max(0, min(100, pinout["led"].get("brightness", DEFAULT_LED_BRIGHTNESS)))
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(led_pin, GPIO.OUT, initial=GPIO.LOW)
+            self.led = GPIO.PWM(led_pin, LED_PWM_HZ)
+            self.led.start(0)
         self.led_lit = False
         self.blink = Blink()
 
@@ -361,7 +368,8 @@ class CableBox:
             if self.led:
                 lit = power_down or self.blink.lit(now)
                 if lit != self.led_lit:
-                    self.led.value = self.led_lit = lit
+                    self.led_lit = lit
+                    self.led.ChangeDutyCycle(self.led_brightness if lit else 0)
             self.entry.tick(self.key_debounce.update(self.read_keys()), now)
 
             if now - last_poll >= POLL_INTERVAL:
