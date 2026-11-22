@@ -127,6 +127,7 @@ class CableBox:
 
         self.channel_num = 0
         self.last_stat = ""
+        self.last_lcd_state = None
         self.pause_mode = False
         self.status_initialized = False
 
@@ -215,10 +216,17 @@ class CableBox:
             as_str = fp.read()
 
             if as_str != self.last_stat:
-                _l.info(f"Status changed: {as_str}")
                 self.last_stat = as_str
                 try:
                     new_stat = json.loads(as_str)
+                    lcd_state = (
+                        new_stat.get("channel_number"),
+                        bool(new_stat.get("paused", False)),
+                    )
+                    if lcd_state == self.last_lcd_state:
+                        return None
+                    self.last_lcd_state = lcd_state
+                    _l.info(f"LCD channel/pause state changed: {lcd_state}")
                 except:
                     # assume that it was a partial read and try again next time
                     _l.warning(f"Error decoding status: {as_str}")
