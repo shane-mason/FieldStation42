@@ -68,10 +68,13 @@
 			}
 			#playback-controls {
 				display: grid !important;
+				grid-column: 1 / -1;
 				grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 				grid-auto-flow: column;
 				width: 100%;
 				max-width: 280px;
+				justify-self: center;
+				margin-bottom: 0;
 			}
 			#playback-controls > .remote-btn {
 				box-sizing: border-box;
@@ -80,6 +83,96 @@
 				height: 48px;
 				min-height: 0;
 				justify-self: center;
+			}
+			.playback-timeline {
+				box-sizing: border-box;
+				width: min(320px, calc(100% - 32px));
+				margin: 4px auto 14px;
+				padding: 0 8px;
+			}
+			.playback-timeline[hidden] {
+				display: none !important;
+			}
+			.playback-timeline-values {
+				display: grid;
+				grid-template-columns: 1fr auto 1fr;
+				align-items: baseline;
+				margin-top: -8px;
+				margin-bottom: 3px;
+				font-variant-numeric: tabular-nums;
+			}
+			.playback-timeline-values > div:first-child {
+				justify-self: start;
+			}
+			.playback-timeline-values > div:nth-child(2) {
+				justify-self: center;
+			}
+			.playback-timeline-values > div:last-child {
+				justify-self: end;
+			}
+			.playback-timeline-values > div > span {
+				font-size: 11px;
+				line-height: 1;
+			}
+			.playback-timeline-values #timeline-current {
+				color: #8be39a;
+				font-weight: 600;
+			}
+			#playback-timeline-slider {
+				--progress: 0%;
+				box-sizing: border-box;
+				display: block;
+				width: 100%;
+				min-width: 0;
+				max-width: none;
+				height: 18px;
+				margin: 0;
+				padding: 0 !important;
+				appearance: none;
+				-webkit-appearance: none;
+				background: transparent !important;
+				pointer-events: none;
+				opacity: 1;
+				border: 0;
+				border-radius: 0;
+				outline: 0;
+			}
+			#playback-timeline-slider::-webkit-slider-runnable-track {
+				height: 3px;
+				border-radius: 999px;
+				background: linear-gradient(
+					to right,
+					#4caf50 var(--progress),
+					rgba(255, 255, 255, 0.2) var(--progress)
+				);
+			}
+			#playback-timeline-slider::-moz-range-track {
+				height: 3px;
+				border-radius: 999px;
+				background: linear-gradient(
+					to right,
+					#4caf50 var(--progress),
+					rgba(255, 255, 255, 0.2) var(--progress)
+				);
+			}
+			#playback-timeline-slider::-webkit-slider-thumb {
+				width: 2px;
+				height: 13px;
+				appearance: none;
+				-webkit-appearance: none;
+				border: 0;
+				border-radius: 2px;
+				margin-top: -5px;
+				background: #f4fff5;
+				box-shadow: 0 0 4px rgba(76, 175, 80, 0.65);
+			}
+			#playback-timeline-slider::-moz-range-thumb {
+				width: 2px;
+				height: 13px;
+				border: 0;
+				border-radius: 2px;
+				background: #f4fff5;
+				box-shadow: 0 0 4px rgba(76, 175, 80, 0.65);
 			}
 			@media (max-width: 360px) {
 				#playback-controls {
@@ -174,48 +267,47 @@
 				<button class="remote-btn nav-btn nav-down" data-key="nav_down">
 					▼
 				</button>
-			</div>
-
-			<div
-				class="button-grid playback-section"
-				id="playback-controls"
-				aria-label="PPV playback controls"
-			>
-				<button
-					class="remote-btn function-btn"
-					data-key="playback_prev"
-					disabled
-					aria-label="Rewind"
-					title="Rewind"
+				<div
+					class="button-grid playback-section"
+					id="playback-controls"
+					aria-label="PPV playback controls"
 				>
-					<span>-10 sec<br />◀◀</span>
-				</button>
-				<button
-					class="remote-btn function-btn playback-toggle-btn"
-					id="playback-toggle"
-					data-key="playback_toggle"
-					disabled
-					aria-label="PLAY / PAUSE"
-				>
-					<span aria-hidden="true">▶︎ / ❚❚</span>
-				</button>
-				<button
-					class="remote-btn function-btn"
-					data-key="playback_stop"
-					disabled
-					aria-label="Stop"
-				>
-					⏹
-				</button>
-				<button
-					class="remote-btn function-btn"
-					data-key="playback_next"
-					disabled
-					aria-label="Fast Forward"
-					title="Fast Forward"
-				>
-					<span>+10 sec<br />▶▶</span>
-				</button>
+					<button
+						class="remote-btn function-btn"
+						data-key="playback_prev"
+						disabled
+						aria-label="Rewind"
+						title="Rewind"
+					>
+						<span>-10 sec<br />◀◀</span>
+					</button>
+					<button
+						class="remote-btn function-btn playback-toggle-btn"
+						id="playback-toggle"
+						data-key="playback_toggle"
+						disabled
+						aria-label="PLAY / PAUSE"
+					>
+						<span aria-hidden="true">▶︎ / ❚❚</span>
+					</button>
+					<button
+						class="remote-btn function-btn"
+						data-key="playback_stop"
+						disabled
+						aria-label="Stop"
+					>
+						⏹
+					</button>
+					<button
+						class="remote-btn function-btn"
+						data-key="playback_next"
+						disabled
+						aria-label="Fast Forward"
+						title="Fast Forward"
+					>
+						<span>+10 sec<br />▶▶</span>
+					</button>
+				</div>
 			</div>
 
 			<!-- Volume and Channel Controls in Vertical Columns -->
@@ -235,6 +327,22 @@
 				<div class="now-playing-status" id="now-playing-status">Stopped</div>
 				<div class="now-playing-title" id="now-playing-title">
 					No program selected
+				</div>
+				<div class="playback-timeline" id="playback-timeline" hidden>
+					<input
+						id="playback-timeline-slider"
+						type="range"
+						min="0"
+						max="1"
+						value="0"
+						disabled
+						aria-label="Current video playback position"
+					/>
+					<div class="playback-timeline-values">
+						<div><span id="timeline-start">0:00</span></div>
+						<div><span id="timeline-current">0:00</span></div>
+						<div><span id="timeline-end">0:00</span></div>
+					</div>
 				</div>
 			</div>
 
@@ -445,6 +553,7 @@
 						console.log('Player status response:', status);
 						await updatePlaybackControlVisibility(status);
 						updatePlaybackToggle(status);
+						updatePlaybackTimeline(status);
 						updateNowPlayingFromStatus(status);
 					} else if (infoMode === 'system') {
 						setPlaybackControlsEnabled(false);
@@ -566,6 +675,52 @@
 					}
 					ppvVideoPlaying = true;
 				}
+			}
+
+			function formatPlaybackTime(seconds) {
+				const total = Math.max(0, Math.floor(Number(seconds) || 0));
+				const hours = Math.floor(total / 3600);
+				const minutes = Math.floor((total % 3600) / 60);
+				const remainder = total % 60;
+				return hours > 0
+					? hours +
+							':' +
+							String(minutes).padStart(2, '0') +
+							':' +
+							String(remainder).padStart(2, '0')
+					: minutes + ':' + String(remainder).padStart(2, '0');
+			}
+
+			function updatePlaybackTimeline(status) {
+				const timeline = document.getElementById('playback-timeline');
+				const filePath = status.file_path || '';
+				const duration = Number(status.playback_duration);
+				const position = Number(status.playback_position);
+				const isVideo =
+					status.status === 'playing' &&
+					/\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v)$/i.test(filePath);
+
+				if (!isVideo || !Number.isFinite(duration) || duration <= 0) {
+					timeline.hidden = true;
+					return;
+				}
+
+				const current = Math.min(
+					duration,
+					Math.max(0, Number.isFinite(position) ? position : 0),
+				);
+				const slider = document.getElementById('playback-timeline-slider');
+				slider.max = String(duration);
+				slider.value = String(current);
+				const progress = (current / duration) * 100;
+				slider.style.setProperty('--progress', progress + '%');
+				document.getElementById('timeline-start').textContent =
+					formatPlaybackTime(0);
+				document.getElementById('timeline-current').textContent =
+					formatPlaybackTime(current);
+				document.getElementById('timeline-end').textContent =
+					formatPlaybackTime(duration);
+				timeline.hidden = false;
 			}
 
 			async function sendPpvPlaybackControl(action, label) {

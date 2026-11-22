@@ -88,6 +88,22 @@ def update_pause_status(paused):
         logging.getLogger("FieldPlayer").warning(f"Could not update pause status: {e}")
 
 
+def update_playback_progress(position, duration):
+    """Store MPV progress without replacing the rest of the player status."""
+    status_socket = StationManager().server_conf["status_socket"]
+    try:
+        with open(status_socket, "r") as fp:
+            status_obj = json.load(fp)
+        if status_obj.get("status") != "playing":
+            return
+        status_obj["playback_position"] = max(0.0, float(position))
+        status_obj["playback_duration"] = max(0.0, float(duration))
+        with open(status_socket, "w") as fp:
+            json.dump(status_obj, fp)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+        logging.getLogger("FieldPlayer").debug(f"Could not update playback progress: {e}")
+
+
 class PlayerState(Enum):
     FAILED = 1
     EXITED = 2
@@ -231,9 +247,23 @@ class StationPlayer:
         self.on_play_point = None
         self._active_afx = None
         self._pending_response = None
+        self._next_progress_update = 0.0
 
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
+
+    def _update_playback_progress(self):
+        now = time.monotonic()
+        if now < self._next_progress_update:
+            return
+        self._next_progress_update = now + 1.0
+        try:
+            position = self.mpv.time_pos
+            duration = self.mpv.duration
+            if position is not None and duration is not None and duration > 0:
+                update_playback_progress(position, duration)
+        except Exception as e:
+            self._l.debug(f"Could not read playback progress: {e}")
 
     def _clear_ppv_pause(self):
         """Clear PPV pause state before starting content on a channel."""
@@ -771,6 +801,7 @@ class StationPlayer:
         # this will keep going until channel change or other interrupt
         while True:
             time.sleep(0.05)
+            self._update_playback_progress()
             response = self.input_check_fn()
             if response:
                 if (
@@ -817,6 +848,7 @@ class StationPlayer:
 
         while True:
             time.sleep(0.05)
+            self._update_playback_progress()
             try:
                 if not started:
                     started = self.mpv.time_pos is not None
@@ -1204,6 +1236,7 @@ class StationPlayer:
                     # this is our main event loop
                     keep_waiting = True
                     while keep_waiting:
+                        self._update_playback_progress()
                         if not self.skip_reception_check:
                             self.update_reception()
                         else:
