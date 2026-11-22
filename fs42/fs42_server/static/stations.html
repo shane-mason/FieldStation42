@@ -15,6 +15,7 @@
     <script>
         let allStations = [];
         let filteredStations = [];
+        let savingStationOrder = false;
 
         // Initialize page layout
         document.addEventListener('DOMContentLoaded', async function() {
@@ -45,6 +46,11 @@
                         <span class="search-icon">🔍</span>
                     </div>
                 </div>
+
+                <div class="channel-order-help">
+                    Drag rows to reorder channels. Existing channel numbers are reassigned to match the new order and saved automatically. Clear filters to reorder the full lineup.
+                </div>
+                <div id="channel-order-status" class="channel-order-status" role="status" aria-live="polite"></div>
 
                 <div id="station-list">
                     <div class="loading-spinner">
@@ -113,12 +119,18 @@
             try {
                 const data = await window.fs42Api.get('stations');
                 // Extract station_conf from each station object
-                allStations = (data.stations || []).map(s => s.station_conf);
+                allStations = (data.stations || [])
+                    .map(s => s.station_conf)
+                    .filter(station => station && typeof station === 'object');
+                allStations.sort((a, b) => {
+                    const aNumbered = isReorderableStation(a);
+                    const bNumbered = isReorderableStation(b);
+                    if (aNumbered !== bNumbered) return aNumbered ? -1 : 1;
+                    return (Number(a.channel_number) || 0) - (Number(b.channel_number) || 0);
+                });
                 filteredStations = [...allStations];
-
-                // Sort by channel number
-                allStations.sort((a, b) => (a.channel_number || 0) - (b.channel_number || 0));
-                filteredStations.sort((a, b) => (a.channel_number || 0) - (b.channel_number || 0));
+                const status = document.getElementById('channel-order-status');
+                if (status) status.textContent = '';
 
                 renderStations();
             } catch (error) {
@@ -168,13 +180,20 @@
                 return;
             }
 
-            let html = '<div class="station-cards">';
+            const canReorder = !savingStationOrder
+                && document.getElementById('type-filter').value === 'all'
+                && !document.getElementById('search-input').value.trim();
+            let html = '<div class="station-order-list">';
 
             for (const station of filteredStations) {
                 const name = escapeHtml(station.network_name || 'Unnamed Station');
                 const channel = station.channel_number || 'N/A';
                 const type = station.network_type || 'standard';
+                const safeType = /^[a-z0-9_-]+$/i.test(type) ? type : 'standard';
                 const description = getStationDescription(station);
+                const stationIndex = allStations.indexOf(station);
+                const draggable = canReorder && isReorderableStation(station);
+                const dragAttributes = draggable ? 'draggable="true" data-draggable="true"' : '';
                 const draftBadge = station._draft
                     ? '<span class="station-card-draft">draft &bull; not on air</span>'
                     : '';
@@ -190,24 +209,23 @@
                     : '';
 
                 html += `
-                    <div class="station-card">
-                        <div class="station-card-header">
-                            <div class="station-card-title-row">
-                                <h3 class="station-card-name">${name}${lockIcon}</h3>
-                                <span class="station-card-channel">#${channel}</span>
-                            </div>
-                            <div class="station-card-meta">
-                                <span class="station-card-type station-type-${type}">${type}</span>
+                    <div class="station-order-row${draggable ? ' is-draggable' : ''}" data-station-index="${stationIndex}" ${dragAttributes}>
+                        <span class="station-drag-handle" aria-hidden="true">${draggable ? '⠿' : ''}</span>
+                        <span class="station-order-channel">#${escapeHtml(String(channel))}</span>
+                        <div class="station-order-details">
+                            <div class="station-order-heading">
+                                <h3>${name}${lockIcon}</h3>
+                                <span class="station-card-type station-type-${safeType}">${escapeHtml(type)}</span>
                                 ${draftBadge}
                             </div>
+                            <div class="station-order-description">${description}</div>
+                            ${draftReason}
                         </div>
-                        <div class="station-card-description">${description}</div>
-                        ${draftReason}
-                        <div class="station-card-actions">
-                            <button class="pure-button pure-button-primary" data-name="${escapeHtml(station.network_name)}" onclick="editStation(this.dataset.name)">
+                        <div class="station-order-actions">
+                            <button class="pure-button pure-button-primary" data-name="${encodeURIComponent(station.network_name || '')}" onclick="editStation(decodeURIComponent(this.dataset.name))">
                                 Edit Config
                             </button>
-                            <button class="pure-button" data-name="${escapeHtml(station.network_name)}" onclick="duplicateStation(this.dataset.name)">
+                            <button class="pure-button" data-name="${encodeURIComponent(station.network_name || '')}" onclick="duplicateStation(decodeURIComponent(this.dataset.name))">
                                 Duplicate
                             </button>
                         </div>
@@ -217,6 +235,91 @@
 
             html += '</div>';
             container.innerHTML = html;
+            if (canReorder) setupStationDragging(container);
+        }
+
+        function isReorderableStation(station) {
+            return typeof station.network_name === 'string'
+                && station.network_name.length > 0
+                && Number.isInteger(station.channel_number);
+        }
+
+        function setupStationDragging(container) {
+            let draggedRow = null;
+            container.querySelectorAll('[data-draggable="true"]').forEach(row => {
+                row.addEventListener('dragstart', event => {
+                    draggedRow = row;
+                    row.classList.add('is-dragging');
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', row.dataset.stationIndex);
+                });
+                row.addEventListener('dragend', () => {
+                    row.classList.remove('is-dragging');
+                    container.querySelectorAll('.is-drop-target').forEach(target => {
+                        target.classList.remove('is-drop-target');
+                    });
+                    draggedRow = null;
+                });
+                row.addEventListener('dragover', event => {
+                    if (!draggedRow || draggedRow === row) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    row.classList.add('is-drop-target');
+                });
+                row.addEventListener('dragleave', () => row.classList.remove('is-drop-target'));
+                row.addEventListener('drop', async event => {
+                    event.preventDefault();
+                    row.classList.remove('is-drop-target');
+                    const fromIndex = Number(event.dataTransfer.getData('text/plain'));
+                    const toIndex = Number(row.dataset.stationIndex);
+                    if (Number.isInteger(fromIndex) && Number.isInteger(toIndex) && fromIndex !== toIndex) {
+                        await moveStation(fromIndex, toIndex);
+                    }
+                });
+            });
+        }
+
+        async function moveStation(fromIndex, toIndex) {
+            const ordered = allStations.filter(isReorderableStation);
+            const from = ordered.findIndex(station => allStations.indexOf(station) === fromIndex);
+            const to = ordered.findIndex(station => allStations.indexOf(station) === toIndex);
+            if (from < 0 || to < 0) return;
+
+            const [station] = ordered.splice(from, 1);
+            ordered.splice(to, 0, station);
+            const incomplete = allStations.filter(station => !isReorderableStation(station));
+            allStations = [...ordered, ...incomplete];
+            filteredStations = [...allStations];
+            savingStationOrder = true;
+            renderStations();
+
+            const status = document.getElementById('channel-order-status');
+            status.textContent = 'Saving channel order…';
+            status.classList.remove('is-error');
+            try {
+                const result = await window.fs42Api.post('stations/reorder', {
+                    network_names: ordered.map(station => station.network_name),
+                });
+                const assignments = new Map(
+                    result.stations.map(station => [station.network_name, station.channel_number]),
+                );
+                allStations.forEach(station => {
+                    if (assignments.has(station.network_name)) {
+                        station.channel_number = assignments.get(station.network_name);
+                    }
+                });
+                filteredStations = [...allStations];
+                status.textContent = result.message || 'Channel order saved.';
+            } catch (error) {
+                const message = error.detail || error.message || 'Could not save channel order.';
+                await loadStations();
+                const status = document.getElementById('channel-order-status');
+                status.textContent = message;
+                status.classList.add('is-error');
+            } finally {
+                savingStationOrder = false;
+                renderStations();
+            }
         }
 
         function getStationDescription(station) {
@@ -230,7 +333,7 @@
 
                 case 'web':
                     const url = station.web_url || 'No URL set';
-                    return `Web page channel<br><small style="color:#61afef;">${escapeHtml(url)}</small>`;
+                    return `Web page channel<br><small title="${escapeHtml(url)}" style="color:#61afef;">${escapeHtml(url)}</small>`;
 
                 case 'guide':
                     const messages = station.messages?.length || 0;

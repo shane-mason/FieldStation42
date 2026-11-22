@@ -1,3 +1,7 @@
+import glob
+import json
+import os
+import shutil
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -26,6 +30,9 @@ class StationConfigRequest(BaseModel):
             }
         }
 
+class StationOrderRequest(BaseModel):
+    network_names: List[str] = Field(..., min_length=1)
+
 class StationConfigResponse(BaseModel):
     success: bool
     message: str
@@ -43,6 +50,102 @@ class ErrorResponse(BaseModel):
     details: Optional[str] = None
 
 # Endpoints
+
+@router.post("/reorder")
+async def reorder_stations(order: StationOrderRequest):
+    station_io = StationIO()
+    configs_by_name = {}
+    for file_path in glob.glob(os.path.join(station_io.confs_dir, "*.json")):
+        if os.path.normpath(file_path) == os.path.normpath(station_io.main_config_path):
+            continue
+        try:
+            with open(file_path) as fp:
+                config = json.load(fp)
+        except (OSError, json.JSONDecodeError):
+            continue
+        station_conf = config.get("station_conf") if isinstance(config, dict) else None
+        if not isinstance(station_conf, dict):
+            continue
+        name = station_conf.get("network_name")
+        channel_number = station_conf.get("channel_number")
+        if (
+            isinstance(name, str)
+            and name
+            and isinstance(channel_number, int)
+            and not isinstance(channel_number, bool)
+        ):
+            if name in configs_by_name:
+                raise HTTPException(status_code=409, detail=f"Duplicate station name '{name}' in station configs.")
+            configs_by_name[name] = {
+                "path": file_path,
+                "config": config,
+                "channel_number": channel_number,
+            }
+
+    requested_names = order.network_names
+    if len(requested_names) != len(set(requested_names)):
+        raise HTTPException(status_code=400, detail="Each station must appear only once in the channel order.")
+    if set(requested_names) != set(configs_by_name):
+        raise HTTPException(
+            status_code=409,
+            detail="The station list changed. Reload the page and try reordering again.",
+        )
+
+    channel_slots = sorted(entry["channel_number"] for entry in configs_by_name.values())
+    if len(channel_slots) != len(set(channel_slots)):
+        raise HTTPException(
+            status_code=409,
+            detail="Several stations already share a channel number. Resolve the duplicate numbers before reordering.",
+        )
+    assignments = dict(zip(requested_names, channel_slots))
+    if all(configs_by_name[name]["channel_number"] == channel for name, channel in assignments.items()):
+        return {
+            "success": True,
+            "message": "Channel order is unchanged.",
+            "stations": [{"network_name": name, "channel_number": channel} for name, channel in assignments.items()],
+        }
+
+    staged = []
+    try:
+        for name in requested_names:
+            entry = configs_by_name[name]
+            if entry["channel_number"] == assignments[name]:
+                continue
+            path = entry["path"]
+            with open(path, "rb") as fp:
+                original = fp.read()
+            shutil.copy2(path, path + ".bak")
+            temp_path = path + ".reorder.tmp"
+            staged.append({"path": path, "temp_path": temp_path, "original": original, "written": False})
+            entry["config"]["station_conf"]["channel_number"] = assignments[name]
+            with open(temp_path, "w", encoding="utf-8") as fp:
+                json.dump(entry["config"], fp, indent=2)
+                fp.write("\n")
+
+        for entry in staged:
+            os.replace(entry["temp_path"], entry["path"])
+            entry["written"] = True
+    except Exception as exc:
+        for entry in staged:
+            try:
+                if entry["written"]:
+                    rollback_path = entry["path"] + ".reorder.rollback"
+                    with open(rollback_path, "wb") as fp:
+                        fp.write(entry["original"])
+                    os.replace(rollback_path, entry["path"])
+                if os.path.exists(entry["temp_path"]):
+                    os.remove(entry["temp_path"])
+            except OSError:
+                pass
+        raise HTTPException(status_code=500, detail=f"Could not save channel order: {exc}") from exc
+
+    StationManager()._reload_stations()
+    LiquidManager().reload_schedules()
+    return {
+        "success": True,
+        "message": "Channel order saved.",
+        "stations": [{"network_name": name, "channel_number": channel} for name, channel in assignments.items()],
+    }
 
 @router.get("", response_model=StationListResponse)
 async def list_stations():
