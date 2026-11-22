@@ -9,6 +9,7 @@ from .stations import router as stations_router
 from .ppv import router as ppv_router
 from .media import router as media_router
 from .manage import router as manage_router
+from .catalog_directory import router as catalog_directory_router
 
 # Create a list of all routers to be included
 routers = [
@@ -22,4 +23,5 @@ routers = [
     ppv_router,
     media_router,
     manage_router,
+    catalog_directory_router,
 ]

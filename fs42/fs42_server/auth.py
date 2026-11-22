@@ -13,6 +13,7 @@ from fs42.station_manager import StationManager
 
 SESSION_COOKIE = "fs42_session"
 SESSION_MAX_AGE = 365 * 24 * 60 * 60
+API_KEY_AUTH_ENABLED = False
 
 LOGIN_MAX_FAILURES = 10
 LOGIN_WINDOW_SECONDS = 5 * 60
@@ -41,6 +42,21 @@ PUBLIC_PATHS = {
     "/manage/restart",
     "/manage/shutdown",
 }
+PUBLIC_GET_PATHS = {
+    "/",
+    "/static/index.html",
+    "/static/guide_frame.html",
+    "/static/guide.css",
+    "/summary",
+    "/summary/",
+    "/summary/channels",
+    "/summary/schedules",
+    "/player/status/queue_connected",
+    "/schedules/all",
+}
+PUBLIC_GET_ROUTE_PATTERNS = (
+    re.compile(r"/summary/schedules/[^/]+\Z"),
+)
 PUBLIC_PREFIXES = ("/static/themes/",)
 PUBLIC_ROUTE_PATTERNS = (
     re.compile(r"/player/channels/(?:[0-9]+|up|down)\Z"),
@@ -77,11 +93,18 @@ def has_valid_session(request: Request, key):
     return cookie is not None and hmac.compare_digest(cookie.encode(), session_token(key).encode())
 
 
-def is_public(path):
+def is_public(path, method="GET"):
     return (
         path in PUBLIC_PATHS
         or path.startswith(PUBLIC_PREFIXES)
         or any(pattern.fullmatch(path) for pattern in PUBLIC_ROUTE_PATTERNS)
+        or (
+            method.upper() == "GET"
+            and (
+                path in PUBLIC_GET_PATHS
+                or any(pattern.fullmatch(path) for pattern in PUBLIC_GET_ROUTE_PATTERNS)
+            )
+        )
     )
 
 
@@ -128,8 +151,10 @@ def clear_login_failures(request: Request):
 
 
 async def auth_middleware(request: Request, call_next):
+    if not API_KEY_AUTH_ENABLED:
+        return await call_next(request)
     key = StationManager().api_key()
-    if key is None or is_public(request.url.path):
+    if key is None or is_public(request.url.path, request.method):
         return await call_next(request)
 
     if has_valid_session(request, key):
@@ -149,6 +174,8 @@ async def auth_middleware(request: Request, call_next):
 
 
 def require_admin(request: Request):
+    if not API_KEY_AUTH_ENABLED:
+        return
     # checked here as well as in the middleware so admin routes never depend on it alone
     key = StationManager().api_key()
     if key is None:
@@ -159,6 +186,9 @@ def require_admin(request: Request):
 
 def log_security_status():
     _l = logging.getLogger("FS42SERVER")
+    if not API_KEY_AUTH_ENABLED:
+        _l.warning("API key authentication is disabled - all endpoints are accessible to clients that can reach this server.")
+        return
     key = StationManager().api_key()
     if key is None:
         _l.warning("API security is disabled - anyone on your network can use the API. See docs/API_SECURITY.md")

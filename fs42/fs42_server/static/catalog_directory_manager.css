@@ -1,0 +1,58 @@
+.cdm-page { max-width: 1280px; margin: 0 auto; padding: 1rem; }
+.cdm-intro { margin-top: -.5rem; color: #666; }
+.cdm-view-control { display: flex; align-items: center; gap: .6rem; margin: .75rem 0; }
+.cdm-workspace { display: flex; flex-direction: column; }
+.cdm-workspace.side-by-side { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: .8rem; }
+.cdm-workspace.side-by-side .cdm-link-action { grid-column: 1 / -1; }
+.cdm-panel { border: 1px solid rgba(255, 255, 255, .16); border-radius: 8px; padding: 1rem; margin: 1rem 0; background: rgba(0, 0, 0, .2); }
+.cdm-panel h2 { margin: 0 0 .25rem; font-size: 1.2rem; }
+.cdm-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.cdm-heading-actions, .cdm-browser-tools { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.cdm-path { color: #65717e; overflow-wrap: anywhere; font-family: monospace; }
+.cdm-browser-tools { margin: .8rem 0; color: #65717e; font-size: .9rem; }
+.cdm-browser-tools label { display: flex; align-items: center; gap: .4rem; }
+#drive-select { max-width: min(70vw, 520px); }
+.cdm-list { border-top: 1px solid #e3e6e9; max-height: 42vh; overflow: auto; }
+.cdm-entry { display: flex; width: 100%; min-height: 42px; align-items: center; gap: .6rem; padding: .45rem .6rem; border: 0; border-bottom: 1px solid #edf0f2; background: transparent; text-align: left; color: inherit; }
+.cdm-source-folder-row { display: flex; align-items: stretch; border-bottom: 1px solid #edf0f2; }
+.cdm-source-folder-open { width: auto; min-width: 0; flex: 1; border-bottom: 0; }
+.cdm-source-dir { width: auto; flex: 0 0 auto; border-bottom: 0; font-size: .85rem; }
+.cdm-drive-export { cursor: default; }
+.cdm-drive-export-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.cdm-entry, .cdm-entry-open { cursor: pointer; }
+.cdm-entry:hover, .cdm-entry.is-selected { background: rgba(30, 120, 190, .1); }
+.cdm-icon { flex: 0 0 1.5rem; text-align: center; }
+.cdm-media span:last-child, .cdm-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdm-entry-open { display: flex; min-width: 0; flex: 1; align-items: center; gap: .6rem; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
+.cdm-entry-open:disabled { cursor: default; opacity: 1; }
+.cdm-entry-detail { max-width: 45%; overflow: hidden; color: #75808b; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+.cdm-row-actions { display: flex; flex: 0 0 auto; gap: .35rem; }
+.cdm-small { padding: .25rem .45rem; font-size: .82rem; }
+.cdm-danger { color: #a12c2c; }
+.cdm-empty { padding: 1rem; color: #75808b; text-align: center; }
+.cdm-link-action { display: flex; justify-content: center; gap: .75rem; margin: .8rem 0; }
+.cdm-link-action button { min-width: 220px; }
+.cdm-link-action button:disabled { cursor: not-allowed; opacity: .55; }
+.cdm-message { min-height: 1.4em; margin: .5rem 0; color: #267342; }
+.cdm-message.is-error { color: #b3261e; }
+.cdm-modal { position: fixed; inset: 0; z-index: 11000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.cdm-modal[hidden] { display: none; }
+.cdm-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .72); }
+.cdm-modal-card { position: relative; width: min(100%, 440px); display: grid; gap: 1rem; padding: 1.25rem; border: 1px solid rgba(255, 255, 255, .2); border-radius: 8px; background: #161b22; color: #e6e6e6; box-shadow: 0 12px 36px rgba(0, 0, 0, .45); }
+.cdm-modal-card label { display: grid; gap: .35rem; }
+.cdm-modal-heading, .cdm-modal-actions { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.cdm-modal-heading h2 { margin: 0; }
+.cdm-modal-actions { justify-content: flex-end; }
+@media (max-width: 600px) {
+    .cdm-page { padding: .65rem; }
+    .cdm-panel { padding: .7rem; }
+    .cdm-entry-detail { display: none; }
+    .cdm-source-dir { gap: .25rem; padding-inline: .35rem; }
+    .cdm-row-actions { gap: .2rem; }
+    .cdm-small { padding: .25rem .35rem; font-size: .75rem; }
+    #drive-select { max-width: 78vw; }
+}
+@media (max-width: 900px) {
+    .cdm-workspace.side-by-side { display: flex; flex-direction: column; }
+    .cdm-workspace.side-by-side .cdm-link-action { align-self: stretch; flex-direction: row; }
+}
