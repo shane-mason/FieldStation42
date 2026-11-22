@@ -2,6 +2,7 @@ import pytest
 import urllib.parse
 from fs42.autobump_agent import AutoBumpAgent
 from fs42.catalog_entry import CatalogEntry
+from fs42.station_manager import StationManager
 
 
 class TestAutoBumpAgent:
@@ -217,8 +218,9 @@ class TestAutoBumpAgent:
         result = AutoBumpAgent.extract_url(example_url)
         assert result == expected
 
-    def test_generate_bump_query_with_bg_music_filename(self):
+    def test_generate_bump_query_with_bg_music_filename(self, monkeypatch):
         """Test that bg_music filename gets converted to full URL."""
+        monkeypatch.setitem(StationManager().server_conf, "server_port", 4242)
         config = {
             'title': 'TESTTV',
             'bg_music': 'retro.mp3'
@@ -240,3 +242,63 @@ class TestAutoBumpAgent:
 
         assert parsed['title'] == ['TESTTV']
         assert parsed['bg_music'] == ['https://example.com/music/corporate.mp3']
+
+class TestAutoBumpConfigIsolation:
+
+    def _station(self):
+        return {"network_name": "Toons", "autobump": {"title": "Toons TV", "subtitle": "All cartoons, all day"}}
+
+    def test_gen_bumps_leaves_station_config_untouched(self):
+        station = self._station()
+        AutoBumpAgent.gen_bumps(station)
+        assert station["autobump"] == {"title": "Toons TV", "subtitle": "All cartoons, all day"}
+
+    def test_subtitle_survives_later_breaks(self):
+        station = self._station()
+        AutoBumpAgent.gen_bumps(station)
+        second = AutoBumpAgent.gen_bumps(station)
+        assert "subtitle=All%20cartoons%2C%20all%20day" in second["message_bump"].path
+
+    def test_fill_does_not_change_later_bump_length(self):
+        station = self._station()
+        AutoBumpAgent.fill_block(station, 3600)
+        assert AutoBumpAgent.gen_bumps(station)["message_bump"].duration == 7
+
+    def test_off_air_fill_leaves_off_air_config_untouched(self):
+        station = {"network_name": "Toons", "off_air_autobump": {"title": "Toons TV"}}
+        fill = AutoBumpAgent.fill_block(station, 3600)
+        assert fill.duration == 3600
+        assert station["off_air_autobump"] == {"title": "Toons TV"}
+
+    def test_bg_video_probed_once(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(AutoBumpAgent, "_bg_video_durations", {})
+        monkeypatch.setattr(AutoBumpAgent, "_probe_bg_video_duration", staticmethod(lambda v: calls.append(v) or 12.0))
+        station = {"network_name": "Toons", "autobump": {"title": "Toons TV", "bg_video": "intro.webm"}}
+        for _ in range(3):
+            assert AutoBumpAgent.gen_bumps(station)["message_bump"].duration == 12.0
+        assert calls == ["intro.webm"]
+
+
+class TestLocalServerPort:
+
+    @pytest.fixture(autouse=True)
+    def port_4300(self, monkeypatch):
+        monkeypatch.setitem(StationManager().server_conf, "server_port", 4300)
+
+    def test_local_server_url_uses_server_port(self):
+        assert StationManager().local_server_url() == "http://127.0.0.1:4300"
+
+    def test_generated_autobumps_use_server_port(self):
+        bumps = AutoBumpAgent.gen_bumps({"network_name": "T", "autobump": {"title": "T"}})
+        for bump in bumps.values():
+            assert AutoBumpAgent.extract_url(bump.path).startswith("http://127.0.0.1:4300/static/bump/bump.html?")
+
+    def test_off_air_fill_uses_server_port(self):
+        fill = AutoBumpAgent.fill_block({"network_name": "T", "off_air_autobump": {"title": "T"}}, 3600)
+        assert AutoBumpAgent.extract_url(fill.path).startswith("http://127.0.0.1:4300/")
+
+    def test_music_and_video_files_use_server_port(self):
+        parsed = urllib.parse.parse_qs(AutoBumpAgent.generate_bump_query({"title": "T", "bg_music": "logo1.mp3", "bg_video": "intro.webm"}))
+        assert parsed["bg_music"] == ["http://127.0.0.1:4300/static/bump/music/logo1.mp3"]
+        assert parsed["bg_video"] == ["http://127.0.0.1:4300/static/bump/video/intro.webm"]

@@ -1,3 +1,62 @@
+
+:root {
+  --layout-mode: "grid";
+
+  --bg-color: #00008b;
+  --text-color: #ffffff;
+  --font-family: 'Arial', 'Helvetica Neue', sans-serif;
+  --font-size: 1.6rem;
+  --h-padding: 1.5%;
+  --v-padding: 1.5%;
+
+  --header-bg: #000044;
+  --header-text-color: #ffff00;
+
+  --time-heading-color: #ffff00;
+  --channel-number-color: #ffffff;
+  --channel-name-color: #ffff00;
+  --show-title-color: #ffffff;
+
+  --continued-indicator: " (cont)";
+
+  /* grid-mode chrome, so it matches the core colors above by default */
+  --video-panel-bg: #0000cd;
+  --video-aspect-ratio: 4/3;
+  --text-panel-bg: #0000cd;
+  --text-panel-color: #ffffff;
+  --text-panel-title-color: #ffff00;
+
+  --grid-header-bg: #0000cd;
+  --grid-channel-bg: #00008b;
+  --grid-channel-width: 5.25em;
+  --grid-row-height: 3.0em;
+  --grid-row-odd-bg: #00008b;
+  --grid-row-even-bg: #00008b;
+
+  --channel-pill-radius: 0;
+  --channel-pill-margin-v: 0px;
+  --channel-pill-margin-h: 0px;
+
+  --program-block-bg: #00008b;
+  --program-block-border: #9999ff;
+  --program-block-even-bg: #00008b;
+  --program-block-even-border: #9999ff;
+  --program-block-shadow: #000055;
+  --program-current-bg: #00008b;
+  --program-current-border: #9999ff;
+  --program-current-color: #ffff00;
+
+  /* interactive mode selection; set --program-selected-animation: none to stop the pulse */
+  --program-selected-bg: #ffff00;
+  --program-selected-color: #000066;
+  --program-selected-animation: selected-pulse 1.6s ease-in-out infinite;
+
+  --scroll-pause: 4s;
+  --scroll-speed: 0.8;
+  --music-volume: 0.4;
+  --video-volume: 0.8;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -160,7 +219,7 @@ body {
   color: var(--text-panel-color, #f0f0f0);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   align-items: center;
   text-align: center;
   padding: 1em var(--h-padding, 1em);
@@ -169,7 +228,7 @@ body {
 }
 
 #text-message-title {
-  font-family: var(--title-font), var(--font-family);
+  font-family: var(--title-font, var(--font-family));
   color: var(--text-panel-title-color, #ff2d6e);
   font-size: if(
     style(--title-font-size: null): 1.3em;
@@ -178,10 +237,11 @@ body {
   font-weight: bold;
   transition: opacity 0.4s ease;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 #text-message-body {
-  font-family: var(--body-font), var(--font-family);
+  font-family: var(--body-font, var(--font-family));
   color: var(--text-panel-color, #f0f0f0);
   font-size: if(
     style(--body-font-size: null): 1em;
@@ -190,7 +250,10 @@ body {
   line-height: 1.5;
   transition: opacity 0.4s ease;
   overflow: hidden;
+  min-height: 0;
   white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
 }
 
 #grid-wrapper {
@@ -219,12 +282,12 @@ body {
 }
 
 .grid-channel-stub #clock {
-  font-family: var(--clock-font), var(--font-family);
+  font-family: var(--clock-font, var(--font-family));
   font-size: 0.75em;
 }
 
 .grid-time-slot {
-  font-family: var(--time-font), var(--font-family);
+  font-family: var(--time-font, var(--font-family));
   flex: 1;
   color: var(--time-heading-color);
   font-weight: bold;
@@ -287,7 +350,7 @@ body {
 }
 
 .grid-channel .channel-number {
-  font-family: var(--channel-number-font), var(--font-family);
+  font-family: var(--channel-number-font, var(--font-family));
   color: var(--channel-number-color);
   font-weight: bold;
   text-align: center;
@@ -298,7 +361,7 @@ body {
   if(style(--channel-names-wrap: true): overflow-wrap: break-word;)
   line-height: var(--channel-text-padding);
   padding-bottom: var(--channel-padding-bottom);
-  font-family: var(--channel-name-font), var(--font-family);
+  font-family: var(--channel-name-font, var(--font-family));
   color: var(--channel-name-color);
   overflow: hidden;
   white-space: if(
@@ -347,7 +410,7 @@ body {
 }
 
 .grid-program-block .program-title {
-  font-family: var(--show-title-font), var(--font-family);
+  font-family: var(--show-title-font, var(--font-family));
   color: var(--show-title-color);
   overflow: hidden;
   white-space: nowrap;
@@ -390,3 +453,24 @@ body {
     );
 }
 
+/* ===== INTERACTIVE ===== */
+
+#grid-listings.navigating #grid-scroll-strip {
+  transition: transform 0.15s ease-out;
+}
+
+.grid-program-block.selected {
+  z-index: 1;
+  background-color: var(--program-selected-bg) !important;
+  animation: var(--program-selected-animation);
+}
+
+@keyframes selected-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(0.82); }
+}
+
+.grid-program-block.selected .program-title,
+.grid-program-block.selected .program-desc {
+  color: var(--program-selected-color);
+}

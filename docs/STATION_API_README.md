@@ -17,7 +17,7 @@ pip install jsonschema
 
 Or use the project installer to pick up all dependencies:
 ```bash
-pip install -r install/requirements.txt
+pip install -r install/requirements.in
 ```
 
 ## Base URL
@@ -25,6 +25,8 @@ pip install -r install/requirements.txt
 ```
 http://localhost:4242/stations
 ```
+
+If `api_key` is set in `confs/main_config.json`, every request must include it. For example, add `-H "X-API-Key: YOUR_KEY"` to the curl commands below. See [API_SECURITY.md](API_SECURITY.md).
 
 ## Endpoints
 

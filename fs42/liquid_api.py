@@ -18,6 +18,18 @@ class LiquidAPI:
             return LiquidIO().query_liquid_blocks(station_config["network_name"], start, end)
 
     @staticmethod
+    def get_block_at(station_config, when):
+        return LiquidIO().get_liquid_block_at(station_config["network_name"], when)
+
+    @staticmethod
+    def get_extents(station_config):
+        return LiquidIO().get_liquid_extents(station_config["network_name"])
+
+    @staticmethod
+    def prune_blocks(ended_before):
+        return LiquidIO().prune_liquid_blocks(ended_before)
+
+    @staticmethod
     def get_all_blocks(start, end):
         """Blocks for every station in a window, keyed by network name."""
         return LiquidIO().query_all_liquid_blocks(start, end)

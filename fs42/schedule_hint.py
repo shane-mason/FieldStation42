@@ -286,8 +286,9 @@ class RangeHint:
     @staticmethod
     def _scrape_dates(m):
         # this WILL throw a value error if not valid date ranges
-        start = datetime.strptime(f"{m.group(1).capitalize()} {m.group(2):0>2}", "%B %d")
-        end = datetime.strptime(f"{m.group(3).capitalize()} {m.group(4):0>2}", "%B %d")
+        year = datetime.now().year
+        start = datetime.strptime(f"{year} {m.group(1).capitalize()} {m.group(2):0>2}", "%Y %B %d")
+        end = datetime.strptime(f"{year} {m.group(3).capitalize()} {m.group(4):0>2}", "%Y %B %d")
         return (start, end)
 
     @staticmethod
@@ -303,32 +304,13 @@ class RangeHint:
         return a
 
     def hint(self, when):
-        # lets put stuff in the current years context first
-
-        test_start = self.start_date
-        test_end = self.end_date
-
-        # this will only consider month and day, since the years are the same
-        if self.start_date > self.end_date:
-            # Crosses year boundary: something like Nov 15 - Jan 15
-            if test_start.replace(year=when.year) <= when:
-                # scenario 1: we are past the start date, like Nov 20
-                test_start = test_start.replace(year=when.year)
-                test_end = test_end.replace(year=when.year + 1)
-            else:
-                # scenario 2: we are before the start date - like Jan 15
-                test_start = test_start.replace(year=when.year - 1)
-                test_end = test_end.replace(year=when.year)
-        else:
-            # the simple case - they are both in the current year
-
-            test_start = test_start.replace(year=when.year)
-            test_end = test_end.replace(year=when.year)
-
-        if test_start <= when and test_end >= when:
-            return True
-        else:
-            return False
+        today = (when.month, when.day)
+        start = (self.start_date.month, self.start_date.day)
+        end = (self.end_date.month, self.end_date.day)
+        if start <= end:
+            return start <= today <= end
+        # crosses the year boundary, like Nov 15 - Jan 15
+        return today >= start or today <= end
 
     def __str__(self):
         return "range_hint"
@@ -383,3 +365,22 @@ def hint_klass_matcher(to_test: str, klasses=MARATHON_HINT_KLASSES):
         if klass.test_pattern(to_test):
             return klass
     return None
+
+
+def validate_custom_holiday_names(holiday_names, day_part_names):
+    # a holiday name is matched against folder names and marathon hints as a
+    # bare string, so one that also reads as a built-in hint either stacks with
+    # it (folders apply every match) or loses to it (marathons take the first).
+    # both fail quietly, so reject the name instead.
+    others = [klass for klass in MARATHON_HINT_KLASSES if klass is not CustomHolidayHint] + [BumpHint]
+    day_part_names = set(day_part_names)
+
+    for name in holiday_names:
+        conflict = hint_klass_matcher(name, klasses=others)
+        conflict_name = conflict.__name__ if conflict else ("DayPartHint" if name in day_part_names else None)
+        if conflict_name:
+            raise ValueError(
+                f"Custom holiday name '{name}' collides with the {conflict_name} "
+                "hint type. Pick a name that isn't a month, quarter, weekday, "
+                "day part, week number, date range, or bump position."
+            )

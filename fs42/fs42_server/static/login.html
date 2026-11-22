@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FieldStation42 - Log In</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@3.0.0/build/pure-min.css">
+    <link rel="stylesheet" id="theme-css" href="/static/themes/default.css">
+    <style>
+        .login-box {
+            max-width: 22em;
+            margin: 6em auto 0 auto;
+            padding: 0 1em;
+        }
+
+        .login-box input[type="password"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .login-box button {
+            margin-top: 1em;
+            width: 100%;
+        }
+
+        #login-error {
+            color: #e06c75;
+            min-height: 1.4em;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="/static/common.js"></script>
+    <div class="login-box">
+        <h1>FieldStation42</h1>
+        <form id="login-form" class="pure-form pure-form-stacked">
+            <label for="api-key">API key</label>
+            <input type="password" id="api-key" autocomplete="current-password" autofocus required>
+            <button type="submit" class="pure-button pure-button-primary">Log In</button>
+            <p id="login-error"></p>
+        </form>
+        <p style="font-size:0.85em;">The key is the <code>api_key</code> value in <code>confs/main_config.json</code>.</p>
+    </div>
+    <script src="/static/login.js"></script>
+</body>
+
+</html>

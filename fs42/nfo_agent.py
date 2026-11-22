@@ -1,6 +1,8 @@
+import functools
 import os
 import multiprocessing
 import logging
+import re
 
 _logger = logging.getLogger("NFOAgent")
 
@@ -19,6 +21,16 @@ _OVERLAY_DEFAULTS = {
     "overlay_type": "normal",
     "overlay_fade_duration_ms": 600,
 }
+
+
+@functools.lru_cache(maxsize=256)
+def _read_tvshow_nfo(path, mtime_ns):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return NFOAgent.parse_nfo_string(f.read())
+    except Exception as e:
+        _logger.warning(f"Failed to read series NFO {path}: {e}")
+        return None
 
 
 class NFOData:
@@ -278,6 +290,32 @@ class NFOAgent:
             el = root.find(field)
             return el.text.strip() if el is not None and el.text else ""
 
+
+        def get_content_rating():
+            # Content ratings are direct children of movie/tvshow NFOs.
+            certification = root.findtext("certification", "").strip()
+            mpaa = root.findtext("mpaa", "").strip()
+            return certification or mpaa
+
+
+        def get_repeated_text(field):
+            # Collect repeated direct-child elements such as genre and director.
+            return [
+                element.text.strip()
+                for element in root.findall(field)
+                if element.text and element.text.strip()
+            ]
+
+
+        def get_actors():
+            # Actor names are nested inside each actor element.
+            actors = []
+            for actor in root.findall("actor"):
+                name = actor.findtext("name", "").strip()
+                if name:
+                    actors.append(name)
+            return actors
+
         def as_int(raw):
             return int(raw) if raw.isdigit() else raw
 
@@ -297,7 +335,12 @@ class NFOAgent:
                 "title": get("title"),
                 "year": get("year") or get("premiered")[:4],
                 "plot": get("plot") or get("outline"),
-                "genre": get("genre"),
+                "genre": get_repeated_text("genre"),
+                "content_rating": get_content_rating(),
+                "premiere_date": get("premiered"),
+                "director": get_repeated_text("director"),
+                "actors": get_actors(),
+                "tagline": get("tagline")
             }
         elif tag == "episodedetails":
             meta = {
@@ -308,6 +351,7 @@ class NFOAgent:
                 "episode": as_int(get("episode")),
                 "aired": get("aired"),
                 "plot": get("plot") or get("outline"),
+                "content_rating": get_content_rating(),
             }
         elif tag == "tvshow":
             meta = {
@@ -315,7 +359,9 @@ class NFOAgent:
                 "title": get("title"),
                 "year": get("year") or get("premiered")[:4],
                 "plot": get("plot") or get("outline"),
-                "genre": get("genre"),
+                "genre": get_repeated_text("genre"),
+                "content_rating": get_content_rating(),
+                "premiere_date": get("premiered"),
             }
         else:
             # Unknown/unsupported Kodi root tag — keep the title and any of the
@@ -324,13 +370,17 @@ class NFOAgent:
             if not title:
                 return None
             meta = {"type": tag, "title": title}
-            for opt in ("year", "plot", "genre"):
+            for opt in ("year", "plot"):
                 opt_value = get(opt)
                 if opt_value:
                     meta[opt] = opt_value
 
-        # Drop empty-string fields; keep non-string values (e.g. int season).
-        meta = {k: v for k, v in meta.items() if v != ""}
+            genres = get_repeated_text("genre")
+            if genres:
+                meta["genre"] = genres
+
+        # Drop empty fields; keep other non-string values (e.g. int season).
+        meta = {k: v for k, v in meta.items() if v not in (None, "", [])}
 
         # Require at least one real field beyond the type discriminator.
         return meta if len(meta) > 1 else None
@@ -351,9 +401,44 @@ class NFOAgent:
             return None
 
         meta = NFOAgent.parse_nfo_string(content)
+
+        if meta and meta.get("type") == "episode" and not meta.get("content_rating"):
+            show_meta = NFOAgent._find_tvshow_meta(file_path)
+            if show_meta:
+                if show_meta.get("content_rating"):
+                    meta["content_rating"] = show_meta["content_rating"]
+                if not meta.get("show_title") and show_meta.get("title"):
+                    meta["show_title"] = show_meta["title"]
+
         if meta is None:
             _logger.warning(f"NFO file {nfo_path} could not be parsed")
         return meta
+
+    @staticmethod
+    def normalize_content_rating(value):
+        # "US:PG / US:Rated PG" -> "PG", "US:TV-14" -> "TV-14", "Rated PG-13" -> "PG-13"
+        if not value:
+            return ""
+        rating = str(value).split("/", 1)[0].strip()
+        rating = re.sub(r"^[A-Za-z]{2}:", "", rating).strip()
+        rating = re.sub(r"^Rated\s+", "", rating, flags=re.IGNORECASE).strip()
+        return rating
+
+    @staticmethod
+    def _find_tvshow_meta(episode_path):
+        # Kodi keeps tvshow.nfo in the show folder; episodes may sit in it,
+        # in a season folder, or in a disc folder under the season.
+        directory = os.path.dirname(os.path.abspath(episode_path))
+        for _ in range(3):
+            tvshow_nfo = os.path.join(directory, "tvshow.nfo")
+            try:
+                mtime_ns = os.stat(tvshow_nfo).st_mtime_ns
+            except OSError:
+                directory = os.path.dirname(directory)
+                continue
+            show_meta = _read_tvshow_nfo(tvshow_nfo, mtime_ns)
+            return show_meta if show_meta and show_meta.get("type") == "tvshow" else None
+        return None
 
     @staticmethod
     def overlay_lines(meta):

@@ -3,6 +3,14 @@ import os
 from fs42.slot_reader import SlotReader
 from fs42.station_io import StationIO
 
+DEFAULT_DAY_PARTS = {
+    "morning": range(6, 10),
+    "daytime": range(10, 18),
+    "prime": range(18, 23),
+    "late": [23, 0, 1, 2],
+    "overnight": range(2, 6),
+}
+
 
 class StationConfigError(Exception):
     pass
@@ -42,13 +50,7 @@ class StationManager(object):
                 self.server_conf = {
                     "channel_socket": "runtime/channel.socket",
                     "status_socket": "runtime/play_status.socket",
-                    "day_parts": {
-                        "morning": range(6, 10),
-                        "daytime": range(10, 18),
-                        "prime": range(18, 23),
-                        "late": [23, 0, 1, 2],
-                        "overnight": range(2, 6),
-                    },
+                    "day_parts": dict(DEFAULT_DAY_PARTS),
                     "time_format": "%H:%M",
                     "date_time_format": "%Y-%m-%dT%H:%M:%S",
                     "db_path": "runtime/fs42_fluid.db",
@@ -91,6 +93,15 @@ class StationManager(object):
                         self.guide_config = station
                         logging.getLogger().info("Setting web channel as guide channel")
 
+    def local_server_url(self):
+        return f"http://127.0.0.1:{self.server_conf.get('server_port', 4242)}"
+
+    def api_key(self):
+        key = self.server_conf.get("api_key")
+        if isinstance(key, str) and key.strip():
+            return key.strip()
+        return None
+
     def station_by_name(self, name):
         if name in self._name_index:
             return self._name_index[name]
@@ -116,27 +127,13 @@ class StationManager(object):
         return self.server_conf["custom_holidays"]
 
     def _validate_custom_holiday_names(self):
-        # a holiday name is matched against folder names and marathon hints as a
-        # bare string, so one that also reads as a built-in hint either stacks with
-        # it (folders apply every match) or loses to it (marathons take the first).
-        # both fail quietly, so reject the name instead.
         # imported here rather than at module scope - schedule_hint imports
         # station_manager, so a top level import would be circular
         from fs42 import schedule_hint
 
-        others = [
-            klass for klass in schedule_hint.FOLDER_HINT_KLASSES
-            if klass is not schedule_hint.CustomHolidayHint
-        ] + [schedule_hint.BumpHint]
-
-        for name in self.server_conf.get("custom_holidays", {}):
-            conflict = schedule_hint.hint_klass_matcher(name, klasses=others)
-            if conflict:
-                raise ValueError(
-                    f"Custom holiday name '{name}' collides with the {conflict.__name__} "
-                    "hint type. Pick a name that isn't a month, quarter, weekday, "
-                    "day part, week number, date range, or bump position."
-                )
+        schedule_hint.validate_custom_holiday_names(
+            self.server_conf.get("custom_holidays", {}), self.server_conf["day_parts"].keys()
+        )
 
     def load_main_config(self):
         _l = logging.getLogger("STATIONMANAGER")
@@ -163,7 +160,13 @@ class StationManager(object):
                     "parental_controls_pin",
                     "parental_controls_theme",
                     "custom_holidays",
+                    "api_key",
+                    "standby_image",
                 ]
+
+                for unknown in self.station_io.unknown_main_config_keys(d):
+                    hint = f" (did you mean '{unknown['suggestion']}'?)" if unknown["suggestion"] else ""
+                    _l.warning(f"main_config.json: unknown setting '{unknown['key']}'{hint}")
 
                 for key in to_check:
                     if key in d:

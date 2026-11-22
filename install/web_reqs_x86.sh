@@ -8,3 +8,5 @@ apt-get install libtiff5-dev
 ln -s /usr/lib/x86_64-linux-gnu/libtiff.so.6 /usr/lib/x86_64-linux-gnu/libtiff.so.5
 
 apt-get install libxcb-cursor0
+apt-get install libxcb-icccm4
+apt-get install libxcb-keysyms1

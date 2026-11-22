@@ -18,9 +18,15 @@ from fs42.marathon_agent import MarathonAgent
 from fs42.path_query import PathQuery
 from fs42.station_manager import StationManager
 from fs42.liquid_io import LiquidIO
+from fs42.build_lock import station_build_lock
 from fs42.autobump_agent import AutoBumpAgent
 
 # logging.basicConfig(format="%(asctime)s %(levelname)s:%(name)s:%(message)s", level=logging.INFO)
+
+# share of a slot that is not content (commercials and break bumps)
+# at least ~2 minutes per 30, ~4 per 60; no more than ~30% commercials
+MIN_BREAK_RATIO = 0.067
+MAX_BREAK_RATIO = 0.30
 
 class ClipShowKickBack(Exception):
 
@@ -36,24 +42,52 @@ class LiquidSchedule:
         self.catalog = ShowCatalog(conf)
         self._load_blocks()
 
-    def _calc_target_duration(self, duration, increment=None):
+    def _calc_target_duration(self, duration, increment=None, break_info=None, break_strategy=None):
         # get the target duration for the show based on the schedule increment
         if increment is None:
             increment = self.conf["schedule_increment"]
+
+        # everything that has to play in the slot: content plus any start/end bumps
+        required = duration
+        if break_info:
+            for key in ("start_bump", "end_bump"):
+                bump = break_info.get(key)
+                if bump:
+                    required += bump["duration"]
+
         multiple = increment * 60
         if multiple == 0:
-            return duration
-        return multiple * math.ceil(duration / multiple)
+            return required
+
+        quantum = multiple / 4
+        if quantum % (5 * 60) != 0:
+            if quantum < 10 * 60:
+                quantum = 5 * 60
+            else:
+                quantum = math.ceil(quantum / (5 * 60)) * (5 * 60)
+        quantum = min(quantum, multiple)
+
+        if required <= multiple / 2:
+            target = quantum * math.ceil(required / quantum)
+        else:
+            target = multiple * math.ceil(required / multiple)
+
+        # if there is too little room for commercials, try the next increment up
+        # as long as that doesn't leave the slot mostly commercials
+        if not self.conf.get("commercial_free") and break_strategy == "standard":
+            if (target - required) / target < MIN_BREAK_RATIO:
+                step = quantum if target < multiple else multiple
+                bumped = target + step
+                if (bumped - required) / bumped <= MAX_BREAK_RATIO:
+                    target = bumped
+        return target
 
     def _load_blocks(self):
         self._blocks = LiquidAPI.get_blocks(self.conf)
 
     def _end_time(self):
-        # get the lastest time in the schedule
-        if len(self._blocks) > 0:
-            return self._blocks[-1].end_time
-        else:
-            return None
+        # read from the database - another build may have added to it since self._blocks was loaded
+        return LiquidAPI.get_extents(self.conf)[1]
 
     def _flood(self, start_time, end_target):
         # flood the schedule - this is used for loop channels
@@ -79,41 +113,130 @@ class LiquidSchedule:
         LiquidAPI.add_blocks(self.conf, new_blocks)
         self._load_blocks()
 
-    def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None, first_in_slot=True) -> LiquidBlock:
+    @staticmethod
+    def _get_sequence_name(slot_config, tag_index):
+        seq_name = slot_config["sequence"]
+
+        if slot_config.get("sequence_strategy") == "random_show" and tag_index is not None:
+            seq_ids = slot_config.get("sequence_id_array", [])
+
+            if tag_index < len(seq_ids):
+                seq_name = f"{seq_name}|{seq_ids[tag_index]}"
+
+        return seq_name
+
+    @staticmethod
+    def _slot_duration_limit(slot_config, key, tag_index):
+        # minutes in config, seconds out - a list applies per tag position
+        limit = slot_config.get(key)
+        if isinstance(limit, list):
+            limit = limit[tag_index] if tag_index is not None and 0 <= tag_index < len(limit) else None
+        return float(limit) * 60 if limit is not None else None
+
+    def _fill(self, slot_config, tag_str, current_mark, tag_index=None, exclusion_index=None, first_in_slot=True, max_allocation=None, sequence_entry=None, min_duration_floor=None) -> LiquidBlock:
         seq_key = None
         candidate = None
         new_block = None
         next_mark = None
+        candidate_break_info = {}
         # see if this is a series with a sequence defined
         if "sequence" in slot_config:
-            seq_name = slot_config["sequence"]
-            
-            if slot_config.get("sequence_strategy") == "random_show" and tag_index is not None:
-                seq_ids = slot_config.get("sequence_id_array", [])
-                    
-                if tag_index < len(seq_ids):
-                    seq_name = (
-                        f"{seq_name}|"
-                        f"{seq_ids[tag_index]}"
-                    )
+            seq_name = self._get_sequence_name(slot_config, tag_index)
 
-            next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
+            if "min_duration" in slot_config or "max_duration" in slot_config:
+                self._l.warning(
+                    f"[{self.conf['network_name']}] min_duration/max_duration are ignored "
+                    f"for sequence slots (tag={tag_str} at {current_mark})"
+                )
+
+            if sequence_entry is not None:
+                next_seq = sequence_entry
+            else:
+                next_seq = SequenceAPI.get_next_in_sequence(self.conf, seq_name, tag_str)
             if next_seq:
                 candidate = self.catalog.entry_by_fpath(next_seq.fpath)
 
             seq_key = SequenceAPI.make_sequence_key(self.conf, seq_name, tag_str)
         else:
+            min_duration = self._slot_duration_limit(slot_config, "min_duration", tag_index)
+            max_duration = self._slot_duration_limit(slot_config, "max_duration", tag_index)
+            configured_max_duration = max_duration
+            if min_duration_floor is not None:
+                min_duration = max(min_duration or 0, min_duration_floor)
+
+            # For additional items, impose the increment value as maximum
+            if max_allocation is not None:
+                if max_duration is None:
+                    max_duration = max_allocation
+                else:
+                    max_duration = min(max_duration, max_allocation)
+
+            # if min is higher than max, defer to max and ignore min
+            if min_duration is not None and max_duration is not None and min_duration > max_duration:
+                
+                if (max_allocation is not None and (configured_max_duration is None or min_duration <= configured_max_duration)):
+                    raise MatchingContentNotFound(
+                        f"Remaining allocation is too short for min_duration "
+                        f"on tag={tag_str}"
+                    )
+                
+                self._l.warning(
+                    f"[{self.conf['network_name']}] min_duration is greater than max_duration "
+                    f"for tag={tag_str} at {current_mark} - ignoring min_duration"
+                )
+                min_duration = None
+
+            candidate_filter = None
+
+            if max_allocation is not None:
+
+                def candidate_filter(candidate):
+                    the_match = PathQuery.match_any_from_base(
+                        candidate.path,
+                        self.conf["content_dir"],
+                        self.conf["clip_shows"].keys()
+                    )
+
+                    if the_match:
+                        return False
+
+                    details = self._break_info(
+                        slot_config,
+                        tag_str,
+                        candidate.path,
+                        first_in_slot
+                    )
+
+                    break_info, break_strategy, candidate_increment = details
+
+                    target_duration = self._calc_target_duration(
+                        candidate.duration,
+                        candidate_increment,
+                        break_info,
+                        break_strategy
+                    )
+
+                    candidate_break_info[candidate.path] = (
+                        break_info,
+                        break_strategy,
+                        candidate_increment,
+                        target_duration
+                    )
+
+                    return target_duration <= max_allocation
+                    
             try:
                 candidate = self.catalog.find_candidate(
                     tag_str, timings.HOUR * 23, current_mark,
-                    exclusion_index=exclusion_index, proposed_start=current_mark
+                    exclusion_index=exclusion_index, proposed_start=current_mark,
+                    min_duration=min_duration, max_duration=max_duration, candidate_filter=candidate_filter
                 )
             except MatchingContentNotFound:
                 if exclusion_index:
                     # Exclusion may have blocked everything - retry without it.
                     # If this also fails it is a genuine content shortage.
                     try:
-                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark)
+                        candidate = self.catalog.find_candidate(tag_str, timings.HOUR * 23, current_mark, min_duration=min_duration, max_duration=max_duration, candidate_filter=candidate_filter)
                         self._l.warning(
                             f"[{self.conf['network_name']}] Sibling exclusion blocked all candidates "
                             f"for tag={tag_str} at {current_mark} - "
@@ -136,9 +259,21 @@ class LiquidSchedule:
                 raise ClipShowKickBack(the_match, the_match)
 
             # right here - figure out where we are in the hour so we know if we should use start_bump
-            break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path, first_in_slot)
 
-            target_duration = self._calc_target_duration(candidate.duration, increment)
+            cached_details = (candidate_break_info.get(candidate.path))
+            if cached_details:
+                break_info, break_strategy, increment, target_duration = cached_details            
+            else:
+                break_info, break_strategy, increment = self._break_info(slot_config, tag_str, candidate.path, first_in_slot)
+
+                target_duration = self._calc_target_duration(candidate.duration, increment, break_info, break_strategy)                
+
+            if min_duration_floor is not None and candidate.duration < min_duration_floor:
+                return (None, current_mark, increment)
+
+            if max_allocation is not None and target_duration > max_allocation:
+                return (None, current_mark, increment)
+
             next_mark = current_mark + datetime.timedelta(seconds=target_duration)
             new_block = LiquidBlock(candidate, current_mark, next_mark, candidate.title, break_strategy, break_info)
             # add sequence information
@@ -149,7 +284,7 @@ class LiquidSchedule:
             raise MatchingContentNotFound(
                 f"Could not find content for tag {tag_str} - please add content, check your configuration and retry"
             )
-        return (new_block, next_mark)
+        return (new_block, next_mark, increment)
 
     def _clip_fill(self, tag_str, current_mark, slot_config) -> LiquidClipBlock:
         new_block = None
@@ -170,7 +305,11 @@ class LiquidSchedule:
         else:
             break_info, break_strategy, schedule_increment = self._break_info(slot_config, tag_str, clip_content[0].path)
             clip_block = LiquidClipBlock(clip_content, current_mark, timings.HOUR, tag_str, break_strategy, break_info)
-            next_mark = current_mark + datetime.timedelta(seconds=clip_config.get("total_duration"))
+            if schedule_increment:
+                duration = clip_config.get("total_duration")
+            else:
+                duration = self._calc_target_duration(clip_block.content_duration(), 0, break_info)
+            next_mark = current_mark + datetime.timedelta(seconds=duration)
             clip_block.end_time = next_mark
             new_block = clip_block
         return (new_block, next_mark)
@@ -223,8 +362,8 @@ class LiquidSchedule:
     @staticmethod
     def _get_block_tag(block):
         """Safely extract the content tag from a block, returning None for
-        off-air, loop, or clip blocks where a single tag doesn't apply."""
-        if isinstance(block, (LiquidOffAirBlock, LiquidLoopBlock)):
+        off-air (video or autobump), loop, or clip blocks where a single tag doesn't apply."""
+        if isinstance(block, (LiquidOffAirBlock, LiquidWebBlock, LiquidLoopBlock)):
             return None
         if isinstance(block, LiquidClipBlock):
             # clip blocks have a list of content - use the block title which is set to the tag string
@@ -378,6 +517,13 @@ class LiquidSchedule:
             first_in_slot = False
             this_slot_number = None
 
+            block_batch = []
+            schedule_increment = None
+
+            fill_slot_config = None
+            fill_tag_str = None
+            fill_tag_index = None
+
             if not len(forward_buffer):
                 slot_config, this_slot_number = SlotReader.get_slot(self.conf, current_mark)
             else:
@@ -393,6 +539,9 @@ class LiquidSchedule:
             new_block = None
             onair_flag = True
             if tag_str is not None:
+                fill_slot_config = slot_config
+                fill_tag_str = tag_str
+                fill_tag_index = tag_index
                 onair_flag = True
                 
                 
@@ -402,13 +551,16 @@ class LiquidSchedule:
                 if tag_str not in self.conf["clip_shows"]:
                     #print("not clip show")
                     try:
-                        new_block, next_mark = self._fill(slot_config, tag_str, current_mark, tag_index=tag_index, exclusion_index=exclusion_index, first_in_slot=first_in_slot)
+                        new_block, next_mark, schedule_increment = self._fill(slot_config, tag_str, current_mark, tag_index=tag_index, exclusion_index=exclusion_index, first_in_slot=first_in_slot)
                     except ClipShowKickBack as e:
                         new_block, next_mark = self._clip_fill(e.clip_tag, current_mark, slot_config)
                     except MatchingContentNotFound as e:
                         if "fallback_tag" in self.conf:
                             fb_config = {"tags": self.conf["fallback_tag"]}
-                            new_block, next_mark = self._fill(fb_config, fb_config["tags"], current_mark, tag_index=tag_index, exclusion_index=exclusion_index, first_in_slot=first_in_slot)
+                            fill_slot_config = fb_config
+                            fill_tag_str = fb_config["tags"]
+                            fill_tag_index = tag_index
+                            new_block, next_mark, schedule_increment = self._fill(fb_config, fb_config["tags"], current_mark, tag_index=tag_index, exclusion_index=exclusion_index, first_in_slot=first_in_slot)
                         else:
                             self._l.warning("Content not found, but no fallback_tag specified.")
                             raise e
@@ -428,26 +580,122 @@ class LiquidSchedule:
 
                 # we are offair, so set onair off
                 onair_flag = False
-                
+
+                # make it for one hour.
+                # TODO: handle when it starts at half hour - just go to next hour (not always one hour)
+                next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+
                 if candidate is None and "off_air_autobump" in self.conf:
-                        candidate = AutoBumpAgent.fill_block(self.conf, timings.HOUR)
+                    off_air_seconds = (next_mark - current_mark).total_seconds()
+                    if sign_off:
+                        off_air_seconds -= min(float(sign_off.duration), off_air_seconds)
+                    candidate = AutoBumpAgent.fill_block(self.conf, max(off_air_seconds, 1))
                 if candidate is None:
                     self._l.error(f"Schedule logic error: no time slots configured for {current_mark}")
                     self._l.error("This indicates that the station is offair, but offair content is not configured")
                     self._l.error(f"Configure 'off_air_video' or 'off_air_image' for {self.conf['network_name']}")
                     sys.exit(-1)
 
-                # make it for one hour.
-                # TODO: handle when it starts at half hour - just go to next hour (not always one hour)
-                next_mark = (current_mark + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
                 if candidate.tag == AutoBumpAgent.tag_str:
-                    new_block = LiquidWebBlock(candidate, current_mark, next_mark, "Offair")
+                    new_block = LiquidWebBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
                 else:
                     new_block = LiquidOffAirBlock(candidate, current_mark, next_mark, "Offair", sign_off=sign_off)
 
+            if new_block:
+                block_batch.append(new_block)
+                self._register_exclusion(exclusion_index, new_block)
+
+            # Only ordinary content blocks participate in increment filling.
+            if (
+                isinstance(new_block, LiquidBlock)
+                and schedule_increment
+                and fill_slot_config is not None
+                and fill_tag_str is not None
+            ):
+                increment_end = current_mark + datetime.timedelta(
+                    minutes=float(schedule_increment)
+                )
+
+                while next_mark < increment_end:
+
+                    remaining = (
+                        increment_end - next_mark
+                    ).total_seconds()
+
+                    if remaining <= 0:
+                        break
+
+                    sequence_entry = None
+                    seq_name = None
+                    min_duration_floor = 0.9 * new_block.content.duration
+
+                    # Sequences must use their next episode only.
+
+                    if "sequence" in fill_slot_config:
+
+                        seq_name = self._get_sequence_name(
+                            fill_slot_config,
+                            fill_tag_index
+                        )
+
+                        sequence_entry = SequenceAPI.peek_next_in_sequence(
+                            self.conf,
+                            seq_name,
+                            fill_tag_str
+                        )
+
+                        if sequence_entry is None:
+                            break
+
+                        min_duration_floor = None
+
+                    try:
+                        extra_block, extra_next_mark, _ = self._fill(
+                            fill_slot_config,
+                            fill_tag_str,
+                            next_mark,
+                            tag_index=fill_tag_index,
+                            exclusion_index=exclusion_index,
+                            first_in_slot=False,
+                            max_allocation=remaining,
+                            sequence_entry=sequence_entry,
+                            min_duration_floor=min_duration_floor
+                        )
+
+                    except (MatchingContentNotFound, ClipShowKickBack):
+                        # No suitable item remains.
+                        break
+
+                    if extra_block is None:
+                        break
+
+                    if extra_next_mark > increment_end:
+                        break
+
+                    # Only advance the sequence after confirming that its
+                    # next episode fits and will be scheduled.
+                    if sequence_entry is not None:
+                        SequenceAPI.get_next_in_sequence(self.conf, seq_name, fill_tag_str)
+
+                    block_batch.append(extra_block)
+
+                    self._register_exclusion(
+                        exclusion_index,
+                        extra_block
+                    )
+
+                    next_mark = extra_next_mark
+                # Fill any unused portion of the increment with commercials.
+                if block_batch and next_mark < increment_end:
+                    block_batch[-1].end_time = increment_end
+                    next_mark = increment_end
             # here
-            new_blocks.append(new_block)
-            self._register_exclusion(exclusion_index, new_block)
+            if not block_batch and new_block:
+                block_batch.append(new_block)
+                self._register_exclusion(exclusion_index, new_block)
+
+            new_blocks.extend(block_batch)
+
             current_mark = next_mark
         self._l.info("Content and reel schedules are completed")
 
@@ -481,22 +729,26 @@ class LiquidSchedule:
         self._load_blocks()
 
     def _increment(self, how_much):
+        with station_build_lock(self.conf["network_name"]) as waited:
+            if waited:
+                # the other build may have been a catalog rebuild
+                self.catalog = ShowCatalog(self.conf)
+            self._extend(how_much)
+
+    def _extend(self, how_much):
         # add time to the existing schedule
         # firsst, get the current end-of-schedule
         current_end = self._end_time()
         start_building = None
         end_building = None
         if current_end:
-            # then there is an existing schedule
+            # then there is an existing schedule - it already carries any offset, so continue exactly where it ends
             start_building = current_end
         else:
-            # then there is no schedule, so start with today (but at midnight)
+            # then there is no schedule, so start with today (but at midnight), shifted by any offset
             now = datetime.datetime.now()
             start_building = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        if "schedule_offset" in self.conf:
-            # then we have an offset to apply
-            start_building += datetime.timedelta(minutes=self.conf["schedule_offset"])
+            start_building += datetime.timedelta(minutes=self.conf.get("schedule_offset", 0))
 
         match how_much:
             case "day":

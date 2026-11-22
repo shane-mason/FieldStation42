@@ -1,5 +1,20 @@
 // common.js
 
+// When API security is on, a 401 means this browser's session is missing or stale - send it to log in
+(function () {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async function (...args) {
+        const response = await originalFetch(...args);
+        if (response.status === 401 && window.location.pathname !== '/login') {
+            // pages like guide_frame.html run in an iframe, so send the whole window
+            const page = window.top.location;
+            const next = page.pathname + page.search + page.hash;
+            page.href = '/login?next=' + encodeURIComponent(next);
+        }
+        return response;
+    };
+})();
+
 // Theme management
 function initTheme() {
     const savedTheme = localStorage.getItem('fs42-theme') || 'default';
@@ -53,7 +68,7 @@ async function createMainMenu() {
                 <li class="pure-menu-item"><a href="/static/guide.html" class="pure-menu-link">Guide</a></li>
                 <li class="pure-menu-item"><a href="/static/stations.html" class="pure-menu-link">Stations</a></li>
                 ${playerMenuItems}
-                <li class="pure-menu-item"><a href="/static/about.html" class="pure-menu-link">About</a></li>
+                <li class="pure-menu-item"><a href="/static/manage.html" class="pure-menu-link">Manage</a></li>
             </ul>
         </div>
     `;

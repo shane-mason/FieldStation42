@@ -1,0 +1,295 @@
+import json
+import logging
+import os
+import shutil
+import subprocess
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+
+from fs42.station_manager import StationManager
+from fs42.station_io import StationIO
+from fs42.fs42_server import auth
+from fs42.fs42_server.api.player import connected_command_queue
+
+router = APIRouter(prefix="/manage", tags=["manage"])
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+STARTED_AT = time.time()
+INCOMING_LIMIT = 50
+STANDBY_UNIT = "fs42-standby.service"
+# never stopped, so its power button can start FieldStation42 again
+REMOTE_UNIT = "fs42-remote-controller.service"
+
+_l = logging.getLogger("FS42SERVER")
+
+PULL_FAILURES = [
+    ("would be overwritten", "local edits",
+     "Files you changed locally would be overwritten by the update. Commit, move, or undo those changes, then try again."),
+    ("Not possible to fast-forward", "diverged",
+     "Your copy has commits that aren't upstream, so it can't be updated by a simple pull. Resolve it from a terminal."),
+    ("diverg", "diverged",
+     "Your copy has commits that aren't upstream, so it can't be updated by a simple pull. Resolve it from a terminal."),
+    ("no tracking information", "no upstream",
+     "This branch isn't tracking a remote branch, so there is nothing to pull from."),
+    ("not currently on a branch", "detached",
+     "The checkout isn't on a branch (detached HEAD), so there is nothing to pull."),
+    ("Could not resolve host", "network", "Couldn't reach the git server. Check the network connection."),
+    ("unable to access", "network", "Couldn't reach the git server. Check the network connection."),
+]
+
+
+def _git(*args, timeout=10):
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    try:
+        return subprocess.run(["git", *args], cwd=PROJECT_ROOT, env=env, capture_output=True,
+                              text=True, timeout=timeout)
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        return subprocess.CompletedProcess(["git", *args], 1, "", str(e))
+
+
+def _git_out(*args, timeout=10):
+    result = _git(*args, timeout=timeout)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _under_systemd():
+    return "INVOCATION_ID" in os.environ
+
+
+def _in_docker():
+    return os.path.exists("/.dockerenv")
+
+
+def _in_standby():
+    return os.environ.get("FS42_STANDBY") == "1"
+
+
+def _unit_names(*args):
+    try:
+        result = subprocess.run(["systemctl", "--user", *args, "--plain", "--no-legend"],
+                                capture_output=True, text=True, timeout=10)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+    names = [line.split()[0] for line in result.stdout.splitlines() if line.split()]
+    return [name for name in names if name.endswith(".service")]
+
+
+def _active_units():
+    return _unit_names("list-units", "fs42*", "--state=active")
+
+
+def _boot_units():
+    # what a boot would bring up: every enabled fs42 unit (standby is never enabled)
+    units = [u for u in _unit_names("list-unit-files", "fs42*", "--state=enabled") if u != STANDBY_UNIT]
+    return units or ["fs42.service"]
+
+
+def _standby_available():
+    return bool(_unit_names("list-unit-files", STANDBY_UNIT))
+
+
+def _git_status():
+    if _git_out("rev-parse", "--is-inside-work-tree") != "true":
+        return {"is_repo": False}
+    branch = _git_out("rev-parse", "--abbrev-ref", "HEAD")
+    head = (_git_out("log", "-1", "--format=%h%x00%cs%x00%s") or "\0\0").split("\0")
+    return {
+        "is_repo": True,
+        "branch": None if branch == "HEAD" else branch,
+        "upstream": _git_out("rev-parse", "--abbrev-ref", "@{u}"),
+        "commit": head[0],
+        "date": head[1],
+        "subject": head[2],
+        "dirty": bool(_git_out("status", "--porcelain", "--untracked-files=no")),
+    }
+
+
+def _update_blocker(git):
+    if _in_docker():
+        return "Running in Docker - update by rebuilding the image."
+    if not git["is_repo"]:
+        return "This install isn't a git checkout."
+    if not git["branch"]:
+        return "The checkout isn't on a branch."
+    if not git["upstream"]:
+        return "This branch isn't tracking a remote branch."
+    return None
+
+
+def _handoff(action, units):
+    # the server lives in fs42.service's cgroup, so a direct systemctl call would be killed mid-way
+    subprocess.run(
+        ["systemd-run", "--user", "--collect", "--on-active=2", "systemctl", "--user", action, *units],
+        capture_output=True, text=True, timeout=10, check=True,
+    )
+
+
+@router.get("/status")
+def status():
+    if StationManager().api_key() is None:
+        return {"enabled": False}
+    git = _git_status()
+    return {
+        "enabled": True,
+        "systemd": _under_systemd(),
+        "docker": _in_docker(),
+        "units": _active_units() if _under_systemd() else [],
+        "standby": _in_standby(),
+        "standby_available": _under_systemd() and _standby_available(),
+        "started_at": STARTED_AT,
+        "git": git,
+        "update_blocker": _update_blocker(git),
+    }
+
+
+@router.post("/restart", dependencies=[Depends(auth.require_admin)])
+def restart(request: Request):
+    if not _under_systemd():
+        raise HTTPException(status_code=409, detail="FieldStation42 isn't running as a systemd service, so it can't restart itself.")
+    units = _active_units()
+    if not units:
+        raise HTTPException(status_code=409, detail="No active fs42 services found.")
+    _l.warning(f"manage: restart {' '.join(units)} requested from {auth.client_ip(request)}")
+    _handoff("restart", units)
+    return {"status": "restarting", "units": units}
+
+
+@router.post("/stop", dependencies=[Depends(auth.require_admin)])
+def stop(request: Request):
+    _l.warning(f"manage: stop requested from {auth.client_ip(request)}")
+    if _in_standby():
+        raise HTTPException(status_code=409, detail="FieldStation42 is already stopped.")
+    if _under_systemd() and _standby_available():
+        # standby conflicts with every fs42 unit, so starting it stops them and keeps the console up
+        _handoff("start", [STANDBY_UNIT])
+        return {"status": "standby", "units": [STANDBY_UNIT]}
+    if _under_systemd():
+        units = [u for u in _active_units() if u != REMOTE_UNIT]
+        if units:
+            _handoff("stop", units)
+            return {"status": "stopping", "units": units}
+    connected_command_queue(request).put({"command": "exit"})
+    return {"status": "stopping", "units": []}
+
+
+@router.post("/start", dependencies=[Depends(auth.require_admin)])
+def start(request: Request):
+    if not _in_standby():
+        raise HTTPException(status_code=409, detail="FieldStation42 is already running.")
+    units = _boot_units()
+    _l.warning(f"manage: start {' '.join(units)} requested from {auth.client_ip(request)}")
+    _handoff("start", units)
+    return {"status": "starting", "units": units}
+
+
+def _main_config_path():
+    return os.path.join(PROJECT_ROOT, "confs", "main_config.json")
+
+
+def _read_main_config():
+    path = _main_config_path()
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return json.load(f)
+
+
+@router.get("/config", dependencies=[Depends(auth.require_admin)])
+def get_config():
+    io = StationIO()
+    try:
+        conf = _read_main_config()
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=f"main_config.json isn't valid JSON - fix it by hand first: {e}")
+    return {"config": conf, "schema": io.load_main_config_schema(), "unknown": io.unknown_main_config_keys(conf)}
+
+
+@router.put("/config", dependencies=[Depends(auth.require_admin)])
+async def put_config(request: Request):
+    body = await request.json()
+    conf = body.get("config") if isinstance(body, dict) else None
+    if not isinstance(conf, dict):
+        raise HTTPException(status_code=400, detail='Send the settings as {"config": {...}}.')
+    if "api_key" not in conf:
+        raise HTTPException(status_code=400, detail="api_key can't be removed here. To turn off API security, edit main_config.json by hand.")
+    ok, message = StationIO().validate_main_config(conf)
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+
+    path = _main_config_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path):
+        shutil.copyfile(path, path + ".bak")
+    with open(path, "w") as f:
+        json.dump(conf, f, indent=4)
+        f.write("\n")
+    _l.warning(f"manage: main_config.json saved from {auth.client_ip(request)}")
+
+    units = _active_units() if _under_systemd() else []
+    if not units:
+        reason = ("No active fs42 services found." if _under_systemd()
+                  else "FieldStation42 isn't running as a systemd service, so it can't restart itself.")
+        return {"status": "saved", "restart": False, "reason": reason}
+
+    _handoff("restart", units)
+    response = JSONResponse({"status": "restarting", "units": units})
+    new_key = conf["api_key"].strip() if "api_key" in conf else None
+    if new_key and new_key != StationManager().api_key():
+        auth.set_session_cookie(response, new_key)
+    return response
+
+
+@router.post("/update/check", dependencies=[Depends(auth.require_admin)])
+def update_check():
+    git = _git_status()
+    blocker = _update_blocker(git)
+    if blocker:
+        raise HTTPException(status_code=409, detail=blocker)
+    fetch = _git("fetch", "--quiet", timeout=60)
+    if fetch.returncode != 0:
+        return JSONResponse(status_code=409, content=_failure(fetch.stderr))
+    incoming = []
+    for line in (_git_out("log", f"-{INCOMING_LIMIT}", "--format=%h%x00%s", "HEAD..@{u}") or "").splitlines():
+        commit, _, subject = line.partition("\0")
+        incoming.append({"commit": commit, "subject": subject})
+    return {
+        "branch": git["branch"],
+        "upstream": git["upstream"],
+        "behind": int(_git_out("rev-list", "--count", "HEAD..@{u}") or 0),
+        "ahead": int(_git_out("rev-list", "--count", "@{u}..HEAD") or 0),
+        "incoming": incoming,
+    }
+
+
+def _failure(output):
+    for marker, reason, message in PULL_FAILURES:
+        if marker in output:
+            return {"status": "failed", "reason": reason, "message": message, "output": output.strip()}
+    return {"status": "failed", "reason": "unknown", "message": "git couldn't update this install.",
+            "output": output.strip()}
+
+
+@router.post("/update", dependencies=[Depends(auth.require_admin)])
+def update(request: Request):
+    git = _git_status()
+    blocker = _update_blocker(git)
+    if blocker:
+        raise HTTPException(status_code=409, detail=blocker)
+    _l.warning(f"manage: update of {git['branch']} requested from {auth.client_ip(request)}")
+    old = _git_out("rev-parse", "HEAD")
+    pull = _git("pull", "--ff-only", timeout=120)
+    if pull.returncode != 0:
+        _l.warning(f"manage: update failed: {pull.stderr.strip()}")
+        return JSONResponse(status_code=409, content=_failure(pull.stderr + pull.stdout))
+    new = _git_out("rev-parse", "HEAD")
+    changed = (_git_out("diff", "--name-only", old, new) or "").splitlines() if old != new else []
+    _l.warning(f"manage: updated {old[:7]} -> {new[:7]}" if old != new else "manage: already up to date")
+    return {
+        "status": "updated" if old != new else "current",
+        "from": old[:7],
+        "to": new[:7],
+        "changed_files": changed,
+        "requirements_changed": "requirements.txt" in changed,
+    }

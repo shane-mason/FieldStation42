@@ -9,9 +9,18 @@ import urllib.parse
 
 
 class AutoBumpAgent:
-    base_url = "http://127.0.0.1:4242/static/bump/bump.html"
     url_prefix = ":autobump:="
     tag_str = ":autobump:"
+    _bg_video_durations = {}
+
+    @staticmethod
+    def static_url(path):
+        from fs42.station_manager import StationManager
+        return f"{StationManager().local_server_url()}/static/{path}"
+
+    @staticmethod
+    def bump_page_url():
+        return AutoBumpAgent.static_url("bump/bump.html")
 
     @staticmethod
     def do_fill(station_config):
@@ -26,14 +35,14 @@ class AutoBumpAgent:
     @staticmethod
     def fill_block(station_config, duration):
         if "autobump" in station_config:
-            ab_config = station_config["autobump"]
+            ab_config = dict(station_config["autobump"])
         elif "off_air_autobump" in station_config:
-            ab_config = station_config["off_air_autobump"]
+            ab_config = dict(station_config["off_air_autobump"])
         else:
             return None
 
         ab_config["duration"] = duration
-        fill_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.base_url, station_config["network_name"], False, True)
+        fill_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.bump_page_url(), station_config["network_name"], False, True)
         return fill_bump
 
 
@@ -42,7 +51,7 @@ class AutoBumpAgent:
         if "autobump" not in station_config:
             return {"start_block": None, "end_block": None}
 
-        ab_config = station_config["autobump"]
+        ab_config = dict(station_config["autobump"])
 
         # first, check duration:
         # if the user set a duration, respect that as the bump length
@@ -59,8 +68,8 @@ class AutoBumpAgent:
             else:
                 ab_config["duration"] = 7
 
-        msg_bump = AutoBumpAgent.message_bump(ab_config, AutoBumpAgent.base_url)
-        next_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.base_url, station_config["network_name"])
+        msg_bump = AutoBumpAgent.message_bump(ab_config, AutoBumpAgent.bump_page_url())
+        next_bump = AutoBumpAgent.next_up_bump(ab_config, AutoBumpAgent.bump_page_url(), station_config["network_name"])
         return {"message_bump": msg_bump, "next_bump": next_bump}
 
     @staticmethod
@@ -73,6 +82,7 @@ class AutoBumpAgent:
 
     @staticmethod
     def message_bump(ab_config, base_url, loopmusic=True, show_countdown=False):
+        ab_config = dict(ab_config)
         ab_config["loopmusic"] = "true" if loopmusic else "false"
         ab_config["countdown"] = "true" if show_countdown else "false"
         if "next_network" in ab_config:
@@ -84,6 +94,7 @@ class AutoBumpAgent:
 
     @staticmethod
     def next_up_bump(ab_config, base_url, network_name, loopmusic=True, show_countdown=False):
+        ab_config = dict(ab_config)
         ab_config["subtitle"] = f"Coming up on {network_name}"
         ab_config["next_network"] = network_name
         ab_config["loopmusic"] = "true" if loopmusic else "false"
@@ -103,6 +114,12 @@ class AutoBumpAgent:
 
     @staticmethod
     def get_bg_video_duration(bg_video):
+        if bg_video not in AutoBumpAgent._bg_video_durations:
+            AutoBumpAgent._bg_video_durations[bg_video] = AutoBumpAgent._probe_bg_video_duration(bg_video)
+        return AutoBumpAgent._bg_video_durations[bg_video]
+
+    @staticmethod
+    def _probe_bg_video_duration(bg_video):
         if str(bg_video).startswith("http"):
             return None
 
@@ -163,7 +180,7 @@ class AutoBumpAgent:
             return bg_video
 
         # bare filenames are served from static/bump/video
-        return f"http://127.0.0.1:4242/static/bump/video/{bg_video}"
+        return AutoBumpAgent.static_url(f"bump/video/{bg_video}")
 
     @staticmethod
     def generate_bump_query(config: dict) -> str:
@@ -236,7 +253,7 @@ class AutoBumpAgent:
                 elif key == "bg_music":
                     # Convert filename to full URL if not already a URL
                     if not str(value).startswith("http"):
-                        value = f"http://127.0.0.1:4242/static/bump/music/{value}"
+                        value = AutoBumpAgent.static_url(f"bump/music/{value}")
                 elif key == "bg_video":
                     value = AutoBumpAgent.resolve_bg_video_url(value)
                 elif key == "bg_video_audio":
@@ -307,8 +324,8 @@ def main():
 
     station_config = {"autobump": complete_config, "network_name": "Sitcomx"}
 
-    print(AutoBumpAgent.message_bump(retro_config, AutoBumpAgent.base_url))
-    print(AutoBumpAgent.next_up_bump(retro_config, AutoBumpAgent.base_url, "Sitcomx"))
+    print(AutoBumpAgent.message_bump(retro_config, AutoBumpAgent.bump_page_url()))
+    print(AutoBumpAgent.next_up_bump(retro_config, AutoBumpAgent.bump_page_url(), "Sitcomx"))
     gen_bumps = AutoBumpAgent.gen_bumps(station_config)
     print(gen_bumps)
     print(gen_bumps.get("message_bump", "NONE"))

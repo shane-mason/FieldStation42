@@ -355,7 +355,7 @@ Tags can be:
 |----------|------|-------------|
 | `start_bump` | string | Path to bump video before content |
 | `end_bump` | string | Path to bump video after content |
-| `bump_dir` | string | Override bump directory for this slot |
+| `bump_dir` | string or object | Override bump directory, or `{"tags": directory, "chance": 0-1}` to mix it with the station default |
 | `commercial_dir` | string | Override commercial directory for this slot |
 | `video_scramble_fx` | string or boolean | Apply video scrambling effect (see available effects above) or `false` to disable |
 
@@ -365,6 +365,39 @@ Tags can be:
 |----------|------|-------------|
 | `schedule_increment` | integer | Override time increment for this slot |
 | `break_strategy` | string | Override break strategy (`"standard"`, `"end"`, or `"center"`) |
+| `min_duration` | number or array | Minimum content length in minutes (see [Duration Limits](#duration-limits)) |
+| `max_duration` | number or array | Maximum content length in minutes (see [Duration Limits](#duration-limits)) |
+
+### Duration Limits
+
+`min_duration` and `max_duration` restrict which content can be picked for a slot, by length in minutes.
+
+- **Number**: applies to every tag in the slot
+- **Array**: applies by tag position - the first value to the first tag, and so on. Use `null` to leave a tag unrestricted
+- Array positions follow the tag that was chosen: the time segment for split tags, or the randomly picked tag with `random_tags`
+- If `min_duration` is greater than `max_duration`, the minimum is ignored and a warning is logged
+- Limits apply to random selection only and are ignored for slots with a `sequence`
+
+Cap movies at 135 minutes:
+```json
+"20": {
+  "tags": ["movies/PG", "movies/PG-13", "movies/R"],
+  "random_tags": true,
+  "max_duration": 135
+}
+```
+
+Keep the first show between 22 and 55 minutes and the second between 22 and 30 minutes, so nothing runs into the next hour:
+```json
+"9": {
+  "tags": ["cartoons", "cartoons"],
+  "schedule_increment": 30,
+  "min_duration": 22,
+  "max_duration": [55, 30]
+}
+```
+
+If no content in the tag fits the limits, the slot falls back to `fallback_tag` when one is set.
 
 ### Sequences
 
@@ -466,6 +499,25 @@ Define tag-based overrides that are automatically applied when content from a sp
   }
 }
 ```
+
+To mix tag-specific bumps with the channel's default bumps, use an object instead of a string:
+
+```json
+"tag_overrides": {
+  "sitcoms/70sShow": {
+    "bump_dir": {"tags": "Special_Program_Bumpers/70sShow", "chance": 0.75}
+  }
+}
+```
+
+- `tags` (required string): the bump directory, the same as a plain `bump_dir` string.
+- `chance` (optional number from `0` to `1`, default `1`): the probability of using `tags` for each bump.
+
+No other keys are allowed. Each bump selection independently chooses the override with probability `0.75` and otherwise uses the station-level `bump_dir`, even if the scheduled slot has another bump override. The chance is a fraction from `0` to `1`, not a percentage from 0 to 100. `0` always uses the default; `1` always uses the override. A plain directory string remains unconditional. Other tag overrides, including commercial directories and explicit start/end bumps, remain unconditional.
+
+The same object format is supported in day, date, and week schedule slots and in reusable `slot_overrides`, for example `"20": {"tags": "sitcoms", "bump_dir": {"tags": "extra/evening_bumps", "chance": 0.5}}`. The station-level `bump_dir` must remain a string. Both directories are cataloged, including when the chance is zero.
+
+This chance chooses a bump source; it does not guarantee exact observed proportions. Existing duration and hint filtering, pre/post folders, coming-up-next augmentation, and autobump behavior still apply. An empty or ineligible chosen pool keeps the existing missing-content behavior; it does not trigger a retry from the other directory.
 
 **How Tag Overrides Work:**
 
@@ -581,7 +633,7 @@ python3 validate_configs.py
 
 ## See Also
 
-- `confs/examples/` - Example configuration files
+- `docs/examples/` - Example configuration files
 - `station_config_schema.json` - JSON Schema for validation
 - `fs42/config_processor.py` - Configuration preprocessing logic
 - `fs42/slot_reader.py` - Schedule slot reading logic

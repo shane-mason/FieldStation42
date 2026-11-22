@@ -323,10 +323,8 @@ def run_ticker_app(text, title="FS42", style="fieldstation", iterations=2):
 
 def run_ticker(text, title="FS42", style="fieldstation", iterations=2):
     """Start the ticker in a separate process"""
-    def ticker_process():
-        run_ticker_app(text, title, style, iterations)
-    
-    process = multiprocessing.Process(target=ticker_process)
+    ctx = multiprocessing.get_context("spawn")
+    process = ctx.Process(target=run_ticker_app, args=(text, title, style, iterations), daemon=True)
     process.start()
     return process
 

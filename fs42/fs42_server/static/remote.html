@@ -46,13 +46,12 @@
             <button class="remote-btn number-btn clear-btn" data-key="clear">CLR</button>
         </div>
 
-        <!-- Nav Pad - swaps in for the number pad to drive web channels (PPV). -->
+        <!-- Nav Pad - swaps in for the number pad to drive web channels (guide, PPV). -->
         <div class="button-grid nav-pad" id="nav-pad" hidden>
             <button class="remote-btn nav-btn nav-up" data-key="nav_up">▲</button>
-            <!-- PPV binds no horizontal keys - present for the pad shape, inert. -->
-            <button class="remote-btn nav-btn nav-left" data-key="nav_left" disabled>◀</button>
+            <button class="remote-btn nav-btn nav-left" data-key="nav_left">◀</button>
             <button class="remote-btn nav-btn nav-enter" data-key="nav_enter">OK</button>
-            <button class="remote-btn nav-btn nav-right" data-key="nav_right" disabled>▶</button>
+            <button class="remote-btn nav-btn nav-right" data-key="nav_right">▶</button>
             <button class="remote-btn nav-btn pad-toggle-btn" data-key="pad_toggle">123</button>
             <button class="remote-btn nav-btn nav-down" data-key="nav_down">▼</button>
         </div>
@@ -313,16 +312,13 @@
         }
 
         // Web channels read keystrokes rather than commands, so the nav pad
-        // forwards the keys ppv.js listens for. The channel in the path is the
-        // one status polling last reported.
-        async function sendPpvKey(keyName, label) {
-            const channelNumber = parseInt(currentChannel, 10);
+        // forwards the keys the guide and ppv.js listen for.
+        async function sendNavKey(keyName, label) {
             try {
-                await window.fs42Api.post(`ppv/${channelNumber}/key/${keyName}`);
+                await window.fs42Api.post(`player/web/key/${keyName}`);
                 display.textContent = label;
-                console.log(`PPV key ${keyName} sent to channel ${channelNumber}`);
             } catch (error) {
-                console.error(`PPV key ${keyName} failed:`, error);
+                console.error(`Nav key ${keyName} failed:`, error);
                 display.textContent = 'ERROR';
             }
         }
@@ -468,13 +464,19 @@
                     togglePad();
                     break;
                 case 'nav_up':
-                    await sendPpvKey('PageUp', 'NEXT');
+                    await sendNavKey('PageUp', 'UP');
                     break;
                 case 'nav_down':
-                    await sendPpvKey('PageDown', 'PREV');
+                    await sendNavKey('PageDown', 'DOWN');
+                    break;
+                case 'nav_left':
+                    await sendNavKey('NavLeft', 'LEFT');
+                    break;
+                case 'nav_right':
+                    await sendNavKey('NavRight', 'RIGHT');
                     break;
                 case 'nav_enter':
-                    await sendPpvKey('Enter', 'SELECT');
+                    await sendNavKey('Enter', 'SELECT');
                     break;
                 case 'ch_up':
                     display.textContent = 'CHANNEL UP';

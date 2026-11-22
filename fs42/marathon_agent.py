@@ -36,9 +36,5 @@ class MarathonAgent:
 
     @staticmethod
     def fill_marathon(slot: dict):
-        buffer = []
-        count = slot["marathon"]["count"]
-        del slot["marathon"]
-        for _ in range(count - 1):
-            buffer.append(slot)
-        return buffer
+        follow_on = {key: value for key, value in slot.items() if key != "marathon"}
+        return [follow_on] * (slot["marathon"]["count"] - 1)

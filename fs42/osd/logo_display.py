@@ -5,32 +5,19 @@ import datetime
 import random
 import glob
 
-import glfw
 from pydantic import BaseModel
-from enum import Enum
 
-from render import load_texture
-from OpenGL.GL import *
+from PySide6.QtGui import QImage, QPainter, QPixmap
+from PySide6.QtCore import QRectF
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from fs42.station_manager import StationManager
 from fs42.osd.content_classifier import ContentType, classify_current_content
+from fs42.osd.osd_layout import HAlignment, VAlignment, frac_to_margin_px, frac_to_size_px, resolve_top_left
 
 SOCKET_FILE = "runtime/play_status.socket"
-
-
-class HAlignment(Enum):
-    LEFT = "LEFT"
-    RIGHT = "RIGHT"
-    CENTER = "CENTER"
-
-
-class VAlignment(Enum):
-    TOP = "TOP"
-    BOTTOM = "BOTTOM"
-    CENTER = "CENTER"
 
 
 class LogoDisplayConfig(BaseModel):
@@ -50,13 +37,11 @@ class LogoDisplayConfig(BaseModel):
 
 
 class LogoDisplay(object):
-    def __init__(self, window, config: LogoDisplayConfig):
+    def __init__(self, config: LogoDisplayConfig):
         self.config = config
-        self.window = window
-        self.window_width, self.window_height = glfw.get_framebuffer_size(window)
         self.station_manager = StationManager()
 
-        self.current_logo_textures: list[int] = []
+        self.current_logo_frames: list[QPixmap] = []
         self.current_logo_size: tuple[int, int] = (0, 0)
         self.current_frame_durations: list[float] = []
         self.current_frame_index: int = 0
@@ -538,9 +523,9 @@ class LogoDisplay(object):
         try:
             from PIL import Image
 
-            self.clear_logo_textures()
+            self.clear_logo_frames()
             with Image.open(path) as img:
-                frames: list[int] = []
+                frames: list[QPixmap] = []
                 durations: list[float] = []
                 width, height = img.size
 
@@ -548,31 +533,13 @@ class LogoDisplay(object):
                     img.seek(i)
                     frame = img.convert("RGBA")
                     duration = max(img.info.get("duration", 100) / 1000.0, 0.01)
-                    data = frame.tobytes()
                     fw, fh = frame.size
 
-                    tex = glGenTextures(1)
-                    glBindTexture(GL_TEXTURE_2D, tex)
-                    glTexImage2D(
-                        GL_TEXTURE_2D,
-                        0,
-                        GL_RGBA,
-                        fw,
-                        fh,
-                        0,
-                        GL_RGBA,
-                        GL_UNSIGNED_BYTE,
-                        data,
-                    )
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-
-                    frames.append(tex)
+                    qimg = QImage(frame.tobytes(), fw, fh, QImage.Format.Format_RGBA8888).copy()
+                    frames.append(QPixmap.fromImage(qimg))
                     durations.append(duration)
 
-                self.current_logo_textures = frames
+                self.current_logo_frames = frames
                 self.current_frame_durations = durations
                 self.current_logo_size = (width, height)
                 self.current_frame_index = 0
@@ -584,34 +551,33 @@ class LogoDisplay(object):
 
         except Exception as e:
             print(f"[ERROR] Error loading animated logo {path}: {e}")
-            self.clear_logo_textures()
+            self.clear_logo_frames()
             return False
 
-    def clear_logo_textures(self) -> None:
-        if self.current_logo_textures:
-            glDeleteTextures(self.current_logo_textures)
-        self.current_logo_textures = []
+    def clear_logo_frames(self) -> None:
+        self.current_logo_frames = []
         self.current_logo_path = None
         self.current_frame_durations = []
         self.current_frame_index = 0
         self.frame_timer = 0.0
         self.is_animated = False
 
-
     def load_static_logo(self, path: str) -> None:
-        self.clear_logo_textures()
+        self.clear_logo_frames()
         try:
-            tex, w, h = load_texture(path)
-            self.current_logo_textures = [tex]
+            pixmap = QPixmap(path)
+            if pixmap.isNull():
+                raise ValueError(f"Could not decode image: {path}")
+            self.current_logo_frames = [pixmap]
             self.current_frame_durations = [0.0]
-            self.current_logo_size = (w, h)
+            self.current_logo_size = (pixmap.width(), pixmap.height())
             self.current_frame_index = 0
             self.frame_timer = 0.0
             self.is_animated = False
             print(f"[INFO] Loaded static logo: {path}")
         except Exception as e:
             print(f"[ERROR] Error loading static logo {path}: {e}")
-            self.clear_logo_textures()
+            self.clear_logo_frames()
 
     def load_logo_for_channel(self, info: dict) -> None:
         logo_path: Path | None = None
@@ -629,7 +595,7 @@ class LogoDisplay(object):
 
                     if station.get("show_logo", True) is False:
                         show_logo = False
-                        self.clear_logo_textures()
+                        self.clear_logo_frames()
                         return
 
                     selected = self.select_logo_for_channel(station)
@@ -669,7 +635,7 @@ class LogoDisplay(object):
             else:
                 self.load_static_logo(str(logo_path))
         else:
-            self.clear_logo_textures()
+            self.clear_logo_frames()
             self.is_displaying_osd_default_logo = False
 
     # -------------------------------------------------------------------------
@@ -680,7 +646,7 @@ class LogoDisplay(object):
         self.time_since_change += dt
         self.check_status()
 
-        if self.is_animated and self.current_logo_textures:
+        if self.is_animated and self.current_logo_frames:
             self.frame_timer += dt
             dur = self.current_frame_durations[self.current_frame_index]
             if dur <= 0.0:
@@ -689,12 +655,12 @@ class LogoDisplay(object):
                 self.frame_timer -= dur
                 self.current_frame_index = (
                     self.current_frame_index + 1
-                ) % len(self.current_logo_textures)
+                ) % len(self.current_logo_frames)
 
-    def draw(self) -> None:
+    def draw(self, painter: QPainter, screen_w: float, screen_h: float) -> None:
         if (
-            not self.current_logo_textures
-            or self.current_frame_index >= len(self.current_logo_textures)
+            not self.current_logo_frames
+            or self.current_frame_index >= len(self.current_logo_frames)
         ):
             return
 
@@ -739,30 +705,13 @@ class LogoDisplay(object):
         except Exception:
             valign = self.config.valign
 
-        w = width * 2.0
-        h = height * 2.0
+        w = frac_to_size_px(width, screen_w)
+        h = frac_to_size_px(height, screen_h)
+        x_margin_px = frac_to_margin_px(x_margin, screen_w)
+        y_margin_px = frac_to_margin_px(y_margin, screen_h)
+        x, y = resolve_top_left(screen_w, screen_h, w, h, halign, valign, x_margin_px, y_margin_px)
 
-        if halign == HAlignment.LEFT:
-            x = -1.0 + x_margin
-        elif halign == HAlignment.RIGHT:
-            x = 1.0 - w - x_margin
-        else:
-            x = -w / 2.0
-
-        if valign == VAlignment.BOTTOM:
-            y = -1.0 + y_margin
-        elif valign == VAlignment.TOP:
-            y = 1.0 - h - y_margin
-        else:
-            y = -h / 2.0
-
-        tex = self.current_logo_textures[self.current_frame_index]
-        glBindTexture(GL_TEXTURE_2D, tex)
-        self.draw_logo_quad(x, y, w, h)
-
-    def draw_logo_quad(self, x: float, y: float, w: float, h: float) -> None:
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        pixmap = self.current_logo_frames[self.current_frame_index]
 
         alpha = (
             self.config.default_logo_alpha
@@ -772,18 +721,6 @@ class LogoDisplay(object):
             )
         )
 
-        glColor4f(1.0, 1.0, 1.0, alpha)
-        glBegin(GL_QUADS)
-        glTexCoord2f(0.0, 1.0)
-        glVertex2f(x, y)
-        glTexCoord2f(1.0, 1.0)
-        glVertex2f(x + w, y)
-        glTexCoord2f(1.0, 0.0)
-        glVertex2f(x + w, y + h)
-        glTexCoord2f(0.0, 0.0)
-        glVertex2f(x, y + h)
-        glEnd()
-
-    def __del__(self) -> None:
-        if hasattr(self, "current_logo_textures") and self.current_logo_textures:
-            glDeleteTextures(self.current_logo_textures)
+        painter.setOpacity(alpha)
+        painter.drawPixmap(QRectF(x, y, w, h), pixmap, QRectF(pixmap.rect()))
+        painter.setOpacity(1.0)

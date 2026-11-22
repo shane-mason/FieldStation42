@@ -67,6 +67,18 @@
 	--font-size: 1.3rem;
 	--h-padding: 1.5%;
 	--v-padding: 1.5%;
+	/* program blocks — rounded, blue */
+	--program-block-radius: 0.3em;
+	--program-block-bg: #1e4090;
+	--program-block-border: #4466cc;
+	--program-block-even-bg: #172e70;
+	--program-block-even-border: #3a55bb;
+	--program-block-shadow: #0a1e50;
+	--program-current-bg: #0055cc;
+	--program-current-border: #66aaff;
+	--program-current-color: #ffffff;
+	--program-selected-bg: #e0283a;
+	--program-selected-color: #ffffff;
 
 	/* scroll */
 	--scroll-pause: 2s;

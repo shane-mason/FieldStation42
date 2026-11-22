@@ -81,6 +81,7 @@
 <body>
     <script src="/static/common.js"></script>
     <script src="/static/fs42_client.js"></script>
+    <script src="/static/station_visual.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 
     <script>
@@ -89,6 +90,9 @@
         let isDirty = false;
         let originalContent = '';
         let isCreateMode = false;
+        let activeView = 'json';
+        let visualConfig = null;
+        let visualEdited = false;
 
         document.addEventListener('DOMContentLoaded', async function() {
             window.fs42Common.initTheme();
@@ -121,6 +125,12 @@
                     </a>
                 </div>
 
+                <div class="editor-tabs">
+                    <button id="tab-visual" class="editor-tab" onclick="showView('visual')">Visual</button>
+                    <button id="tab-json" class="editor-tab active" onclick="showView('json')">JSON</button>
+                </div>
+
+                <div id="visual-container" class="sv-root" style="display:none;"></div>
                 <div id="editor-container"></div>
 
                 <div id="error-panel">
@@ -266,6 +276,7 @@
                 editor.setValue(jsonStr);
                 isDirty = false;
                 updateSaveButton();
+                showDefaultView(data.station_config);
 
             } catch (error) {
                 showError(`Failed to load station: ${error.message || 'Unknown error'}`);
@@ -291,6 +302,7 @@
                 editor.setValue(jsonStr);
                 isDirty = true;  // Mark as dirty since it's new
                 updateSaveButton();
+                showDefaultView(template);
 
             } catch (error) {
                 showError(`Failed to load template: ${error.message || 'Unknown error'}`);
@@ -305,6 +317,7 @@
             // Clear previous messages
             hideError();
             hideSuccess();
+            syncVisualToEditor();
 
             // 1. Validate JSON syntax
             let config;
@@ -321,15 +334,14 @@
                 return;
             }
 
-            if (!config.station_conf.network_name) {
-                showError('Missing required field: network_name');
+            const missing = missingRequiredFields(config.station_conf);
+            if (missing.length) {
+                showError(missing.map(([key, label, reason]) => `${label} (${key}) is required${reason ? ` because ${reason}` : ''}`));
+                focusFirstInvalidField();
                 return;
             }
 
-            if (config.station_conf.channel_number === undefined) {
-                showError('Missing required field: channel_number');
-                return;
-            }
+            markVisualEdit(config);
 
             // 3. Send to API
             try {
@@ -375,6 +387,7 @@
                 // Success!
                 originalContent = editor.getValue();
                 isDirty = false;
+                visualEdited = false;
                 updateSaveButton();
                 showSuccess();
 
@@ -389,6 +402,85 @@
 
                 // Try to highlight the field mentioned in the error
                 highlightErrorField(errorMsg);
+            }
+        }
+
+        function missingRequiredFields(stationConf) {
+            const type = stationConf.network_type || 'standard';
+            const required = [['network_name', 'Network name'], ['channel_number', 'Channel number']];
+            if (type === 'standard' || type === 'loop') required.push(['content_dir', 'Content folder']);
+            const missing = required.filter(([key]) => {
+                const value = stationConf[key];
+                return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+            });
+            return missing.concat(window.fs42StationVisual.missingMedia(stationConf));
+        }
+
+        function focusFirstInvalidField() {
+            if (activeView !== 'visual') return;
+            const field = document.querySelector('#visual-container .sv-input:required:invalid');
+            if (field) field.focus();
+        }
+
+        function showDefaultView(config) {
+            const created = config.station_conf && config.station_conf.visual_editor === 'created';
+            showView(created && window.fs42StationVisual.supports(config) ? 'visual' : 'json');
+        }
+
+        function markVisualEdit(config) {
+            if (!visualEdited || config.station_conf.visual_editor) return;
+            config.station_conf.visual_editor = 'edited';
+            window.fs42StationVisual.orderStationKeys(config.station_conf);
+            editor.setValue(compactJsonStringify(config, 4));
+            if (activeView === 'visual') {
+                visualConfig = config;
+                window.fs42StationVisual.render(document.getElementById('visual-container'), visualConfig, onVisualChange);
+            }
+        }
+
+        function showView(view) {
+            if (view === 'visual') {
+                let parsed;
+                try {
+                    parsed = JSON.parse(editor.getValue());
+                } catch (e) {
+                    showError(`Fix the JSON before switching to the visual editor: ${e.message}`);
+                    return;
+                }
+                if (!parsed || typeof parsed.station_conf !== 'object' || parsed.station_conf === null) {
+                    showError('Configuration must have a "station_conf" object');
+                    return;
+                }
+                hideError();
+                visualConfig = parsed;
+                window.fs42StationVisual.render(document.getElementById('visual-container'), visualConfig, onVisualChange);
+            } else {
+                syncVisualToEditor();
+            }
+
+            activeView = view;
+            document.getElementById('visual-container').style.display = view === 'visual' ? '' : 'none';
+            document.getElementById('editor-container').style.display = view === 'json' ? '' : 'none';
+            document.getElementById('format-btn').style.display = view === 'json' ? '' : 'none';
+            document.getElementById('tab-visual').classList.toggle('active', view === 'visual');
+            document.getElementById('tab-json').classList.toggle('active', view === 'json');
+            if (view === 'json') editor.layout();
+        }
+
+        function onVisualChange() {
+            visualEdited = true;
+            isDirty = compactJsonStringify(visualConfig, 4) !== originalContent;
+            updateSaveButton();
+        }
+
+        function syncVisualToEditor() {
+            if (activeView !== 'visual' || !visualConfig) return;
+            let current = null;
+            try {
+                current = JSON.parse(editor.getValue());
+            } catch (e) {}
+            if (JSON.stringify(current) !== JSON.stringify(visualConfig)) {
+                editor.setValue(compactJsonStringify(visualConfig, 4));
             }
         }
 

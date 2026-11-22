@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FieldStation42 Main Configuration",
+  "description": "Schema for confs/main_config.json",
+  "type": "object",
+  "additionalProperties": true,
+  "definitions": {
+    "hour": {"type": "integer", "minimum": 0, "maximum": 23},
+    "period": {"type": "string", "enum": ["day", "week", "month"]},
+    "rgba": {
+      "type": "array",
+      "items": {"type": "integer", "minimum": 0, "maximum": 255},
+      "minItems": 3,
+      "maxItems": 4
+    }
+  },
+  "properties": {
+    "start_channel": {
+      "type": "integer",
+      "description": "Channel number to tune to on startup. Must match a station's channel number. When set, it overrides 'recall last channel'."
+    },
+    "recall_last_channel": {
+      "type": "boolean",
+      "description": "Start on the last channel that was playing. When off, startup goes to the lowest numbered channel. Ignored when a start channel is set."
+    },
+    "standby_image": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Image shown while the player starts up, and on any station that doesn't set its own standby image. Relative paths are relative to the FieldStation42 folder."
+    },
+    "time_format": {
+      "type": "string",
+      "minLength": 1,
+      "description": "strftime format for times on the cable box and on-screen displays, for example %H:%M or %I:%M %p."
+    },
+    "date_time_format": {
+      "type": "string",
+      "minLength": 1,
+      "description": "strftime format for date and time values written to the status socket."
+    },
+    "show_cable_box_time": {
+      "type": "boolean",
+      "description": "Show the clock on the cable box display after it has been idle for a few seconds."
+    },
+    "parental_controls_pin": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "Four-digit PIN required before a locked station will play. Stations opt in with 'parental controls' in their own settings."
+    },
+    "parental_controls_theme": {
+      "type": "string",
+      "enum": ["classic", "modern", "minimal"],
+      "description": "Look of the PIN prompt: classic (dark with yellow text), modern (dark with a blue accent) or minimal (light and plain)."
+    },
+    "schedule_agent": {
+      "type": "object",
+      "required": ["trigger_add_at", "amount_to_add"],
+      "properties": {
+        "trigger_add_at": {"$ref": "#/definitions/period"},
+        "amount_to_add": {"$ref": "#/definitions/period"}
+      },
+      "description": "Extends schedules in the background before they run out. 'Extend when' is how close to running out a schedule can get; 'Extend by' is how much to add."
+    },
+    "day_parts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["start_hour", "end_hour"],
+        "properties": {
+          "start_hour": {"$ref": "#/definitions/hour"},
+          "end_hour": {"$ref": "#/definitions/hour"}
+        }
+      },
+      "description": "Named periods of the day used by scheduling hints. Hours are 0-23. An end hour before the start hour wraps past midnight."
+    },
+    "custom_holidays": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1},
+      "description": "Named recurring dates you can use as scheduling hints, for example 'December 25' or '4th thursday november'."
+    },
+    "normalize_titles": {
+      "type": "boolean",
+      "description": "Clean up titles parsed from filenames, removing things like episode numbers and release tags."
+    },
+    "tmdb_api_key": {
+      "type": "string",
+      "description": "API key for The Movie Database, used to look up metadata."
+    },
+    "title_patterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pattern", "group"],
+        "properties": {
+          "pattern": {"type": "string", "minLength": 1},
+          "group": {"type": "integer", "minimum": 0},
+          "description": {"type": "string"}
+        }
+      },
+      "description": "Extra regular expressions for pulling titles out of filenames. They are tried before the built-in ones. 'Group' is the capture group that holds the title."
+    },
+    "api_key": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "Key required for the web console and the API. Changing it signs out every other browser, and scripts must be updated to send the new key."
+    },
+    "overlay_conf": {
+      "type": "object",
+      "properties": {
+        "overlay_type": {"type": "string", "enum": ["normal", "minimal"]},
+        "overlay_effect": {"type": "string", "enum": ["outline", "drop_shadow"]},
+        "overlay_offset_px": {"type": "integer", "minimum": 0},
+        "overlay_font_path": {"type": ["string", "null"]},
+        "overlay_text_color": {"$ref": "#/definitions/rgba"},
+        "overlay_shadow_color": {"$ref": "#/definitions/rgba"},
+        "overlay_title_size": {"type": "integer", "minimum": 1},
+        "overlay_body_size": {"type": "integer", "minimum": 1},
+        "overlay_title_weight": {"type": "string", "enum": ["normal", "bold"]},
+        "overlay_body_weight": {"type": "string", "enum": ["normal", "bold"]},
+        "overlay_fade_duration_ms": {"type": "integer", "minimum": 0}
+      },
+      "description": "Look of the now-playing overlay drawn from NFO metadata."
+    },
+    "server_host": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Address the web server listens on. 0.0.0.0 means every network interface."
+    },
+    "server_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Port for the web server. Bookmarks and the remote control use this port too."
+    },
+    "channel_socket": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Socket file used to send channel changes to the player."
+    },
+    "status_socket": {
+      "type": "string",
+      "minLength": 1,
+      "description": "File the player writes its now-playing status to."
+    },
+    "db_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to the catalog and schedule database."
+    },
+    "start_mpv": {
+      "type": "boolean",
+      "description": "Start mpv automatically with the player."
+    },
+    "video_seek_timeout": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Seconds to wait for a video or stream to start before giving up."
+    },
+    "follow_static_symlinks": {
+      "type": "boolean",
+      "description": "Serve files through symlinks that point outside the static folders. Only turn this on if you control what those links point to."
+    }
+  }
+}

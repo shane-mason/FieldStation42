@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Request, HTTPException
 import json
+import os
 import subprocess
 import shutil
 import re
 import platform
 from fs42.station_manager import StationManager
+from fs42.fs42_server.api.media import PROJECT_ROOT
 
 router = APIRouter(prefix="/player", tags=["player"])
 
@@ -12,6 +14,14 @@ VOLUME_SOCKET = "runtime/volume.socket"
 
 # Percentage the volume changes by on each volume up/down request.
 VOLUME_STEP = 2
+AMIXER = ["amixer", "-M"]
+
+
+def connected_command_queue(request: Request):
+    command_queue = request.app.state.player_command_queue
+    if not command_queue:
+        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
+    return command_queue
 
 @router.get("/info")
 async def get_info():
@@ -217,23 +227,33 @@ async def player_channel(channel: str):
 
 @router.post("/channels/guide")
 async def show_guide(request:Request):
-    command_queue = request.app.state.player_command_queue
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "guide"})
     return {"status" : "ok"}
+
+
+WEB_KEYS = {"PageUp", "PageDown", "Enter", "NavLeft", "NavRight"}
+
+
+@router.post("/web/key/{key_name}")
+async def send_web_key(key_name: str, request: Request):
+    """Send a navigation key to the web channel that is currently playing."""
+    if key_name not in WEB_KEYS:
+        raise HTTPException(status_code=400, detail=f"Key must be one of: {sorted(WEB_KEYS)}")
+    command_queue = connected_command_queue(request)
+    command_queue.put({"command": "web_key", "key": key_name})
+    return {"success": True, "key": key_name}
 
 @router.get("/commands/stop")
 @router.post("/commands/stop")
 async def player_stop(request: Request):
-    command_queue = request.app.state.player_command_queue
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "exit"})
     return {"status": "stopped"}
 
 
 async def _queue_mpv_command(request: Request, action: str):
-    command_queue = request.app.state.player_command_queue
-    if not command_queue:
-        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
-
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "mpv_command", "action": action})
     return {"status": "ok", "command": "mpv_command", "action": action}
 
@@ -264,28 +284,22 @@ async def parental_digit(request: Request, digit: str):
     if not digit.isdigit() or len(digit) != 1:
         raise HTTPException(status_code=400, detail="Digit must be a single number.")
 
-    command_queue = request.app.state.player_command_queue
-    if not command_queue:
-        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
-
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "parental_digit", "digit": digit})
     return {"handled": True}
 
 
 @router.post("/parental/clear")
 async def parental_clear(request: Request):
-    command_queue = request.app.state.player_command_queue
-    if not command_queue:
-        raise HTTPException(status_code=503, detail="Player command queue is not connected.")
-
+    command_queue = connected_command_queue(request)
     command_queue.put({"command": "parental_clear"})
     return {"handled": True}
 
 
 @router.post("/ticker")
 async def show_ticker(request: Request):
+    command_queue = connected_command_queue(request)
     data = await request.json()
-    command_queue = request.app.state.player_command_queue
     command_queue.put({
         "command": "ticker", 
         "message": data.get("message", ""), 
@@ -294,6 +308,22 @@ async def show_ticker(request: Request):
         "iterations": data.get("iterations", 2)
     })
     return {"status": "success"}
+
+
+@router.post("/break-in")
+async def break_in(request: Request):
+    """Interrupt programming with a video, then return to the schedule."""
+    command_queue = connected_command_queue(request)
+    data = await request.json()
+    file_path = (data.get("file_path") or "").strip()
+    if not file_path:
+        raise HTTPException(status_code=400, detail="file_path is required.")
+    resolved = os.path.normpath(os.path.join(PROJECT_ROOT, file_path))
+    if not os.path.isfile(resolved):
+        raise HTTPException(status_code=404, detail=f"File not found: {resolved}")
+    command_queue.put({"command": "break_in", "file_path": resolved})
+    return {"status": "success", "file_path": resolved}
+
 
 @router.get("/volume/up")
 @router.post("/volume/up")
@@ -364,7 +394,7 @@ async def _volume_amixer(action: str):
         if action == "up":
             # Check current volume before increasing
             get_status = subprocess.run(
-                ["amixer", "sget", mixer],
+                [*AMIXER, "sget", mixer],
                 capture_output=True, text=True, check=True
             )
             current_vol_match = re.search(r'\[(\d+)%\]', get_status.stdout)
@@ -375,19 +405,19 @@ async def _volume_amixer(action: str):
                 return {"action": action, "method": "amixer", "status": "capped", "message": "Volume already at maximum (100%)", "volume": "100%"}
             elif current_vol > 100 - VOLUME_STEP:
                 # Set to exactly 100% if we're close
-                cmd = ["amixer", "sset", mixer, "100%"]
+                cmd = [*AMIXER, "sset", mixer, "100%"]
                 message = "Volume set to maximum (100%)"
             else:
-                cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%+"]
+                cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%+"]
                 message = f"Volume increased by {VOLUME_STEP}%"
         elif action == "down":
-            cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%-"]
+            cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%-"]
             message = f"Volume decreased by {VOLUME_STEP}%"
         elif action == "mute":
             # For mute, we need to check current state and toggle
             # First get current mute status
             get_status = subprocess.run(
-                ["amixer", "sget", mixer],
+                [*AMIXER, "sget", mixer],
                 capture_output=True, text=True, check=True
             )
             # Check if currently muted - look for [off] in output
@@ -395,7 +425,7 @@ async def _volume_amixer(action: str):
 
             # Toggle: if muted, unmute; if unmuted, mute
             mute_action = "unmute" if is_muted else "mute"
-            cmd = ["amixer", "sset", mixer, mute_action]
+            cmd = [*AMIXER, "sset", mixer, mute_action]
             message = f"Mute {'off' if is_muted else 'on'}"
         else:
             raise ValueError(f"Invalid action: {action}")
@@ -412,7 +442,7 @@ async def _volume_amixer(action: str):
             if action == "up":
                 # Check current volume before increasing
                 get_status = subprocess.run(
-                    ["amixer", "sget", mixer],
+                    [*AMIXER, "sget", mixer],
                     capture_output=True, text=True, check=True
                 )
                 current_vol_match = re.search(r'\[(\d+)%\]', get_status.stdout)
@@ -423,23 +453,23 @@ async def _volume_amixer(action: str):
                     return {"action": action, "method": "amixer", "status": "capped", "message": "Volume already at maximum (100%)", "volume": "100%"}
                 elif current_vol > 100 - VOLUME_STEP:
                     # Set to exactly 100% if we're close
-                    cmd = ["amixer", "sset", mixer, "100%"]
+                    cmd = [*AMIXER, "sset", mixer, "100%"]
                     message = "Volume set to maximum (100%)"
                 else:
-                    cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%+"]
+                    cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%+"]
                     message = f"Volume increased by {VOLUME_STEP}%"
             elif action == "down":
-                cmd = ["amixer", "sset", mixer, f"{VOLUME_STEP}%-"]
+                cmd = [*AMIXER, "sset", mixer, f"{VOLUME_STEP}%-"]
                 message = f"Volume decreased by {VOLUME_STEP}%"
             elif action == "mute":
                 # For mute with PCM, check current state and toggle
                 get_status = subprocess.run(
-                    ["amixer", "sget", mixer],
+                    [*AMIXER, "sget", mixer],
                     capture_output=True, text=True, check=True
                 )
                 is_muted = "[off]" in get_status.stdout
                 mute_action = "unmute" if is_muted else "mute"
-                cmd = ["amixer", "sset", mixer, mute_action]
+                cmd = [*AMIXER, "sset", mixer, mute_action]
                 message = f"Mute {'off' if is_muted else 'on'}"
 
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)

@@ -2,8 +2,24 @@ import signal
 from PySide6.QtCore import QUrl, QTimer, Qt
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtWebEngineCore import QWebEngineSettings, QWebEngineUrlRequestInterceptor
 from PySide6.QtQuick import QQuickWindow, QSGRendererInterface
+
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+class ApiKeyInterceptor(QWebEngineUrlRequestInterceptor):
+    # only our own server gets the key - web channels can point at any third party site
+    def __init__(self, api_key, server_port):
+        super().__init__()
+        self.api_key = api_key.encode()
+        self.server_port = server_port
+
+    def interceptRequest(self, info):
+        url = info.requestUrl()
+        if url.host() in LOCAL_HOSTS and url.port() == self.server_port:
+            info.setHttpHeader(b"X-API-Key", self.api_key)
+
 
 class WebRender(QMainWindow):
     def __init__(self):
@@ -19,6 +35,14 @@ class WebRender(QMainWindow):
 
         # Set custom user agent for identification
         self.browser.page().profile().setHttpUserAgent("FieldStation42-WebRender/1.0")
+
+        from fs42.station_manager import StationManager
+        api_key = StationManager().api_key()
+        self.interceptor = None
+        if api_key:
+            port = int(StationManager().server_conf.get("server_port", 4242))
+            self.interceptor = ApiKeyInterceptor(api_key, port)
+            self.browser.page().profile().setUrlRequestInterceptor(self.interceptor)
 
         # Set black background color
         self.browser.page().setBackgroundColor(Qt.black)
@@ -164,7 +188,7 @@ class WebRenderApp(QApplication):
             # Handle key injection commands
             if isinstance(msg, str) and msg.startswith("key:"):
                 key_name = msg[4:]
-                if key_name not in {"PageUp", "PageDown", "Enter"}:
+                if key_name not in {"PageUp", "PageDown", "Enter", "NavLeft", "NavRight"}:
                     print(f"WebRender: rejected disallowed key '{key_name}'")
                     return
                 js = f"""
@@ -198,7 +222,8 @@ def web_render_runner(user_conf, queue):
 
     # Navigate to URL after a short delay to ensure Qt is fully initialized
     def delayed_navigate():
-        url = user_conf.get("web_url", "http://localhost:4242/static/diagnostics.html")
+        from fs42.station_manager import StationManager
+        url = user_conf.get("web_url") or f"{StationManager().local_server_url()}/static/diagnostics.html"
         if "url" in user_conf:
             app.window.navigate(user_conf["url"])
         else:
@@ -212,10 +237,11 @@ if __name__ == "__main__":
     import sys
     import os
     sys.path.append(os.getcwd())
+    from fs42.station_manager import StationManager
 
     # Simple test config - customize as needed
     test_conf = {
-        "url": "http://localhost:4242/static/diagnostics.html",
+        "url": f"{StationManager().local_server_url()}/static/diagnostics.html",
         "width": 800,
         "height": 600,
         # Uncomment to test specific positioning:
