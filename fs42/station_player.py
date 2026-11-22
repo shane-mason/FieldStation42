@@ -220,6 +220,13 @@ class StationPlayer:
     def show_text(self, text, duration=4):
         self.mpv.command("show-text", text, duration)
 
+    def _clear_ppv_pause(self):
+        """Clear PPV pause state before starting content on a channel."""
+        try:
+            self.mpv.command("set_property", "pause", False)
+        except Exception as e:
+            self._l.debug(f"Could not clear PPV pause state: {e}")
+
     def mpv_runtime_command(self, action):
         """Run a small set of user-facing mpv runtime commands."""
         mpv_command = self.MPV_RUNTIME_COMMANDS.get(action)
@@ -228,17 +235,7 @@ class StationPlayer:
             return False
 
         try:
-            if action == "ppv_pause":
-                # Render the pause label before freezing video frame updates.
-                self.mpv.command("show-text", "   PAUSED", 1500)
-                self.mpv.command(*mpv_command)
-            elif action == "ppv_play":
-                self.mpv.command(*mpv_command)
-                # Replace the pause label when playback resumes.
-                self.mpv.command("show-text", "", 1)
-                self.mpv.command("set_property", "osd-align-x", "left")
-            else:
-                self.mpv.command(*mpv_command)
+            self.mpv.command(*mpv_command)
             self._l.info(f"Ran mpv runtime command: {action}")
             return True
         except Exception as e:
@@ -612,6 +609,7 @@ class StationPlayer:
 
                 # self.mpv.vf = "lavfi=[]"
                 self._l.info(f"playing {file_path}")
+                self._clear_ppv_pause()
                 self.mpv.command("playlist-clear")
                 self.mpv.play(file_path)
                 
@@ -727,6 +725,7 @@ class StationPlayer:
         if self._active_afx:
             self.mpv.command("af", "remove", self._active_afx)
             self._active_afx = None
+        self._clear_ppv_pause()
         self.mpv.command("playlist-clear")
         self.mpv.command("loadfile", file_path, "replace")
         self.mpv.loop_playlist = "inf"
@@ -753,18 +752,8 @@ class StationPlayer:
             self._l.warning(f"Could not start NFO overlay: {e}")
 
         # this will keep going until channel change or other interrupt
-        last_pause_osd_refresh = 0.0
         while True:
             time.sleep(0.05)
-            now = time.monotonic()
-            if now - last_pause_osd_refresh >= 1.0:
-                last_pause_osd_refresh = now
-                try:
-                    if self.mpv.pause:
-                        self.mpv.command("show-text", "   PAUSED", 1500)
-                except Exception as e:
-                    self._l.debug(f"Could not refresh PPV pause OSD: {e}")
-
             response = self.input_check_fn()
             if response:
                 if (
@@ -789,6 +778,7 @@ class StationPlayer:
         if self._active_afx:
             self.mpv.command("af", "remove", self._active_afx)
             self._active_afx = None
+        self._clear_ppv_pause()
         self.mpv.command("playlist-clear")
         self.mpv.loop_playlist = "no"
         self.mpv.loop_file = "no"
@@ -848,6 +838,7 @@ class StationPlayer:
             # Clear any existing playlist and load the files
             self.current_playing_file_path = "playlist"
 
+            self._clear_ppv_pause()
             self.mpv.command("playlist-clear")
 
             # Load files using loadfile with 'append' flag
@@ -1008,7 +999,7 @@ class StationPlayer:
 
     def stop_player(self):
         try:
-            self.mpv.command("set_property", "osd-align-x", "left")
+            self._clear_ppv_pause()
             self.mpv.stop()
             self.current_playing_file_path = None
         except Exception:

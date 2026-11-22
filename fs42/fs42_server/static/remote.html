@@ -459,7 +459,15 @@
 			}
 
 			async function sendPpvPlaybackControl(action, label) {
-				const channelNumber = parseInt(currentChannel, 10);
+				const channelNumber = Number(currentChannel);
+				if (
+					!Number.isInteger(channelNumber) ||
+					stationPpvCache.get(channelNumber) !== true
+				) {
+					playbackControls.hidden = true;
+					return;
+				}
+
 				try {
 					const response = await window.fs42Api.post(
 						`ppv/${channelNumber}/control/${action}`,
