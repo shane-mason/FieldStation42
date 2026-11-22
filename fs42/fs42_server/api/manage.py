@@ -135,7 +135,7 @@ def _handoff(action, units):
 @router.get("/status")
 def status():
     if StationManager().api_key() is None:
-        return {"enabled": False}
+        return {"enabled": False, "started_at": STARTED_AT}
     git = _git_status()
     return {
         "enabled": True,
@@ -158,14 +158,14 @@ def restart(request: Request):
         units = _boot_units()
         _l.warning(f"manage: start from standby requested from {auth.client_ip(request)}")
         _handoff("start", units)
-        return {"status": "starting", "units": units}
+        return {"status": "starting", "units": units, "server_started_at": STARTED_AT}
 
     units = _restart_units()
     if not units:
         raise HTTPException(status_code=409, detail="No active or enabled fs42 services found.")
     _l.warning(f"manage: restart {' '.join(units)} requested from {auth.client_ip(request)}")
     _handoff("restart", units)
-    return {"status": "restarting", "units": units}
+    return {"status": "restarting", "units": units, "server_started_at": STARTED_AT}
 
 
 @router.post("/stop", dependencies=[Depends(auth.require_admin)])
