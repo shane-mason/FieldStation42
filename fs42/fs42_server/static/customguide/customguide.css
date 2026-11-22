@@ -278,6 +278,7 @@ body {
   align-items: center;
   padding: 0 0.4em;
   margin: var(--channel-pill-margin-v, 0) var(--channel-pill-margin-h, 0);
+  margin-left: calc(var(--channel-pill-margin-left, 0));
   border-radius: var(--channel-pill-radius, 0);
   background-color: var(--grid-channel-bg, #0a0018);
   box-shadow: inset 3px 3px 0 var(--channel-block-border, var(--program-block-border, transparent)),
