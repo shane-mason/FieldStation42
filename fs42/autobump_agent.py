@@ -652,10 +652,10 @@ class AutoBumpAgent:
         except ValueError:
             pass
 
-        # A filename rather than a full path, use normal media directory.
+        # Bare filenames use the media-specific directory.
         if not path.is_absolute():
             return AutoBumpAgent.static_url(
-                f"bump/{value}"
+                f"bump/{media_type}/{value}"
             )
 
         return value
@@ -785,19 +785,19 @@ class AutoBumpAgent:
             raise ValueError("title is required")
 
         params = {}
-        # Always check for a temporal CSS override, even when
-        # the channel configuration doesn't explicitly specify CSS.
-        css_value = AutoBumpAgent.select_bg_media(
-            config.get("css"),
-            "css",
-            scheduled_time
-        )
 
-        if css_value:
-            params["css"] = AutoBumpAgent.resolve_bg_media_url(
-                css_value,
-                "css"
+        if config.get("css"):
+            css_value = AutoBumpAgent.select_bg_media(
+                config["css"],
+                "css",
+                scheduled_time
             )
+
+            if css_value:
+                params["css"] = AutoBumpAgent.resolve_bg_media_url(
+                    css_value,
+                    "css"
+                )
             
         # Map dictionary keys to URL parameter names
         key_mapping = {
@@ -849,6 +849,8 @@ def main():
 
     # Test basic configuration
     basic_config = {"title": "FSTV", "subtitle": "Field Station Television"}
+    scheduled_time = datetime(2026, 11, 23, 20, 30, 0)
+    print(f"Test scheduled time: {scheduled_time.strftime('%A, %B %d, %Y at %I:%M %p')}")
     print("Basic config:")
     print(f"Query: {AutoBumpAgent.generate_bump_query(basic_config)}")
     print()
