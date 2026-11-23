@@ -682,7 +682,7 @@ class ShowCatalog:
 
         # first, is it a filler reel?
         if AutoBumpAgent.do_fill(self.config):
-            fill = AutoBumpAgent.fill_block(self.config, target_duration)
+            fill = AutoBumpAgent.fill_block(self.config, target_duration, scheduled_time=when)
             return ReelBlock(fill, [], None)
 
 
@@ -700,7 +700,7 @@ class ShowCatalog:
                 if "strategy" in autoconf:
                     strategy = autoconf["strategy"]
 
-                autos = AutoBumpAgent.gen_bumps(self.config)
+                autos = AutoBumpAgent.gen_bumps(self.config, scheduled_time=when)
 
                 start_candidate = autos.get("message_bump", None)
                 end_candidate = autos.get("next_bump", None)
@@ -786,7 +786,7 @@ class ShowCatalog:
         additional_reels = []
 
         if AutoBumpAgent.do_fill(self.config):
-            fill = AutoBumpAgent.fill_block(self.config, remaining)
+            fill = AutoBumpAgent.fill_block(self.config, remaining, scheduled_time=when)
             blocks.append(ReelBlock(fill, [], None))
         else:
             keep_going = True

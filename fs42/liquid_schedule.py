@@ -593,7 +593,7 @@ class LiquidSchedule:
                     off_air_seconds = (next_mark - current_mark).total_seconds()
                     if sign_off:
                         off_air_seconds -= min(float(sign_off.duration), off_air_seconds)
-                    candidate = AutoBumpAgent.fill_block(self.conf, max(off_air_seconds, 1))
+                    candidate = AutoBumpAgent.fill_block(self.conf, max(off_air_seconds, 1),scheduled_time=current_mark)
                 if candidate is None:
                     self._l.error(f"Schedule logic error: no time slots configured for {current_mark}")
                     self._l.error("This indicates that the station is offair, but offair content is not configured")
