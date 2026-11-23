@@ -29,6 +29,7 @@ class PPVContent(BaseModel):
     has_nfo: bool
     has_image: bool
     image_url: Optional[str] = None
+    modified_at: float
 
 class PPVContentListResponse(BaseModel):
     """Response containing list of PPV content"""
@@ -180,7 +181,8 @@ async def get_ppv_content(channel_number: int, variation: Optional[str] = None):
                     nfo=nfo_data,
                     has_nfo=has_nfo,
                     has_image=has_image,
-                    image_url=image_url
+                    image_url=image_url,
+                    modified_at=os.path.getmtime(file_path),
                 ))
 
         return PPVContentListResponse(

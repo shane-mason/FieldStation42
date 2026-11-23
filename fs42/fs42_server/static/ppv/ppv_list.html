@@ -12,34 +12,89 @@
 			<header class="channel-header">
 				<h1 id="channel-title">PPV</h1>
 			</header>
+			<div
+				id="movie-tools"
+				class="list-tools"
+				aria-label="Search and filter movies"
+				hidden
+			>
+				<input
+					id="movie-search"
+					type="search"
+					placeholder="Search movies…"
+					aria-label="Search movie name"
+					autocomplete="off"
+				/>
+				<div class="list-tool-selects">
+					<select id="year-filter" aria-label="Filter by year">
+						<option value="all">All years</option>
+					</select>
+					<select id="movie-filter" aria-label="Filter movies">
+						<option value="all">All movies</option>
+						<option value="poster">Has poster</option>
+						<option value="no-poster">No poster</option>
+						<option value="metadata">Has NFO</option>
+						<option value="no-metadata">No NFO</option>
+					</select>
+					<select id="movie-sort" aria-label="Sort movies">
+						<option value="title-asc">Title A–Z</option>
+						<option value="title-desc">Title Z–A</option>
+						<option value="year-desc">Year newest</option>
+						<option value="year-asc">Year oldest</option>
+						<option value="added-desc">Recently added</option>
+					</select>
+				</div>
+			</div>
 			<section class="list-panel" aria-label="Video files">
 				<header>
 					<div id="counter">Loading files…</div>
 				</header>
-				<div id="file-list" role="listbox" aria-label="Select a video"></div>
+				<div
+					id="file-list"
+					role="listbox"
+					aria-label="Select a video"
+					tabindex="0"
+				></div>
 			</section>
-			<section class="details" aria-live="polite">
+			<section
+				class="details"
+				id="details-panel"
+				aria-live="polite"
+				tabindex="0"
+			>
 				<img id="poster" alt="Selected movie poster" />
 				<div id="info"></div>
 				<div id="description"></div>
-				<div class="help">
-					PAGE UP &nbsp; Previous file<br />PAGE DOWN &nbsp; Next file<br />OK /
-					ENTER &nbsp; Play selected file
-				</div>
 			</section>
 		</main>
 		<div id="message" role="status">Loading PPV files…</div>
-    <audio id="bgMusicPlayer" preload="auto" style="display: none;">
-        Your browser does not support the audio element.
-    </audio>
+		<div id="remote-keyboard" class="remote-keyboard" hidden>
+			<section
+				class="remote-keyboard-panel"
+				role="dialog"
+				aria-modal="true"
+				aria-label="Search movies"
+			>
+				<h2>Search movies</h2>
+				<div id="keyboard-query" class="keyboard-query"></div>
+				<div id="keyboard-keys" class="keyboard-keys"></div>
+				<div class="keyboard-help">
+					Arrows: move · Enter: choose · Done: close
+				</div>
+			</section>
+		</div>
+		<audio id="bgMusicPlayer" preload="auto" style="display: none">
+			Your browser does not support the audio element.
+		</audio>
 
 		<script>
 			(() => {
 				const params = new URLSearchParams(window.location.search);
 				const channelNumber = Number.parseInt(params.get('channel'), 10);
 				const resolution = params.get('resolution');
-            const musicPath = params.get('music');
-            const randomMusic = params.get('random_music') !== 'false';
+				const searchable = params.get('searchable') === 'true';
+				const musicPath = params.get('music');
+				const randomMusic = params.get('random_music') !== 'false';
 				const page = document.querySelector('.page');
 				if (resolution === '480i' || resolution === '1080i')
 					page.classList.add('crt');
@@ -51,74 +106,103 @@
 				const info = document.getElementById('info');
 				const description = document.getElementById('description');
 				const message = document.getElementById('message');
-            const bgMusicPlayer = document.getElementById('bgMusicPlayer');
+				const bgMusicPlayer = document.getElementById('bgMusicPlayer');
+				const searchInput = document.getElementById('movie-search');
+				const yearFilter = document.getElementById('year-filter');
+				const movieFilter = document.getElementById('movie-filter');
+				const movieSort = document.getElementById('movie-sort');
+				const detailsPanel = document.getElementById('details-panel');
+				const remoteKeyboard = document.getElementById('remote-keyboard');
+				const keyboardKeys = document.getElementById('keyboard-keys');
+				const keyboardQuery = document.getElementById('keyboard-query');
+				const remoteControls = searchable
+					? [searchInput, yearFilter, movieFilter, movieSort, detailsPanel]
+					: [detailsPanel];
+				if (searchable) document.getElementById('movie-tools').hidden = false;
 				let contents = [];
+				let visibleContents = [];
 				let selectedIndex = 0;
 				let selecting = false;
-            let musicPlaylist = [];
-            let currentMusicIndex = 0;
+				let remoteControlIndex = -1;
+				let keyboardIndex = 0;
+				let musicPlaylist = [];
+				let currentMusicIndex = 0;
 
-            function randomOtherIndex(playlist, current) {
-                if (playlist.length <= 1) return 0;
-                let next;
-                do { next = Math.floor(Math.random() * playlist.length); } while (next === current);
-                return next;
-            }
+				function randomOtherIndex(playlist, current) {
+					if (playlist.length <= 1) return 0;
+					let next;
+					do {
+						next = Math.floor(Math.random() * playlist.length);
+					} while (next === current);
+					return next;
+				}
 
-            async function loadMusicPlaylist() {
-                try {
-                    if (musicPath) {
-                        const response = await fetch(`/media/list?path=${encodeURIComponent(musicPath)}&type=audio`);
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                        const data = await response.json();
-                        musicPlaylist = data.files || [];
-                    } else {
-                        const response = await fetch('music_playlist.json');
-                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                        const data = await response.json();
-                        musicPlaylist = data.music_files || [];
-                    }
-                    console.log('Loaded music playlist:', musicPlaylist);
-                } catch (error) {
-                    console.warn('Failed to load music playlist:', error);
-                    musicPlaylist = [];
-                }
-            }
+				async function loadMusicPlaylist() {
+					try {
+						if (musicPath) {
+							const response = await fetch(
+								`/media/list?path=${encodeURIComponent(musicPath)}&type=audio`,
+							);
+							if (!response.ok)
+								throw new Error(`HTTP error! status: ${response.status}`);
+							const data = await response.json();
+							musicPlaylist = data.files || [];
+						} else {
+							const response = await fetch('music_playlist.json');
+							if (!response.ok)
+								throw new Error(`HTTP error! status: ${response.status}`);
+							const data = await response.json();
+							musicPlaylist = data.music_files || [];
+						}
+						console.log('Loaded music playlist:', musicPlaylist);
+					} catch (error) {
+						console.warn('Failed to load music playlist:', error);
+						musicPlaylist = [];
+					}
+				}
 
-            function playMusicTrack(index) {
-                if (!musicPlaylist.length) return;
-                if (index < 0 || index >= musicPlaylist.length) index = 0;
-                currentMusicIndex = index;
-                bgMusicPlayer.src = musicPlaylist[index];
-                bgMusicPlayer.play().then(() => {
-                    console.log('Playing background music:', musicPlaylist[index]);
-                }).catch(error => {
-                    console.warn('Background music autoplay failed:', error);
-                });
-            }
+				function playMusicTrack(index) {
+					if (!musicPlaylist.length) return;
+					if (index < 0 || index >= musicPlaylist.length) index = 0;
+					currentMusicIndex = index;
+					bgMusicPlayer.src = musicPlaylist[index];
+					bgMusicPlayer
+						.play()
+						.then(() => {
+							console.log('Playing background music:', musicPlaylist[index]);
+						})
+						.catch((error) => {
+							console.warn('Background music autoplay failed:', error);
+						});
+				}
 
-            function playNextTrack() {
-                if (!musicPlaylist.length) return;
-                if (randomMusic) {
-                    playMusicTrack(randomOtherIndex(musicPlaylist, currentMusicIndex));
-                } else {
-                    playMusicTrack((currentMusicIndex + 1) % musicPlaylist.length);
-                }
-            }
+				function playNextTrack() {
+					if (!musicPlaylist.length) return;
+					if (randomMusic) {
+						playMusicTrack(randomOtherIndex(musicPlaylist, currentMusicIndex));
+					} else {
+						playMusicTrack((currentMusicIndex + 1) % musicPlaylist.length);
+					}
+				}
 
-            function setupBackgroundMusic() {
-                if (!musicPlaylist.length) {
-                    console.log('No background music available');
-                    return;
-                }
-                bgMusicPlayer.volume = 0.3;
-                playMusicTrack(randomMusic ? Math.floor(Math.random() * musicPlaylist.length) : 0);
-                bgMusicPlayer.addEventListener('ended', playNextTrack);
-                bgMusicPlayer.addEventListener('error', () => {
-                    console.warn('Error loading music track:', musicPlaylist[currentMusicIndex]);
-                    playNextTrack();
-                });
-            }
+				function setupBackgroundMusic() {
+					if (!musicPlaylist.length) {
+						console.log('No background music available');
+						return;
+					}
+					bgMusicPlayer.volume = 0.3;
+					playMusicTrack(
+						randomMusic ? Math.floor(Math.random() * musicPlaylist.length) : 0,
+					);
+					bgMusicPlayer.addEventListener('ended', playNextTrack);
+					bgMusicPlayer.addEventListener('error', () => {
+						console.warn(
+							'Error loading music track:',
+							musicPlaylist[currentMusicIndex],
+						);
+						playNextTrack();
+					});
+				}
 
 				function showMessage(text, isError = false) {
 					message.textContent = text;
@@ -130,6 +214,199 @@
 					message.hidden = true;
 				}
 
+				function movieTitle(item) {
+					return item.nfo?.title || item.filename;
+				}
+
+				function movieYear(item) {
+					const match = `${item.nfo?.info || ''} ${item.filename}`.match(
+						/\b(19|20)\d{2}\b/,
+					);
+					return match ? Number(match[0]) : null;
+				}
+
+				function populateYears() {
+					const years = [
+						...new Set(contents.map(movieYear).filter(Boolean)),
+					].sort((a, b) => b - a);
+					yearFilter.replaceChildren(new Option('All years', 'all'));
+					years.forEach((year) =>
+						yearFilter.add(new Option(String(year), String(year))),
+					);
+				}
+
+				function renderList() {
+					list.replaceChildren();
+					if (!visibleContents.length) {
+						list.innerHTML =
+							'<div class="empty">No movies match these filters.</div>';
+						return;
+					}
+					const fragment = document.createDocumentFragment();
+					visibleContents.forEach(({ item }, index) => {
+						const row = document.createElement('div');
+						row.className = 'file';
+						row.setAttribute('role', 'option');
+						row.setAttribute('aria-selected', 'false');
+						row.textContent = movieTitle(item);
+						row.addEventListener('click', () => {
+							list.focus();
+							selectedIndex = index;
+							renderSelection();
+						});
+						fragment.appendChild(row);
+					});
+					list.appendChild(fragment);
+				}
+
+				function applyFilters() {
+					const query = searchInput.value.trim().toLocaleLowerCase();
+					const chosenYear = yearFilter.value;
+					const chosenFilter = movieFilter.value;
+					visibleContents = contents
+						.map((item, originalIndex) => ({ item, originalIndex }))
+						.filter(({ item }) => {
+							if (
+								query &&
+								!movieTitle(item).toLocaleLowerCase().includes(query)
+							)
+								return false;
+							const year = movieYear(item);
+							if (chosenYear !== 'all' && String(year) !== chosenYear)
+								return false;
+							if (chosenFilter === 'poster' && !item.has_image) return false;
+							if (chosenFilter === 'no-poster' && item.has_image) return false;
+							if (chosenFilter === 'metadata' && !item.has_nfo) return false;
+							if (chosenFilter === 'no-metadata' && item.has_nfo) return false;
+							return true;
+						});
+					const direction = movieSort.value.endsWith('desc') ? -1 : 1;
+					if (movieSort.value.startsWith('added')) {
+						visibleContents.sort(
+							(a, b) =>
+								(b.item.modified_at || 0) - (a.item.modified_at || 0) ||
+								movieTitle(a.item).localeCompare(movieTitle(b.item)),
+						);
+					} else if (movieSort.value.startsWith('year')) {
+						visibleContents.sort((a, b) => {
+							const yearA = movieYear(a.item);
+							const yearB = movieYear(b.item);
+							if (yearA === null && yearB !== null) return 1;
+							if (yearB === null && yearA !== null) return -1;
+							return (
+								direction * ((yearA || 0) - (yearB || 0)) ||
+								movieTitle(a.item).localeCompare(movieTitle(b.item))
+							);
+						});
+					} else {
+						visibleContents.sort(
+							(a, b) =>
+								direction *
+								movieTitle(a.item).localeCompare(movieTitle(b.item)),
+						);
+					}
+					selectedIndex = 0;
+					renderList();
+					renderSelection();
+				}
+
+				function setRemoteControlFocus(index) {
+					remoteControlIndex = index;
+					list.classList.toggle('remote-focused', index === -1);
+					remoteControls.forEach((control, controlIndex) => {
+						control.classList.toggle('remote-focused', controlIndex === index);
+					});
+					if (index < 0) {
+						list.focus();
+					} else {
+						remoteControls[index].focus();
+					}
+				}
+
+				function moveRemoteControlFocus(step) {
+					const count = remoteControls.length + 1;
+					const position = remoteControlIndex + 1;
+					const next = (position + step + count) % count;
+					setRemoteControlFocus(next === 0 ? -1 : next - 1);
+				}
+
+				function changeFocusedFilter(step) {
+					const control = remoteControls[remoteControlIndex];
+					if (
+						!(control instanceof HTMLSelectElement) ||
+						!control.options.length
+					)
+						return false;
+					control.selectedIndex =
+						(control.selectedIndex + step + control.options.length) %
+						control.options.length;
+					control.dispatchEvent(new Event('change', { bubbles: true }));
+					return true;
+				}
+
+				function scrollDetails(direction) {
+					detailsPanel.scrollBy({
+						top: direction * Math.max(80, detailsPanel.clientHeight * 0.75),
+						behavior: 'smooth',
+					});
+				}
+
+				const keyboardValues = [
+					...'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+					'SPACE',
+					'BACKSPACE',
+					'CLEAR',
+					'DONE',
+				];
+
+				function renderKeyboard() {
+					keyboardQuery.textContent = searchInput.value || 'Type to search';
+					keyboardKeys.replaceChildren();
+					keyboardValues.forEach((value, index) => {
+						const button = document.createElement('button');
+						button.type = 'button';
+						button.className = `keyboard-key${index === keyboardIndex ? ' remote-focused' : ''}`;
+						button.textContent =
+							{ SPACE: 'Space', BACKSPACE: '⌫', CLEAR: 'Clear', DONE: 'Done' }[
+								value
+							] || value;
+						button.addEventListener('click', () => activateKeyboardKey(index));
+						keyboardKeys.appendChild(button);
+					});
+				}
+
+				function openRemoteKeyboard() {
+					keyboardIndex = 0;
+					remoteKeyboard.hidden = false;
+					renderKeyboard();
+				}
+
+				function closeRemoteKeyboard() {
+					remoteKeyboard.hidden = true;
+					setRemoteControlFocus(0);
+				}
+
+				function activateKeyboardKey(index) {
+					const value = keyboardValues[index];
+					if (value === 'DONE') return closeRemoteKeyboard();
+					if (value === 'CLEAR') searchInput.value = '';
+					else if (value === 'BACKSPACE')
+						searchInput.value = searchInput.value.slice(0, -1);
+					else if (value === 'SPACE') searchInput.value += ' ';
+					else searchInput.value += value;
+					searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+					keyboardIndex = index;
+					renderKeyboard();
+				}
+
+				function moveKeyboardSelection(offset) {
+					keyboardIndex = Math.max(
+						0,
+						Math.min(keyboardValues.length - 1, keyboardIndex + offset),
+					);
+					renderKeyboard();
+				}
+
 				function renderSelection() {
 					const rows = list.querySelectorAll('.file');
 					rows.forEach((row, index) => {
@@ -138,8 +415,15 @@
 						row.setAttribute('aria-selected', String(selected));
 					});
 
-					const item = contents[selectedIndex];
-					if (!item) return;
+					const item = visibleContents[selectedIndex]?.item;
+					if (!item) {
+						poster.classList.remove('visible');
+						poster.removeAttribute('src');
+						info.textContent = '';
+						description.textContent = '';
+						counter.textContent = `0 / ${visibleContents.length} shown (${contents.length} total)`;
+						return;
+					}
 					const metadata = item.nfo || {};
 					poster.classList.remove('visible');
 					poster.removeAttribute('src');
@@ -150,19 +434,20 @@
 					}
 					info.textContent = metadata.info || '';
 					description.textContent = metadata.description || '';
-					counter.textContent = `${selectedIndex + 1} / ${contents.length}`;
+					counter.textContent = `${selectedIndex + 1} / ${visibleContents.length} shown (${contents.length} total)`;
 					rows[selectedIndex]?.scrollIntoView({ block: 'nearest' });
 				}
 
 				function moveSelection(step) {
-					if (!contents.length || selecting) return;
+					if (!visibleContents.length || selecting) return;
 					selectedIndex =
-						(selectedIndex + step + contents.length) % contents.length;
+						(selectedIndex + step + visibleContents.length) %
+						visibleContents.length;
 					renderSelection();
 				}
 
 				async function playSelection() {
-					const item = contents[selectedIndex];
+					const item = visibleContents[selectedIndex]?.item;
 					if (!item || selecting) return;
 					selecting = true;
 					showMessage(`Starting ${item.nfo?.title || item.filename}…`);
@@ -177,21 +462,114 @@
 					}
 				}
 
+				remoteControls.forEach((control, index) =>
+					control.addEventListener('focus', () => {
+						remoteControlIndex = index;
+						list.classList.remove('remote-focused');
+						remoteControls.forEach((other, otherIndex) =>
+							other.classList.toggle('remote-focused', otherIndex === index),
+						);
+					}),
+				);
+				list.addEventListener('focus', () => {
+					remoteControlIndex = -1;
+					list.classList.add('remote-focused');
+					remoteControls.forEach((control) =>
+						control.classList.remove('remote-focused'),
+					);
+				});
+				detailsPanel.addEventListener('focus', () => {
+					remoteControlIndex = remoteControls.indexOf(detailsPanel);
+					list.classList.remove('remote-focused');
+					remoteControls.forEach((control) =>
+						control.classList.toggle(
+							'remote-focused',
+							control === detailsPanel,
+						),
+					);
+				});
+
 				document.addEventListener('keydown', (event) => {
-					// PPV controls are injected by the player/remote, like ppv.html.
+					// The remote injects untrusted key events; hardware keyboards use native controls.
 					if (event.isTrusted) return;
+					if (
+						event.key === 'Escape' &&
+						remoteKeyboard &&
+						!remoteKeyboard.hidden
+					) {
+						event.preventDefault();
+						closeRemoteKeyboard();
+						return;
+					}
+					if (
+						searchable &&
+						([...event.key].length === 1 ||
+							['Backspace', 'Clear'].includes(event.key))
+					) {
+						event.preventDefault();
+						if (event.key === 'Clear') searchInput.value = '';
+						else if (event.key === 'Backspace')
+							searchInput.value = searchInput.value.slice(0, -1);
+						else searchInput.value += event.key;
+						searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+						if (remoteKeyboard && !remoteKeyboard.hidden) renderKeyboard();
+						return;
+					}
+					if (remoteKeyboard && !remoteKeyboard.hidden) {
+						event.preventDefault();
+						switch (event.key) {
+							case 'NavLeft':
+								moveKeyboardSelection(-1);
+								break;
+							case 'NavRight':
+								moveKeyboardSelection(1);
+								break;
+							case 'PageUp':
+								moveKeyboardSelection(-10);
+								break;
+							case 'PageDown':
+								moveKeyboardSelection(10);
+								break;
+							case 'Enter':
+								activateKeyboardKey(keyboardIndex);
+								break;
+						}
+						return;
+					}
 					switch (event.key) {
+						case 'Escape':
+							event.preventDefault();
+							setRemoteControlFocus(-1);
+							break;
+						case 'NavLeft':
+							event.preventDefault();
+							moveRemoteControlFocus(-1);
+							break;
+						case 'NavRight':
+							event.preventDefault();
+							moveRemoteControlFocus(1);
+							break;
 						case 'PageUp':
 							event.preventDefault();
-							moveSelection(-1);
+							if (remoteControls[remoteControlIndex] === detailsPanel)
+								scrollDetails(-1);
+							else if (!changeFocusedFilter(-1)) moveSelection(-1);
 							break;
 						case 'PageDown':
 							event.preventDefault();
-							moveSelection(1);
+							if (remoteControls[remoteControlIndex] === detailsPanel)
+								scrollDetails(1);
+							else if (!changeFocusedFilter(1)) moveSelection(1);
 							break;
 						case 'Enter':
 							event.preventDefault();
-							playSelection();
+							if (searchable && remoteControlIndex === 0) openRemoteKeyboard();
+							else if (
+								remoteControlIndex >= 0 &&
+								remoteControls[remoteControlIndex] !== detailsPanel
+							)
+								changeFocusedFilter(1);
+							else if (remoteControlIndex === -1) playSelection();
 							break;
 					}
 				});
@@ -218,23 +596,25 @@
 							showMessage('No video files found.', true);
 							return;
 						}
-
-						const fragment = document.createDocumentFragment();
-						contents.forEach((item, index) => {
-							const row = document.createElement('div');
-							row.className = 'file';
-							row.setAttribute('role', 'option');
-							row.setAttribute('aria-selected', 'false');
-							row.textContent = item.nfo?.title || item.filename;
-							row.addEventListener('click', () => {
-								selectedIndex = index;
-								renderSelection();
-							});
-							fragment.appendChild(row);
-						});
-						list.appendChild(fragment);
 						hideMessage();
-						renderSelection();
+						if (searchable) {
+							populateYears();
+							// Refresh as soon as a search value or dropdown selection changes.
+							remoteControls.forEach((control) => {
+								control.addEventListener(
+									control instanceof HTMLSelectElement ? 'change' : 'input',
+									applyFilters,
+								);
+							});
+							applyFilters();
+						} else {
+							visibleContents = contents.map((item, originalIndex) => ({
+								item,
+								originalIndex,
+							}));
+							renderList();
+							renderSelection();
+						}
 					} catch (error) {
 						showMessage(
 							`Could not load PPV files: ${error.detail || error.message || 'Unknown error'}`,
@@ -244,8 +624,8 @@
 					}
 				}
 
-            loadFiles();
-            loadMusicPlaylist().then(setupBackgroundMusic);
+				loadFiles();
+				loadMusicPlaylist().then(setupBackgroundMusic);
 			})();
 		</script>
 	</body>

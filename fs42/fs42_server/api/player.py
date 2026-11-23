@@ -232,7 +232,14 @@ async def show_guide(request:Request):
     return {"status" : "ok"}
 
 
-WEB_KEYS = {"PageUp", "PageDown", "Enter", "NavLeft", "NavRight"}
+WEB_KEYS = {
+    "PageUp", "PageDown", "Enter", "Escape", "NavLeft", "NavRight",
+    "Space", "Backspace", "Clear",
+    *"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    *"0123456789",
+    "Apostrophe", "Comma", "Hyphen", "Period", "Slash",
+    "Colon", "Semicolon", "Question", "Exclamation",
+}
 
 
 @router.post("/web/key/{key_name}")
@@ -243,6 +250,7 @@ async def send_web_key(key_name: str, request: Request):
     command_queue = connected_command_queue(request)
     command_queue.put({"command": "web_key", "key": key_name})
     return {"success": True, "key": key_name}
+
 
 @router.get("/commands/stop")
 @router.post("/commands/stop")
