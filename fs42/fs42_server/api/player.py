@@ -11,6 +11,7 @@ from fs42.fs42_server.api.media import PROJECT_ROOT
 router = APIRouter(prefix="/player", tags=["player"])
 
 VOLUME_SOCKET = "runtime/volume.socket"
+MUTE_SOCKET = "runtime/mute.socket"
 
 # Percentage the volume changes by on each volume up/down request.
 VOLUME_STEP = 2
@@ -354,6 +355,35 @@ async def volume_mute():
     return await _control_volume("mute")
 
 
+@router.get("/volume/status")
+async def volume_status():
+    """Return the current system volume and mute state without changing it."""
+    status = await _read_volume_status()
+    if status:
+        return status
+    raise HTTPException(status_code=500, detail="Could not read the current volume status.")
+
+
+async def _read_volume_status():
+    """Read the first available system mixer without changing it."""
+    readers = []
+    if shutil.which("pactl") is not None:
+        readers.append(_get_pulseaudio_mute_status)
+    if shutil.which("amixer") is not None:
+        readers.append(_get_amixer_volume_status)
+    if shutil.which("wpctl") is not None:
+        readers.append(_get_wireplumber_volume)
+
+    for reader in readers:
+        try:
+            volume = await reader()
+            if volume != "unknown":
+                return {"volume": volume, "muted": _volume_is_muted(volume)}
+        except Exception:
+            continue
+    return None
+
+
 async def _control_volume(action: str):
     """Control volume using the most appropriate Linux audio system"""
     
@@ -388,9 +418,17 @@ async def _control_volume(action: str):
     if not response:
         raise HTTPException(status_code=500, detail=f"No supported audio system found or all failed. Available: amixer={amixer_available}, pactl={pactl_available}, wpctl={wpctl_available}")
 
+    current_status = await _read_volume_status()
+    response["muted"] = (
+        current_status["muted"]
+        if current_status
+        else _volume_is_muted(response.get("volume"))
+    )
     as_str = json.dumps(response)
     with open(VOLUME_SOCKET, "w") as fp:
         fp.write(as_str)
+    with open(MUTE_SOCKET, "w") as fp:
+        json.dump({"muted": response["muted"]}, fp)
 
     return response
 
@@ -575,6 +613,26 @@ def _extract_amixer_volume(output: str) -> str:
         return "unknown"
 
 
+def _volume_is_muted(volume) -> bool:
+    return "MUTED" in str(volume).upper() or str(volume).upper() == "MUTE"
+
+
+async def _get_amixer_volume_status() -> str:
+    """Read ALSA volume status, falling back from Master to PCM."""
+    for mixer in ("Master", "PCM"):
+        try:
+            result = subprocess.run(
+                [*AMIXER, "sget", mixer],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return _extract_amixer_volume(result.stdout)
+        except subprocess.CalledProcessError:
+            continue
+    return "unknown"
+
+
 async def _get_pulseaudio_volume() -> str:
     """Get current volume from PulseAudio"""
     try:
@@ -620,7 +678,7 @@ async def _get_pulseaudio_mute_status() -> str:
             return f"{volume}%"
 
     except:
-        return "MUTE"
+        return "unknown"
 
 
 async def _get_wireplumber_volume() -> str:

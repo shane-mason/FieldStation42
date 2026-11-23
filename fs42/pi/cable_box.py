@@ -36,6 +36,7 @@ KEEP_RUNNING = {"fs42-cable-box.service", "fs42-remote-controller.service", "fs4
 TICK = 0.02
 POLL_INTERVAL = 0.1
 REFRESH_INTERVAL = 1.0
+MUTE_SOCKET_FILE = "runtime/mute.socket"
 
 
 def load_pinout():
@@ -80,9 +81,15 @@ def channel_label(num):
 
 
 class CableBox:
-    def __init__(self, status_socket="runtime/play_status.socket", press_socket="runtime/press.socket"):
+    def __init__(
+        self,
+        status_socket="runtime/play_status.socket",
+        press_socket="runtime/press.socket",
+        mute_socket=MUTE_SOCKET_FILE,
+    ):
         self.status_socket = status_socket
         self.press_socket = press_socket
+        self.mute_socket = mute_socket
 
         pinout = load_pinout()
 
@@ -128,6 +135,8 @@ class CableBox:
         self.channel_num = 0
         self.last_stat = ""
         self.last_lcd_state = None
+        self.last_mute_stat = ""
+        self.mute_mode = False
         self.pause_mode = False
         self.status_initialized = False
 
@@ -208,7 +217,10 @@ class CableBox:
         self.control_services("stop", fs42_units("list-units", "--state=active"), "StOP")
 
     def show_channel(self):
-        self.tm.show(channel_label(self.channel_num) if self.channel_num >= 0 else "FS42")
+        if self.mute_mode:
+            self.tm.show("nnute")
+        else:
+            self.tm.show(channel_label(self.channel_num) if self.channel_num >= 0 else "FS42")
 
     def check_status(self):
         new_stat = None
@@ -244,6 +256,26 @@ class CableBox:
             if time.time() - data["ts"] < 2.0:
                 return data["digits"]
         except Exception:
+            pass
+        return None
+
+    def check_mute(self):
+        """Return a changed mute state written by the volume API."""
+        try:
+            with open(self.mute_socket) as fp:
+                as_str = fp.read().strip()
+            if not as_str or as_str == self.last_mute_stat:
+                return None
+            self.last_mute_stat = as_str
+            status = json.loads(as_str)
+            if isinstance(status.get("muted"), bool):
+                return status["muted"]
+            volume = str(status.get("volume", "")).upper()
+            if "MUTED" in volume or volume == "MUTE":
+                return True
+            if volume and volume != "UNKNOWN":
+                return False
+        except (OSError, ValueError, TypeError):
             pass
         return None
 
@@ -322,6 +354,19 @@ class CableBox:
         self.power_text = text
 
     def poll_player(self):
+        new_mute_mode = self.check_mute()
+        if new_mute_mode is not None and new_mute_mode != self.mute_mode:
+            self.mute_mode = new_mute_mode
+            self.temp_mode = False
+            self.last_button_time = time.monotonic()
+            if self.mute_mode:
+                self.tm.show("nnute")
+                _l.info("Set LCD mute indicator")
+            elif self.pause_mode:
+                self.tm.show("PAUS")
+            else:
+                self.show_channel()
+
         if not self.entry.active:
             remote_digits = self.check_press()
             if remote_digits:
@@ -343,7 +388,9 @@ class CableBox:
                     self.last_button_time = time.monotonic()
                     self.channel_num = new_channel_num
                     self.pause_mode = new_pause_mode
-                    if self.pause_mode:
+                    if self.mute_mode:
+                        self.tm.show("nnute")
+                    elif self.pause_mode:
                         self.tm.show("PAUS")
                     elif self.channel_num >= 0:
                         self.tm.show(channel_label(self.channel_num))
@@ -351,10 +398,16 @@ class CableBox:
                     else:
                         self.tm.show("FS42")
             except:
-                self.tm.show("FS42")
+                self.tm.show("MUTE" if self.mute_mode else "FS42")
 
     def refresh_display(self, now):
-        if self.show_time and now - self.last_button_time > 15 and not self.entry.active and not self.pause_mode:
+        if (
+            self.show_time
+            and now - self.last_button_time > 15
+            and not self.entry.active
+            and not self.pause_mode
+            and not self.mute_mode
+        ):
             formatted = time.strftime(self.time_format, time.localtime())
             if ":" in formatted:
                 h, m = formatted.split(":", 1)

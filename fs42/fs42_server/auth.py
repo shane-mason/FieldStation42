@@ -36,6 +36,7 @@ PUBLIC_PATHS = {
     "/player/volume/up",
     "/player/volume/down",
     "/player/volume/mute",
+    "/player/volume/status",
     "/player/mpv/cycle-subtitles",
     "/player/mpv/cycle-audio",
     "/manage/status",

@@ -160,6 +160,7 @@ class VolumeDisplay(object):
     def __init__(self, config: VolumeDisplayConfig):
         self.config = config
         self.volume = 0.0
+        self.muted = False
         # Start hidden until we actually see a volume message.
         self.time_since_change = float("inf")
 
@@ -183,17 +184,25 @@ class VolumeDisplay(object):
         if raw_volume is None:
             return
 
+        volume_text = str(raw_volume).upper()
+        reported_muted = status.get("muted")
+        self.muted = (
+            reported_muted
+            if isinstance(reported_muted, bool)
+            else "MUTED" in volume_text or volume_text == "MUTE"
+        )
+
         # The volume field can arrive in several shapes depending on the mixer:
         # "75%", "MUTED (75%)", "unknown", "MUTE", etc. Pull the first number
         # out of whatever we get so a decorated string still drives the meter. If
         # there's no number at all (e.g. "unknown"), there's nothing to show.
         match = re.search(r"\d+(?:\.\d+)?", str(raw_volume))
-        if not match:
+        if not match and not self.muted:
             print(f"No volume level in volume status, {raw_volume}")
             return
-        pct = float(match.group())
-
-        self.volume = max(0.0, min(1.0, pct / 100.0))
+        if match:
+            pct = float(match.group())
+            self.volume = max(0.0, min(1.0, pct / 100.0))
         self.time_since_change = 0.0
 
         # Truncate the socket so we only display each change once.
@@ -222,6 +231,20 @@ class VolumeDisplay(object):
         )
 
         color = QColor(*self.config.color)
+
+        if self.muted:
+            painter.setPen(color)
+            painter.setBrush(Qt.NoBrush)
+            painter.setFont(resolve_font(DEFAULT_FONT, max(18, int(h * 0.9))))
+            painter.drawText(
+                int(x),
+                int(y),
+                int(w),
+                int(h),
+                Qt.AlignCenter,
+                "MUTE",
+            )
+            return
 
         painter.setPen(QPen(color, self.config.border_thickness))
         painter.setBrush(Qt.NoBrush)

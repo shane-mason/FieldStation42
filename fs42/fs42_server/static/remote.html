@@ -543,7 +543,17 @@
 						? '•'.repeat(pinDigitsEntered)
 						: 'ENTER PIN';
 				}
+				if (muted) return 'MUTE';
 				return `CH ${currentChannel}`;
+			}
+
+			function muteStateFromResponse(response, fallback = muted) {
+				if (typeof response?.muted === 'boolean') return response.muted;
+				const statusText = `${response?.volume || ''} ${response?.message || ''}`.toUpperCase();
+				if (statusText.includes('MUTED') || statusText.includes('MUTE ON')) return true;
+				if (statusText.includes('MUTE OFF')) return false;
+				if (/\d+(?:\.\d+)?%/.test(statusText)) return false;
+				return fallback;
 			}
 
 			function updateNowPlayingFromStatus(status) {
@@ -592,7 +602,19 @@
 						}
 					}
 				}
+				if (muted && !isInputtingChannel && !isShowingVolume) {
+					display.textContent = 'MUTE';
+				}
 				// If in system info mode, don't update the display from player status
+			}
+
+			async function updateMuteState() {
+				try {
+					const volumeStatus = await window.fs42Api.get('player/volume/status');
+					muted = muteStateFromResponse(volumeStatus);
+				} catch (error) {
+					console.warn('Could not read mute state:', error);
+				}
 			}
 
 			function showVolumeDisplay(volumeText) {
@@ -672,6 +694,7 @@
 
 			async function pollPlayerStatus() {
 				try {
+					await updateMuteState();
 					if (infoMode === 'playing') {
 						const status = await window.fs42Api.get('player/status');
 						console.log('Player status response:', status);
@@ -684,6 +707,9 @@
 						const info = await window.fs42Api.get('player/info');
 						console.log('System info response:', info);
 						updateSystemInfo(info);
+					}
+					if (muted && !isInputtingChannel && !isShowingVolume) {
+						display.textContent = 'MUTE';
 					}
 				} catch (error) {
 					console.error('Failed to get status/info:', error);
@@ -1188,9 +1214,12 @@
 						}
 						break;
 					case 'mute':
+						const previousMuteState = muted;
+						display.textContent = 'MUTE';
 						try {
 							const response = await window.fs42Api.get('player/volume/mute');
-							showVolumeDisplay('MUTE');
+							muted = muteStateFromResponse(response, !previousMuteState);
+							showVolumeDisplay(muted ? 'MUTE' : response.volume || 'MUTE OFF');
 							console.log('Mute toggle command sent:', response);
 						} catch (error) {
 							console.error('Mute failed:', error);
@@ -1245,7 +1274,7 @@
 				if (!['services_shutdown', 'services_restart', 'mute'].includes(key)) {
 					setTimeout(() => {
 						if (display.textContent !== 'OFF') {
-							display.textContent = muted ? 'MUTED' : idleDisplayText();
+							display.textContent = muted ? 'MUTE' : idleDisplayText();
 						}
 					}, 2000);
 				}
