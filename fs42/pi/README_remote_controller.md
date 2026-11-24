@@ -1,6 +1,8 @@
 # 📱 FieldStation42 Remote Controller
 
-Control your FieldStation42 server with any IR remote using Flirc USB or customize keyboard mappings for direct control.
+Control your FieldStation42 server with a remote control. Use:
+ * any IR remote using Flirc USB or customize keyboard mappings for direct control.
+ * Your TV's remote if connected through HDMI
 
 ## 🚀 Quick Start with Flirc USB
 
@@ -105,9 +107,23 @@ FS42_HOST = '192.168.1.100'
 FS42_PORT = '8080'
 ```
 
+These settings can be set on a commandline, or you can edit `~/.config/systemd/user/fs42-remote-controller.service` if you are using systemd to startup the service. Add an environment variable line to your service, then reload and restart the remote, eg:
+
+```
+[Service]
+Type=simple
+WorkingDirectory=/home/station42/FieldStation42
+Environment="FS42_INPUT_DEVICE=hdmi"
+ExecStart=/home/station42/FieldStation42/env/bin/python3 fs42/pi/remote_controller.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+```
+
 ### Input Device Selection
 
-By default, the remote controller automatically finds your Flirc device. If you have multiple input devices or want to use a specific keyboard, you can specify which one to use:
+By default, the remote controller automatically finds your Flirc device. If you have multiple input devices or want to use a specific keyboard, you can specify which one to use. Alternatively, you can pass the string `hdmi` to use the HDMI-cec remote interface through your TV.
 
 **Command-line options:**
 ```bash
@@ -123,6 +139,7 @@ sudo python3 remote_controller.py -d 0
 # Use device by name pattern (finds first match)
 sudo python3 remote_controller.py -d flirc
 sudo python3 remote_controller.py -d keyboard
+python3 remote_controller.py -d hdmi
 ```
 
 **Environment variable:**
@@ -174,8 +191,16 @@ The navigation keys only do something on web channels that listen for them: the 
 - **Flirc USB** (recommended) or keyboard access
 
 ### Install Dependencies
+
+For Flirc:
 ```bash
 pip install evdev requests
+```
+
+For HDMI:
+```bash
+sudo apt install cec-utils
+pip install requests
 ```
 
 ### Run the Controller
