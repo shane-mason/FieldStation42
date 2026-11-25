@@ -72,16 +72,160 @@
                     <h2 id="schedule-blocks-header" style="display:none;">Schedule Blocks</h2>
                     <div id="schedule-table"></div>
                 </div>
+                <section id="schedule-analytics" class="pure-u-1">
+                    <hr style="border: 0; border-top: 1px solid currentColor; opacity: .3; margin: 1.5em 0 1em;">
+                    <h2>Analytics</h2>
+                    <form id="analytics-form" class="pure-form" style="display:flex; flex-wrap:wrap; align-items:center; gap:.75em;">
+                        <label>Station <select id="analytics-station" required></select></label>
+                        <button class="pure-button pure-button-primary" type="submit">Show counts</button>
+                    </form>
+                    <p id="analytics-status" role="status"></p>
+                    <div id="analytics-results"></div>
+                </section>
             `;
 
             document.body.innerHTML = await window.fs42Common.createPageLayout('Schedule Manager', content);
 
             // Initialize functionality after DOM is created
+            setupAnalytics();
             initializeSchedulePage();
             
             // Set up search functionality
             setupSearchHandlers();
         });
+
+        function countScheduledFiles(blocks) {
+            const files = new Map();
+            for (const block of blocks) {
+                const items = Array.isArray(block.content) ? block.content : [block.content];
+                const paths = new Set(items.filter(item => item?.path && item.media_type === 'video')
+                    .map(item => item.path));
+                if (!paths.size || block.sign_off !== undefined) continue;
+                let time = Date.parse(block.start_time + 'Z');
+                let countedFeature = false;
+                for (const entry of block.plan || []) {
+                    const start = time;
+                    time += Math.max(0, entry.duration) * 1000;
+                    if (!paths.has(entry.path)) continue;
+                    if (Array.isArray(block.content)) {
+                        if (entry.skip > 0) continue;
+                    } else {
+                        if (countedFeature) continue;
+                        countedFeature = true;
+                    }
+                    if (!files.has(entry.path)) files.set(entry.path, []);
+                    files.get(entry.path).push(new Date(start).toISOString().slice(0, 19));
+                }
+            }
+            return [...files].sort(([pathA, timesA], [pathB, timesB]) =>
+                timesB.length - timesA.length || pathA.localeCompare(pathB));
+        }
+
+        function buildAnalyticsTree(files) {
+            const root = { name: '', count: 0, folders: new Map(), files: [] };
+            for (const [path, times] of files) {
+                const parts = path.split(/[\\/]/);
+                const name = parts.pop();
+                let folder = root;
+                folder.count += times.length;
+                for (const part of parts) {
+                    if (!folder.folders.has(part)) {
+                        folder.folders.set(part, { name: part, count: 0, folders: new Map(), files: [] });
+                    }
+                    folder = folder.folders.get(part);
+                    folder.count += times.length;
+                }
+                folder.files.push({ name, path, times, count: times.length });
+            }
+            const sharedPath = [];
+            let folder = root;
+            while (!folder.files.length && folder.folders.size === 1) {
+                folder = folder.folders.values().next().value;
+                sharedPath.push(folder.name);
+            }
+            return { ...folder, name: sharedPath.join('/') || (sharedPath.length ? '/' : 'All files') };
+        }
+
+        function renderAnalyticsTree(tree) {
+            function renderNode(node, parentCount, open = false) {
+                const details = document.createElement('details');
+                details.open = open;
+                const summary = document.createElement('summary');
+                summary.style.cssText = 'cursor:pointer; padding:.35em 0; overflow-wrap:anywhere;';
+                summary.textContent = node.name + ' ';
+                if (node.path) summary.title = node.path;
+                const bar = document.createElement('meter');
+                bar.max = parentCount;
+                bar.value = node.count;
+                bar.setAttribute('aria-hidden', 'true');
+                summary.append(bar, ' ' + node.count + (node.count === 1 ? ' airing' : ' airings'));
+                details.append(summary);
+
+                const list = document.createElement('ul');
+                if (node.times) {
+                    for (const time of node.times) {
+                        const item = document.createElement('li');
+                        item.textContent = time.replace('T', ' ');
+                        list.append(item);
+                    }
+                } else {
+                    const children = [...node.folders.values(), ...node.files];
+                    children.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+                    for (const child of children) {
+                        const item = document.createElement('li');
+                        item.append(renderNode(child, node.count));
+                        list.append(item);
+                    }
+                }
+                details.append(list);
+                return details;
+            }
+
+            return renderNode(tree, tree.count, true);
+        }
+
+        function setupAnalytics() {
+            const form = document.getElementById('analytics-form');
+            const station = document.getElementById('analytics-station');
+            const status = document.getElementById('analytics-status');
+            const results = document.getElementById('analytics-results');
+            let requestId = 0;
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const current = ++requestId;
+                results.replaceChildren();
+                status.textContent = 'Loading schedule…';
+                try {
+                    const response = await window.fs42Api.get(
+                        'schedules/' + encodeURIComponent(station.value));
+                    if (current !== requestId) return;
+                    if (response.error) throw new Error(response.error);
+                    const blocks = response.schedule_blocks;
+                    if (!blocks.length) {
+                        status.textContent = 'No schedule saved for this station.';
+                        return;
+                    }
+                    const end = blocks.reduce((latest, block) => block.end_time > latest ? block.end_time : latest, '');
+                    const range = [blocks[0].start_time, end].map(time => time.replace('T', ' ')).join(' to ');
+                    const files = countScheduledFiles(blocks);
+                    if (!files.length) {
+                        status.textContent = range + ' · No file airings scheduled.';
+                        return;
+                    }
+                    status.textContent = range + ' · ' + files.length + ' distinct files';
+                    results.append(renderAnalyticsTree(buildAnalyticsTree(files)));
+                } catch (error) {
+                    if (current === requestId) status.textContent = 'Could not load analytics. ' + error.message;
+                }
+            });
+
+            form.addEventListener('change', () => {
+                requestId++;
+                results.replaceChildren();
+                status.textContent = 'Select Show counts to view the full schedule.';
+            });
+        }
 
         function initializeSchedulePage() {
             async function loadStationsAndSummary() {
@@ -103,6 +247,15 @@
                     opt.textContent = station.network_name;
                     select.appendChild(opt);
                 });
+                const analyticsStation = document.getElementById('analytics-station');
+                const previousAnalyticsStation = analyticsStation.value;
+                analyticsStation.replaceChildren(...stationsWithSchedules.map(station =>
+                    new Option(station.network_name, station.network_name)));
+                if (stationsWithSchedules.some(station => station.network_name === previousAnalyticsStation)) {
+                    analyticsStation.value = previousAnalyticsStation;
+                } else if (previousAnalyticsStation) {
+                    analyticsStation.dispatchEvent(new Event('change', { bubbles: true }));
+                }
                 selectedStation = 'all';
                 select.value = 'all';
                 document.getElementById('station-summary-table').innerHTML = '';
