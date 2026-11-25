@@ -53,6 +53,27 @@
 						><button id="export-to-drive" class="pure-button">
 							Export links here</button
 						><span id="source-selection">No media selected</span>
+						<div class="cdm-selection-tools">
+							<button id="source-select-all" type="button" class="pure-button">Select all</button>
+							<button id="source-select-all-files" type="button" class="pure-button" title="Select media files in this folder and its subfolders" disabled>Select All Files</button>
+							<button id="source-deselect-all" type="button" class="pure-button" disabled>Deselect all</button>
+						</div>
+					</div>
+					<div class="tmdb-tools">
+						<button
+							id="check-tmdb"
+							class="pure-button"
+							title="Match this TV show directory and create missing tvshow.nfo and poster.jpg files"
+						>
+							Download MovieDB Info
+						</button>
+						<button id="normalize-tmdb" type="button" class="pure-button" disabled>
+							Normalize Naming
+						</button>
+					</div>
+					<div id="normalize-status" class="cdm-normalize-status" hidden>
+						<label id="normalize-progress-label" for="normalize-progress" role="status"></label>
+						<progress id="normalize-progress" max="1" value="0"></progress>
 					</div>
 					<div id="source-list" class="cdm-list"></div>
 				</section>
@@ -106,25 +127,90 @@
 						Create link in catalog →
 					</button>
 				</div>
+				<dialog id="normalize-preview" aria-labelledby="normalize-title">
+					<form method="dialog">
+						<h2 id="normalize-title">Confirm TMDB renames</h2>
+						<p>Station settings that use paths directly may need to be updated.</p>
+						<div class="normalize-comparison">
+							<table aria-label="Proposed filename changes">
+								<thead><tr><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+								<tbody id="normalize-changes"></tbody>
+							</table>
+						</div>
+						<details id="normalize-skipped" hidden>
+							<summary id="normalize-skipped-summary"></summary>
+							<ul id="normalize-problems"></ul>
+						</details>
+						<div class="cdm-modal-actions">
+							<button class="pure-button" value="cancel" autofocus>Cancel</button>
+							<button class="pure-button pure-button-primary" value="rename">Rename</button>
+						</div>
+					</form>
+				</dialog>
 				<div id="station-modal" class="cdm-modal" hidden>
 					<div class="cdm-modal-backdrop" data-close-station-modal></div>
-					<section class="cdm-modal-card" role="dialog" aria-modal="true" aria-labelledby="station-modal-title">
+					<section
+						class="cdm-modal-card"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="station-modal-title"
+					>
 						<div class="cdm-modal-heading">
 							<h2 id="station-modal-title">Create Station</h2>
-							<button type="button" class="pure-button" data-close-station-modal aria-label="Close">×</button>
+							<button
+								type="button"
+								class="pure-button"
+								data-close-station-modal
+								aria-label="Close"
+							>
+								×
+							</button>
 						</div>
-						<label>Station type
+						<label
+							>Station type
 							<select id="station-type-select" class="pure-input-1">
-								<option value="loop">Loop — plays the directory continuously</option>
-								<option value="standard">Standard — scheduled programming from this directory</option>
-								<option value="ppv">Pay-per-view — browse and play movies from this directory</option>
+								<option value="loop">
+									Loop — plays the directory continuously
+								</option>
+								<option value="standard">
+									Standard — scheduled programming from this directory
+								</option>
+								<option value="ppv">
+									Pay-per-view — browse and play movies from this directory
+								</option>
 							</select>
 						</label>
-						<label>Station name<input id="station-name-input" class="pure-input-1" type="text" required></label>
-						<label>Channel number<input id="station-number-input" class="pure-input-1" type="number" min="1" step="1" required></label>
+						<label
+							>Station name<input
+								id="station-name-input"
+								class="pure-input-1"
+								type="text"
+								required
+						/></label>
+						<label
+							>Channel number<input
+								id="station-number-input"
+								class="pure-input-1"
+								type="number"
+								min="1"
+								step="1"
+								required
+						/></label>
 						<div class="cdm-modal-actions">
-							<button id="cancel-create-station" type="button" class="pure-button">Cancel</button>
-							<button id="confirm-create-station" type="button" class="pure-button pure-button-primary">Create Station</button>
+							<button
+								id="cancel-create-station"
+								type="button"
+								class="pure-button"
+							>
+								Cancel
+							</button>
+							<button
+								id="confirm-create-station"
+								type="button"
+								class="pure-button pure-button-primary"
+							>
+								Create Station
+							</button>
 						</div>
 					</section>
 				</div>
@@ -145,6 +231,10 @@
 					sourcePath: '',
 					catalogPath: '',
 					selectedSources: new Set(),
+					renameInProgress: false,
+					sourceFilesScan: null,
+					selectedDirectories: new Set(),
+					normalizing: false,
 					pendingStationPath: '',
 				};
 				const viewLayout = $('view-layout');
@@ -172,9 +262,18 @@
 								"'": '&#39;',
 							})[ch],
 					);
-				function message(text, error = false) {
+				function message(text, error = false, items = []) {
 					const el = $('cdm-message');
-					el.textContent = text;
+					el.replaceChildren(document.createTextNode(text));
+					if (error && items.length) {
+						const list = document.createElement('ul');
+						items.forEach((item) => {
+							const listItem = document.createElement('li');
+							listItem.textContent = item;
+							list.append(listItem);
+						});
+						el.append(list);
+					}
 					el.classList.toggle('is-error', error);
 				}
 				async function request(method, endpoint, body) {
@@ -212,40 +311,46 @@
 					select.value = state.mount;
 					await loadSource();
 				}
-				async function loadSource() {
+				let sourceRequest = 0;
+				async function loadSource({ focusFolder } = {}) {
+					const requestId = ++sourceRequest;
 					if (!state.mount) return;
 					try {
-						const data = await request(
-							'get',
+						const data = await window.fs42Api.get(
 							queryPath('catalog-directory/source', {
 								mount: state.mount,
 								path: state.sourcePath,
 							}),
 						);
+						if (requestId !== sourceRequest) return;
 						state.sourcePath = data.path;
 						$('source-path').textContent =
 							`${state.mount}${state.sourcePath ? '/' + state.sourcePath : ''}`;
 						$('source-list').innerHTML = data.entries.length
 							? data.entries
-									.map((entry) =>
-										entry.type === 'directory'
-											? `<div class="cdm-source-folder-row"><button class="cdm-entry cdm-folder cdm-source-folder-open" data-source-folder="${esc(entry.name)}"><span class="cdm-icon">📁</span><span>${esc(entry.name)}</span></button><button class="cdm-entry cdm-source-dir ${state.selectedSources.has(join(state.sourcePath, entry.name)) ? 'is-selected' : ''}" data-source-dir="${esc(entry.name)}" aria-pressed="${state.selectedSources.has(join(state.sourcePath, entry.name))}" title="Select directory to create a catalog link"><span class="cdm-icon">${state.selectedSources.has(join(state.sourcePath, entry.name)) ? '☑' : '☐'}</span><span>Link folder</span></button></div>`
+									.map((entry) => {
+										const content = entry.type === 'directory'
+											? `<div class="cdm-source-folder-row"><button class="cdm-entry cdm-folder cdm-source-folder-open" data-source-folder="${esc(entry.name)}"><span class="cdm-icon">📁</span><span>${esc(entry.name)}</span></button><button class="cdm-entry cdm-source-dir ${state.selectedSources.has(join(state.sourcePath, entry.name)) ? 'is-selected' : ''}" data-source-dir="${esc(entry.name)}" aria-pressed="${state.selectedSources.has(join(state.sourcePath, entry.name))}" title="Select directory for catalog links or MovieDB downloads"><span class="cdm-icon">${state.selectedSources.has(join(state.sourcePath, entry.name)) ? '☑' : '☐'}</span><span>Select folder</span></button></div>`
 											: entry.type === 'catalog-export'
 												? `<div class="cdm-entry cdm-drive-export"><span class="cdm-icon">📦</span><span class="cdm-drive-export-name" title="${esc(entry.name)}">${esc(entry.name)}</span><button class="pure-button cdm-small" data-import-drive-file="${esc(entry.name)}">Import links</button></div>`
-												: `<button class="cdm-entry cdm-media ${state.selectedSources.has(join(state.sourcePath, entry.name)) ? 'is-selected' : ''}" data-source-file="${esc(entry.name)}" aria-pressed="${state.selectedSources.has(join(state.sourcePath, entry.name))}"><span class="cdm-icon">${state.selectedSources.has(join(state.sourcePath, entry.name)) ? '☑' : '☐'}</span><span>${esc(entry.name)}</span></button>`,
-									)
+												: entry.type === 'metadata'
+													? `<div class="cdm-entry cdm-metadata"><span class="cdm-icon">${entry.kind === 'artwork' ? '🖼️' : '📄'}</span><span>${esc(entry.name)}</span><span class="cdm-entry-detail">${entry.kind === 'artwork' ? 'Artwork' : 'NFO metadata'}</span></div>`
+													: `<button class="cdm-entry cdm-media ${state.selectedSources.has(join(state.sourcePath, entry.name)) ? 'is-selected' : ''}" data-source-file="${esc(entry.name)}" aria-pressed="${state.selectedSources.has(join(state.sourcePath, entry.name))}"><span class="cdm-icon">${state.selectedSources.has(join(state.sourcePath, entry.name)) ? '☑' : '☐'}</span><span>${esc(entry.name)}</span></button>`;
+										return `<div class="cdm-source-entry-row">${content}<span class="cdm-row-actions"><button class="pure-button cdm-small" type="button" aria-label="Rename ${esc(entry.name)}" data-source-rename="${esc(entry.name)}">Rename</button></span></div>`;
+									})
 									.join('')
 							: '<div class="cdm-empty">No media files or folders here.</div>';
+						$('source-list').querySelectorAll('[data-source-rename]').forEach((button) => {
+							button.onclick = () => renameSourceItem(join(data.path, button.dataset.sourceRename));
+						});
 						$('source-list')
 							.querySelectorAll('[data-source-folder]')
 							.forEach(
 								(button) =>
 									(button.onclick = () => {
-										state.sourcePath = join(
-											state.sourcePath,
-											button.dataset.sourceFolder,
+										navigateSource(
+											join(state.sourcePath, button.dataset.sourceFolder),
 										);
-										loadSource();
 									}),
 							);
 						$('source-list')
@@ -283,6 +388,7 @@
 									(button.onclick = () =>
 										toggleSourceSelection(
 											join(state.sourcePath, button.dataset.sourceDir),
+										true,
 										)),
 							);
 						$('source-list')
@@ -295,9 +401,21 @@
 										);
 									}),
 							);
-					} catch (_) {
+						if (focusFolder) {
+							const button = Array.from($('source-list').querySelectorAll('[data-source-folder]'))
+								.find((entry) => entry.dataset.sourceFolder === focusFolder);
+							if (button) {
+								button.focus({ preventScroll: true });
+								button.scrollIntoView({ block: 'nearest' });
+							}
+						}
+					} catch (error) {
+						if (requestId !== sourceRequest) return;
+						message(error.detail || error.message || 'Request failed.', true);
 						$('source-list').innerHTML =
 							'<div class="cdm-empty">Could not load this drive directory.</div>';
+					} finally {
+						if (requestId === sourceRequest) updateSelection();
 					}
 				}
 				async function loadCatalog() {
@@ -321,7 +439,8 @@
 												: entry.type === 'file'
 													? 'File'
 													: 'Folder';
-										const directoryLink = entry.type === 'link' && entry.is_directory;
+										const directoryLink =
+											entry.type === 'link' && entry.is_directory;
 										const channelAction = directoryLink
 											? `<button class="pure-button cdm-small" data-channel-directory="${esc(entry.name)}">Create Station</button>`
 											: '';
@@ -345,7 +464,7 @@
 							.querySelectorAll('[data-channel-directory]')
 							.forEach((button) => {
 								button.onclick = () =>
-								openStationModal(
+									openStationModal(
 										join(state.catalogPath, button.dataset.channelDirectory),
 										button.dataset.channelDirectory,
 									);
@@ -396,10 +515,14 @@
 				function join(parent, name) {
 					return [parent, name].filter(Boolean).join('/');
 				}
-				function toggleSourceSelection(source) {
-					if (state.selectedSources.has(source))
+				function toggleSourceSelection(source, isDirectory = false) {
+					if (state.selectedSources.has(source)) {
 						state.selectedSources.delete(source);
-					else state.selectedSources.add(source);
+						state.selectedDirectories.delete(source);
+					} else {
+						state.selectedSources.add(source);
+						if (isDirectory) state.selectedDirectories.add(source);
+					}
 					updateSelection();
 					loadSource();
 				}
@@ -410,27 +533,279 @@
 						: 'No media selected';
 					$('create-link').disabled = count === 0;
 					$('clear-selection').disabled = count === 0;
+					$('source-deselect-all').disabled = count === 0 && !state.sourceFilesScan;
+					$('normalize-tmdb').disabled = count === 0 || state.normalizing || state.renameInProgress;
+					$('source-list').querySelectorAll('[data-source-rename]').forEach((button) => {
+						button.disabled = state.normalizing || state.renameInProgress;
+					});
+					$('source-select-all-files').disabled = !state.mount || Boolean(state.sourceFilesScan);
 					$('create-link').textContent = count
 						? `Create ${count} link${count === 1 ? '' : 's'} in catalog →`
 						: 'Create link in catalog →';
 				}
+				function clearSourceSelection() {
+					if (state.sourceFilesScan) message('');
+					state.sourceFilesScan = null;
+					state.selectedSources.clear();
+					state.selectedDirectories.clear();
+					updateSelection();
+				}
+				function navigateSource(path, mount = state.mount, focusFolder) {
+					if (path === state.sourcePath && mount === state.mount) return;
+					const changedDrive = mount !== state.mount;
+					state.mount = mount;
+					state.sourcePath = path;
+					if (changedDrive) clearSourceSelection();
+					$('source-list').replaceChildren();
+					updateSelection();
+					loadSource({ focusFolder });
+				}
 				$('drive-select').addEventListener('change', (event) => {
-					state.mount = event.target.value;
-					state.sourcePath = '';
-					state.selectedSources.clear();
-					updateSelection();
-					loadSource();
+					navigateSource('', event.target.value);
 				});
-				$('clear-selection').onclick = () => {
-					state.selectedSources.clear();
-					updateSelection();
+				function deselectAllSources() {
+					clearSourceSelection();
 					loadSource();
-				};
+				}
+				$('clear-selection').onclick = deselectAllSources;
+				$('source-deselect-all').onclick = deselectAllSources;
 				$('source-up').onclick = () => {
-					state.sourcePath = state.sourcePath.split('/').slice(0, -1).join('/');
-					loadSource();
+					const parts = state.sourcePath.split('/');
+					const folder = parts.pop();
+					if (folder) navigateSource(parts.join('/'), state.mount, folder);
 				};
 				$('source-refresh').onclick = loadSource;
+				function remapSourcePaths(mount, path, destination) {
+					if (state.mount !== mount) return;
+					const movePath = (value) => value === path || value.startsWith(`${path}/`)
+						? destination + value.slice(path.length)
+						: value;
+					state.sourcePath = movePath(state.sourcePath);
+					state.selectedSources = new Set([...state.selectedSources].map(movePath));
+					state.selectedDirectories = new Set([...state.selectedDirectories].map(movePath));
+				}
+				async function renameSourceItem(path) {
+					if (!state.mount || state.normalizing || state.renameInProgress) return;
+					const mount = state.mount;
+					const nameStart = path.lastIndexOf('/') + 1;
+					const oldName = path.slice(nameStart);
+					const newName = prompt('New name:', oldName)?.trim();
+					if (!newName || newName === oldName) return;
+					state.renameInProgress = true;
+					updateSelection();
+					try {
+						const result = await request('post', 'catalog-directory/source/rename', { mount, path, new_name: newName });
+						remapSourcePaths(mount, path, path.slice(0, nameStart) + result.name);
+						await Promise.all([loadCatalog(), state.mount === mount ? loadSource() : undefined]);
+						message(`Renamed to “${result.name}”. Catalog links updated: ${result.links_updated}.`);
+					} catch (_) {
+						// request() displays the error returned by the server.
+					} finally {
+						state.renameInProgress = false;
+						updateSelection();
+					}
+				}
+				function currentSourceItems() {
+					return Array.from($('source-list').querySelectorAll('[data-source-dir], [data-source-file]'), ({ dataset }) => ({
+						path: join(state.sourcePath, dataset.sourceDir ?? dataset.sourceFile),
+						isDirectory: dataset.sourceDir !== undefined,
+					}));
+				}
+				$('source-select-all').onclick = () => {
+					for (const { path, isDirectory } of currentSourceItems()) {
+						state.selectedSources.add(path);
+						if (isDirectory) state.selectedDirectories.add(path);
+					}
+					updateSelection();
+					loadSource();
+				};
+				$('source-select-all-files').onclick = async () => {
+					if (!state.mount || state.sourceFilesScan) return;
+					const scan = { mount: state.mount, path: state.sourcePath };
+					state.sourceFilesScan = scan;
+					updateSelection();
+					message('Finding media files in this folder and its subfolders…');
+					try {
+						const { paths } = await window.fs42Api.get(queryPath('catalog-directory/source/files', scan));
+						if (state.sourceFilesScan !== scan) return;
+						const before = state.selectedSources.size;
+						for (const path of paths) state.selectedSources.add(path);
+						const added = state.selectedSources.size - before;
+						message(paths.length ? `Added ${added} of ${paths.length} media files to the selection.` : 'No media files found in this folder or its subfolders.');
+						await loadSource();
+					} catch (error) {
+						if (state.sourceFilesScan === scan) message(error.detail || error.message, true);
+					} finally {
+						if (state.sourceFilesScan === scan) {
+							state.sourceFilesScan = null;
+							updateSelection();
+						}
+					}
+				};
+				$('check-tmdb').onclick = async () => {
+					if (!state.mount) {
+						message('Select a mounted drive first.', true);
+						return;
+					}
+					const paths = state.selectedDirectories.size
+						? Array.from(state.selectedDirectories)
+						: state.selectedSources.size
+							? []
+							: [state.sourcePath].filter(Boolean);
+					if (!paths.length) {
+						message('Select one or more show folders first.', true);
+						return;
+					}
+					const button = $('check-tmdb');
+					const originalLabel = button.textContent;
+					button.disabled = true;
+					let matched = 0;
+					let unmatched = 0;
+					let failed = 0;
+					let createdFiles = 0;
+					const problemDetails = [];
+					try {
+						for (let index = 0; index < paths.length; index++) {
+							button.textContent = `Checking ${index + 1} of ${paths.length}…`;
+							message(
+								`Checking MovieDB for ${index + 1} of ${paths.length} show folders…`,
+							);
+							try {
+								const result = await window.fs42Api.post(
+									'catalog-directory/tmdb/check',
+									{ mount: state.mount, path: paths[index] },
+								);
+								if (!result.match) {
+									unmatched++;
+									problemDetails.push(`${paths[index]} — not found`);
+									continue;
+								}
+								matched++;
+								createdFiles += result.files?.created?.length || 0;
+							} catch (_) {
+								failed++;
+								problemDetails.push(`${paths[index]} — request failed`);
+							}
+						}
+						message(
+							`MovieDB finished: ${matched} matched, ${unmatched} not found, ${failed} failed; ${createdFiles} metadata file${createdFiles === 1 ? '' : 's'} created.`,
+							unmatched > 0 || failed > 0,
+							problemDetails,
+						);
+						await loadSource();
+					} finally {
+						button.disabled = false;
+						button.textContent = originalLabel;
+					}
+				};
+				function showNormalizeProgress(phase, completed, total) {
+					const progress = $('normalize-progress');
+					progress.max = total;
+					progress.value = completed;
+					$('normalize-progress-label').textContent = `${phase} · ${completed} of ${total}`;
+					$('normalize-status').hidden = false;
+				}
+
+				async function previewRenames(mount, paths) {
+					const previews = new Array(paths.length);
+					let next = 0;
+					let completed = 0;
+					showNormalizeProgress('Normalizing Naming', 0, paths.length);
+					async function lookup() {
+						while (next < paths.length) {
+							const index = next++;
+							const path = paths[index];
+							try {
+								const { name, token } = await window.fs42Api.post(
+									'catalog-directory/tmdb/normalize/preview', { mount, path },
+								);
+								const destination = path.slice(0, path.lastIndexOf('/') + 1) + name;
+								previews[index] = { path, name, destination, token };
+							} catch (error) {
+								previews[index] = { problem: `${path} — ${error.detail || error.message}` };
+							}
+							showNormalizeProgress('Normalizing Naming', ++completed, paths.length);
+						}
+					}
+					await Promise.all(Array.from({ length: Math.min(3, paths.length) }, lookup));
+					return previews;
+				}
+
+				async function normalizeNames(sourcePaths) {
+					const mount = state.mount;
+					const paths = [...sourcePaths].sort(
+						(a, b) => b.split('/').length - a.split('/').length,
+					);
+					if (!mount || !paths.length || state.normalizing || state.renameInProgress) return;
+					state.normalizing = true;
+					updateSelection();
+					message('');
+					const changes = [];
+					const problems = [];
+					let unchanged = 0;
+					let renamed = 0;
+					let linksUpdated = 0;
+					try {
+						for (const preview of await previewRenames(mount, paths)) {
+							if (preview.problem) problems.push(preview.problem);
+							else if (preview.destination === preview.path) unchanged++;
+							else changes.push(preview);
+						}
+						if (changes.length) {
+							const preview = $('normalize-preview');
+							$('normalize-changes').replaceChildren(...changes.map(({ path, name }) => {
+								const row = document.createElement('tr');
+								const slash = path.lastIndexOf('/');
+								const before = row.insertCell();
+								before.textContent = path.slice(slash + 1);
+								if (slash >= 0) {
+									const folder = document.createElement('small');
+									folder.textContent = path.slice(0, slash + 1);
+									before.append(folder);
+								}
+								row.insertCell().textContent = name;
+								return row;
+							}));
+							$('normalize-skipped').hidden = problems.length === 0;
+							$('normalize-skipped').open = false;
+							$('normalize-skipped-summary').textContent = `${problems.length} skipped`;
+							$('normalize-problems').replaceChildren(...problems.map((line) => {
+								const item = document.createElement('li');
+								item.textContent = line;
+								return item;
+							}));
+							preview.returnValue = 'cancel';
+							$('normalize-status').hidden = true;
+							preview.showModal();
+							await new Promise((resolve) => preview.addEventListener('close', resolve, { once: true }));
+							if (preview.returnValue !== 'rename') {
+								message('Naming normalization canceled.');
+								return;
+							}
+							let processed = 0;
+							showNormalizeProgress('Renaming files', processed, changes.length);
+							for (const { path, name, destination, token } of changes) {
+								try {
+									const result = await window.fs42Api.post('catalog-directory/tmdb/normalize', { mount, path, name, token });
+									renamed++;
+									linksUpdated += result.links_updated || 0;
+									remapSourcePaths(mount, path, destination);
+								} catch (error) {
+									problems.push(`${path} — ${error.detail || error.message}`);
+								} finally {
+									showNormalizeProgress('Renaming files', ++processed, changes.length);
+								}
+							}
+							await Promise.all([loadCatalog(), state.mount === mount ? loadSource() : undefined]);
+						}
+						message(`${renamed} renamed, ${linksUpdated} catalog links updated, ${unchanged} already normalized, ${problems.length} skipped.`, problems.length > 0, problems);
+					} finally {
+						$('normalize-status').hidden = true;
+						state.normalizing = false;
+						updateSelection();
+					}
+				}
+				$('normalize-tmdb').onclick = () => normalizeNames(state.selectedSources);
 				$('export-to-drive').onclick = async () => {
 					if (!state.mount) {
 						message('Select a mounted drive first.', true);
@@ -526,8 +901,11 @@
 				};
 				async function openStationModal(relativePath, nameHint) {
 					state.pendingStationPath = relativePath;
-					const defaultName = (nameHint || relativePath.split('/').pop() || 'Catalog Station')
-						.replace(/[_-]+/g, ' ');
+					const defaultName = (
+						nameHint ||
+						relativePath.split('/').pop() ||
+						'Catalog Station'
+					).replace(/[_-]+/g, ' ');
 					$('station-name-input').value = defaultName;
 					$('station-type-select').value = 'loop';
 					try {
@@ -571,12 +949,15 @@
 							{ cache: 'no-cache' },
 						);
 						if (!templateResponse.ok)
-							throw new Error(`Could not load the ${templateName} station template.`);
+							throw new Error(
+								`Could not load the ${templateName} station template.`,
+							);
 						const template = await templateResponse.json();
 						const stationConf = template.station_conf;
 						stationConf.network_name = name;
 						stationConf.channel_number = channelNumber;
-						stationConf.network_type = stationType === 'ppv' ? 'web' : stationType;
+						stationConf.network_type =
+							stationType === 'ppv' ? 'web' : stationType;
 						stationConf.visual_editor = 'created';
 						let contentDir;
 						if (stationType === 'ppv') {
@@ -589,11 +970,18 @@
 							const tag = pathParts.pop() || 'catalog';
 							contentDir = pathParts.length
 								? `catalog/${pathParts.join('/')}`
-								: relativePath ? 'catalog' : '.';
+								: relativePath
+									? 'catalog'
+									: '.';
 							stationConf.content_dir = contentDir;
-							stationConf.day_templates = stationConf.day_templates || { daily: {} };
+							stationConf.day_templates = stationConf.day_templates || {
+								daily: {},
+							};
 							stationConf.day_templates.daily = Object.fromEntries(
-								Array.from({ length: 24 }, (_, hour) => [String(hour), { tags: tag }]),
+								Array.from({ length: 24 }, (_, hour) => [
+									String(hour),
+									{ tags: tag },
+								]),
 							);
 						} else {
 							contentDir = `catalog/${relativePath ? relativePath + '/' : ''}`;
@@ -607,7 +995,8 @@
 						);
 						closeStationModal();
 					} catch (error) {
-						if (!error.detail) message(error.message || 'Could not create station.', true);
+						if (!error.detail)
+							message(error.message || 'Could not create station.', true);
 					} finally {
 						createButton.disabled = false;
 					}
@@ -615,9 +1004,11 @@
 				$('create-station').onclick = () => openStationModal(state.catalogPath);
 				$('confirm-create-station').onclick = submitStation;
 				$('cancel-create-station').onclick = closeStationModal;
-				document.querySelectorAll('[data-close-station-modal]').forEach((button) => {
-					button.onclick = closeStationModal;
-				});
+				document
+					.querySelectorAll('[data-close-station-modal]')
+					.forEach((button) => {
+						button.onclick = closeStationModal;
+					});
 				$('create-link').onclick = async () => {
 					if (!state.selectedSources.size) return;
 					const sources = [...state.selectedSources];
@@ -637,6 +1028,7 @@
 						}
 					}
 					state.selectedSources.clear();
+					state.selectedDirectories.clear();
 					updateSelection();
 					message(
 						failed

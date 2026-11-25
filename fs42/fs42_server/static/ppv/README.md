@@ -1,11 +1,10 @@
 # Pay-Per-View (PPV)
 
-FieldStation42 includes two video-on-demand interfaces:
+FieldStation42 includes two PPV interfaces:
 
 - `ppv.html` shows the library as a poster slideshow.
 - `ppv_list.html` shows a scrollable movie list with a details panel. It can also provide search, filters, and sorting.
-
-Both interfaces read the station's `content_dir`, use local NFO and poster files when available, and can fall back to TMDB metadata. Selecting a movie sends it to the FieldStation42 player.
+Both interfaces read the station's `content_dir`, use local NFO and poster files when available, and can fall back to TMDB metadata. For the separate movie-and-show interface, see `../media_browser/README.md`.
 
 ## Create a PPV List Station
 

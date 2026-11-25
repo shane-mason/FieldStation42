@@ -1,0 +1,22 @@
+{
+	"station_conf": {
+		"network_name": "MyFlix",
+		"channel_number": 44,
+		"network_type": "web",
+		"web_url": "http://localhost:4242/static/media_browser/myflix.html?channel=44&resolution=480i",
+		"media_browser": {
+			"movies": [
+				{
+					"title": "Movies",
+					"path": "catalog/movies"
+				}
+			],
+			"shows": [
+				{
+					"title": "TV Shows",
+					"path": "catalog/shows"
+				}
+			]
+		}
+	}
+}

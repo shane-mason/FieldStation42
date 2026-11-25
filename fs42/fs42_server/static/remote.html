@@ -121,14 +121,9 @@
 				grid-row: 1;
 				font-size: 11px;
 			}
-			.nav-back-symbol {
+			.nav-symbol-large {
 				display: block;
-				font-size: 24px;
-				line-height: 1;
-			}
-			.nav-keyboard-symbol {
-				display: block;
-				font-size: 34px;
+				font-size: 26px;
 				line-height: 1;
 			}
 			.playback-timeline {
@@ -305,7 +300,7 @@
 					aria-label="Back"
 					title="Back"
 				>
-					<span class="nav-back-symbol">⏎</span>
+					<span class="nav-symbol-large">⏎</span>
 				</button>
 				<button class="remote-btn nav-btn nav-left" data-key="nav_left">
 					◀
@@ -328,7 +323,7 @@
 					aria-label="Open phone keyboard"
 					title="Open phone keyboard"
 				>
-					<span class="nav-keyboard-symbol">⌨</span>
+					<span class="nav-symbol-large">⌨</span>
 				</button>
 				<div
 					class="button-grid playback-section"
@@ -549,8 +544,10 @@
 
 			function muteStateFromResponse(response, fallback = muted) {
 				if (typeof response?.muted === 'boolean') return response.muted;
-				const statusText = `${response?.volume || ''} ${response?.message || ''}`.toUpperCase();
-				if (statusText.includes('MUTED') || statusText.includes('MUTE ON')) return true;
+				const statusText =
+					`${response?.volume || ''} ${response?.message || ''}`.toUpperCase();
+				if (statusText.includes('MUTED') || statusText.includes('MUTE ON'))
+					return true;
 				if (statusText.includes('MUTE OFF')) return false;
 				if (/\d+(?:\.\d+)?%/.test(statusText)) return false;
 				return fallback;
@@ -792,9 +789,10 @@
 							: '';
 						const isPpv =
 							station?.network_type === 'web' &&
-							!!station.content_dir &&
+							(!!station.content_dir || !!station.media_browser) &&
 							(webPath.endsWith('/static/ppv/ppv.html') ||
-								webPath.endsWith('/static/ppv/ppv_list.html'));
+								webPath.endsWith('/static/ppv/ppv_list.html') ||
+								webPath.endsWith('/static/media_browser/myflix.html'));
 						stationPpvCache.set(channelNumber, isPpv);
 					} catch (error) {
 						console.error('Could not identify PPV channel:', error);

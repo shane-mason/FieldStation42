@@ -86,6 +86,18 @@
       "type": "string",
       "description": "API key for The Movie Database, used to look up metadata."
     },
+    "tvdb_api_key": {"type": "string", "description": "TheTVDB v4 key for optional library episode orders."},
+    "tvdb_pin": {"type": "string", "description": "Subscriber PIN if required by the TheTVDB key."},
+    "episode_orders": {
+      "type": "object",
+      "description": "Provider episode order overrides keyed by TVmaze show ID.",
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "object", "required": ["tvmaze_list_id"], "properties": {"tvmaze_list_id": {"type": "integer", "minimum": 1}}, "additionalProperties": false},
+          {"type": "object", "required": ["tvdb_order"], "properties": {"tvdb_order": {"enum": ["official", "dvd", "alternate", "absolute", "regional", "altdvd", "alttwo"]}}, "additionalProperties": false}
+        ]
+      }
+    },
     "title_patterns": {
       "type": "array",
       "items": {

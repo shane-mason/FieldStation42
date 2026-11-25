@@ -13,6 +13,27 @@ logger = logging.getLogger("TMDB_Helper")
 # TMDB API configuration
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
+TMDB_MOVIE_GENRES = {
+    12: "Adventure",
+    14: "Fantasy",
+    16: "Animation",
+    18: "Drama",
+    27: "Horror",
+    28: "Action",
+    35: "Comedy",
+    36: "History",
+    37: "Western",
+    53: "Thriller",
+    80: "Crime",
+    99: "Documentary",
+    878: "Science Fiction",
+    9648: "Mystery",
+    10402: "Music",
+    10749: "Romance",
+    10751: "Family",
+    10752: "War",
+    10770: "TV Movie",
+}
 
 # Cache directory for TMDB results
 CACHE_DIR = Path("catalog/.tmdb_cache")
@@ -124,6 +145,15 @@ class TMDBHelper:
         # Check cache first (using original title as cache key)
         cached = self._load_from_cache(title)
         if cached:
+            if "genres" not in cached and cached.get("tmdb_id"):
+                details = self.get_movie_details(cached["tmdb_id"])
+                if details:
+                    cached["genres"] = [
+                        genre["name"]
+                        for genre in details.get("genres", [])
+                        if isinstance(genre, dict) and genre.get("name")
+                    ]
+                    self._save_to_cache(title, cached)
             return cached
 
         # Search TMDB
@@ -167,7 +197,12 @@ class TMDBHelper:
                 "poster_url": f"{TMDB_IMAGE_BASE_URL}{movie.get('poster_path')}" if movie.get("poster_path") else None,
                 "backdrop_path": movie.get("backdrop_path"),
                 "vote_average": movie.get("vote_average"),
-                "popularity": movie.get("popularity")
+                "popularity": movie.get("popularity"),
+                "genres": [
+                    TMDB_MOVIE_GENRES[genre_id]
+                    for genre_id in movie.get("genre_ids", [])
+                    if genre_id in TMDB_MOVIE_GENRES
+                ],
             }
 
             # Save to cache
@@ -182,6 +217,78 @@ class TMDBHelper:
             return None
         except Exception as e:
             logger.error(f"Unexpected error searching TMDB for '{title}': {e}")
+            return None
+
+    def search_media(self, title: str, media_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Search TMDB for the best matching movie or television show."""
+        if not self.is_configured():
+            logger.warning("TMDB API key not configured, skipping media search")
+            return None
+
+        clean_title, year = self._parse_title_and_year(title)
+        try:
+            response = self.session.get(
+                f"{TMDB_BASE_URL}/search/multi",
+                params={
+                    "api_key": self.api_key,
+                    "query": clean_title,
+                    "language": "en-US",
+                    "page": 1,
+                    "include_adult": False,
+                },
+                timeout=5,
+            )
+            response.raise_for_status()
+            results = [
+                item
+                for item in response.json().get("results", [])
+                if item.get("media_type") in {"movie", "tv"}
+                and (media_type is None or item.get("media_type") == media_type)
+            ]
+            if year:
+                year_matches = [
+                    item
+                    for item in results
+                    if str(
+                        item.get("release_date")
+                        or item.get("first_air_date")
+                        or ""
+                    ).startswith(str(year))
+                ]
+                if year_matches:
+                    results = year_matches
+            if not results:
+                return None
+
+            match = results[0]
+            media_type = match["media_type"]
+            return {
+                "tmdb_id": match.get("id"),
+                "media_type": media_type,
+                "title": match.get("title") if media_type == "movie" else match.get("name"),
+                "original_title": (
+                    match.get("original_title")
+                    if media_type == "movie"
+                    else match.get("original_name")
+                ),
+                "overview": match.get("overview", ""),
+                "release_date": (
+                    match.get("release_date")
+                    if media_type == "movie"
+                    else match.get("first_air_date")
+                ),
+                "poster_url": (
+                    f"{TMDB_IMAGE_BASE_URL}{match.get('poster_path')}"
+                    if match.get("poster_path")
+                    else None
+                ),
+                "vote_average": match.get("vote_average"),
+            }
+        except requests.exceptions.RequestException as exc:
+            logger.error("TMDB media search failed for '%s': %s", title, exc)
+            return None
+        except Exception as exc:
+            logger.error("Unexpected TMDB media search error for '%s': %s", title, exc)
             return None
 
     def get_movie_details(self, tmdb_id: int) -> Optional[Dict[str, Any]]:
@@ -203,6 +310,44 @@ class TMDBHelper:
 
         except Exception as e:
             logger.error(f"Failed to get TMDB details for ID {tmdb_id}: {e}")
+            return None
+
+    def get_tv_details(self, tmdb_id: int) -> Optional[Dict[str, Any]]:
+        if not self.is_configured():
+            return None
+        try:
+            response = self.session.get(
+                f"{TMDB_BASE_URL}/tv/{tmdb_id}",
+                params={
+                    "api_key": self.api_key,
+                    "language": "en-US",
+                    "append_to_response": "content_ratings",
+                },
+                timeout=5,
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as exc:
+            logger.error("Failed to get TMDB TV details for ID %s: %s", tmdb_id, exc)
+            return None
+
+    def download_poster(self, poster_path: str) -> Optional[bytes]:
+        if not poster_path or not poster_path.startswith("/"):
+            return None
+        try:
+            response = self.session.get(
+                f"{TMDB_IMAGE_BASE_URL}{poster_path}",
+                timeout=15,
+            )
+            response.raise_for_status()
+            if not response.headers.get("content-type", "").lower().startswith("image/"):
+                return None
+            if len(response.content) > 15 * 1024 * 1024:
+                logger.error("TMDB poster is larger than the 15 MB limit")
+                return None
+            return response.content
+        except Exception as exc:
+            logger.error("Failed to download TMDB poster %s: %s", poster_path, exc)
             return None
 
 

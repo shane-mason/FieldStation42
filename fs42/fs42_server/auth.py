@@ -58,12 +58,15 @@ PUBLIC_GET_PATHS = {
 PUBLIC_GET_ROUTE_PATTERNS = (
     re.compile(r"/summary/schedules/[^/]+\Z"),
 )
-PUBLIC_PREFIXES = ("/static/themes/",)
+PUBLIC_PREFIXES = ("/static/themes/", "/static/ppv/", "/static/media_browser/")
 PUBLIC_ROUTE_PATTERNS = (
     re.compile(r"/player/channels/(?:[0-9]+|up|down)\Z"),
     re.compile(r"/player/web/key/[A-Za-z0-9_]+\Z"),
     re.compile(r"/player/parental/digit/[0-9]\Z"),
     re.compile(r"/ppv/[0-9]+\Z"),
+    re.compile(r"/media-browser/[0-9]+\Z"),
+    re.compile(r"/media-browser/[0-9]+/tmdb\Z"),
+    re.compile(r"/media-browser/[0-9]+/art/[A-Za-z0-9_-]+/.+\Z"),
     re.compile(r"/ppv/[0-9]+/control/(?:rewind|play|pause|stop|fastForward)\Z"),
 )
 

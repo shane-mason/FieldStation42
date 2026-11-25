@@ -52,6 +52,27 @@
           "type": "string",
           "description": "Directory containing content files"
         },
+        "media_browser": {
+          "type": "object",
+          "description": "Movie and television libraries for the streaming-style media browser",
+          "properties": {
+            "movies": {
+              "type": "array",
+              "description": "Movie rows. Each directory is scanned recursively.",
+              "items": {"$ref": "#/$defs/mediaBrowserLibrary"}
+            },
+            "shows": {
+              "type": "array",
+              "description": "TV rows. Each top-level directory is treated as one series.",
+              "items": {"$ref": "#/$defs/mediaBrowserLibrary"}
+            }
+          },
+          "anyOf": [
+            {"required": ["movies"]},
+            {"required": ["shows"]}
+          ],
+          "additionalProperties": false
+        },
         "shuffle_loop": {
           "type": "boolean",
           "description": "When `true`, every video in `content_dir` plays once before the list is shuffled and replayed. Defaults to `false` (alphabetical order, looping). Only applies to loop network type."
@@ -650,6 +671,23 @@
     }
   },
   "$defs": {
+    "mediaBrowserLibrary": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": ["path"],
+          "properties": {
+            "title": {"type": "string", "minLength": 1},
+            "path": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "metaHint": {
       "type": "object",
       "description": "Availability rule applied to one or more tags. Content under the given tags is only eligible when the specified conditions are met.",

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Media Browser</title>
+		<link rel="stylesheet" href="media_browser.css" />
+		<script src="../fs42_client.js"></script>
+	</head>
+	<body>
+		<main id="app" class="app" aria-busy="true">
+			<header class="topbar">
+				<div id="station-title" class="brand">MYFLIX</div>
+				<nav aria-label="Library sections">
+					<button
+						class="nav-item active"
+						type="button"
+						data-library-filter="all"
+						aria-pressed="true"
+					>
+						Home
+					</button>
+					<button
+						class="nav-item"
+						type="button"
+						data-library-filter="movies"
+						aria-pressed="false"
+					>
+						Movies
+					</button>
+					<button
+						class="nav-item"
+						type="button"
+						data-library-filter="shows"
+						aria-pressed="false"
+					>
+						TV Shows
+					</button>
+				</nav>
+				<div id="channel-number" class="channel-number"></div>
+			</header>
+			<section id="library-toolbar" class="library-toolbar" hidden>
+				<label for="movie-search">Search Movies</label>
+				<input
+					id="movie-search"
+					type="search"
+					placeholder="Search movies by title…"
+					autocomplete="off"
+				/>
+			</section>
+
+			<section id="hero" class="hero" aria-live="polite">
+				<div class="hero-shade"></div>
+				<img id="hero-art" class="hero-art" alt="" />
+				<div class="hero-content">
+					<div id="hero-kicker" class="hero-kicker"></div>
+					<h1 id="hero-title"></h1>
+					<div id="hero-meta" class="hero-meta"></div>
+					<p id="hero-description"></p>
+					<button id="hero-action" type="button">▶ Play</button>
+				</div>
+			</section>
+
+			<section
+				id="rails"
+				class="rails"
+				aria-label="Movies and television shows"
+			></section>
+		</main>
+
+		<div id="details-modal" class="details-modal" hidden>
+			<section
+				class="details-card"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="details-title"
+			>
+				<button
+					id="details-close"
+					class="details-close"
+					type="button"
+					aria-label="Close"
+				>
+					×
+				</button>
+				<div class="details-summary">
+					<img id="details-poster" alt="" />
+					<div>
+						<div id="details-show-name" class="details-show-name" hidden></div>
+						<div id="details-type" class="details-type">SERIES</div>
+						<h2 id="details-title"></h2>
+						<div id="details-meta" class="details-meta"></div>
+						<p id="details-description" hidden></p>
+						<button id="details-play" class="details-play" type="button" hidden>
+							▶ Play
+						</button>
+					</div>
+				</div>
+				<aside
+					id="details-episode-sidebar"
+					class="details-episode-sidebar"
+					hidden
+				>
+					<h3 id="details-season-title"></h3>
+					<div
+						id="details-season-episodes"
+						class="details-season-episodes"
+					></div>
+				</aside>
+				<div id="season-tabs" class="season-tabs" aria-label="Seasons"></div>
+				<div
+					id="episode-list"
+					class="episode-list"
+					role="listbox"
+					aria-label="Episodes"
+				></div>
+				<div id="details-help" class="details-help">
+					← → season · ↑ ↓ episode · OK play · Back close
+				</div>
+			</section>
+		</div>
+
+		<div id="message" class="message loading" role="status">
+			<div id="loading-station-name" class="loading-station-name"></div>
+			<span class="loading-spinner" aria-hidden="true"></span>
+			<span class="visually-hidden">Loading your library…</span>
+		</div>
+		<script src="media_browser.js"></script>
+	</body>
+</html>

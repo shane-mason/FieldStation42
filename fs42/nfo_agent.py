@@ -354,6 +354,11 @@ class NFOAgent:
                 "content_rating": get_content_rating(),
             }
         elif tag == "tvshow":
+            tvmaze_ids = {
+                (element.text or "").strip()
+                for element in root.findall("uniqueid")
+                if (element.get("type") or "").casefold() == "tvmaze"
+            }
             meta = {
                 "type": "tvshow",
                 "title": get("title"),
@@ -363,6 +368,8 @@ class NFOAgent:
                 "content_rating": get_content_rating(),
                 "premiere_date": get("premiered"),
             }
+            if len(tvmaze_ids) == 1:
+                meta["tvmaze_id"] = tvmaze_ids.pop()
         else:
             # Unknown/unsupported Kodi root tag — keep the title and any of the
             # common fields that happen to be present.

@@ -11,8 +11,11 @@ from fs42.station_manager import StationManager
 from fs42.nfo_agent import NFOAgent
 from .tmdb_helper import get_tmdb_helper
 from .player import connected_command_queue, send_web_key
+from .media_browser import station_media_roots
 
 router = APIRouter(prefix="/ppv", tags=["ppv"])
+
+VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'}
 
 # Pydantic Models
 class NFOData(BaseModel):
@@ -53,7 +56,6 @@ class PlayFileResponse(BaseModel):
     success: bool
     message: str
 
-# Endpoints
 
 @router.get("/{channel_number}", response_model=PPVContentListResponse)
 async def get_ppv_content(channel_number: int, variation: Optional[str] = None):
@@ -101,8 +103,6 @@ async def get_ppv_content(channel_number: int, variation: Optional[str] = None):
     # Read directory contents
     try:
         contents = []
-        video_extensions = {'.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'}
-
         for filename in sorted(os.listdir(content_dir)):
             file_path = os.path.join(content_dir, filename)
 
@@ -114,7 +114,7 @@ async def get_ppv_content(channel_number: int, variation: Optional[str] = None):
             _, ext = os.path.splitext(filename)
 
             # Only process video files
-            if ext.lower() in video_extensions:
+            if ext.lower() in VIDEO_EXTENSIONS:
                 base_path = os.path.splitext(file_path)[0]
                 base_name = os.path.splitext(filename)[0]
 
@@ -312,7 +312,8 @@ async def play_file(channel_number: int, play_request: PlayFileRequest, request:
     # Create the command to send to the player
     command = {
         "command": "play_file",
-        "file_path": play_request.file_path
+        "file_path": play_request.file_path,
+        "channel_number": channel_number,
     }
 
     try:
@@ -349,11 +350,16 @@ async def control_ppv(channel_number: int, action: str, request: Request):
 
     station = StationManager().station_by_channel(channel_number)
     web_path = urlparse((station or {}).get("web_url", "")).path.rstrip("/")
+    ppv_pages = (
+        "/static/ppv/ppv.html",
+        "/static/ppv/ppv_list.html",
+        "/static/media_browser/myflix.html",
+    )
     if (
         not station
         or station.get("network_type") != "web"
-        or not station.get("content_dir")
-        or not (web_path.endswith("/static/ppv/ppv.html") or web_path.endswith("/static/ppv/ppv_list.html"))
+        or not station_media_roots(station)
+        or not web_path.endswith(ppv_pages)
     ):
         raise HTTPException(status_code=400, detail=f"Channel {channel_number} is not a PPV channel")
 
@@ -374,15 +380,19 @@ async def control_ppv(channel_number: int, action: str, request: Request):
     if video_path:
         # Compare normalized paths without resolving symlinks: catalog entries may
         # point to media outside the catalog through symlinked files/directories.
-        content_dir = os.path.abspath(os.path.normpath(station["content_dir"]))
         video_path = os.path.abspath(os.path.normpath(video_path))
-        try:
-            is_under_content = os.path.commonpath((content_dir, video_path)) == content_dir
-        except ValueError:
-            is_under_content = False
+        is_under_content = False
+        for configured_root in station_media_roots(station):
+            content_dir = os.path.abspath(os.path.normpath(configured_root))
+            try:
+                if os.path.commonpath((content_dir, video_path)) == content_dir:
+                    is_under_content = True
+                    break
+            except ValueError:
+                continue
         is_video = (
             is_under_content
-            and os.path.splitext(video_path)[1].lower() in {".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v"}
+            and os.path.splitext(video_path)[1].lower() in VIDEO_EXTENSIONS
         )
 
     command_queue = connected_command_queue(request)

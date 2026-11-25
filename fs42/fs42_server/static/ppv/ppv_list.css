@@ -27,11 +27,14 @@ body {
 }
 
 .page.crt {
-	width: min(100vw, 704px, 146.6667vh);
-	height: min(100vh, 480px, 68.1818vw);
+	/* width: min(100vw, 704px, 146.6667vh);
+	height: min(100vh, 480px, 68.1818vw); */
+	width: min(100vw, 590px, 146.6667vh);
+	height: min(100vh, 500px, 68.1818vw);
 	/* 704 by 480 display frame. */
 	aspect-ratio: 22 / 15;
-	padding-left: 40px;
+	padding-left: 20px;
+	padding-right: 20px;
 }
 
 .page.crt.resolution-1080i {

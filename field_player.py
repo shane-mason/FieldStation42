@@ -111,7 +111,7 @@ def input_check():
                         run_ticker(message, header, style, iterations)
                 case "play_file":
                     file_path = q_message.get("file_path", None)
-                    return PlayerOutcome(PlayerState.PLAY_FILE, file_path)
+                    return PlayerOutcome(PlayerState.PLAY_FILE, (file_path, q_message.get("channel_number")))
                 case "break_in":
                     return PlayerOutcome(PlayerState.BREAK_IN, q_message.get("file_path"))
                 case "web_key":
@@ -349,9 +349,28 @@ def main_loop(transition_fn, shutdown_queue=None, api_proc=None):
                 skip_play = True
 
         elif player_state.status == PlayerState.PLAY_FILE:
-            print("Got playfile!", player_state.payload )
+            file_path, requested_channel = player_state.payload
+            if requested_channel is not None and requested_channel != channel_conf["channel_number"]:
+                stations = manager.stations
+                target = next(((index, station) for index, station in enumerate(stations)
+                               if station["channel_number"] == requested_channel), None)
+                if target is None:
+                    logger.warning("Play request refers to unknown channel %s", requested_channel)
+                    continue
+                target_index, target_station = target
+                target_network = target_station["network_name"]
+                if (player._parental_controls_required(target_network)
+                        and player.parental_unlocked_network != target_network):
+                    logger.warning("Tune to channel %s and unlock it before requesting playback", requested_channel)
+                    continue
+                channel_index = target_index
+                channel_conf = target_station
+                player.station_config = channel_conf
+                player.parental_unlocked_network = None
+                save_channel_index(channel_index)
+                stuck_timer = 0
             skip_play = True
-            player_state = player.play_and_wait(player_state.payload)
+            player_state = player.play_and_wait(file_path)
 
         elif player_state.status == PlayerState.BREAK_IN:
             skip_play = True
