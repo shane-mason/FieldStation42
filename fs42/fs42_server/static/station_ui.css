@@ -110,6 +110,8 @@
 }
 
 .station-order-actions .pure-button {
+    font-size: 0.875em;
+    padding: 0.35em 0.65em;
     white-space: nowrap;
 }
 

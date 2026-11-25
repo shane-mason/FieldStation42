@@ -16,6 +16,7 @@
         let allStations = [];
         let filteredStations = [];
         let savingStationOrder = false;
+        let deletingStation = false;
 
         // Initialize page layout
         document.addEventListener('DOMContentLoaded', async function() {
@@ -181,6 +182,7 @@
             }
 
             const canReorder = !savingStationOrder
+                && !deletingStation
                 && document.getElementById('type-filter').value === 'all'
                 && !document.getElementById('search-input').value.trim();
             let html = '<div class="station-order-list">';
@@ -223,10 +225,23 @@
                         </div>
                         <div class="station-order-actions">
                             <button class="pure-button pure-button-primary" data-name="${encodeURIComponent(station.network_name || '')}" onclick="editStation(decodeURIComponent(this.dataset.name))">
+                                <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -0.125em">
+                                    <path d="M4 20l4.5-1 12-12a2.1 2.1 0 0 0-3-3l-12 12L4 20zm11-13 3 3"/>
+                                </svg>
                                 Edit Config
                             </button>
                             <button class="pure-button" data-name="${encodeURIComponent(station.network_name || '')}" onclick="duplicateStation(decodeURIComponent(this.dataset.name))">
+                                <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -0.125em">
+                                    <rect x="8" y="8" width="12" height="12" rx="2"/>
+                                    <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+                                </svg>
                                 Duplicate
+                            </button>
+                            <button type="button" class="pure-button sv-danger" data-name="${encodeURIComponent(station.network_name || '')}" onclick="deleteStation(decodeURIComponent(this.dataset.name))" ${!station.network_name || savingStationOrder || deletingStation ? 'disabled' : ''}>
+                                <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align: -0.125em">
+                                    <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>
+                                </svg>
+                                Delete
                             </button>
                         </div>
                     </div>
@@ -355,6 +370,23 @@
 
         function editStation(networkName) {
             window.location.href = `station_editor.html?station=${encodeURIComponent(networkName)}`;
+        }
+
+        async function deleteStation(networkName) {
+            if (!networkName || savingStationOrder || deletingStation) return;
+            if (!window.confirm(`Delete station "${networkName}"?`)) return;
+
+            deletingStation = true;
+            renderStations();
+            try {
+                await window.fs42Api.delete(`stations/${encodeURIComponent(networkName)}`);
+                allStations = allStations.filter(station => station.network_name !== networkName);
+            } catch (error) {
+                window.alert(`Error deleting station: ${error.detail || error.message}`);
+            } finally {
+                deletingStation = false;
+                applyFilters();
+            }
         }
 
         function escapeHtml(text) {
