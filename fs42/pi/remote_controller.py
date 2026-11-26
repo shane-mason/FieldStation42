@@ -1,516 +1,694 @@
 #!/usr/bin/env python3
-
-from evdev import InputDevice, ecodes
-import requests
-import os
-import subprocess
-import threading
-import sys
-import time
-import json
 import argparse
-import select
 import glob
+import json
+import logging
+import os
+import re
+import select
+import shutil
+import threading
+import time
+from typing import Callable, Dict
+
+import requests
+import subprocess
+import sys
+from evdev import InputDevice, ecodes
+
+logging.basicConfig(format='%(name)s: %(message)s', level=logging.DEBUG)
 
 
-# ======================================
-# CONFIGURATION - CUSTOMIZE YOUR MAPPINGS
-# ======================================
-
-# Server Configuration - can be overridden by environment variables
-FS42_HOST = os.getenv('FS42_HOST', '127.0.0.1')
-FS42_PORT = os.getenv('FS42_PORT', '4242')
-FS42_BASE_URL = f"http://{FS42_HOST}:{FS42_PORT}"
-
-
-def load_api_key():
-    if os.getenv('FS42_API_KEY'):
-        return os.getenv('FS42_API_KEY')
-    main_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'confs', 'main_config.json')
-    try:
-        with open(main_config) as f:
-            key = json.load(f).get('api_key')
-            return key.strip() if isinstance(key, str) and key.strip() else None
-    except (OSError, ValueError, AttributeError):
-        return None
-
-
-FS42_API_KEY = load_api_key()
-
-api = requests.Session()
-if FS42_API_KEY:
-    api.headers['X-API-Key'] = FS42_API_KEY
-
-# Debounce Configuration - Time in seconds to wait between repeated button presses
-DEBOUNCE_TIME = 0.25  # 250ms default debounce time
-
-# Services to toggle when power button is pressed (remote-controller is never toggled)
-SYSTEMCTL_TO_TOGGLE = [
-    'fs42.service',           # Field Player
-    'fs42-cable-box.service', # Cable Box
-    'fs42-osd.service',       # On-Screen Display
-]
-
-USE_SYSTEMCTL = True
-
-# Key Mappings - Change these to customize which keys do what
-# Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
-# 'esc', 'tab', 'backspace', 'delete', 'insert', 'pageup', 'pagedown', 'f1'-'f12',
-# 'a'-'z', 'leftshift', 'rightshift', 'leftctrl', 'rightctrl', 'leftalt', 'rightalt'
-DEFAULT_KEY_MAPPINGS = {
-    # Remote control functions
-    'show_guide': 'home',        # Show program guide
-    'volume_up': 'right',        # Increase volume
-    'volume_down': 'left',       # Decrease volume
-    'channel_up': 'up',          # Next channel
-    'channel_down': 'down',      # Previous channel
-    'navigation_up': 'pageup',   # Up / next item on web channels (guide, PPV)
-    'navigation_down': 'pagedown', # Down / previous item on web channels (guide, PPV)
-    'navigation_left': 'leftbrace',  # [ - Left on web channels (guide)
-    'navigation_right': 'rightbrace', # ] - Right on web channels (guide)
-    'confirm': 'enter',          # Select item on web channels (guide, PPV)
-    'last_channel': 'backspace', # Switch to last channel
-    'mute': 'm',                 # Mute/unmute volume
-    'toggle_subtitles': 'v',      # Toggle subtitle visibility in mpv
-    'cycle_subtitles': 'j',       # Cycle subtitle tracks in mpv
-    'cycle_audio': 'a',           # Cycle audio tracks in mpv
-    'power_stop': 'end',         # Stop player (power button)
-    'exit': 'esc',               # Exit remote controller
-
-    # Alternative mappings (uncomment to use):
-    # 'power_stop': 'space',     # Use spacebar for power/stop
-    # 'show_guide': 'g',         # Use 'g' key for guide
-    # 'volume_up': 'pageup',     # Use page up for volume up
-    # 'volume_down': 'pagedown', # Use page down for volume down
-}
-SETTINGS_FILE = "runtime/remote_controller.json"
-KEY_MAPPINGS = DEFAULT_KEY_MAPPINGS.copy()
-
-if os.path.exists(SETTINGS_FILE):
-    print(f"Loading settings from {SETTINGS_FILE}")
-    try:
-        with open(SETTINGS_FILE, 'r') as file:
-            remote_settings = json.load(file)
-        if remote_settings.get("use_systemctl") is not None:
-            print("Loading USE_SYSTEMCTL from file")
-            USE_SYSTEMCTL = bool(remote_settings["use_systemctl"])
-        if remote_settings.get("systemctl_to_toggle") is not None:
-            print("Loading SYSTEMCTL_TO_TOGGLE from file")
-            SYSTEMCTL_TO_TOGGLE = remote_settings["systemctl_to_toggle"]
-        if remote_settings.get("key_mappings") is not None:
-            print("Loading KEY_MAPPINGS from file")
-            file_mappings = remote_settings["key_mappings"]
-            KEY_MAPPINGS = file_mappings.copy()
-            for function, key in DEFAULT_KEY_MAPPINGS.items():
-                if function not in KEY_MAPPINGS and key not in KEY_MAPPINGS.values():
-                    KEY_MAPPINGS[function] = key
-    except Exception as e:
-        print(f"Error loading settings from file: {e}")
-
-CALLBACK_MAP_FILE = "runtime/remote_callback_map.json"
-PRESS_SOCKET = "runtime/press.socket"
-
-# Channel input state
-channel_input = ''
-channel_input_timer = None
-input_lock = threading.Lock()
-
-# Last channel tracking
-current_channel = None
-last_channel = None
-
-# Debounce tracking - stores last press time for each function
-last_press_time = {}
-debounce_lock = threading.Lock()
-
-def read_exec_mappings():
-    mappings = {}
-    if not os.path.exists(CALLBACK_MAP_FILE):
-        return mappings
-    with open(CALLBACK_MAP_FILE, "r") as f:
-        contents = f.read()
-        try:
-            mappings = json.loads(contents)
-        except Exception as e:
-            print(e)
-            pass
-        return mappings
-
-exec_mappings = read_exec_mappings()
-
-def write_press_socket(digits):
-    try:
-        with open(PRESS_SOCKET, "w") as fp:
-            json.dump({"digits": digits, "ts": time.time()}, fp)
-    except Exception as e:
-        print(f"Failed to write press socket: {e}")
+class ButtonNames:
+    POWER_DOWN = 'power_down'
+    POWER_UP = 'power_up'
+    POWER_TOGGLE = 'power_toggle'
+    LEFT = 'navigation_left'
+    RIGHT = 'navigation_right'
+    UP = 'navigation_up'
+    DOWN = 'navigation_down'
+    ENTER = 'confirm'
+    CHANNEL_UP = 'channel_up'
+    CHANNEL_DOWN = 'channel_down'
+    VOLUME_UP = 'volume_up'
+    VOLUME_DOWN = 'volume_down'
+    MUTE = "mute"
+    BACK = 'last_channel'
+    GUIDE = 'show_guide'
+    TOGGLE_SUBTITLES = 'toggle_subtitles'
+    CYCLE_SUBTITLES = 'cycle_subtitles'
+    CYCLE_AUDIO = 'cycle_audio'
+    EXIT = 'exit'  # used only for FLIRC remote
+    NUMBER_PREFIX = 'number_'  # don't forget to add the digit!
 
 
-def clear_press_socket():
-    try:
-        with open(PRESS_SOCKET, "w") as fp:
-            fp.write("")
-    except Exception:
+class BaseRemote:
+    """A base class for remote control. At its simplest, it raises named events representing
+    buttons when the underlying remote detects them. Things such as button de-bouncing should
+    take place with a remote's class, and the main remote class should take button events and
+     dispatch the various API calls to perform the actions"""
+
+    # event callbacks should pass BUTTON NAMES
+    def __init__(self):
+        self.button_callback: Callable[[str], bool] = None
+        """The event raised when a button is pressed. 
+        
+        Returns: True if the event was processed, False otherwise.
+        """
+
+    def run_forever(self):
         pass
 
 
-def should_allow_press(function_name, debounce_time=DEBOUNCE_TIME):
-    """Check if enough time has passed since last press of this function"""
-    global last_press_time
+class TestModeRemote(BaseRemote):
+    def __init__(self):
+        super().__init__()
 
-    with debounce_lock:
-        current_time = time.time()
-        last_time = last_press_time.get(function_name, 0)
+    def run_forever(self):
+        """Run in test mode using stdin for input (for WSL/development)"""
+        print("\n" + "=" * 60)
+        print("TEST MODE - Running without input device")
+        print("=" * 60)
+        print("\nAvailable commands:")
+        print("  0-9: Channel selection")
+        print("  h: Home/Guide")
+        print("  u: Channel up")
+        print("  d: Channel down")
+        print("  l: Volume down (left)")
+        print("  r: Volume up (right)")
+        print("  m: Mute")
+        print("  b: Last channel")
+        print("  e: Power/End (toggle services)")
+        print("  q: Quit")
+        print("\nType a command and press Enter:")
+        print("=" * 60 + "\n")
 
-        if current_time - last_time >= debounce_time:
-            last_press_time[function_name] = current_time
-            return True
-        else:
-            return False
-
-
-def send_channel_change():
-    """Send accumulated channel input to the server"""
-    global channel_input, channel_input_timer, current_channel, last_channel
-    
-    with input_lock:
-        if channel_input:
+        while True:
             try:
-                channel_number = int(channel_input)
-                print(f"Sending channel change to {channel_number}")
-                response = api.get(f'{FS42_BASE_URL}/player/channels/{channel_number}')
-                if response.ok:
-                    print(f"Changed to channel {channel_number}")
-                    # Update channel tracking - only update last_channel if we know the current channel
-                    if current_channel is not None and current_channel != channel_number:
-                        last_channel = current_channel
-                        print(f"Updated last_channel: {last_channel} (was on {current_channel}, now on {channel_number})")
-                    current_channel = channel_number
+                cmd = input("> ").strip().lower()
+
+                if not cmd:
+                    continue
+
+                # Handle numbers
+                if cmd.isdigit():
+                    for digit in cmd:
+                        self.button_callback(f"{ButtonNames.NUMBER_PREFIX}{digit}")
+                    continue
+
+                # Map single character commands to key names
+                key_map = {
+                    'h': ButtonNames.GUIDE,
+                    'u': ButtonNames.CHANNEL_UP,
+                    'd': ButtonNames.CHANNEL_DOWN,
+                    'l': ButtonNames.VOLUME_DOWN,
+                    'r': ButtonNames.VOLUME_UP,
+                    'm': ButtonNames.MUTE,
+                    'b': ButtonNames.BACK,
+                    'e': ButtonNames.POWER_TOGGLE,
+                    'q': ButtonNames.EXIT,
+                }
+
+                key_name = key_map.get(cmd)
+                if key_name:
+                    if not self.button_callback(key_name):
+                        break
                 else:
-                    print(f"Channel change to {channel_number} failed")
-            except Exception as e:
-                print(f"Channel change error: {e}")
-            
-            # Clear the input
-            channel_input = ''
-            channel_input_timer = None
-            clear_press_socket()
+                    print(f"Unknown command: {cmd}")
+
+            except KeyboardInterrupt:
+                print("\nExiting remote controller...")
+                break
+            except EOFError:
+                break
 
 
-def send_parental_digit_if_active(number):
-    try:
-        status_response = api.get(f'{FS42_BASE_URL}/player/status', timeout=2)
-        if not status_response.ok:
-            return False
+class FlircRemote(BaseRemote):
+    # Debounce Configuration - Time in seconds to wait between repeated button presses
+    DEBOUNCE_TIME = 0.25  # 250ms default debounce time
+    # Key Mappings - Change these to customize which keys do what
+    # Available key names: 'home', 'end', 'up', 'down', 'left', 'right', 'space', 'enter',
+    # 'esc', 'tab', 'backspace', 'delete', 'insert', 'pageup', 'pagedown', 'f1'-'f12',
+    # 'a'-'z', 'leftshift', 'rightshift', 'leftctrl', 'rightctrl', 'leftalt', 'rightalt'
+    DEFAULT_KEY_MAPPINGS = {
+        # Remote control functions
+        'show_guide': 'home',  # Show program guide
+        'volume_up': 'right',  # Increase volume
+        'volume_down': 'left',  # Decrease volume
+        'channel_up': 'up',  # Next channel
+        'channel_down': 'down',  # Previous channel
+        'navigation_up': 'pageup',  # Up / next item on web channels (guide, PPV)
+        'navigation_down': 'pagedown',  # Down / previous item on web channels (guide, PPV)
+        'navigation_left': 'leftbrace',  # [ - Left on web channels (guide)
+        'navigation_right': 'rightbrace',  # ] - Right on web channels (guide)
+        'confirm': 'enter',  # Select item on web channels (guide, PPV)
+        'last_channel': 'backspace',  # Switch to last channel
+        'mute': 'm',  # Mute/unmute volume
+        'toggle_subtitles': 'v',  # Toggle subtitle visibility in mpv
+        'cycle_subtitles': 'j',  # Cycle subtitle tracks in mpv
+        'cycle_audio': 'a',  # Cycle audio tracks in mpv
+        'power_stop': 'end',  # Stop player (power button)
+        'exit': 'esc',  # Exit remote controller
 
-        status = status_response.json()
-        if not status.get("awaiting_pin"):
-            return False
+        # Alternative mappings (uncomment to use):
+        # 'power_stop': 'space',     # Use spacebar for power/stop
+        # 'show_guide': 'g',         # Use 'g' key for guide
+        # 'volume_up': 'pageup',     # Use page up for volume up
+        # 'volume_down': 'pagedown', # Use page down for volume down
+    }
 
-        response = api.post(
-            f'{FS42_BASE_URL}/player/parental/digit/{number}',
-            timeout=2
-        )
+    def __init__(self, device: InputDevice, file_mapping: Dict[str, str]):
+        super().__init__()
+        self._logger = logging.getLogger('flirc_remote')
+        self._last_press_time = {}
+        self._device = device
+        # Debounce tracking - stores last press time for each function
+        self._debounce_lock = threading.Lock()
+        self._input_lock = threading.Lock()
 
-        if response.ok:
-            print(f"Parental controls PIN digit entered: {number}")
-            return True
+        # load overrides provided from JSON config
+        self._key_mappings = self.DEFAULT_KEY_MAPPINGS.copy()
+        for function, key in file_mapping.items():
+            self._key_mappings[function] = key
 
-        print(f"Parental controls digit failed: {response.status_code}")
-        return False
-    except Exception as e:
-        print(f"Parental controls digit error: {e}")
-        return False
+    def run_forever(self):
+        for event in self._device.read_loop():
+            if not self.handle_key_event(event):
+                return
 
+    def should_allow_press(self, function_name, debounce_time=DEBOUNCE_TIME):
+        """Check if enough time has passed since last press of this function"""
+        with self._debounce_lock:
+            current_time = time.time()
+            last_time = self._last_press_time.get(function_name, 0)
 
-def number_pressed(number):
-    """Handle number key presses from remote"""
-    global channel_input, channel_input_timer
-
-    if send_parental_digit_if_active(number):
-        return
-
-    with input_lock:
-        # Cancel any existing timer
-        if channel_input_timer:
-            channel_input_timer.cancel()
-            channel_input_timer = None
-        
-        # Add digit to input
-        channel_input += str(number)
-        print(f"Channel input: {channel_input}")
-        write_press_socket(channel_input)
-        
-        # If we have 3 digits, send immediately
-        if len(channel_input) >= 3:
-            # Use a very short timer to avoid race conditions
-            channel_input_timer = threading.Timer(0.1, send_channel_change)
-            channel_input_timer.start()
-        else:
-            # Set timeout for 1 second
-            channel_input_timer = threading.Timer(1.0, send_channel_change)
-            channel_input_timer.start()
-
-
-def show_guide_pressed():
-    """Handle home key press"""
-    if not should_allow_press('show_guide'):
-        return  # Debounced - ignore this press
-
-    global current_channel, last_channel
-    try:
-        response = api.post(f'{FS42_BASE_URL}/player/channels/guide')
-        if response.ok:
-            print("Guide displayed")
-            if current_channel is not None:
-                last_channel = current_channel
-                print(f"Stored last_channel: {last_channel} before guide")
-        else:
-            print("Guide command failed")
-    except Exception as e:
-        print(f"Guide error: {e}")
-
-
-def volume_up_pressed():
-    """Handle right arrow key press"""
-    if not should_allow_press('volume_up'):
-        return  # Debounced - ignore this press
-
-    try:
-        response = api.get(f'{FS42_BASE_URL}/player/volume/up')
-        if response.ok:
-            data = response.json()
-            print(f"Volume up: {data.get('volume', 'success')}")
-        else:
-            print("Volume up failed")
-    except Exception as e:
-        print(f"Volume up error: {e}")
-
-
-def volume_down_pressed():
-    """Handle left arrow key press"""
-    if not should_allow_press('volume_down'):
-        return  # Debounced - ignore this press
-
-    try:
-        response = api.get(f'{FS42_BASE_URL}/player/volume/down')
-        if response.ok:
-            data = response.json()
-            print(f"Volume down: {data.get('volume', 'success')}")
-        else:
-            print("Volume down failed")
-    except Exception as e:
-        print(f"Volume down error: {e}")
-
-
-def mute_pressed():
-    """Handle mute key press"""
-    if not should_allow_press('mute'):
-        return  # Debounced - ignore this press
-
-    try:
-        response = api.get(f'{FS42_BASE_URL}/player/volume/mute')
-        if response.ok:
-            data = response.json()
-            print(f"Mute toggled: {data.get('volume', 'success')}")
-        else:
-            print("Mute toggle failed")
-    except Exception as e:
-        print(f"Mute error: {e}")
-
-
-def nav_key_pressed(function_name, key_name):
-    """Forward a navigation key to the web channel (PPV, interactive guide) through the server"""
-    if not should_allow_press(function_name):
-        return
-
-    try:
-        response = api.post(f'{FS42_BASE_URL}/player/web/key/{key_name}', timeout=2)
-        if response.ok:
-            print(f"Nav key {key_name} sent")
-        else:
-            print(f"Nav key {key_name} failed")
-    except Exception as e:
-        print(f"Nav key {key_name} error: {e}")
-
-
-def channel_up_pressed():
-    """Handle up arrow key press"""
-    if not should_allow_press('channel_up'):
-        return  # Debounced - ignore this press
-
-    global current_channel, last_channel
-    try:
-        response = api.get(f'{FS42_BASE_URL}/player/channels/up')
-        if response.ok:
-            print("Channel up success")
-            # Poll status to wait for channel change (max 1 second)
-            try:
-                old_channel = current_channel
-                new_channel = None
-                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
-
-                for attempt in range(max_attempts):
-                    time.sleep(0.05)
-                    status_response = api.get(f'{FS42_BASE_URL}/player/status')
-                    if status_response.ok:
-                        status = status_response.json()
-                        new_channel = status.get('channel_number')
-
-                        # If channel changed or we have a channel number, we're done
-                        if new_channel != old_channel:
-                            break
-
-                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
-                # Only update last_channel if the channel actually changed
-                if new_channel != current_channel and current_channel is not None:
-                    last_channel = current_channel
-                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
-                else:
-                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
-                current_channel = new_channel
-            except Exception as e:
-                print(f"Failed to get current channel: {e}")
-                current_channel = None
-        else:
-            print("Channel up failed")
-    except Exception as e:
-        print(f"Channel up error: {e}")
-
-
-def channel_down_pressed():
-    """Handle down arrow key press"""
-    if not should_allow_press('channel_down'):
-        return  # Debounced - ignore this press
-
-    global current_channel, last_channel
-    try:
-        response = api.get(f'{FS42_BASE_URL}/player/channels/down')
-        if response.ok:
-            print("Channel down success")
-            # Poll status to wait for channel change (max 1 second)
-            try:
-                old_channel = current_channel
-                new_channel = None
-                max_attempts = 20  # 20 attempts * 0.05s = 1 second max
-
-                for attempt in range(max_attempts):
-                    time.sleep(0.05)
-                    status_response = api.get(f'{FS42_BASE_URL}/player/status')
-                    if status_response.ok:
-                        status = status_response.json()
-                        new_channel = status.get('channel_number')
-
-                        # If channel changed or we have a channel number, we're done
-                        if new_channel != old_channel:
-                            break
-
-                print(f"DEBUG: Status returned channel_number={new_channel}, current_channel={current_channel}")
-                # Only update last_channel if the channel actually changed
-                if new_channel != current_channel and current_channel is not None:
-                    last_channel = current_channel
-                    print(f"Channel changed: {current_channel} -> {new_channel} (Last: {last_channel})")
-                else:
-                    print(f"Channel unchanged: new={new_channel}, current={current_channel}")
-                current_channel = new_channel
-            except Exception as e:
-                print(f"Failed to get current channel: {e}")
-                current_channel = None
-        else:
-            print("Channel down failed")
-    except Exception as e:
-        print(f"Channel down error: {e}")
-
-
-def last_channel_pressed():
-    """Handle last channel key press"""
-    if not should_allow_press('last_channel'):
-        return  # Debounced - ignore this press
-
-    global current_channel, last_channel
-    if last_channel is not None:
-        try:
-            print(f"Switching to last channel: {last_channel}")
-            response = api.get(f'{FS42_BASE_URL}/player/channels/{last_channel}')
-            if response.ok:
-                print(f"Switched to last channel {last_channel}")
-                # Swap current and last channel
-                temp = current_channel
-                current_channel = last_channel
-                last_channel = temp
+            if current_time - last_time >= debounce_time:
+                self._last_press_time[function_name] = current_time
+                return True
             else:
-                print(f"Last channel change to {last_channel} failed")
+                return False
+
+    def get_key_name_from_code(self, key_code):
+        name = ecodes.KEY.get(key_code)
+
+        self._logger.debug(f"Key code: {key_code}")
+
+        if name is None:
+            self._logger.debug(f"Unknown key")
+            return str(key_code)
+
+        # evdev can return multiple names for the same key code
+        if isinstance(name, (tuple, list)):
+            self._logger.debug(f"Key aliases: {name}")
+
+            # Filter for meaningful key name
+            preferred = [
+                n for n in name
+                if not n.endswith("_MIN_INTERESTING")
+                   and not n.endswith("_MAX_INTERESTING")
+            ]
+
+            if preferred:
+                name = preferred[0]
+            else:
+                name = name[0]
+
+        self._logger.debug(f"Key name: {name}")
+
+        return name.removeprefix("KEY_").lower()
+
+    def handle_key_event(self, event):
+        """Handle key press events from evdev"""
+        if event.type == ecodes.EV_KEY and event.value == 1:  # Key press (not release)
+            key_code = event.code
+
+            # Number keys (1-9, 0) - always handled the same way
+            if ecodes.KEY_1 <= key_code <= ecodes.KEY_9:
+                number = key_code - ecodes.KEY_1 + 1
+                self.button_callback(ButtonNames.NUMBER_PREFIX + str(number))
+                return True
+            elif key_code == ecodes.KEY_0:
+                self.button_callback(ButtonNames.NUMBER_PREFIX + "0")
+                return True
+            elif key_code in (ecodes.KEY_ENTER, ecodes.KEY_KPENTER):
+                self.button_callback(ButtonNames.ENTER)
+
+            # Get the key name and check if it's mapped to a function
+            if key_code == ecodes.KEY_KPENTER:
+                key_name = 'enter'
+            else:
+                key_name = self.get_key_name_from_code(key_code)
+            if not key_name:
+                self._logger.debug(f"Unknown key code: {key_code}")
+                return True
+
+            self._logger.debug(f"Key pressed: {key_name} (code: {key_code})")
+            return self.button_callback(key_name)
+
+        return True
+
+
+class FlircRemoteAllDevices(FlircRemote):
+    """A wrapper over FlircRemote that listens to all udev event sources"""
+
+    def __init__(self, mapping: Dict = {}):
+        super().__init__(None, mapping)
+        self._device_remotes = {}
+
+    def run_forever(self):
+        devices = {}
+
+        try:
+            while True:
+                # Discover newly connected devices
+                for device_path in glob.glob('/dev/input/event*'):
+                    if device_path in devices:
+                        continue
+
+                    try:
+                        device = InputDevice(device_path)
+
+                        if ecodes.EV_KEY not in device.capabilities():
+                            continue
+
+                        device.grab()
+                        devices[device_path] = device
+
+                        self._logger.debug(f"Listening to device: {device.name} ({device.path})")
+
+                    except (OSError, PermissionError):
+                        # Device may have disconnected between glob() and InputDevice()
+                        continue
+
+                if not devices or len(devices) == 0:
+                    self._logger.debug("No keyboard/remote devices found. Waiting...")
+                    time.sleep(5)
+                    continue
+
+                try:
+                    readable, _, _ = select.select(
+                        list(devices.values()),
+                        [],
+                        [],
+                        1.0
+                    )
+
+                    for device in readable:
+                        try:
+                            for event in device.read():
+                                if not self.handle_key_event(event):
+                                    return
+
+                        except FileNotFoundError:
+                            self._logger.warning(f"Input device missing: {device.name}")
+
+                            try:
+                                device.ungrab()
+                            except OSError:
+                                pass
+
+                            devices.pop(device.path, None)
+
+                        except OSError as e:
+                            if e.errno == 19 or e.errno == 2:
+                                self._logger.info(f"Input device disconnected: {device.name}")
+
+                                try:
+                                    device.ungrab()
+                                except OSError:
+                                    pass
+
+                                devices.pop(device.path, None)
+                            else:
+                                raise
+
+                except FileNotFoundError:
+                    # A device disconnected while select/read was operating.
+                    continue
+
+        except PermissionError:
+            print("Permission denied. Try running with sudo.")
+            sys.exit(1)
+
+        except KeyboardInterrupt:
+            print("\nExiting remote controller...")
+
         except Exception as e:
-            print(f"Last channel error: {e}")
-    else:
-        print("No last channel stored")
+            print(f"Error: {e}")
+            sys.exit(1)
 
-
-def end_pressed():
-    """Handle end key press - stop the player"""
-    if not should_allow_press('power_stop'):
-        return  # Debounced - ignore this press
-
-    try:
-        response = api.get(f'{FS42_BASE_URL}/player/commands/stop')
-        if response.ok:
-            print("Player stopped")
-        else:
-            print("Stop command failed")
-    except Exception as e:
-        print(f"Stop error: {e}")
-
-
-def toggle_services():
-    """Toggle FieldStation42 services on/off - true power button behavior"""
-    if not should_allow_press('power_stop'):
-        return  # Debounced - ignore this press
-
-    try:
-        # Check if fs42.service is active to determine current state
-        result = subprocess.run(
-            ['systemctl', '--user', 'is-active', 'fs42.service'],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-
-        services_active = result.stdout.strip() == 'active'
-
-        if services_active:
-            # Services are running, stop them
-            for service in SYSTEMCTL_TO_TOGGLE:
+        finally:
+            # Release devices
+            for device in devices.values():
                 try:
-                    # Fire and forget - don't wait for completion since services may have delays
-                    subprocess.Popen(
-                        ['systemctl', '--user', 'stop', service],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-                    print(f"Stopping {service}")
-                except Exception as e:
-                    print(f"Error stopping {service}: {e}")
+                    device.ungrab()
+                except OSError:
+                    pass
+
+
+class HdmiCecRemote(BaseRemote):
+    # to use this, first install cec-client:
+    # apt-get install cec-utils
+
+    # IMPORTANT
+    # add vc4.force_hotplug=3 to /boot/firmware/cmdline.txt
+    # otherwise your display will randomly turn on by itself.
+
+    # We'll wrap cec-client instead of using cec/libcec directly because:
+    #  1) python libcec doesn't fully expose the entirety of libcec, and so
+    #     I have been unable to convince my connected TV that Station42 is a tuner,
+    #     and so the channel buttons don't work, which I'd like them to.
+    #  2) libCEC proper has its own python wrapper which is full-featured generated from
+    #     SWIG, however it doesn't ship with the libcec .deb files.
+    #  Doing this achieves everything desired with minimal hassle.
+    key_up_regex = re.compile(r"key released: .*\((\d+)\) D:(\d+)")
+    power_up_regex = re.compile(r"powering on 'TV'")
+    power_up_regex_alternate = re.compile(r"power status changed from '.+' to '.+on'")
+    power_off_regex = re.compile(r"power status changed from '.+' to 'standby'")
+
+    _button_to_function = {
+        0x00: ButtonNames.ENTER,  # CEC_USER_CONTROL_CODE_SELECT
+        0x01: ButtonNames.UP,  # CEC_USER_CONTROL_CODE_UP
+        0x02: ButtonNames.DOWN,  # CEC_USER_CONTROL_CODE_DOWN
+        0x03: ButtonNames.LEFT,  # CEC_USER_CONTROL_CODE_LEFT
+        0x04: ButtonNames.RIGHT,  # CEC_USER_CONTROL_CODE_RIGHT
+        0x30: ButtonNames.CHANNEL_UP,  # CEC_USER_CONTROL_CODE_CHANNEL_UP
+        0x31: ButtonNames.CHANNEL_DOWN,  # CEC_USER_CONTROL_CODE_CHANNEL_DOWN
+        0x32: ButtonNames.BACK,  # CEC_USER_CONTROL_CODE_PREVIOUS_CHANNEL
+        # we will ignore volume as the TV itself can handle that
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._logger = logging.getLogger('hdmicec_remote')
+
+    def run_forever(self):
+        with subprocess.Popen(
+                [str(shutil.which("cec-client")), "-d", "31", "-t", "t"], stdout=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+        ) as cec_client:
+            for line in cec_client.stdout:
+                match = self.key_up_regex.search(line)
+                if match:
+                    keycode = int(match.groups()[0], 16)
+                    duration = int(match.groups()[1])
+                    self._logger.debug(f"Key Pressed: {hex(keycode)}, duration: {duration}")
+                    if duration > 25:
+                        button_name = self._button_to_function.get(keycode, None)
+                        if button_name:
+                            self.button_callback(button_name)
+                    continue
+                match = self.power_up_regex.search(line)
+                if match:
+                    self._logger.debug(f"Display power-up detected.")
+                    self.button_callback(ButtonNames.POWER_UP)
+                    continue
+                match = self.power_up_regex_alternate.search(line)
+                if match:
+                    self._logger.debug(f"Display power-up detected.")
+                    self.button_callback(ButtonNames.POWER_UP)
+                    continue
+                match = self.power_off_regex.search(line)
+                if match:
+                    self._logger.debug(f"Display power-down detected.")
+                    self.button_callback(ButtonNames.POWER_DOWN)
+                    continue
+
+
+class _FieldStationApi:
+    """A simple wrapper around API calls, to be faked for ease in testing."""
+
+    @staticmethod
+    def load_api_key():
+        if os.getenv('FS42_API_KEY'):
+            return os.getenv('FS42_API_KEY')
+        main_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'confs', 'main_config.json')
+        try:
+            with open(main_config) as f:
+                key = json.load(f).get('api_key')
+                return key.strip() if isinstance(key, str) and key.strip() else None
+        except (OSError, ValueError, AttributeError):
+            return None
+
+    def __init__(self):
+        # Server Configuration - can be overridden by environment variables
+        self.FS42_HOST = os.getenv('FS42_HOST', '127.0.0.1')
+        self.FS42_PORT = os.getenv('FS42_PORT', '4242')
+        self.FS42_BASE_URL = f"http://{self.FS42_HOST}:{self.FS42_PORT}"
+
+        self.FS42_API_KEY = self.load_api_key()
+
+        self.api = requests.Session()
+        if self.FS42_API_KEY:
+            self.api.headers['X-API-Key'] = self.FS42_API_KEY
+        self._logger = logging.getLogger('remote_control_api')
+
+    def goto_channel(self, dest) -> bool:
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/player/channels/{dest}', "get",
+            f"change_channel: {dest}")
+
+    def get_status(self) -> Dict | None:
+        try:
+            response = self.api.get(f'{self.FS42_BASE_URL}/player/status')
+            if response.ok:
+                self._logger.debug(f"get_status succeeded.")
+                return response.json()
+            else:
+                self._logger.debug(f"get_status command failed: ({response.status_code})")
+        except Exception as e:
+            self._logger.debug(f"API command error for get_status: {e}")
+        return None
+
+    def power(self, start_or_stop) -> bool:
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/manage/{start_or_stop}', "post",
+            f"change_power: {start_or_stop}")
+
+    def volume(self, change: str):
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/player/volume/change', "get",
+            f"volume: {change}")
+
+    def show_guide(self) -> bool:
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/player/channels/guide', "post",
+            f"show_guide")
+
+    def post_parental_pin(self, number) -> bool:
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/player/parental/digit/{number}', "post",
+            f"parental_pin: {number}",
+            timeout=2)
+
+    def mpv_command_pressed(self, action) -> bool:
+        """Send a non-interrupting mpv runtime command to FS42."""
+        endpoint = action.replace("_", "-")
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/player/mpv/{endpoint}', "post",
+            f"mpv: {action}",
+            timeout=2)
+
+    def navigate(self, direction) -> bool:
+        return self._try_api_call(
+            f'{self.FS42_BASE_URL}/player/web/key/{direction}', "post",
+            f"navigate: {direction}",
+            timeout=2)
+
+    def _try_api_call(self, url: str, method: str, action_name: str, timeout=None) -> bool:
+        try:
+            response = self.api.request(method,
+                                        url,
+                                        timeout=timeout,
+                                        )
+
+            if response.ok:
+                self._logger.debug(f"API command sent: {action_name}")
+                return True
+            else:
+                self._logger.debug(f"API command failed: {action_name} ({response.status_code})")
+        except Exception as e:
+            self._logger.debug(f"API command error for {action_name}: {e}")
+        return False
+
+
+class _NumberTimer:
+    """A wrapper around threading.Timer allowing for ease in testing."""
+
+    def __init__(self):
+        self.on_complete = None
+        self._timeout: threading.Timer | None = None
+
+    def start(self, duration: float):
+        existing = self._timeout
+        if existing:
+            existing.cancel()
+        timer = threading.Timer(duration, self._timer_finished)
+        timer.start()
+        self._timeout = timer
+
+    def _timer_finished(self):
+        self._timeout = None
+        self.on_complete()
+
+    def is_waiting(self):
+        timer = self._timeout
+        return False if not timer else not timer.finished
+
+    def complete_early(self):
+        timer = self._timeout
+        if timer:
+            timer.cancel()
+            self.on_complete()
+        self._timeout = None
+
+    def wait_for_status(self):
+        time.sleep(0.05)
+
+
+class RemoteControl:
+    def __init__(self, remote: BaseRemote, fsapi: _FieldStationApi, timer: _NumberTimer):
+        self._logger = logging.getLogger("cec-remote")
+        # Last channel tracking
+        self.current_channel = None
+        self.last_channel = None
+        self.api = fsapi
+        self._timer = timer
+        self._timer.on_complete = self.handle_channel_number
+
+        remote.button_callback = self.handle_button
+
+        self.number_buffer = []
+
+    def send_parental_digit_if_active(self, number):
+        try:
+            status = self.api.get_status()
+            if not status:
+                return False
+            if not status.get("awaiting_pin"):
+                return False
+
+            return self.api.post_parental_pin(number)
+        except Exception as ex:
+            self._logger.error(f"Parental controls digit error: {ex}")
+            return False
+
+    def number_pressed(self, number) -> bool:
+        """Handle number key presses from remote"""
+
+        if self.send_parental_digit_if_active(number):
+            return False
+
+        self.number_buffer.append(number)
+        if len(self.number_buffer) >= 3:
+            self._timer.complete_early()
         else:
-            # Services are not running, start them
-            for service in SYSTEMCTL_TO_TOGGLE:
+            self._timer.start(1.0)
+        return True
+
+    def nav_key_pressed(self, key_name) -> bool:
+        """Forward a navigation key to the web channel (PPV, interactive guide) through the server"""
+        return self.api.navigate(key_name)
+
+    def show_guide(self) -> bool:
+        """Handle home key press"""
+        return self.api.show_guide()
+
+    def change_channel(self, dest) -> bool:
+        try:
+            if dest == 'last':
+                if self.last_channel:
+                    dest = self.last_channel
+                else:
+                    return False
+            response = self.api.goto_channel(dest)
+            if response:
+                # self._logger.debug(f"Channel changed success: {dest}")
+                # Poll status to wait for channel change (max 1 second)
                 try:
-                    # Fire and forget - don't wait for completion since services have startup delays
-                    subprocess.Popen(
-                        ['systemctl', '--user', 'start', service],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-                    print(f"Starting {service}")
+                    old_channel = self.current_channel
+                    new_channel = None
+                    max_attempts = 20  # 20 attempts * 0.05s = 1 second max
+
+                    for attempt in range(max_attempts):
+                        self._timer.wait_for_status()
+                        status = self.api.get_status()
+                        if status:
+                            new_channel = status.get('channel_number')
+                            # If channel changed or we have a channel number, we're done
+                            if new_channel != old_channel:
+                                break
+
+                    self._logger.debug(
+                        f"status returned channel_number={new_channel}, current_channel={self.current_channel}")
+                    # Only update last_channel if the channel actually changed
+                    if new_channel != self.current_channel and self.current_channel is not None:
+                        self.last_channel = self.current_channel
+                        self._logger.debug(
+                            f"Channel changed: {self.current_channel} -> {new_channel} (Last: {self.last_channel})")
+                    else:
+                        self._logger.debug(f"Channel unchanged: new={new_channel}, current={self.current_channel}")
+                    self.current_channel = new_channel
+                    return True
                 except Exception as e:
-                    print(f"Error starting {service}: {e}")
+                    self._logger.debug(f"Failed to get current channel: {e}")
+                    self.current_channel = None
+            else:
+                self._logger.warning(f"Channel {dest} failed")
+        except Exception as e:
+            self._logger.error(f"Channel {dest} error: {e}")
+        return False
 
-    except subprocess.TimeoutExpired:
-        print("Error: systemctl command timed out")
-    except Exception as e:
-        print(f"Error toggling services: {e}")
+    def handle_channel_number(self):
+        channel_number = "".join([str(i) for i in self.number_buffer])
+        self.number_buffer = []
+        self.change_channel(channel_number)
+
+    def handle_power(self, on_off) -> bool:
+        if on_off == "toggle":
+            return False  # TODO I'll get to it
+        return self.api.power(on_off)
+
+    POWER_HANDLING = {ButtonNames.POWER_DOWN: "stop",
+                      ButtonNames.POWER_UP: "start",
+                      ButtonNames.POWER_TOGGLE: "toggle"}
+    VOLUME = {ButtonNames.VOLUME_DOWN: "down",
+              ButtonNames.VOLUME_UP: "up",
+              ButtonNames.MUTE: "mute"}
+    CHANNEL_CHANGING = {ButtonNames.CHANNEL_DOWN: "down",
+                        ButtonNames.CHANNEL_UP: "up",
+                        ButtonNames.BACK: "last"}
+    NAVIGATION = {ButtonNames.UP: "PageUp",
+                  ButtonNames.DOWN: "PageDown",
+                  ButtonNames.LEFT: "NavLeft",
+                  ButtonNames.RIGHT: "NavRight",
+                  ButtonNames.ENTER: "Enter"}
+    MPV_FUNCTIONS = {ButtonNames.CYCLE_SUBTITLES: "cycle_subtitles",
+                     ButtonNames.TOGGLE_SUBTITLES: "toggle_subtitles",
+                     ButtonNames.CYCLE_AUDIO: "cycle_audio", }
+
+    def handle_button(self, button_name: str) -> bool:
+        if button_name in self.POWER_HANDLING:
+            return self.handle_power(self.POWER_HANDLING[button_name])
+        if button_name in self.VOLUME:
+            return self.api.volume(self.VOLUME[button_name])
+        if button_name in self.CHANNEL_CHANGING:
+            return self.change_channel(self.CHANNEL_CHANGING[button_name])
+        if button_name in self.NAVIGATION:
+            return self.nav_key_pressed(self.NAVIGATION[button_name])
+        if button_name in self.MPV_FUNCTIONS:
+            return self.api.mpv_command_pressed(self.MPV_FUNCTIONS[button_name])
+        if button_name == ButtonNames.GUIDE:
+            return self.show_guide()
+
+        if button_name.startswith(ButtonNames.NUMBER_PREFIX):
+            number_only = button_name.replace(ButtonNames.NUMBER_PREFIX, '')
+            return self.number_pressed(number_only)
+        return False
 
 
-def find_input_device(device_spec=None):
+def find_input_device(device_spec: str | None = None):
     """Find the Flirc or keyboard input device
 
     Args:
@@ -520,13 +698,16 @@ def find_input_device(device_spec=None):
             - Device name pattern (e.g., 'flirc', 'keyboard')
             - None to auto-detect
     """
-    
+
     devices = []
     default = False
     # Look for input devices
+    devs = glob.glob("/dev/input/event*")
+    print(devs)
     for device_path in glob.glob('/dev/input/event*'):
         try:
             device = InputDevice(device_path)
+            print(f"{device_path}: {device.name}, {device.capabilities()}")
             # Look for devices that can send key events
             if ecodes.EV_KEY in device.capabilities():
                 devices.append((device_path, device.name))
@@ -559,7 +740,8 @@ def find_input_device(device_spec=None):
                 print(f"Using device at index {index}: {name} ({path})")
                 return path
             else:
-                print(f"Warning: Device index {index} out of range (0-{len(devices)-1}), falling back to auto-detect")
+                print(
+                    f"Warning: Device index {index} out of range (0-{len(devices) - 1}), falling back to auto-detect")
 
         # Treat it as a name pattern
         else:
@@ -585,283 +767,33 @@ def find_input_device(device_spec=None):
     print(f"Using default device: {devices[0][1]}")
     return devices[0][0]
 
-def get_key_name_from_code(key_code):
-    name = ecodes.KEY.get(key_code)
 
-    #print(f"Key code: {key_code}")
+SETTINGS_FILE = "runtime/remote_controller.json"
 
-    if name is None:
-        #print("Unknown key")
-        return str(key_code)
 
-    # evdev can return multiple names for the same key code
-    if isinstance(name, (tuple, list)):
-        print(f"Key aliases: {name}")
-
-        # Filter for meaningful key name
-        preferred = [
-            n for n in name
-            if not n.endswith("_MIN_INTERESTING")
-            and not n.endswith("_MAX_INTERESTING")
-        ]
-
-        if preferred:
-            name = preferred[0]
-        else:
-            name = name[0]
-
-    print(f"Key name: {name}")
-
-    return name.removeprefix("KEY_").lower()
-
-def handle_key_name(key_name):
-    """Handle a key press by key name (common logic for evdev and test mode)"""
-    # Check mappings and call appropriate function
-    for function_name, mapped_key in KEY_MAPPINGS.items():
-        if key_name == mapped_key:
-            print(f"DEBUG: Matched function: {function_name}")
-            if function_name == 'show_guide':
-                show_guide_pressed()
-            elif function_name == 'volume_up':
-                volume_up_pressed()
-            elif function_name == 'volume_down':
-                volume_down_pressed()
-            elif function_name == 'mute':
-                mute_pressed()
-            elif function_name == 'toggle_subtitles':
-                mpv_command_pressed('toggle_subtitles')
-            elif function_name == 'cycle_subtitles':
-                mpv_command_pressed('cycle_subtitles')
-            elif function_name == 'cycle_audio':
-                mpv_command_pressed('cycle_audio')
-            elif function_name == 'channel_up':
-                channel_up_pressed()
-            elif function_name == 'channel_down':
-                channel_down_pressed()
-            elif function_name == 'navigation_up':
-                nav_key_pressed('navigation_up', 'PageUp')
-            elif function_name == 'navigation_down':
-                nav_key_pressed('navigation_down', 'PageDown')
-            elif function_name == 'navigation_left':
-                nav_key_pressed('navigation_left', 'NavLeft')
-            elif function_name == 'navigation_right':
-                nav_key_pressed('navigation_right', 'NavRight')
-            elif function_name == 'confirm':
-                nav_key_pressed('confirm', 'Enter')
-            elif function_name == 'last_channel':
-                last_channel_pressed()
-            elif function_name == 'power_stop':
-                if USE_SYSTEMCTL:
-                    toggle_services()
-                else:
-                    end_pressed()
-            elif function_name == 'exit':
-                print("Exiting remote controller...")
-                return False
-            break
-
-    if key_name in exec_mappings:
+def load_settings() -> Dict:
+    if os.path.exists(SETTINGS_FILE):
+        print(f"Loading settings from {SETTINGS_FILE}")
         try:
-            print("Executing key callback: ", exec_mappings[key_name])
-            os.system(exec_mappings[key_name])
+            with open(SETTINGS_FILE, 'r') as file:
+                remote_settings = json.load(file)
+            if remote_settings.get("key_mappings") is not None:
+                print("Loading KEY_MAPPINGS from file")
+                return remote_settings["key_mappings"]
         except Exception as e:
-            print("Error executing key callback")
-            print(e)
-
-    return True
+            print(f"Error loading settings from file: {e}")
+    return {}
 
 
-def handle_key_event(event):
-    """Handle key press events from evdev"""
-    if event.type == ecodes.EV_KEY and event.value == 1:  # Key press (not release)
-        key_code = event.code
-
-        # Number keys (1-9, 0) - always handled the same way
-        if key_code >= ecodes.KEY_1 and key_code <= ecodes.KEY_9:
-            number = key_code - ecodes.KEY_1 + 1
-            number_pressed(number)
-            return True
-        elif key_code == ecodes.KEY_0:
-            number_pressed(0)
-            return True
-        elif key_code in (ecodes.KEY_ENTER, ecodes.KEY_KPENTER):
-            global channel_input_timer
-            with input_lock:
-                confirming = bool(channel_input)
-                if confirming and channel_input_timer:
-                    channel_input_timer.cancel()
-                    channel_input_timer = None
-            if confirming:
-                send_channel_change()
-                return True
-
-        # Get the key name and check if it's mapped to a function
-        if key_code == ecodes.KEY_KPENTER:
-            key_name = 'enter'
-        else:
-            key_name = get_key_name_from_code(key_code)
-        if not key_name:
-            print(f"DEBUG: Unknown key code: {key_code}")
-            return True
-
-        print(f"DEBUG: Key pressed: {key_name} (code: {key_code})")
-        return handle_key_name(key_name)
-
-    return True
+def main(base_remote: BaseRemote,
+         api: _FieldStationApi,
+         timer: _NumberTimer = _NumberTimer()):
+    remote = RemoteControl(base_remote, api, timer)
+    base_remote.run_forever()
+    return remote
 
 
-def test_mode():
-    """Run in test mode using stdin for input (for WSL/development)"""
-    print("\n" + "="*60)
-    print("TEST MODE - Running without input device")
-    print("="*60)
-    print("\nAvailable commands:")
-    print("  0-9: Channel selection")
-    print("  h: Home/Guide")
-    print("  u: Channel up")
-    print("  d: Channel down")
-    print("  l: Volume down (left)")
-    print("  r: Volume up (right)")
-    print("  m: Mute")
-    print("  b: Last channel")
-    print("  e: Power/End (toggle services)")
-    print("  q: Quit")
-    print("\nType a command and press Enter:")
-    print("="*60 + "\n")
-
-    while True:
-        try:
-            cmd = input("> ").strip().lower()
-
-            if not cmd:
-                continue
-
-            # Handle numbers
-            if cmd.isdigit():
-                for digit in cmd:
-                    number_pressed(int(digit))
-                continue
-
-            # Map single character commands to key names
-            key_map = {
-                'h': 'home',
-                'u': 'up',
-                'd': 'down',
-                'l': 'left',
-                'r': 'right',
-                'm': 'm',
-                'b': 'backspace',
-                'e': 'end',
-                'q': 'esc',
-            }
-
-            key_name = key_map.get(cmd)
-            if key_name:
-                if not handle_key_name(key_name):
-                    break
-            else:
-                print(f"Unknown command: {cmd}")
-
-        except KeyboardInterrupt:
-            print("\nExiting remote controller...")
-            break
-        except EOFError:
-            break
-
-
-def listen_all_devices():
-    """Listen for key events from all available input devices."""
-    devices = {}
-
-    try:
-        while True:
-            # Discover newly connected devices
-            for device_path in glob.glob('/dev/input/event*'):
-                if device_path in devices:
-                    continue
-
-                try:
-                    device = InputDevice(device_path)
-
-                    if ecodes.EV_KEY not in device.capabilities():
-                        continue
-
-                    device.grab()
-                    devices[device_path] = device
-
-                    print(f"Listening to device: {device.name} ({device.path})")
-
-                except (OSError, PermissionError):
-                    # Device may have disconnected between glob() and InputDevice()
-                    continue
-
-            if not devices or len(devices) == 0:
-                print("No keyboard/remote devices found. Waiting...")
-                time.sleep(5)
-                continue
-
-            try:
-                readable, _, _ = select.select(
-                    list(devices.values()),
-                    [],
-                    [],
-                    1.0
-                )
-
-                for device in readable:
-                    try:
-                        for event in device.read():
-                            if not handle_key_event(event):
-                                return
-
-                    except FileNotFoundError:
-                        print(f"Input device missing: {device.name}")
-
-                        try:
-                            device.ungrab()
-                        except OSError:
-                            pass
-
-                        devices.pop(device.path, None)
-
-                    except OSError as e:
-                        if e.errno == 19 or e.errno == 2:
-                            print(f"Input device disconnected: {device.name}")
-
-                            try:
-                                device.ungrab()
-                            except OSError:
-                                pass
-
-                            devices.pop(device.path, None)
-                        else:
-                            raise
-
-            except FileNotFoundError:
-                # A device disconnected while select/read was operating.
-                continue
-
-    except PermissionError:
-        print("Permission denied. Try running with sudo.")
-        sys.exit(1)
-
-    except KeyboardInterrupt:
-        print("\nExiting remote controller...")
-
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-
-    finally:
-        # Release devices
-        for device in devices.values():
-            try:
-                device.ungrab()
-            except OSError:
-                pass
-
-
-def main():
+if __name__ == "__main__":
     """Main function to start the input device listener"""
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
@@ -874,6 +806,7 @@ Device specification examples:
   -d flirc                  Use first device with 'flirc' in its name
   -d keyboard               Use first device with 'keyboard' in its name
   -d test                   Run test mode
+  -d hdmi                   Use HDMI-CEC to receive messages from TV.
   -d all                    Listen to all keyboard/remote input devices
 
 Environment variables:
@@ -899,48 +832,63 @@ Environment variables:
     # Get device spec from args or environment variable
     device_spec = args.device or os.getenv('FS42_INPUT_DEVICE')
 
-    print(f"Remote Controller started. Connecting to {FS42_BASE_URL}")
+    fs_api = _FieldStationApi()
+    print(f"Remote Controller started. Connecting to {fs_api.FS42_BASE_URL}")
 
     # If --list-devices, just show devices and exit
     if args.list_devices:
         find_input_device(device_spec)
-        return
+        exit(0)
 
-    # Handle input modes
-    if device_spec == "test":
-        test_mode()
-        return
-
+    run_once = False
     if device_spec == "all":
-        print("Using all keyboard/remote input devices")
-        listen_all_devices()
-        return
-
+        logging.info("Using all keyboard/remote input devices")
+        device_path = "all"
     # Find single input device
-    device_path = find_input_device(device_spec)
+    elif device_spec == "test":
+        device_path = "test"
+        run_once = True
+    elif device_spec == "hdmi":
+        device_path = "hdmi"
+        run_once = True
+    else:
+        device_path = find_input_device(device_spec)
 
     print("Press ESC to exit.")
-    
+
     first_run = True
     while True:
         try:
-            if not device_path:
-                print("Selected input not found. Retrying in 5 seconds...")
-                time.sleep(5)
-                # Check if the device has reconnected
-                device_path = find_input_device(device_spec)
-
+            if device_path == "all":
+                remote_input = FlircRemoteAllDevices(load_settings())
+            elif device_path == "hdmi":
+                remote_input = HdmiCecRemote()
+            elif device_path == "test":
+                remote_input = TestModeRemote()
+            else:
                 if not device_path:
-                    continue
+                    print("Selected input not found. Retrying in 5 seconds...")
+                    time.sleep(5)
+                    # Check if the device has reconnected
+                    device_path = find_input_device(device_spec)
 
-            device = InputDevice(device_path)
+                    if not device_path:
+                        continue
 
-            print(f"Listening for remote control commands from: {device.name}")
+                device = InputDevice(device_path)
+                print(f"Listening for remote control commands from: {device.name}")
+                remote_input = FlircRemote(device, load_settings())
 
             # Main event loop
-            for event in device.read_loop():
-                if not handle_key_event(event):
-                    return
+            main(remote_input, fs_api)
+
+        except FileNotFoundError:
+            print("Input device missing. Waiting for reconnection...")
+            time.sleep(5)
+
+        except PermissionError:
+            print("Permission denied. Try running with: sudo python3 remote_controller.py")
+            sys.exit(1)
 
         except OSError as e:
             # Bluetooth disconnect / USB unplug / device vanished
@@ -951,43 +899,13 @@ Environment variables:
                 print(f"Device error: {e}")
                 time.sleep(5)
 
-        except FileNotFoundError:
-            print("Input device missing. Waiting for reconnection...")
-            time.sleep(5)
-
-        except PermissionError:
-            print("Permission denied. Try running with: sudo python3 remote_controller.py")
-            sys.exit(1)
-
         except KeyboardInterrupt:
             print("\nExiting remote controller...")
             sys.exit(1)
-            
-        except Exception as e:
-            print(f"Error: {e}")
+
+        except Exception as ex:
+            print(f"Error: {ex}")
             sys.exit(1)
 
-
-
-def mpv_command_pressed(action):
-    """Send a non-interrupting mpv runtime command to FS42."""
-    if not should_allow_press(action):
-        return
-
-    endpoint = action.replace("_", "-")
-
-    try:
-        response = api.post(
-            f'{FS42_BASE_URL}/player/mpv/{endpoint}',
-            timeout=2
-        )
-
-        if response.ok:
-            print(f"MPV command sent: {action}")
-        else:
-            print(f"MPV command failed: {action} ({response.status_code})")
-    except Exception as e:
-        print(f"MPV command error for {action}: {e}")
-
-if __name__ == "__main__":
-    main()
+        if run_once:
+            sys.exit(0)
